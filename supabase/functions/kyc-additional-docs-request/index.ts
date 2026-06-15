@@ -10,26 +10,26 @@ import { violetShell, violetEsc } from "../_shared/violetEmailShell.ts";
 
 interface Body {
   identity_record_id: string;
-  document_requested: string; // "Permis de conduire" | "Passeport" | "Carte d'identitÃ©" | "Autre"
+  document_requested: string; // "Permis de conduire" | "Passeport" | "Carte d'identité" | "Autre"
   note: string;
 }
 
 function buildEmail(firstName: string, orderNumber: string, doc: string, note: string) {
   return violetShell({
-    preheader: "Document supplÃ©mentaire requis pour finaliser votre vÃ©rification.",
+    preheader: "Document supplémentaire requis pour finaliser votre vérification.",
     badge: "DOCUMENT REQUIS",
-    heroTitle: "Document supplÃ©mentaire demandÃ©",
+    heroTitle: "Document supplémentaire demandé",
     heroSub: "Quelques minutes suffisent pour le soumettre.",
     greeting: `Bonjour ${violetEsc(firstName) || "client"},`,
     bodyHtml:
-      `Pour finaliser la vÃ©rification de votre identitÃ© sur la commande ` +
-      `<strong>#${violetEsc(orderNumber)}</strong>, notre Ã©quipe a besoin du document suivant : ` +
+      `Pour finaliser la vérification de votre identité sur la commande ` +
+      `<strong>#${violetEsc(orderNumber)}</strong>, notre équipe a besoin du document suivant : ` +
       `<strong>${violetEsc(doc)}</strong>.` +
       (note ? `<br/><br/><em>${violetEsc(note)}</em>` : ""),
-    cardTitle: "DÃ©tails",
+    cardTitle: "Détails",
     cardRows: [
       ["Commande", `#${violetEsc(orderNumber)}`],
-      ["Document demandÃ©", violetEsc(doc)],
+      ["Document demandé", violetEsc(doc)],
       ["Date", new Date().toLocaleDateString("fr-CA", { dateStyle: "long" })],
     ],
     ctaPrimaryUrl: "https://nivra-telecom.ca/portal/identity-verification",
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const noteLine = `[${new Date().toISOString().slice(0, 10)}] Documents supplÃ©mentaires demandÃ©s (${body.document_requested}): ${body.note || "â€”"}`;
+    const noteLine = `[${new Date().toISOString().slice(0, 10)}] Documents supplémentaires demandés (${body.document_requested}): ${body.note || "â€”"}`;
 
     const { error: updErr } = await supabase
       .from("order_identity_data")
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       try {
         await enqueueEmail({
           to: clientEmail,
-          subject: "Document supplÃ©mentaire requis â€” Nivra Telecom",
+          subject: "Document supplémentaire requis â€” Nivra Telecom",
           html: buildEmail(firstName, orderNumber, body.document_requested, body.note || ""),
           messageType: "kyc_additional_docs_request",
           entityType: "order_identity_data",
@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
       entity_type: "order_identity_data",
       entity_id: rec.id,
       action: "kyc_additional_docs_requested",
-      reason: `Document demandÃ©: ${body.document_requested}${body.note ? " â€” " + body.note : ""}`,
+      reason: `Document demandé: ${body.document_requested}${body.note ? " â€” " + body.note : ""}`,
     });
 
     return new Response(JSON.stringify({ success: true, status: "additional_docs_required" }), {

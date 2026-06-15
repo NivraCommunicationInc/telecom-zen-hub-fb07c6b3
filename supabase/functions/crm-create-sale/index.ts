@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
 
     const totalFirstMonthCredit = Number((firstMonthCredit + welcomeFirstMonth).toFixed(2));
     const monthlyAfterDiscount = Number(Math.max(0, monthly - monthlyDiscountAmount).toFixed(2));
-    // First invoice = forfait (aprÃ¨s rabais agent) âˆ’ crÃ©dit premier mois + Ã©quipement
+    // First invoice = forfait (après rabais agent) âˆ’ crédit premier mois + équipement
     const firstMonthBillable = Number(Math.max(0, monthlyAfterDiscount - totalFirstMonthCredit).toFixed(2));
     const subtotal = Number((firstMonthBillable + equipTotal).toFixed(2));
     const tps = Number((subtotal * 0.05).toFixed(2));
@@ -623,7 +623,7 @@ Deno.serve(async (req) => {
         contact_id: payload.contact_id,
         agent_id: user.id,
         outcome: "sold",
-        notes: `Vente complÃ©tÃ©e â€” commande ${orderNumber}`,
+        notes: `Vente complétée â€” commande ${orderNumber}`,
       });
     } catch (_) { /* ignore */ }
 

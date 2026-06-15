@@ -141,7 +141,7 @@ serve(async (req) => {
     }
 
     if (!unsubscribeToken) {
-      return new Response(JSON.stringify({ error: "Impossible de gÃ©nÃ©rer le token de dÃ©sabonnement" }), {
+      return new Response(JSON.stringify({ error: "Impossible de générer le token de désabonnement" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -190,7 +190,7 @@ serve(async (req) => {
 
     if (monthlyLines.length > 0) {
       servicesHtml += `
-        <p style="color: ${colors.textMuted}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin: 16px 0 8px 0;">Services mensuels rÃ©currents</p>
+        <p style="color: ${colors.textMuted}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin: 16px 0 8px 0;">Services mensuels récurrents</p>
         <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
           ${buildServiceRows(monthlyLines, "/mois")}
         </table>
@@ -242,10 +242,10 @@ serve(async (req) => {
         ` : ""}
         ${infoRow("Taxes (TPS + TVQ)", formatCurrencySimple(Number(quote.taxes_total || 0)))}
       </table>
-      ${amountBox("Total dÃ» maintenant", formatCurrencySimple(Number(quote.total_due_now || 0)))}
+      ${amountBox("Total dû maintenant", formatCurrencySimple(Number(quote.total_due_now || 0)))}
       <div style="margin-top: 12px; padding: 12px 16px; background-color: ${colors.primaryLight}; border-radius: 6px; text-align: center;">
         <span style="color: ${colors.primary}; font-size: 14px; font-weight: 600;">
-          Mensuel rÃ©current : ${formatCurrencySimple(Number(quote.total_monthly || 0))} /mois
+          Mensuel récurrent : ${formatCurrencySimple(Number(quote.total_monthly || 0))} /mois
         </span>
       </div>
     `;
@@ -268,12 +268,12 @@ serve(async (req) => {
     // Full email content
     const emailContent = `
       ${header()}
-      ${statusBanner("info", "ðŸ“‹", "Votre soumission est prÃªte", `Soumission ${escapeHtml(quote.quote_number)}`)}
+      ${statusBanner("info", "ðŸ“‹", "Votre soumission est prête", `Soumission ${escapeHtml(quote.quote_number)}`)}
       ${contentWrapper(`
         ${greeting(clientName)}
-        ${bodyText("Nous avons prÃ©parÃ© une soumission personnalisÃ©e pour vos services de tÃ©lÃ©communications. Consultez les dÃ©tails ci-dessous et accÃ©dez Ã  votre soumission en ligne pour l'accepter.")}
+        ${bodyText("Nous avons préparé une soumission personnalisée pour vos services de télécommunications. Consultez les détails ci-dessous et accédez Ã  votre soumission en ligne pour l'accepter.")}
         
-        ${sectionHeader("DÃ©tail des services")}
+        ${sectionHeader("Détail des services")}
         ${servicesHtml}
         ${adjustmentsHtml}
         ${totalsHtml}
@@ -306,25 +306,25 @@ serve(async (req) => {
       const checkoutUrl = `${appBaseUrl}/quote-checkout?token=${checkoutToken}`;
 
       finalSubject = `Finalisez votre commande â€” Soumission ${quote.quote_number || ""}`;
-      const preheader = `ComplÃ©tez votre soumission ${quote.quote_number} pour activer vos services.`;
+      const preheader = `Complétez votre soumission ${quote.quote_number} pour activer vos services.`;
       
       const checkoutContent = `
         ${header()}
-        ${statusBanner("info", "âœ…", "Soumission acceptÃ©e", `Soumission ${escapeHtml(quote.quote_number)}`)}
+        ${statusBanner("info", "âœ…", "Soumission acceptée", `Soumission ${escapeHtml(quote.quote_number)}`)}
         ${contentWrapper(`
           ${greeting(clientName)}
-          ${bodyText("Votre soumission a Ã©tÃ© acceptÃ©e! Pour complÃ©ter votre commande, veuillez remplir le formulaire de finalisation ci-dessous.")}
+          ${bodyText("Votre soumission a été acceptée! Pour compléter votre commande, veuillez remplir le formulaire de finalisation ci-dessous.")}
           
-          ${sectionHeader("RÃ©sumÃ©")}
-          ${amountBox("Total dÃ» maintenant", formatCurrencySimple(Number(quote.total_due_now || 0)))}
+          ${sectionHeader("Résumé")}
+          ${amountBox("Total dû maintenant", formatCurrencySimple(Number(quote.total_due_now || 0)))}
           <div style="margin-top: 12px; padding: 12px 16px; background-color: ${colors.primaryLight}; border-radius: 6px; text-align: center;">
             <span style="color: ${colors.primary}; font-size: 14px; font-weight: 600;">
-              Mensuel rÃ©current : ${formatCurrencySimple(Number(quote.total_monthly || 0))} /mois
+              Mensuel récurrent : ${formatCurrencySimple(Number(quote.total_monthly || 0))} /mois
             </span>
           </div>
           
           <div style="margin-top: 32px; text-align: center;">
-            ${button("ComplÃ©ter ma commande", checkoutUrl)}
+            ${button("Compléter ma commande", checkoutUrl)}
             <p style="color: ${colors.textMuted}; font-size: 12px; margin: 12px 0 0 0;">
               Ou copiez ce lien : <a href="${checkoutUrl}" style="color: ${colors.primary}; word-break: break-all;">${checkoutUrl}</a>
             </p>
@@ -340,7 +340,7 @@ serve(async (req) => {
     } else {
       // Standard quote email
       finalSubject = `Soumission ${quote.quote_number} â€” Nivra Telecom`;
-      const preheader = `Votre soumission ${quote.quote_number} est prÃªte. Total : ${formatCurrencySimple(Number(quote.total_due_now || 0))}`;
+      const preheader = `Votre soumission ${quote.quote_number} est prête. Total : ${formatCurrencySimple(Number(quote.total_due_now || 0))}`;
       finalHtml = emailDocument(finalSubject, preheader, emailContent);
       finalText = htmlToPlainText(finalHtml) || `Soumission ${quote.quote_number} â€” Total ${formatCurrencySimple(Number(quote.total_due_now || 0))}`;
       label = "quote_sent";
@@ -402,7 +402,7 @@ serve(async (req) => {
       event_type: eventType,
       actor_user_id: user.id,
       actor_role: "staff",
-      message: `Courriel envoyÃ© Ã  ${recipientEmail}`,
+      message: `Courriel envoyé Ã  ${recipientEmail}`,
       metadata: { recipient: recipientEmail, message_id: messageId },
     });
 

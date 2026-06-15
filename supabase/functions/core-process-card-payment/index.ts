@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     // Verify admin role
     const { data: isAdmin } = await admin.rpc("has_role", { _user_id: adminId, _role: "admin" });
     if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "RÃ©servÃ© aux administrateurs" }), { status: 403, headers });
+      return new Response(JSON.stringify({ error: "Réservé aux administrateurs" }), { status: 403, headers });
     }
 
     const body = await req.json();
@@ -130,10 +130,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Intention de paiement introuvable" }), { status: 404, headers });
     }
     if (cpi.status === "processed") {
-      return new Response(JSON.stringify({ error: "DÃ©jÃ  traitÃ©e" }), { status: 409, headers });
+      return new Response(JSON.stringify({ error: "DéjÃ  traitée" }), { status: 409, headers });
     }
     if (new Date(cpi.expires_at).getTime() < Date.now()) {
-      return new Response(JSON.stringify({ error: "DonnÃ©es expirÃ©es (48 h dÃ©passÃ©es)" }), { status: 410, headers });
+      return new Response(JSON.stringify({ error: "Données expirées (48 h dépassées)" }), { status: 410, headers });
     }
 
     // Decrypt card number
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       cardNumber = await decryptCard(cpi.encrypted_card_number, cpi.encryption_iv, cpi.encryption_auth_tag);
     } catch (e) {
       console.error("[core-process-card-payment] decrypt failed", e);
-      return new Response(JSON.stringify({ error: "DÃ©chiffrement impossible" }), { status: 500, headers });
+      return new Response(JSON.stringify({ error: "Déchiffrement impossible" }), { status: 500, headers });
     }
 
     // Mark as processing (best effort)
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
       const reason =
         ppJson?.details?.[0]?.description ||
         ppJson?.message ||
-        "Paiement refusÃ© par PayPal";
+        "Paiement refusé par PayPal";
       console.error("[core-process-card-payment] PayPal rejected", ppJson);
       await admin.from("card_payment_intents")
         .update({ status: "pending_processing" })
@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
       await admin.from("card_payment_intents")
         .update({ status: "pending_processing" })
         .eq("id", cardIntentId);
-      throw new Error((finRes.error as any)?.message || (finRes.data as any)?.error || "Paiement capturÃ©, mais crÃ©ation de commande Core Ã©chouÃ©e");
+      throw new Error((finRes.error as any)?.message || (finRes.data as any)?.error || "Paiement capturé, mais création de commande Core échouée");
     }
     resultOrderId = (finRes.data as any).order_id;
 

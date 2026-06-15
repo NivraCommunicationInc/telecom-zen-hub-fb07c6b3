@@ -19,8 +19,8 @@ interface CancellationEmailData {
 }
 
 const serviceTypeLabels: Record<string, string> = {
-  mobile: "Mobile", internet: "Internet", tv: "TÃ©lÃ©vision",
-  security: "SÃ©curitÃ©", streaming: "Streaming", bundle: "Forfait combinÃ©",
+  mobile: "Mobile", internet: "Internet", tv: "Télévision",
+  security: "sécurité", streaming: "Streaming", bundle: "Forfait combiné",
 };
 
 serve(async (req) => {

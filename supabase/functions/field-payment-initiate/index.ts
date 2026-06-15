@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Soumission introuvable" }), { status: 404, headers });
     }
     if (quote.agent_id !== agentId) {
-      return new Response(JSON.stringify({ error: "AccÃ¨s refusÃ©" }), { status: 403, headers });
+      return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
     }
     // Enforce amount matches the quote total (prevent under-charging fraud)
     if (Math.round(amount * 100) !== Math.round(Number(quote.total) * 100)) {

@@ -29,13 +29,13 @@ function buildKycEmailHtml(opts: {
     timeZone: "America/Toronto",
   });
   return violetShell({
-    preheader: "VÃ©rification d'identitÃ© requise pour activer votre service.",
-    badge: "VÃ‰RIFICATION REQUISE",
-    heroTitle: "VÃ©rification d'identitÃ© requise",
-    heroSub: "Pour activer votre service, nous devons vÃ©rifier votre identitÃ©.",
+    preheader: "Vérification d'identité requise pour activer votre service.",
+    badge: "VÉRIFICATION REQUISE",
+    heroTitle: "Vérification d'identité requise",
+    heroSub: "Pour activer votre service, nous devons vérifier votre identité.",
     greeting: `Bonjour ${opts.firstName || "client"},`,
-    bodyHtml: `Soumettez une piÃ¨ce d'identitÃ© valide (passeport, permis de conduire ou carte d'identitÃ©). La vÃ©rification se fait en moins de 2 minutes.`,
-    cardTitle: "DÃ©tails",
+    bodyHtml: `Soumettez une pièce d'identité valide (passeport, permis de conduire ou carte d'identité). La vérification se fait en moins de 2 minutes.`,
+    cardTitle: "Détails",
     cardRows: [
       ["Commande", `#${opts.orderNumber}`],
       ["Forfait", opts.planName],
@@ -44,7 +44,7 @@ function buildKycEmailHtml(opts: {
     ctaPrimaryUrl: opts.kycLink,
     ctaPrimaryLabel: "Soumettre mes documents",
     helpHtml:
-      `ðŸ”’ Vos documents sont chiffrÃ©s et supprimÃ©s automatiquement dÃ¨s que votre identitÃ© est validÃ©e. Aucune copie n'est conservÃ©e.`,
+      `ðŸ”’ Vos documents sont chiffrés et supprimés automatiquement dès que votre identité est validée. Aucune copie n'est conservée.`,
   });
 }
 
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
 
     await enqueueEmail({
       to: clientEmail,
-      subject: "VÃ©rification d'identitÃ© requise â€” Nivra Telecom",
+      subject: "Vérification d'identité requise â€” Nivra Telecom",
       html,
       messageType: "kyc_request",
       entityType: "kyc_request",
@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
       entity_type: "order",
       entity_id: order.id,
       action: "kyc_requested",
-      reason: `VÃ©rification d'identitÃ© demandÃ©e â€” envoyÃ©e Ã  ${clientEmail}`,
+      reason: `Vérification d'identité demandée â€” envoyée Ã  ${clientEmail}`,
     });
 
     return new Response(JSON.stringify({ success: true, kyc_request_id: kycReq.id, expires_at: kycReq.expires_at }), {

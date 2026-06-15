@@ -71,7 +71,7 @@ function normalizeServiceTypeLabel(services: any[]): string {
 function mapLineItemType(raw?: any): string {
   const v = String(raw || "").toLowerCase();
   if (v.includes("internet") || v.includes("fibre")) return "internet";
-  if (v.includes("tv") || v.includes("tele") || v.includes("tÃ©lÃ©")) return "tv";
+  if (v.includes("tv") || v.includes("tele") || v.includes("télé")) return "tv";
   if (v.includes("mobile") || v.includes("cell")) return "mobile";
   if (v.includes("stream")) return "streaming";
   if (v.includes("secur")) return "security";
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Non autorisÃ©' }),
+        JSON.stringify({ success: false, error: 'Non autorisé' }),
         { status: 401, headers: buildCorsHeaders(req) }
       );
     }
@@ -248,12 +248,12 @@ Deno.serve(async (req) => {
         const validationErrors: string[] = [];
         if (!sale.customer_name?.trim()) validationErrors.push("Nom du client manquant");
         if (!sale.customer_email?.trim()) validationErrors.push("Courriel du client manquant");
-        if (!sale.customer_phone?.trim()) validationErrors.push("TÃ©lÃ©phone du client manquant");
+        if (!sale.customer_phone?.trim()) validationErrors.push("Téléphone du client manquant");
         if (!sale.customer_address?.trim()) validationErrors.push("Adresse du client manquante");
-        if (!Array.isArray(sale.services) || sale.services.length === 0) validationErrors.push("Aucun service sÃ©lectionnÃ©");
+        if (!Array.isArray(sale.services) || sale.services.length === 0) validationErrors.push("Aucun service sélectionné");
         
         if (validationErrors.length > 0) {
-          const errorMsg = `Validation Ã©chouÃ©e: ${validationErrors.join(", ")}`;
+          const errorMsg = `Validation échouée: ${validationErrors.join(", ")}`;
           console.error(`[field-sales-sync] ${errorMsg}`);
           throw new Error(errorMsg);
         }
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
 
           if (createUserError || !createdUser?.user) {
             console.error("[field-sales-sync] createUser error:", createUserError);
-            throw new Error(createUserError?.message || "Impossible de crÃ©er le compte client");
+            throw new Error(createUserError?.message || "Impossible de créer le compte client");
           }
 
           clientUserId = createdUser.user.id;
@@ -555,7 +555,7 @@ Deno.serve(async (req) => {
               selected_channels: sale.selected_channels || [],
               equipment_details: wrapLineItemsForOrder(lineItems),
 
-              notes: `Vente terrain â€” Agent: ${agentName} (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTÃ©lÃ©phone: ${sale.customer_phone || 'â€”'}\nAdresse: ${sale.customer_address || 'â€”'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
+              notes: `Vente terrain â€” Agent: ${agentName} (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || 'â€”'}\nAdresse: ${sale.customer_address || 'â€”'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
               internal_notes: `[VENTE TERRAIN]\nPar: ${agentName} (${repProfile?.email || 'â€”'})\n${sale.internal_notes || ''}`.trim(),
             })
             .select('id, order_number, status')
@@ -741,7 +741,7 @@ Deno.serve(async (req) => {
             }
 
             // RULE 1 â€” Premier mois gratuit automatique UNIQUEMENT pour les
-            // clients qui n'ont jamais reÃ§u le rabais (vÃ©rifiÃ© via la fonction
+            // clients qui n'ont jamais reçu le rabais (vérifié via la fonction
             // canonique is_eligible_for_welcome_first_month).
             const discountData: any = (sale as any).discount_data;
             const agentDiscountIsFirstMonth =
@@ -1218,11 +1218,11 @@ Deno.serve(async (req) => {
           sync_status: 'pending',
           discount_data: quote.discount || null,
           source_quote_id: quote.id,
-          internal_notes: `Field quote ${quote.id} matÃ©rialisÃ©e automatiquement aprÃ¨s paiement PayPal`,
+          internal_notes: `Field quote ${quote.id} matérialisée automatiquement après paiement PayPal`,
         })
         .select('*')
         .single();
-      if (saleError || !sale) throw saleError ?? new Error('CrÃ©ation vente Field Ã©chouÃ©e');
+      if (saleError || !sale) throw saleError ?? new Error('Création vente Field échouée');
 
       const result = await syncSaleToOrders(sale);
       await supabaseAdmin.from('field_quotes').update({ status: 'converted', converted_order_id: result.orderId ?? null }).eq('id', quote.id);
@@ -1248,7 +1248,7 @@ Deno.serve(async (req) => {
       if (fetchError || !sale) {
         console.error('[field-sales-sync] Sale not found:', saleIdToSync, fetchError);
         return new Response(
-          JSON.stringify({ success: false, error: 'Vente non trouvÃ©e' }),
+          JSON.stringify({ success: false, error: 'Vente non trouvée' }),
           { status: 404, headers: buildCorsHeaders(req) }
         );
       }
@@ -1272,7 +1272,7 @@ Deno.serve(async (req) => {
       if (!internalCall && !isOwner && !adminRole) {
         console.error('[field-sales-sync] Unauthorized:', callerId);
         return new Response(
-          JSON.stringify({ success: false, error: 'Non autorisÃ©' }),
+          JSON.stringify({ success: false, error: 'Non autorisé' }),
           { status: 403, headers: buildCorsHeaders(req) }
         );
       }
@@ -1299,7 +1299,7 @@ Deno.serve(async (req) => {
 
       if (!adminRole) {
         return new Response(
-          JSON.stringify({ success: false, error: 'AccÃ¨s administrateur requis' }),
+          JSON.stringify({ success: false, error: 'Accès administrateur requis' }),
           { status: 403, headers: buildCorsHeaders(req) }
         );
       }

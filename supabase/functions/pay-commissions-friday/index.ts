@@ -44,8 +44,8 @@ function lastThursdayCutoffUTC(now: Date): Date {
   const thuEst = new Date(estNow);
   thuEst.setUTCDate(thuEst.getUTCDate() - back);
   thuEst.setUTCHours(18, 0, 0, 0);
-  // Convert back to real UTC.
-  return new Date(thuEst.getTime() + EST_OFFSET_HOURS * 3600_000);
+  // Convert back to real UTC using dynamic offset (handles EDT/EST).
+  return new Date(thuEst.getTime() + getTorontoOffsetHours(thuEst) * 3600_000);
 }
 
 /**
@@ -57,7 +57,7 @@ function periodStartUTC(cutoffUTC: Date): Date {
   const sun = new Date(est);
   sun.setUTCDate(sun.getUTCDate() - dow);
   sun.setUTCHours(0, 0, 0, 0);
-  return new Date(sun.getTime() + EST_OFFSET_HOURS * 3600_000);
+  return new Date(sun.getTime() + getTorontoOffsetHours(sun) * 3600_000);
 }
 
 /**

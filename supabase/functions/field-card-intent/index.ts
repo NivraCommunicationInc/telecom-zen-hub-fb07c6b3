@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
 
     // Validation
     if (!quoteId) return new Response(JSON.stringify({ ok: false, error: "quote_id requis" }), { status: 200, headers });
-    if (!luhn(cardNumber)) return new Response(JSON.stringify({ ok: false, error: "NumÃ©ro de carte invalide" }), { status: 200, headers });
+    if (!luhn(cardNumber)) return new Response(JSON.stringify({ ok: false, error: "Numéro de carte invalide" }), { status: 200, headers });
     if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) return new Response(JSON.stringify({ ok: false, error: "Date d'expiration invalide (MM/YY)" }), { status: 200, headers });
     if (!/^\d{3,4}$/.test(cvv)) return new Response(JSON.stringify({ ok: false, error: "CVV invalide" }), { status: 200, headers });
     if (!cardName) return new Response(JSON.stringify({ ok: false, error: "Nom sur la carte requis" }), { status: 200, headers });

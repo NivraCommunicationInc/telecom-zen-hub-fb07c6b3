@@ -55,7 +55,7 @@ const fmtStatus = (status: string): string => {
 const typeLabel = (cat: string): string => {
   const key = (cat || "").toLowerCase();
   if (["internet", "mobile", "tv", "security", "service", "recurring"].includes(key)) return "Service";
-  if (["equipment", "phone"].includes(key)) return "Ã‰quipement";
+  if (["equipment", "phone"].includes(key)) return "Équipement";
   if (["fee", "fees", "frais"].includes(key)) return "Frais";
   if (["adjustment", "ajustement", "proration", "prorata"].includes(key)) return "Ajustement";
   if (["discount", "rabais", "credit", "promo"].includes(key)) return "Rabais";

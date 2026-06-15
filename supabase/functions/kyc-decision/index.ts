@@ -15,16 +15,16 @@ interface Body {
 
 function approvalEmail(firstName: string, orderNumber: string) {
   return violetShell({
-    preheader: "Votre identitÃ© a Ã©tÃ© vÃ©rifiÃ©e avec succÃ¨s.",
-    badge: "IDENTITÃ‰ VÃ‰RIFIÃ‰E",
-    heroTitle: "Votre identitÃ© a Ã©tÃ© vÃ©rifiÃ©e",
+    preheader: "Votre identité a été vérifiée avec succès.",
+    badge: "IDENTITÉ VÉRIFIÉE",
+    heroTitle: "Votre identité a été vérifiée",
     heroSub: "Votre dossier est complet.",
     greeting: `Bonjour ${firstName || "client"},`,
-    bodyHtml: `Votre identitÃ© a Ã©tÃ© <strong>validÃ©e avec succÃ¨s</strong>. Votre commande peut dÃ©sormais Ãªtre traitÃ©e normalement.`,
-    cardTitle: "DÃ©tails",
+    bodyHtml: `Votre identité a été <strong>validée avec succès</strong>. Votre commande peut désormais être traitée normalement.`,
+    cardTitle: "Détails",
     cardRows: [
       ["Commande", `#${orderNumber}`],
-      ["Statut", "ApprouvÃ©"],
+      ["Statut", "Approuvé"],
       ["Date", new Date().toLocaleDateString("fr-CA", { dateStyle: "long" })],
     ],
   });
@@ -32,12 +32,12 @@ function approvalEmail(firstName: string, orderNumber: string) {
 
 function rejectionEmail(firstName: string, orderNumber: string, reason: string) {
   return violetShell({
-    preheader: "Votre document d'identitÃ© n'a pas Ã©tÃ© acceptÃ©.",
+    preheader: "Votre document d'identité n'a pas été accepté.",
     badge: "ACTION REQUISE",
-    heroTitle: "Document d'identitÃ© refusÃ©",
+    heroTitle: "Document d'identité refusé",
     greeting: `Bonjour ${firstName || "client"},`,
-    bodyHtml: `La piÃ¨ce d'identitÃ© soumise pour la commande <strong>#${orderNumber}</strong> n'a pas pu Ãªtre validÃ©e.`,
-    cardTitle: "DÃ©tails",
+    bodyHtml: `La pièce d'identité soumise pour la commande <strong>#${orderNumber}</strong> n'a pas pu être validée.`,
+    cardTitle: "Détails",
     cardRows: [
       ["Commande", `#${orderNumber}`],
       ["Raison", reason || "Document non valide"],
@@ -108,8 +108,8 @@ Deno.serve(async (req) => {
       await enqueueEmail({
         to: kycReq.client_email,
         subject: body.decision === "approve"
-          ? "Votre identitÃ© a Ã©tÃ© vÃ©rifiÃ©e â€” Nivra Telecom"
-          : "Document d'identitÃ© refusÃ© â€” Nivra Telecom",
+          ? "Votre identité a été vérifiée â€” Nivra Telecom"
+          : "Document d'identité refusé â€” Nivra Telecom",
         html: body.decision === "approve"
           ? approvalEmail(firstName, orderNumber)
           : rejectionEmail(firstName, orderNumber, body.rejection_reason || ""),
@@ -128,8 +128,8 @@ Deno.serve(async (req) => {
       entity_id: kycReq.order_id,
       action: `kyc_${newStatus}`,
       reason: body.decision === "approve"
-        ? "VÃ©rification d'identitÃ© approuvÃ©e"
-        : `VÃ©rification d'identitÃ© rejetÃ©e â€” ${body.rejection_reason || "Non spÃ©cifiÃ©"}`,
+        ? "Vérification d'identité approuvée"
+        : `Vérification d'identité rejetée â€” ${body.rejection_reason || "Non spécifié"}`,
     });
 
     return new Response(JSON.stringify({ success: true, status: newStatus }), {

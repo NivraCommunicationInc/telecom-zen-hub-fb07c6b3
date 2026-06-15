@@ -204,7 +204,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         service_name: planName, plan_name: planName,
-        suspension_date: nowIso, reason: "Solde impayÃ© â€” test d'audit",
+        suspension_date: nowIso, reason: "Solde impayé â€” test d'audit",
         amount_due: invoiceAmount,
         invoice_numbers: [invoiceNumber],
         reactivation_fee: 15,
@@ -262,7 +262,7 @@ Deno.serve(async (req: Request) => {
         order_number: orderNumber,
         items: [{ description: "Routeur Nivra", serial_number: "SN-12345678" }],
         return_deadline: nowIso,
-        return_address: "1799 Av. Pierre-PÃ©ladeau",
+        return_address: "1799 Av. Pierre-Péladeau",
         return_city: "Laval", return_province: "QC", return_postal: "H7T 2Y5",
         non_return_fee: 60,
         issue_date: nowIso,
@@ -314,7 +314,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         complaint_received_date: nowIso,
-        complaint_summary: "Demande de vÃ©rification â€” test d'audit",
+        complaint_summary: "Demande de vérification â€” test d'audit",
         case_number: `PLT-${orderNumber}`, expected_resolution_date: nowIso,
         issue_date: nowIso,
       }],
@@ -323,8 +323,8 @@ Deno.serve(async (req: Request) => {
         client_name: clientName, client_email: clientEmail, client_phone: clientPhone,
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
-        authorized_amount: invoiceAmount, payment_method: order.payment_method || "Carte de crÃ©dit",
-        capture_deadline: nowIso, purpose: "PrÃ©-autorisation de paiement â€” test d'audit",
+        authorized_amount: invoiceAmount, payment_method: order.payment_method || "Carte de crédit",
+        capture_deadline: nowIso, purpose: "Pré-autorisation de paiement â€” test d'audit",
         issue_date: nowIso,
       }],
       ["payment_method_change", "19_Changement_Paiement", {
@@ -340,7 +340,7 @@ Deno.serve(async (req: Request) => {
         notice_number: `ADR-${orderNumber}`,
         client_name: clientName, client_email: clientEmail, client_phone: clientPhone,
         account_number: accountNumber,
-        old_address: "123 Ancienne Rue", old_city: "MontrÃ©al", old_province: "QC", old_postal: "H2X 1Y3",
+        old_address: "123 Ancienne Rue", old_city: "Montréal", old_province: "QC", old_postal: "H2X 1Y3",
         new_address: clientAddress, new_city: clientCity, new_province: clientProvince, new_postal: clientPostal,
         effective_date: nowIso, service_continuity: "no_interruption",
         issue_date: nowIso,
@@ -385,10 +385,10 @@ Deno.serve(async (req: Request) => {
 <h2>Audit PDF â€” Tous les gabarits</h2>
 <p><b>Commande:</b> ${orderNumber} &nbsp;|&nbsp; <b>Client:</b> ${clientName} &nbsp;|&nbsp; <b>Courriel:</b> ${clientEmail}</p>
 <p><b>Facture:</b> ${invoiceNumber} &nbsp;|&nbsp; <b>Contrat:</b> ${contractNumber}</p>
-<p><b>${attachments.length} PDF${attachments.length > 1 ? "s" : ""} gÃ©nÃ©rÃ©s sur ${autoDocTypes.length + 4} gabarits.</b></p>
-${errList ? `<h3>Erreurs (${Object.values(results).filter((r) => r !== "OK").length})</h3><ul>${errList}</ul>` : "<p>âœ… Tous les gabarits gÃ©nÃ©rÃ©s sans erreur.</p>"}
+<p><b>${attachments.length} PDF${attachments.length > 1 ? "s" : ""} générés sur ${autoDocTypes.length + 4} gabarits.</b></p>
+${errList ? `<h3>Erreurs (${Object.values(results).filter((r) => r !== "OK").length})</h3><ul>${errList}</ul>` : "<p>âœ… Tous les gabarits générés sans erreur.</p>"}
 <hr/>
-<p style="font-size:11px;color:#888;">GÃ©nÃ©rÃ© par send-pdf-audit-all â€” ${new Date().toLocaleString("fr-CA")}</p>
+<p style="font-size:11px;color:#888;">Généré par send-pdf-audit-all â€” ${new Date().toLocaleString("fr-CA")}</p>
     `.trim();
 
     const emailResult = await sendViaResend(

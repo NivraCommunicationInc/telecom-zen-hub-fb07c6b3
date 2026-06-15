@@ -30,7 +30,7 @@ const baseParams = {
 
 // Sample data for templates
 const sampleData = {
-  clientName: "Jean-FranÃ§ois Tremblay",
+  clientName: "Jean-François Tremblay",
   clientEmail: "jf.tremblay@example.com",
   accountNumber: "NVR-2024-0001234",
   orderNumber: "CMD-2024-0567",
@@ -44,8 +44,8 @@ const getTemplates = () => [
   // ============ MARKETING (8) ============
   {
     category: "01 - MARKETING",
-    name: "DÃ©couvrez Nivra",
-    subject: "ðŸ“§ [Preview] DÃ©couvrez Nivra TÃ©lÃ©com",
+    name: "Découvrez Nivra",
+    subject: "ðŸ“§ [Preview] Découvrez Nivra Télécom",
     html: marketing.discoverNivra({ ...baseParams, recipientName: sampleData.clientName }),
   },
   {
@@ -62,7 +62,7 @@ const getTemplates = () => [
   },
   {
     category: "01 - MARKETING",
-    name: "Campagne saisonniÃ¨re",
+    name: "Campagne saisonnière",
     subject: "ðŸ“§ [Preview] Campagne Black Friday",
     html: marketing.seasonalCampaign({
       ...baseParams,
@@ -71,15 +71,15 @@ const getTemplates = () => [
       campaignSubtitle: "Jusqu'Ã  70% de rabais!",
       bannerIcon: "ðŸ–¤",
       offerTitle: "Offre Black Friday Exclusive",
-      offerDescription: "Profitez de nos meilleurs prix de l'annÃ©e sur tous les forfaits mobiles!",
+      offerDescription: "Profitez de nos meilleurs prix de l'année sur tous les forfaits mobiles!",
       promoCode: "BLACK70",
       expiryDate: "30 novembre 2024",
     }),
   },
   {
     category: "01 - MARKETING",
-    name: "Panier abandonnÃ©",
-    subject: "ðŸ“§ [Preview] Panier abandonnÃ©",
+    name: "Panier abandonné",
+    subject: "ðŸ“§ [Preview] Panier abandonné",
     html: marketing.abandonedCart({
       ...baseParams,
       recipientName: sampleData.clientName,
@@ -98,10 +98,10 @@ const getTemplates = () => [
       ...baseParams,
       recipientName: sampleData.clientName,
       subject: "Nouvelles du mois",
-      previewText: "DÃ©couvrez nos nouveautÃ©s!",
+      previewText: "Découvrez nos nouveautés!",
        sections: [
-         { title: "Nouveau: Forfait IllimitÃ©+", content: "Nous lanÃ§ons notre forfait le plus gÃ©nÃ©reux avec donnÃ©es illimitÃ©es!", ctaText: "Voir le forfait", ctaUrl: "https://nivra-telecom.ca/mobile" },
-         { title: "Couverture Ã©tendue", content: "Notre rÃ©seau couvre maintenant 99% du territoire quÃ©bÃ©cois.", ctaText: "Voir la carte", ctaUrl: "https://nivra-telecom.ca/coverage" },
+         { title: "Nouveau: Forfait Illimité+", content: "Nous lançons notre forfait le plus généreux avec données illimitées!", ctaText: "Voir le forfait", ctaUrl: "https://nivra-telecom.ca/mobile" },
+         { title: "Couverture étendue", content: "Notre réseau couvre maintenant 99% du territoire québécois.", ctaText: "Voir la carte", ctaUrl: "https://nivra-telecom.ca/coverage" },
        ],
     }),
   },
@@ -119,19 +119,19 @@ const getTemplates = () => [
   },
   {
     category: "01 - MARKETING",
-    name: "Proposition personnalisÃ©e",
-    subject: "ðŸ“§ [Preview] Proposition personnalisÃ©e",
+    name: "Proposition personnalisée",
+    subject: "ðŸ“§ [Preview] Proposition personnalisée",
     html: marketing.personalizedProposal({
       ...baseParams,
       recipientName: sampleData.clientName,
       agentName: "Sophie Martin",
       proposalSummary: "Suite Ã  notre discussion, voici une offre sur mesure pour vos besoins.",
       services: [
-        { name: "Internet Fibre 500Mbps", price: 65, description: "TÃ©lÃ©chargement ultra-rapide" },
-        { name: "Mobile 20GB", price: 45, description: "DonnÃ©es partout au Canada" },
+        { name: "Internet Fibre 500Mbps", price: 65, description: "Téléchargement ultra-rapide" },
+        { name: "Mobile 20GB", price: 45, description: "Données partout au Canada" },
       ],
       totalMonthly: 110,
-      validUntil: "15 fÃ©vrier 2025",
+      validUntil: "15 février 2025",
     }),
   },
   {
@@ -147,8 +147,8 @@ const getTemplates = () => [
   // ============ ONBOARDING (7) ============
   {
     category: "02 - ONBOARDING",
-    name: "Compte crÃ©Ã©",
-    subject: "ðŸ“§ [Preview] Compte crÃ©Ã©",
+    name: "Compte créé",
+    subject: "ðŸ“§ [Preview] Compte créé",
     html: onboarding.accountCreated({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -158,7 +158,7 @@ const getTemplates = () => [
   },
   {
     category: "02 - ONBOARDING",
-    name: "VÃ©rification OTP",
+    name: "Vérification OTP",
     subject: "ðŸ“§ [Preview] Code OTP",
     html: onboarding.emailVerificationOtp({
       ...baseParams,
@@ -169,8 +169,8 @@ const getTemplates = () => [
   },
   {
     category: "02 - ONBOARDING",
-    name: "VÃ©rification lien",
-    subject: "ðŸ“§ [Preview] VÃ©rification email",
+    name: "Vérification lien",
+    subject: "ðŸ“§ [Preview] Vérification email",
     html: onboarding.emailVerificationLink({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -189,22 +189,22 @@ const getTemplates = () => [
   },
   {
     category: "02 - ONBOARDING",
-    name: "RÃ©capitulatif forfait",
-    subject: "ðŸ“§ [Preview] RÃ©capitulatif forfait",
+    name: "Récapitulatif forfait",
+    subject: "ðŸ“§ [Preview] Récapitulatif forfait",
     html: onboarding.planSummary({
       ...baseParams,
       clientName: sampleData.clientName,
       planName: "Forfait Essentiel 8GB",
       planDetails: "Parfait pour un usage quotidien",
       monthlyPrice: 35,
-      features: ["8 GB de donnÃ©es", "Appels illimitÃ©s Canada-wide", "Textos illimitÃ©s", "Messagerie vocale visuelle"],
+      features: ["8 GB de données", "Appels illimités Canada-wide", "Textos illimités", "Messagerie vocale visuelle"],
       startDate: "15 janvier 2025",
     }),
   },
   {
     category: "02 - ONBOARDING",
-    name: "Conditions acceptÃ©es",
-    subject: "ðŸ“§ [Preview] Conditions acceptÃ©es",
+    name: "Conditions acceptées",
+    subject: "ðŸ“§ [Preview] Conditions acceptées",
     html: onboarding.termsAccepted({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -214,8 +214,8 @@ const getTemplates = () => [
   },
   {
     category: "02 - ONBOARDING",
-    name: "Paiement prÃ©autorisÃ© confirmÃ©",
-    subject: "ðŸ“§ [Preview] Paiement prÃ©autorisÃ©",
+    name: "Paiement préautorisé confirmé",
+    subject: "ðŸ“§ [Preview] Paiement préautorisé",
     html: onboarding.preauthorizedPaymentConfirmed({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -243,8 +243,8 @@ const getTemplates = () => [
   },
   {
     category: "03 - COMMANDES",
-    name: "SIM expÃ©diÃ©e",
-    subject: "ðŸ“§ [Preview] SIM expÃ©diÃ©e",
+    name: "SIM expédiée",
+    subject: "ðŸ“§ [Preview] SIM expédiée",
     html: orders.simShipped({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -253,12 +253,12 @@ const getTemplates = () => [
       trackingNumber: "CP987654321CA",
       carrier: "Postes Canada",
       estimatedDelivery: "20 janvier 2025",
-      deliveryAddress: { street: "123 Rue Principale", city: "MontrÃ©al", province: "QC", postalCode: "H2X 1Y6" },
+      deliveryAddress: { street: "123 Rue Principale", city: "Montréal", province: "QC", postalCode: "H2X 1Y6" },
     }),
   },
   {
     category: "03 - COMMANDES",
-    name: "Technicien planifiÃ©",
+    name: "Technicien planifié",
     subject: "ðŸ“§ [Preview] RDV technicien",
     html: orders.technicianScheduled({
       ...baseParams,
@@ -288,8 +288,8 @@ const getTemplates = () => [
   },
   {
     category: "03 - COMMANDES",
-    name: "Activation rÃ©ussie",
-    subject: "ðŸ“§ [Preview] Service activÃ©",
+    name: "Activation réussie",
+    subject: "ðŸ“§ [Preview] Service activé",
     html: orders.activationSuccess({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -300,16 +300,16 @@ const getTemplates = () => [
   },
   {
     category: "03 - COMMANDES",
-    name: "Guide dÃ©marrage",
-    subject: "ðŸ“§ [Preview] Guide dÃ©marrage",
+    name: "Guide démarrage",
+    subject: "ðŸ“§ [Preview] Guide démarrage",
     html: orders.quickStartGuide({
       ...baseParams,
       clientName: sampleData.clientName,
       serviceName: "Mobile Nivra",
       steps: [
-        { title: "InsÃ©rez votre SIM", description: "Ã‰teignez votre tÃ©lÃ©phone et insÃ©rez la carte SIM Nivra." },
-        { title: "RedÃ©marrez", description: "Allumez votre tÃ©lÃ©phone et attendez la connexion au rÃ©seau." },
-        { title: "Configurez l'APN", description: "Allez dans ParamÃ¨tres > RÃ©seau mobile > Noms des points d'accÃ¨s." },
+        { title: "Insérez votre SIM", description: "Éteignez votre téléphone et insérez la carte SIM Nivra." },
+        { title: "Redémarrez", description: "Allumez votre téléphone et attendez la connexion au réseau." },
+        { title: "Configurez l'APN", description: "Allez dans Paramètres > Réseau mobile > Noms des points d'accès." },
         { title: "Testez!", description: "Effectuez un appel test et naviguez sur internet." },
       ],
     }),
@@ -317,34 +317,34 @@ const getTemplates = () => [
 
   // ============ PORTABILITY (5) ============
   {
-    category: "04 - PORTABILITÃ‰",
-    name: "Demande reÃ§ue",
-    subject: "ðŸ“§ [Preview] PortabilitÃ© reÃ§ue",
+    category: "04 - PORTABILITÉ",
+    name: "Demande reçue",
+    subject: "ðŸ“§ [Preview] Portabilité reçue",
     html: portability.portingRequestReceived({
       ...baseParams,
       clientName: sampleData.clientName,
       phoneNumber: sampleData.phoneNumber,
-      currentProvider: "Bell MobilitÃ©",
+      currentProvider: "Bell Mobilité",
       requestDate: "14 janvier 2025",
       estimatedCompletion: "21 janvier 2025",
     }),
   },
   {
-    category: "04 - PORTABILITÃ‰",
+    category: "04 - PORTABILITÉ",
     name: "En cours",
-    subject: "ðŸ“§ [Preview] PortabilitÃ© en cours",
+    subject: "ðŸ“§ [Preview] Portabilité en cours",
     html: portability.portingInProgress({
       ...baseParams,
       clientName: sampleData.clientName,
       phoneNumber: sampleData.phoneNumber,
-      currentProvider: "Bell MobilitÃ©",
+      currentProvider: "Bell Mobilité",
       estimatedCompletion: "21 janvier 2025",
     }),
   },
   {
-    category: "04 - PORTABILITÃ‰",
-    name: "ApprouvÃ©e",
-    subject: "ðŸ“§ [Preview] PortabilitÃ© approuvÃ©e",
+    category: "04 - PORTABILITÉ",
+    name: "Approuvée",
+    subject: "ðŸ“§ [Preview] Portabilité approuvée",
     html: portability.portingApproved({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -353,9 +353,9 @@ const getTemplates = () => [
     }),
   },
   {
-    category: "04 - PORTABILITÃ‰",
-    name: "ComplÃ©tÃ©e",
-    subject: "ðŸ“§ [Preview] PortabilitÃ© complÃ©tÃ©e",
+    category: "04 - PORTABILITÉ",
+    name: "Complétée",
+    subject: "ðŸ“§ [Preview] Portabilité complétée",
     html: portability.portingCompleted({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -364,15 +364,15 @@ const getTemplates = () => [
     }),
   },
   {
-    category: "04 - PORTABILITÃ‰",
-    name: "ProblÃ¨me",
-    subject: "ðŸ“§ [Preview] ProblÃ¨me portabilitÃ©",
+    category: "04 - PORTABILITÉ",
+    name: "Problème",
+    subject: "ðŸ“§ [Preview] Problème portabilité",
     html: portability.portingIssue({
       ...baseParams,
       clientName: sampleData.clientName,
       phoneNumber: sampleData.phoneNumber,
-      issueDescription: "Les informations du compte ne correspondent pas aux donnÃ©es de votre ancien fournisseur.",
-      requiredDocuments: ["Copie de votre derniÃ¨re facture Bell", "PiÃ¨ce d'identitÃ© avec photo"],
+      issueDescription: "Les informations du compte ne correspondent pas aux données de votre ancien fournisseur.",
+      requiredDocuments: ["Copie de votre dernière facture Bell", "Pièce d'identité avec photo"],
     }),
   },
 
@@ -385,8 +385,8 @@ const getTemplates = () => [
       ...baseParams,
       clientName: sampleData.clientName,
       invoiceNumber: sampleData.invoiceNumber,
-      invoiceDate: "1er fÃ©vrier 2025",
-      dueDate: "15 fÃ©vrier 2025",
+      invoiceDate: "1er février 2025",
+      dueDate: "15 février 2025",
       services: [
         { name: "Forfait Essentiel 8GB", price: 35 },
         { name: "Option appels internationaux", price: 10 },
@@ -399,12 +399,12 @@ const getTemplates = () => [
   },
   {
     category: "05 - FACTURATION",
-    name: "ReÃ§u paiement",
-    subject: "ðŸ“§ [Preview] ReÃ§u de paiement",
+    name: "Reçu paiement",
+    subject: "ðŸ“§ [Preview] Reçu de paiement",
     html: billing.paymentReceipt({
       ...baseParams,
       clientName: sampleData.clientName,
-      paymentDate: "15 fÃ©vrier 2025",
+      paymentDate: "15 février 2025",
       amount: 51.74,
       paymentMethod: "Carte Visa ****4521",
       invoiceNumber: sampleData.invoiceNumber,
@@ -413,12 +413,12 @@ const getTemplates = () => [
   },
   {
     category: "05 - FACTURATION",
-    name: "PrÃ©lÃ¨vement rÃ©ussi",
-    subject: "ðŸ“§ [Preview] PrÃ©lÃ¨vement rÃ©ussi",
+    name: "Prélèvement réussi",
+    subject: "ðŸ“§ [Preview] Prélèvement réussi",
     html: billing.preauthorizedPaymentSuccess({
       ...baseParams,
       clientName: sampleData.clientName,
-      paymentDate: "15 fÃ©vrier 2025",
+      paymentDate: "15 février 2025",
       amount: 51.74,
       invoiceNumber: sampleData.invoiceNumber,
       nextPaymentDate: "15 mars 2025",
@@ -426,15 +426,15 @@ const getTemplates = () => [
   },
   {
     category: "05 - FACTURATION",
-    name: "Paiement Ã©chouÃ©",
-    subject: "ðŸ“§ [Preview] Paiement Ã©chouÃ©",
+    name: "Paiement échoué",
+    subject: "ðŸ“§ [Preview] Paiement échoué",
     html: billing.paymentFailed({
       ...baseParams,
       clientName: sampleData.clientName,
       amount: 51.74,
-      failureDate: "15 fÃ©vrier 2025",
+      failureDate: "15 février 2025",
       failureReason: "Fonds insuffisants sur la carte.",
-      retryDate: "18 fÃ©vrier 2025",
+      retryDate: "18 février 2025",
       invoiceNumber: sampleData.invoiceNumber,
     }),
   },
@@ -446,7 +446,7 @@ const getTemplates = () => [
       ...baseParams,
       clientName: sampleData.clientName,
       amount: 51.74,
-      retryDate: "18 fÃ©vrier 2025",
+      retryDate: "18 février 2025",
       invoiceNumber: sampleData.invoiceNumber,
     }),
   },
@@ -460,7 +460,7 @@ const getTemplates = () => [
       overdueAmount: 51.74,
       daysOverdue: 7,
       invoiceNumber: sampleData.invoiceNumber,
-      dueDate: "15 fÃ©vrier 2025",
+      dueDate: "15 février 2025",
     }),
   },
   {
@@ -489,8 +489,8 @@ const getTemplates = () => [
   },
   {
     category: "05 - FACTURATION",
-    name: "Service rÃ©activÃ©",
-    subject: "ðŸ“§ [Preview] Service rÃ©activÃ©",
+    name: "Service réactivé",
+    subject: "ðŸ“§ [Preview] Service réactivé",
     html: billing.serviceReactivated({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -499,8 +499,8 @@ const getTemplates = () => [
   },
   {
     category: "05 - FACTURATION",
-    name: "CrÃ©dit appliquÃ©",
-    subject: "ðŸ“§ [Preview] CrÃ©dit appliquÃ©",
+    name: "Crédit appliqué",
+    subject: "ðŸ“§ [Preview] Crédit appliqué",
     html: billing.creditApplied({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -518,14 +518,14 @@ const getTemplates = () => [
       clientName: sampleData.clientName,
       invoiceNumber: sampleData.invoiceNumber,
       amount: 51.74,
-      dueDate: "15 fÃ©vrier 2025",
+      dueDate: "15 février 2025",
       daysUntilDue: 3,
     }),
   },
   {
     category: "05 - FACTURATION",
-    name: "Mode de paiement modifiÃ©",
-    subject: "ðŸ“§ [Preview] Mode de paiement modifiÃ©",
+    name: "Mode de paiement modifié",
+    subject: "ðŸ“§ [Preview] Mode de paiement modifié",
     html: billing.paymentMethodChanged({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -538,19 +538,19 @@ const getTemplates = () => [
   // ============ ACCOUNT & SECURITY (6) ============
   {
     category: "06 - COMPTE",
-    name: "Compte bloquÃ©",
-    subject: "ðŸ“§ [Preview] Compte bloquÃ©",
+    name: "Compte bloqué",
+    subject: "ðŸ“§ [Preview] Compte bloqué",
     html: account.accountBlocked({
       ...baseParams,
       clientName: sampleData.clientName,
-      blockReason: "Plusieurs tentatives de connexion Ã©chouÃ©es dÃ©tectÃ©es",
+      blockReason: "Plusieurs tentatives de connexion échouées détectées",
       blockedAt: "15 janvier 2025 Ã  14h30",
     }),
   },
   {
     category: "06 - COMPTE",
-    name: "Compte dÃ©bloquÃ©",
-    subject: "ðŸ“§ [Preview] Compte dÃ©bloquÃ©",
+    name: "Compte débloqué",
+    subject: "ðŸ“§ [Preview] Compte débloqué",
     html: account.accountUnblocked({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -559,19 +559,19 @@ const getTemplates = () => [
   },
   {
     category: "06 - COMPTE",
-    name: "AccÃ¨s en ligne bloquÃ©",
-    subject: "ðŸ“§ [Preview] AccÃ¨s en ligne bloquÃ©",
+    name: "Accès en ligne bloqué",
+    subject: "ðŸ“§ [Preview] Accès en ligne bloqué",
     html: account.onlineAccessBlocked({
       ...baseParams,
       clientName: sampleData.clientName,
-      blockReason: "ActivitÃ© suspecte dÃ©tectÃ©e sur votre compte",
+      blockReason: "Activité suspecte détectée sur votre compte",
       blockedAt: "15 janvier 2025 Ã  14h30",
     }),
   },
   {
     category: "06 - COMPTE",
-    name: "RÃ©initialisation mot de passe",
-    subject: "ðŸ“§ [Preview] RÃ©initialisation mot de passe",
+    name: "Réinitialisation mot de passe",
+    subject: "ðŸ“§ [Preview] Réinitialisation mot de passe",
     html: account.passwordReset({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -582,8 +582,8 @@ const getTemplates = () => [
   },
   {
     category: "06 - COMPTE",
-    name: "Mot de passe modifiÃ©",
-    subject: "ðŸ“§ [Preview] Mot de passe modifiÃ©",
+    name: "Mot de passe modifié",
+    subject: "ðŸ“§ [Preview] Mot de passe modifié",
     html: account.passwordChanged({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -607,27 +607,27 @@ const getTemplates = () => [
   // ============ SERVICE LIFECYCLE (7) ============
   {
     category: "07 - SERVICES",
-    name: "Demande d'annulation reÃ§ue",
-    subject: "ðŸ“§ [Preview] Demande d'annulation reÃ§ue",
+    name: "Demande d'annulation reçue",
+    subject: "ðŸ“§ [Preview] Demande d'annulation reçue",
     html: service.cancellationRequestReceived({
       ...baseParams,
       clientName: sampleData.clientName,
       serviceName: "Forfait Essentiel 8GB",
       requestDate: "15 janvier 2025",
-      effectiveDate: "15 fÃ©vrier 2025",
+      effectiveDate: "15 février 2025",
       requestNumber: "ANN-2025-0042",
-      cancellationReason: "DÃ©mÃ©nagement hors QuÃ©bec",
+      cancellationReason: "Déménagement hors Québec",
     }),
   },
   {
     category: "07 - SERVICES",
-    name: "Service annulÃ©",
-    subject: "ðŸ“§ [Preview] Service annulÃ©",
+    name: "Service annulé",
+    subject: "ðŸ“§ [Preview] Service annulé",
     html: service.serviceCancelled({
       ...baseParams,
       clientName: sampleData.clientName,
       serviceName: "Forfait Essentiel 8GB",
-      cancellationDate: "15 fÃ©vrier 2025",
+      cancellationDate: "15 février 2025",
       finalBillAmount: 17.87,
       refundAmount: 12.50,
     }),
@@ -641,14 +641,14 @@ const getTemplates = () => [
       clientName: sampleData.clientName,
       serviceName: "Forfait Essentiel 8GB",
       suspensionDate: "1er mars 2025",
-      suspensionReason: "Facture impayÃ©e depuis plus de 30 jours",
+      suspensionReason: "Facture impayée depuis plus de 30 jours",
       amountDue: 51.74,
     }),
   },
   {
     category: "07 - SERVICES",
-    name: "Service rÃ©activÃ©",
-    subject: "ðŸ“§ [Preview] Service rÃ©activÃ©",
+    name: "Service réactivé",
+    subject: "ðŸ“§ [Preview] Service réactivé",
     html: service.serviceReactivated({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -665,15 +665,15 @@ const getTemplates = () => [
       clientName: sampleData.clientName,
       oldPlan: "Forfait Essentiel 8GB",
       newPlan: "Forfait Premium 25GB",
-      effectiveDate: "1er fÃ©vrier 2025",
+      effectiveDate: "1er février 2025",
       newMonthlyPrice: 55,
       proratedAmount: 8.50,
     }),
   },
   {
     category: "07 - SERVICES",
-    name: "SIM perdue dÃ©clarÃ©e",
-    subject: "ðŸ“§ [Preview] SIM perdue dÃ©clarÃ©e",
+    name: "SIM perdue déclarée",
+    subject: "ðŸ“§ [Preview] SIM perdue déclarée",
     html: service.simLostReported({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -684,8 +684,8 @@ const getTemplates = () => [
   },
   {
     category: "07 - SERVICES",
-    name: "SIM remplacement expÃ©diÃ©e",
-    subject: "ðŸ“§ [Preview] SIM remplacement expÃ©diÃ©e",
+    name: "SIM remplacement expédiée",
+    subject: "ðŸ“§ [Preview] SIM remplacement expédiée",
     html: service.replacementSimShipped({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -699,13 +699,13 @@ const getTemplates = () => [
   // ============ SUPPORT TICKETS (5) ============
   {
     category: "08 - SUPPORT",
-    name: "Ticket crÃ©Ã©",
-    subject: "ðŸ“§ [Preview] Ticket crÃ©Ã©",
+    name: "Ticket créé",
+    subject: "ðŸ“§ [Preview] Ticket créé",
     html: support.ticketCreated({
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0789",
-      subject: "ProblÃ¨me de connexion internet intermittent",
+      subject: "Problème de connexion internet intermittent",
       category: "Internet",
       priority: "Urgent",
       createdAt: "15 janvier 2025 Ã  14h30",
@@ -719,34 +719,34 @@ const getTemplates = () => [
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0789",
-      subject: "ProblÃ¨me de connexion internet intermittent",
-      updateMessage: "Bonjour Jean-FranÃ§ois,\n\nNous avons analysÃ© votre connexion et identifiÃ© un problÃ¨me avec le routeur. Un technicien vous contactera sous 24h pour planifier une intervention.\n\nMerci de votre patience!",
+      subject: "Problème de connexion internet intermittent",
+      updateMessage: "Bonjour Jean-François,\n\nNous avons analysé votre connexion et identifié un problème avec le routeur. Un technicien vous contactera sous 24h pour planifier une intervention.\n\nMerci de votre patience!",
       updatedBy: "Sophie Martin - Support technique",
       updatedAt: "15 janvier 2025 Ã  16h45",
     }),
   },
   {
     category: "08 - SUPPORT",
-    name: "Ticket rÃ©solu",
-    subject: "ðŸ“§ [Preview] Ticket rÃ©solu",
+    name: "Ticket résolu",
+    subject: "ðŸ“§ [Preview] Ticket résolu",
     html: support.ticketResolved({
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0789",
-      subject: "ProblÃ¨me de connexion internet intermittent",
-      resolution: "Le problÃ¨me a Ã©tÃ© rÃ©solu suite au remplacement du routeur dÃ©fectueux. Votre connexion devrait maintenant Ãªtre stable. N'hÃ©sitez pas Ã  nous recontacter si le problÃ¨me persiste.",
+      subject: "Problème de connexion internet intermittent",
+      resolution: "Le problème a été résolu suite au remplacement du routeur défectueux. Votre connexion devrait maintenant être stable. N'hésitez pas Ã  nous recontacter si le problème persiste.",
       resolvedAt: "17 janvier 2025 Ã  11h00",
     }),
   },
   {
     category: "08 - SUPPORT",
-    name: "Ticket fermÃ© automatiquement",
-    subject: "ðŸ“§ [Preview] Ticket fermÃ© automatiquement",
+    name: "Ticket fermé automatiquement",
+    subject: "ðŸ“§ [Preview] Ticket fermé automatiquement",
     html: support.ticketAutoClosed({
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0789",
-      subject: "ProblÃ¨me de connexion internet intermittent",
+      subject: "Problème de connexion internet intermittent",
       closedAt: "24 janvier 2025",
     }),
   },
@@ -758,8 +758,8 @@ const getTemplates = () => [
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0790",
-      requestReason: "Pour traiter votre demande de portabilitÃ©",
-      requiredDocuments: ["Copie de votre derniÃ¨re facture de l'ancien fournisseur", "PiÃ¨ce d'identitÃ© avec photo", "Preuve de rÃ©sidence rÃ©cente"],
+      requestReason: "Pour traiter votre demande de portabilité",
+      requiredDocuments: ["Copie de votre dernière facture de l'ancien fournisseur", "Pièce d'identité avec photo", "Preuve de résidence récente"],
       uploadUrl: "https://nivra-telecom.ca/portal/upload?token=SAMPLE_TOKEN",
       deadline: "22 janvier 2025",
     }),
@@ -796,7 +796,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`ðŸ“§ Sending ${i + 1}/${templates.length}: ${template.category} - ${template.name}`);
         
         const { error } = await resend.emails.send({
-          from: "Nivra TÃ©lÃ©com <support@nivra-telecom.ca>",
+          from: "Nivra Télécom <support@nivra-telecom.ca>",
           to: [targetEmail],
           subject: `[${i + 1}/${templates.length}] ${template.category} | ${template.name}`,
           html: template.html,

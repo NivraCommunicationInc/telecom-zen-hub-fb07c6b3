@@ -37,7 +37,7 @@ function jsonResp(body: unknown, status: number, corsHeaders: Record<string, str
 
 function validateFile(file: File | null, label: string): string | null {
   if (!file) return `Missing ${label}`;
-  if (!ALLOWED_TYPES.includes(file.type)) return `Type de fichier non autorisÃ© (${label})`;
+  if (!ALLOWED_TYPES.includes(file.type)) return `Type de fichier non autorisé (${label})`;
   if (file.size > MAX_SIZE) return `Fichier trop volumineux (${label}, max 10 Mo)`;
   return null;
 }
@@ -87,8 +87,8 @@ Deno.serve(async (req) => {
     if (rpcErr) return jsonResp({ error: rpcErr.message }, 500, corsHeaders);
     const reqRow = rows?.[0];
     if (!reqRow) return jsonResp({ error: "Lien invalide" }, 404, corsHeaders);
-    if (new Date(reqRow.expires_at).getTime() < Date.now()) return jsonResp({ error: "Lien expirÃ©" }, 410, corsHeaders);
-    if (reqRow.status !== "pending") return jsonResp({ error: "Demande dÃ©jÃ  traitÃ©e", status: reqRow.status }, 409, corsHeaders);
+    if (new Date(reqRow.expires_at).getTime() < Date.now()) return jsonResp({ error: "Lien expiré" }, 410, corsHeaders);
+    if (reqRow.status !== "pending") return jsonResp({ error: "Demande déjÃ  traitée", status: reqRow.status }, 409, corsHeaders);
 
     // Upload all files
     const uploadedPaths: string[] = [];
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
     });
     if (completeErr || !(completeRes as any)?.success) {
       await cleanup();
-      return jsonResp({ error: completeErr?.message || (completeRes as any)?.error || "Ã‰chec" }, 500, corsHeaders);
+      return jsonResp({ error: completeErr?.message || (completeRes as any)?.error || "Échec" }, 500, corsHeaders);
     }
 
     // Mirror onto identity_verification_sessions for the same order so the
@@ -163,8 +163,8 @@ Deno.serve(async (req) => {
     try {
       await enqueueEmail({
         to: "support@nivra-telecom.ca",
-        subject: `KYC complÃ©tÃ© â€” Commande #${reqRow.order_number || reqRow.order_id?.slice(0, 8)} en attente d'approbation`,
-        html: `<p>Une vÃ©rification d'identitÃ© vient d'Ãªtre complÃ©tÃ©e par <strong>${reqRow.client_email}</strong>.</p>
+        subject: `KYC complété â€” Commande #${reqRow.order_number || reqRow.order_id?.slice(0, 8)} en attente d'approbation`,
+        html: `<p>Une vérification d'identité vient d'être complétée par <strong>${reqRow.client_email}</strong>.</p>
 <p>Commande: <strong>#${reqRow.order_number || reqRow.order_id}</strong></p>
 <p>Type de document: <strong>${docType}</strong></p>
 <p>Le document est en attente de revue dans Nivra Core â†’ Commandes.</p>`,

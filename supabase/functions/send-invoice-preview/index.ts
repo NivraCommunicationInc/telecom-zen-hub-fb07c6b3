@@ -19,11 +19,11 @@ interface SendInvoiceRequest {
 
 function buildEmailHtml(): string {
   return violetShell({
-    preheader: "Votre document PDF Nivra est prÃªt.",
+    preheader: "Votre document PDF Nivra est prêt.",
     badge: "DOCUMENT JOINT",
     heroTitle: "Votre document est joint",
-    heroSub: "Vous trouverez le PDF en piÃ¨ce jointe Ã  ce courriel.",
-    bodyHtml: "Bonjour, veuillez trouver en piÃ¨ce jointe votre document au format PDF.",
+    heroSub: "Vous trouverez le PDF en pièce jointe Ã  ce courriel.",
+    bodyHtml: "Bonjour, veuillez trouver en pièce jointe votre document au format PDF.",
   });
 }
 
@@ -31,13 +31,13 @@ function buildEmailText(): string {
   return [
     "Bonjour,",
     "",
-    "Veuillez trouver en piÃ¨ce jointe votre document au format PDF.",
+    "Veuillez trouver en pièce jointe votre document au format PDF.",
     "",
-    "Besoin dâ€™aide? RÃ©pondez Ã  ce courriel ou Ã©crivez Ã  support@nivra-telecom.ca.",
+    "Besoin dâ€™aide? Répondez Ã  ce courriel ou écrivez Ã  support@nivra-telecom.ca.",
     "",
     "Merci,",
-    "Lâ€™Ã©quipe Nivra Telecom",
-    "1799 Av. Pierre-PÃ©ladeau, Laval, QC H7T 2Y5",
+    "Lâ€™équipe Nivra Telecom",
+    "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
     "nivra-telecom.ca",
   ].join("\n");
 }

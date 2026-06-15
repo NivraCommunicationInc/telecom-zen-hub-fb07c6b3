@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     if (vErr) throw vErr;
     const v = Array.isArray(vRows) ? vRows[0] : vRows;
     if (!v?.is_valid) {
-      return new Response(JSON.stringify({ error: "Token expirÃ© ou invalide" }), {
+      return new Response(JSON.stringify({ error: "Token expiré ou invalide" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       options: { redirectTo },
     });
     if (linkErr || !linkData?.properties?.action_link) {
-      return new Response(JSON.stringify({ error: "Impossible de gÃ©nÃ©rer le lien" }), {
+      return new Response(JSON.stringify({ error: "Impossible de générer le lien" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

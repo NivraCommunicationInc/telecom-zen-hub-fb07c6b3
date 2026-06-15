@@ -246,7 +246,7 @@ serve(async (req) => {
               // +1 because the initial order invoice counts as cycle 1
               const currentCycle = (renewalCount || 0) + 1;
               
-              if (currentCycle < promoApplied.duration_months) {
+              if (currentCycle <= promoApplied.duration_months) {
                 // Still within promo window — apply discount
                 promoDiscount = promoApplied.discount_amount || 0;
                 promoNote = ` (Promo ${promoApplied.code}: -${promoDiscount}$ cycle ${currentCycle + 1}/${promoApplied.duration_months})`;

@@ -10,11 +10,11 @@ const corsHeaders = {
 
 // ============================================================================
 // SEND TERMS PDF EMAIL â€” NIVRA TELECOM
-// Envoie le PDF officiel des ModalitÃ©s de service aux clients
+// Envoie le PDF officiel des Modalités de service aux clients
 // Version: 2026-02-06
 // ============================================================================
 
-// URL du PDF officiel hÃ©bergÃ© dans Supabase Storage (pointe vers le projet courant via SUPABASE_URL)
+// URL du PDF officiel hébergé dans Supabase Storage (pointe vers le projet courant via SUPABASE_URL)
 const SUPABASE_BASE_URL = Deno.env.get("SUPABASE_URL") || "https://lacxnbjvcyvhrttprkxr.supabase.co";
 const TERMS_PDF_URL = `${SUPABASE_BASE_URL}/storage/v1/object/public/documents/Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf`;
 const TERMS_PDF_FILENAME = "Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
@@ -69,14 +69,14 @@ serve(async (req: Request) => {
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
       to: [to],
       reply_to: "support@nivra-telecom.ca",
-      subject: `ModalitÃ©s de service â€“ Nivra Telecom${order_id ? ` (Commande ${order_id})` : ''}`,
+      subject: `Modalités de service â€“ Nivra Telecom${order_id ? ` (Commande ${order_id})` : ''}`,
       html: `
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ModalitÃ©s de service â€“ Nivra Telecom</title>
+  <title>Modalités de service â€“ Nivra Telecom</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; padding: 40px 20px;">
@@ -90,7 +90,7 @@ serve(async (req: Request) => {
                 Nivra<span style="color: #14B8A6;">Telecom</span>
               </h1>
               <p style="margin: 8px 0 0 0; color: #94A3B8; font-size: 14px;">
-                Services de tÃ©lÃ©communications prÃ©payÃ©s
+                Services de télécommunications prépayés
               </p>
             </td>
           </tr>
@@ -99,7 +99,7 @@ serve(async (req: Request) => {
           <tr>
             <td style="padding: 40px;">
               <h2 style="margin: 0 0 16px 0; color: #0F172A; font-size: 22px; font-weight: 600;">
-                ModalitÃ©s de service
+                Modalités de service
               </h2>
               
               ${client_name ? `
@@ -109,14 +109,14 @@ serve(async (req: Request) => {
               ` : ''}
               
               <p style="margin: 0 0 24px 0; color: #334155; font-size: 16px; line-height: 1.7;">
-                Veuillez trouver ci-joint les <strong>ModalitÃ©s de service</strong> de Nivra Telecom. 
-                Ce document dÃ©crit les conditions applicables Ã  tous nos services de tÃ©lÃ©communications.
+                Veuillez trouver ci-joint les <strong>Modalités de service</strong> de Nivra Telecom. 
+                Ce document décrit les conditions applicables Ã  tous nos services de télécommunications.
               </p>
               
               ${order_id ? `
               <div style="background-color: #F0FDFA; border-left: 4px solid #14B8A6; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
                 <p style="margin: 0; color: #0F766E; font-size: 14px;">
-                  <strong>RÃ©fÃ©rence de commande :</strong> ${order_id}
+                  <strong>Référence de commande :</strong> ${order_id}
                 </p>
               </div>
               ` : ''}
@@ -136,7 +136,7 @@ serve(async (req: Request) => {
               
               <p style="margin: 0; color: #334155; font-size: 16px; line-height: 1.7;">
                 Cordialement,<br>
-                <strong>L'Ã©quipe Nivra Telecom</strong>
+                <strong>L'équipe Nivra Telecom</strong>
               </p>
             </td>
           </tr>
@@ -148,7 +148,7 @@ serve(async (req: Request) => {
                 <tr>
                   <td style="text-align: center;">
                     <p style="margin: 0 0 8px 0; color: #64748B; font-size: 13px;">
-                      Nivra Communications Inc. | MontrÃ©al, QuÃ©bec
+                      Nivra Communications Inc. | Montréal, Québec
                     </p>
                     <p style="margin: 0 0 8px 0; color: #64748B; font-size: 13px;">
                       ðŸ“§ support@nivra-telecom.ca | ðŸŒ nivra-telecom.ca
@@ -182,7 +182,7 @@ serve(async (req: Request) => {
       JSON.stringify({
         success: true,
         emailId: emailResponse.id,
-        message: `ModalitÃ©s PDF envoyÃ©es Ã  ${to}`,
+        message: `Modalités PDF envoyées Ã  ${to}`,
       }),
       {
         status: 200,

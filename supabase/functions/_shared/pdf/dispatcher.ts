@@ -288,7 +288,7 @@ function normalizePayload(
       if (!changes.length) {
         if (p.change_type === "service_added" || p.service_name) {
           changes = [{
-            field: "Service ajoutÃ©",
+            field: "Service ajouté",
             old_value: "â€”",
             new_value: String(p.service_name || p.service_code || "Nouveau service"),
           }];
@@ -301,7 +301,7 @@ function normalizePayload(
           }
         } else if (p.change_type === "service_removed") {
           changes = [{
-            field: "Service retirÃ©",
+            field: "Service retiré",
             old_value: String(p.service_name || p.service_code || "Service"),
             new_value: "â€”",
           }];
@@ -374,7 +374,7 @@ function normalizePayload(
         notice_number: p.notice_number || `SUS-${Date.now()}`,
         service_name: p.service_name || p.plan_name || "Service Nivra",
         suspension_date: p.suspension_date || nowIso(),
-        reason: p.reason || "Solde impayÃ©",
+        reason: p.reason || "Solde impayé",
         amount_due: Number(p.amount_due ?? 0),
         invoice_numbers: Array.isArray(p.invoice_numbers) ? p.invoice_numbers : undefined,
         reactivation_fee: p.reactivation_fee ? Number(p.reactivation_fee) : undefined,
@@ -461,7 +461,7 @@ function normalizePayload(
           serial_number: it.serial_number || it.imei || undefined,
         })) : [],
         return_deadline: p.return_deadline || p.due_date || nowIso(),
-        return_address: p.return_address || "1799 Av. Pierre-PÃ©ladeau",
+        return_address: p.return_address || "1799 Av. Pierre-Péladeau",
         return_city: p.return_city || "Laval",
         return_province: p.return_province || "QC",
         return_postal: p.return_postal || "H7T 2Y5",

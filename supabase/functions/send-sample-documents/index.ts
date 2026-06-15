@@ -17,7 +17,7 @@ const CO = {
   neq: "2291249786",
   tps: "732287291 RT0001",
   tvq: "1229249786 TQ0001",
-  address: "MontrÃ©al, QC, Canada",
+  address: "Montréal, QC, Canada",
   email: "support@nivra-telecom.ca",
   phone: "(438) 600-1030",
   website: "nivra-telecom.ca",
@@ -37,14 +37,14 @@ const SAMPLE = {
   date: "2026-03-04",
   due_date: "2026-04-03",
   customer: {
-    name: "Jean-FranÃ§ois Tremblay",
+    name: "Jean-François Tremblay",
     email: "jf.tremblay@example.com",
     phone: "(514) 555-1234",
-    billing: "4521 Rue Saint-Denis, MontrÃ©al, QC H2J 2L4",
-    service: "4521 Rue Saint-Denis, MontrÃ©al, QC H2J 2L4",
+    billing: "4521 Rue Saint-Denis, Montréal, QC H2J 2L4",
+    service: "4521 Rue Saint-Denis, Montréal, QC H2J 2L4",
   },
   items: [
-    { desc: "Internet RÃ©sidentiel â€” Fibre 500", price: 65.00, recurring: true },
+    { desc: "Internet Résidentiel â€” Fibre 500", price: 65.00, recurring: true },
     { desc: "Location routeur Nivra Born WiFi", price: 0.00, recurring: true },
     { desc: "Frais d'activation", price: 30.00, recurring: false },
     { desc: "Installation professionnelle", price: 75.00, recurring: false },
@@ -89,7 +89,7 @@ function addFooter(doc: any) {
   doc.setTextColor(100, 116, 139);
   doc.setFontSize(7);
   doc.text(`${CO.name} | ${CO.address} | ${CO.email}`, 105, pageH - 11, { align: "center" });
-  doc.text("Services prÃ©payÃ©s â€” Aucun contrat Ã  durÃ©e dÃ©terminÃ©e", 105, pageH - 6, { align: "center" });
+  doc.text("Services prépayés â€” Aucun contrat Ã  durée déterminée", 105, pageH - 6, { align: "center" });
 }
 
 function label(doc: any, x: number, y: number, lbl: string, val: string) {
@@ -132,7 +132,7 @@ function generateInvoicePDF(): string {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("PAYÃ‰E", 177.5, y - 1, { align: "center" });
+  doc.text("PAYÉE", 177.5, y - 1, { align: "center" });
 
   y += 10;
 
@@ -142,19 +142,19 @@ function generateInvoicePDF(): string {
   label(doc, 115, y, "NÂ° Compte", SAMPLE.account_number);
   label(doc, 160, y, "Date", SAMPLE.date);
   y += 14;
-  label(doc, 160, y, "Ã‰chÃ©ance", SAMPLE.due_date);
+  label(doc, 160, y, "Échéance", SAMPLE.due_date);
 
   // Customer
   label(doc, 15, y, "Client", SAMPLE.customer.name);
   label(doc, 15, y + 10, "Adresse de facturation", SAMPLE.customer.billing);
   label(doc, 15, y + 20, "Adresse de service", SAMPLE.customer.service);
   label(doc, 115, y, "Courriel", SAMPLE.customer.email);
-  label(doc, 115, y + 10, "TÃ©lÃ©phone", SAMPLE.customer.phone);
+  label(doc, 115, y + 10, "Téléphone", SAMPLE.customer.phone);
 
   y += 34;
 
   // Line items table
-  y = sectionTitle(doc, y, "DÃ‰TAIL DES SERVICES ET FRAIS");
+  y = sectionTitle(doc, y, "DÉTAIL DES SERVICES ET FRAIS");
 
   // Table header
   doc.setFillColor(15, 23, 42);
@@ -179,7 +179,7 @@ function generateInvoicePDF(): string {
     doc.text(item.desc, 18, y + 1.5);
 
     // Type badge
-    const typeLabel = item.recurring ? "RÃ©current" : "Unique";
+    const typeLabel = item.recurring ? "Récurrent" : "Unique";
     const badgeColor = item.recurring ? [20, 184, 166] : [99, 102, 241];
     doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
     doc.roundedRect(128, y - 2, 22, 5, 1.5, 1.5, "F");
@@ -231,14 +231,14 @@ function generateInvoicePDF(): string {
   y += 16;
 
   // Payment receipt
-  y = sectionTitle(doc, y, "REÃ‡U DE PAIEMENT");
+  y = sectionTitle(doc, y, "REÇU DE PAIEMENT");
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(`MÃ©thode: Virement Interac`, 18, y + 4);
+  doc.text(`Méthode: Virement Interac`, 18, y + 4);
   doc.text(`Montant: ${total.toFixed(2)} $`, 18, y + 10);
   doc.text(`Date: ${SAMPLE.date}`, 100, y + 4);
-  doc.text(`RÃ©fÃ©rence: ETR-20260304-001`, 100, y + 10);
+  doc.text(`Référence: ETR-20260304-001`, 100, y + 10);
 
   addFooter(doc);
 
@@ -260,8 +260,8 @@ function generateContractPDF(): string {
 
   // Contract metadata
   label(doc, 15, y, "NÂ° Contrat", SAMPLE.contract_number);
-  label(doc, 65, y, "Date d'entrÃ©e en vigueur", SAMPLE.date);
-  label(doc, 130, y, "Version des modalitÃ©s", "v2026-02-05");
+  label(doc, 65, y, "Date d'entrée en vigueur", SAMPLE.date);
+  label(doc, 130, y, "Version des modalités", "v2026-02-05");
   y += 14;
 
   // Parties
@@ -301,7 +301,7 @@ function generateContractPDF(): string {
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Internet RÃ©sidentiel â€” Fibre 500", 18, y + 2);
+  doc.text("Internet Résidentiel â€” Fibre 500", 18, y + 2);
   doc.text("65,00 $ / mois", 185, y + 2, { align: "right" });
   y += 8;
   doc.text("Location routeur Nivra Born WiFi", 18, y + 2);
@@ -324,14 +324,14 @@ function generateContractPDF(): string {
     doc.text(val, 185, y + 2, { align: "right" });
     y += 7;
   };
-  fmtLine2("Mensuel rÃ©current", "65,00 $");
+  fmtLine2("Mensuel récurrent", "65,00 $");
   fmtLine2("Frais uniques", "105,00 $");
-  fmtLine2("Rabais appliquÃ©", "- 32,50 $");
+  fmtLine2("Rabais appliqué", "- 32,50 $");
   fmtLine2("TPS + TVQ", "20,53 $");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  fmtLine2("Total dÃ» aujourd'hui", "158,03 $");
+  fmtLine2("Total dû aujourd'hui", "158,03 $");
   y += 8;
 
   // Terms clause
@@ -340,11 +340,11 @@ function generateContractPDF(): string {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   const terms = [
-    "â€¢ Ce contrat est rÃ©gi par les ModalitÃ©s de service Nivra Telecom (version v2026-02-05).",
-    "â€¢ Services prÃ©payÃ©s â€” Aucun engagement Ã  durÃ©e dÃ©terminÃ©e.",
-    "â€¢ Le client peut rÃ©silier Ã  tout moment en contactant le support.",
-    "â€¢ Les prix indiquÃ©s n'incluent pas les taxes applicables sauf mention contraire.",
-    "â€¢ Nivra se rÃ©serve le droit de modifier ses tarifs avec un prÃ©avis de 30 jours.",
+    "â€¢ Ce contrat est régi par les Modalités de service Nivra Telecom (version v2026-02-05).",
+    "â€¢ Services prépayés â€” Aucun engagement Ã  durée déterminée.",
+    "â€¢ Le client peut résilier Ã  tout moment en contactant le support.",
+    "â€¢ Les prix indiqués n'incluent pas les taxes applicables sauf mention contraire.",
+    "â€¢ Nivra se réserve le droit de modifier ses tarifs avec un préavis de 30 jours.",
   ];
   terms.forEach(t => {
     doc.text(t, 18, y + 2);
@@ -365,24 +365,24 @@ function generateTermsPDF(): string {
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("MODALITÃ‰S DE SERVICE", 15, y);
+  doc.text("MODALITÉS DE SERVICE", 15, y);
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 116, 139);
-  doc.text("Version v2026-02-05 â€” En vigueur Ã  compter du 5 fÃ©vrier 2026", 15, y + 8);
+  doc.text("Version v2026-02-05 â€” En vigueur Ã  compter du 5 février 2026", 15, y + 8);
   y += 18;
 
   const sections = [
-    { title: "1. DÃ‰FINITIONS ET PORTÃ‰E", content: "Les prÃ©sentes modalitÃ©s rÃ©gissent l'ensemble des services de tÃ©lÃ©communications fournis par Nivra Communications Inc. (Â« Nivra Â») au client. En utilisant nos services, le client accepte les prÃ©sentes conditions dans leur intÃ©gralitÃ©." },
-    { title: "2. SERVICES OFFERTS", content: "Nivra offre des services de tÃ©lÃ©phonie mobile prÃ©payÃ©e, d'Internet rÃ©sidentiel, de tÃ©lÃ©vision et de sÃ©curitÃ© selon la disponibilitÃ© Ã  l'adresse du client. Tous les services sont fournis sur une base prÃ©payÃ©e, sans contrat Ã  durÃ©e dÃ©terminÃ©e." },
-    { title: "3. INSCRIPTION ET ACTIVATION", content: "Le client doit fournir des informations exactes lors de l'inscription. L'activation des services est conditionnelle Ã  la vÃ©rification de l'identitÃ© et au paiement complet des frais applicables." },
-    { title: "4. TARIFICATION ET PAIEMENT", content: "Tous les prix sont en dollars canadiens. Les taxes (TPS et TVQ) s'appliquent conformÃ©ment Ã  la lÃ©gislation en vigueur. Le paiement est exigÃ© avant l'activation des services." },
-    { title: "5. UTILISATION ACCEPTABLE", content: "Le client s'engage Ã  utiliser les services conformÃ©ment aux lois applicables et aux politiques d'utilisation acceptable de Nivra. Toute utilisation abusive, frauduleuse ou illÃ©gale peut entraÃ®ner la suspension ou la rÃ©siliation des services." },
-    { title: "6. PROTECTION DES RENSEIGNEMENTS", content: "Nivra s'engage Ã  protÃ©ger les renseignements personnels du client conformÃ©ment Ã  la Loi sur la protection des renseignements personnels et les documents Ã©lectroniques (LPRPDE) et Ã  la Loi 25 du QuÃ©bec." },
-    { title: "7. SUSPENSION ET RÃ‰SILIATION", content: "Le client peut rÃ©silier ses services Ã  tout moment. Nivra peut suspendre les services en cas de non-paiement ou de violation des prÃ©sentes modalitÃ©s, avec un prÃ©avis raisonnable." },
-    { title: "8. LIMITATION DE RESPONSABILITÃ‰", content: "La responsabilitÃ© de Nivra est limitÃ©e au montant des frais payÃ©s par le client pour la pÃ©riode de service concernÃ©e. Nivra n'est pas responsable des dommages indirects." },
-    { title: "9. MODIFICATIONS", content: "Nivra se rÃ©serve le droit de modifier les prÃ©sentes modalitÃ©s avec un prÃ©avis de 30 jours. Le client sera informÃ© par courriel ou via son espace client." },
-    { title: "10. DROIT APPLICABLE", content: "Les prÃ©sentes modalitÃ©s sont rÃ©gies par les lois de la province de QuÃ©bec et les lois fÃ©dÃ©rales du Canada applicables." },
+    { title: "1. DÉFINITIONS ET PORTÉE", content: "Les présentes modalités régissent l'ensemble des services de télécommunications fournis par Nivra Communications Inc. (Â« Nivra Â») au client. En utilisant nos services, le client accepte les présentes conditions dans leur intégralité." },
+    { title: "2. SERVICES OFFERTS", content: "Nivra offre des services de téléphonie mobile prépayée, d'Internet résidentiel, de télévision et de sécurité selon la disponibilité Ã  l'adresse du client. Tous les services sont fournis sur une base prépayée, sans contrat Ã  durée déterminée." },
+    { title: "3. INSCRIPTION ET ACTIVATION", content: "Le client doit fournir des informations exactes lors de l'inscription. L'activation des services est conditionnelle Ã  la vérification de l'identité et au paiement complet des frais applicables." },
+    { title: "4. TARIFICATION ET PAIEMENT", content: "Tous les prix sont en dollars canadiens. Les taxes (TPS et TVQ) s'appliquent conformément Ã  la législation en vigueur. Le paiement est exigé avant l'activation des services." },
+    { title: "5. UTILISATION ACCEPTABLE", content: "Le client s'engage Ã  utiliser les services conformément aux lois applicables et aux politiques d'utilisation acceptable de Nivra. Toute utilisation abusive, frauduleuse ou illégale peut entraîner la suspension ou la résiliation des services." },
+    { title: "6. PROTECTION DES RENSEIGNEMENTS", content: "Nivra s'engage Ã  protéger les renseignements personnels du client conformément Ã  la Loi sur la protection des renseignements personnels et les documents électroniques (LPRPDE) et Ã  la Loi 25 du Québec." },
+    { title: "7. SUSPENSION ET RÉSILIATION", content: "Le client peut résilier ses services Ã  tout moment. Nivra peut suspendre les services en cas de non-paiement ou de violation des présentes modalités, avec un préavis raisonnable." },
+    { title: "8. LIMITATION DE RESPONSABILITÉ", content: "La responsabilité de Nivra est limitée au montant des frais payés par le client pour la période de service concernée. Nivra n'est pas responsable des dommages indirects." },
+    { title: "9. MODIFICATIONS", content: "Nivra se réserve le droit de modifier les présentes modalités avec un préavis de 30 jours. Le client sera informé par courriel ou via son espace client." },
+    { title: "10. DROIT APPLICABLE", content: "Les présentes modalités sont régies par les lois de la province de Québec et les lois fédérales du Canada applicables." },
   ];
 
   sections.forEach(s => {
@@ -411,7 +411,7 @@ function generateTermsPDF(): string {
   doc.setTextColor(15, 118, 110);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("Pour toute question concernant ces modalitÃ©s :", 20, y + 7);
+  doc.text("Pour toute question concernant ces modalités :", 20, y + 7);
   doc.setFont("helvetica", "normal");
   doc.text(`${CO.email} | ${CO.phone} | ${CO.website}`, 20, y + 14);
 
@@ -443,7 +443,7 @@ serve(async (req: Request) => {
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
       to: [to],
       reply_to: "support@nivra-telecom.ca",
-      subject: "Documents Nivra Telecom â€” Facture, Contrat & ModalitÃ©s (V3 Sample)",
+      subject: "Documents Nivra Telecom â€” Facture, Contrat & Modalités (V3 Sample)",
       headers: {
         "X-Entity-Ref-ID": `sample-docs-${Date.now()}`,
         "Precedence": "bulk",
@@ -462,16 +462,16 @@ serve(async (req: Request) => {
 <tr><td style="padding:40px;">
 <h2 style="margin:0 0 16px;color:#0F172A;font-size:20px;">Vos documents sont joints</h2>
 <p style="color:#334155;font-size:16px;line-height:1.7;">
-Veuillez trouver ci-joints les 3 documents gÃ©nÃ©rÃ©s par le nouveau systÃ¨me V3 :</p>
+Veuillez trouver ci-joints les 3 documents générés par le nouveau système V3 :</p>
 <ul style="color:#334155;font-size:15px;line-height:2;">
 <li><strong>Facture</strong> â€” Nivra_Facture_INV-2026-00042.pdf</li>
 <li><strong>Contrat de service</strong> â€” Nivra_Contrat_CTR-99904.pdf</li>
-<li><strong>ModalitÃ©s de service</strong> â€” Nivra_Modalites_v2026-02-05.pdf</li>
+<li><strong>Modalités de service</strong> â€” Nivra_Modalites_v2026-02-05.pdf</li>
 </ul>
-<p style="color:#64748B;font-size:14px;margin-top:24px;">Ces documents utilisent le format TELUS-grade avec donnÃ©es d'exemple.</p>
+<p style="color:#64748B;font-size:14px;margin-top:24px;">Ces documents utilisent le format TELUS-grade avec données d'exemple.</p>
 </td></tr>
 <tr><td style="background:#F8FAFC;padding:20px 40px;border-top:1px solid #E2E8F0;text-align:center;">
-<p style="margin:0;color:#64748B;font-size:12px;">Nivra Communications Inc. | MontrÃ©al, QC | support@nivra-telecom.ca</p>
+<p style="margin:0;color:#64748B;font-size:12px;">Nivra Communications Inc. | Montréal, QC | support@nivra-telecom.ca</p>
 </td></tr>
 </table>
 </td></tr></table>

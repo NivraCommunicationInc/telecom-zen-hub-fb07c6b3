@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const ALERT_RECIPIENT = "Nivratelecom@gmail.com";
+const ALERT_RECIPIENT = Deno.env.get("SECURITY_ALERT_EMAIL") ?? "support@nivra-telecom.ca";
 const FAILURE_THRESHOLD = 3;
 const WINDOW_MINUTES = 5;
 const COOLDOWN_MINUTES = 15; // don't re-alert for same email within this window

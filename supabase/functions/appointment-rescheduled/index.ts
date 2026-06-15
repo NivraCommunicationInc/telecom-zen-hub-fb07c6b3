@@ -39,16 +39,16 @@ function buildEmail(args: {
   if (args.technicianName) rows.push(["Technicien", violetEsc(args.technicianName)]);
 
   return violetShell({
-    preheader: "Votre rendez-vous a Ã©tÃ© modifiÃ©.",
-    badge: "RENDEZ-VOUS MODIFIÃ‰",
-    heroTitle: "Votre rendez-vous a Ã©tÃ© reprogrammÃ©",
-    heroSub: "Voici les nouveaux dÃ©tails.",
+    preheader: "Votre rendez-vous a été modifié.",
+    badge: "RENDEZ-VOUS MODIFIÉ",
+    heroTitle: "Votre rendez-vous a été reprogrammé",
+    heroSub: "Voici les nouveaux détails.",
     greeting: `Bonjour ${violetEsc(args.firstName) || "client"},`,
     bodyHtml:
-      `Votre rendez-vous d'installation a Ã©tÃ© <strong>mis Ã  jour</strong>. ` +
-      `Veuillez vÃ©rifier les nouveaux dÃ©tails ci-dessous.` +
+      `Votre rendez-vous d'installation a été <strong>mis Ã  jour</strong>. ` +
+      `Veuillez vérifier les nouveaux détails ci-dessous.` +
       (args.noteForClient ? `<br/><br/><em>${violetEsc(args.noteForClient)}</em>` : ""),
-    cardTitle: "Nouveaux dÃ©tails",
+    cardTitle: "Nouveaux détails",
     cardRows: rows,
     ctaPrimaryUrl: "https://nivra-telecom.ca/portal/appointments",
     ctaPrimaryLabel: "Voir mon rendez-vous",
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       try {
         await enqueueEmail({
           to: clientEmail,
-          subject: "Votre rendez-vous a Ã©tÃ© modifiÃ© â€” Nivra Telecom",
+          subject: "Votre rendez-vous a été modifié â€” Nivra Telecom",
           html: buildEmail({
             firstName,
             apptNumber: apt.appointment_number ?? apt.id.slice(0, 8),
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       entity_type: "appointment",
       entity_id: apt.id,
       action: "appointment_rescheduled",
-      reason: body.changes ? JSON.stringify(body.changes) : "Rendez-vous modifiÃ©",
+      reason: body.changes ? JSON.stringify(body.changes) : "Rendez-vous modifié",
     });
 
     return new Response(JSON.stringify({ success: true }), {

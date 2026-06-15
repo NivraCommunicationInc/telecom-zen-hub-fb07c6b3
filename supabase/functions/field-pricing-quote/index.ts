@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       const recurringAmount = versionedPrice ? Number(versionedPrice.amount) : Number(product.price || 0);
       const oneTimeAmount = oneTimePrice ? Number(oneTimePrice.amount) : 0;
 
-      const isEquipment = product.category === "Ã‰quipement" || product.billing_type === "one_time";
+      const isEquipment = product.category === "Équipement" || product.billing_type === "one_time";
 
       if (isEquipment) {
         const total = (oneTimeAmount || recurringAmount) * item.quantity;

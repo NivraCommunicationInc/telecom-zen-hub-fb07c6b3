@@ -324,7 +324,7 @@ Deno.serve(async (req) => {
 
         for (const order of recentOrders.data || []) {
           if (order.sync_status === "synced") {
-            notifications.push({ id: `sync-${order.id}`, type: "sync", title: "Commande synchronisÃ©e", description: `${order.customer_name}`, time: order.updated_at || order.created_at, isRead: true, source: "derived", status: "success" });
+            notifications.push({ id: `sync-${order.id}`, type: "sync", title: "Commande synchronisée", description: `${order.customer_name}`, time: order.updated_at || order.created_at, isRead: true, source: "derived", status: "success" });
           } else if (order.sync_status === "error") {
             notifications.push({ id: `sync-err-${order.id}`, type: "sync", title: "Sync Ã  relancer", description: `${order.customer_name}`, time: order.updated_at || order.created_at, isRead: false, source: "derived", status: "error" });
           } else if (order.payment_status === "pending") {
@@ -369,7 +369,7 @@ Deno.serve(async (req) => {
         const { data: roleRow } = await admin.from("user_roles").select("role").eq("user_id", userId).eq("status", "active").maybeSingle();
         const managerRoles = ["admin", "super_admin", "owner", "supervisor"];
         if (!roleRow || !managerRoles.includes(roleRow.role)) {
-          return new Response(JSON.stringify({ error: "AccÃ¨s refusÃ©" }), { status: 403, headers });
+          return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
         }
       }
 
@@ -460,7 +460,7 @@ Deno.serve(async (req) => {
 
     // POST actions
     if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "MÃ©thode non supportÃ©e" }), { status: 405, headers });
+      return new Response(JSON.stringify({ error: "Méthode non supportée" }), { status: 405, headers });
     }
 
     const body = await req.json();
@@ -469,7 +469,7 @@ Deno.serve(async (req) => {
     // Finalize a paid field_payment_intent into a real Core order/invoice.
     // Called by internal payment processors after PayPal/card capture.
     if (postAction === "finalize_paid_intent") {
-      if (!isServiceRoleCall) return new Response(JSON.stringify({ error: "AccÃ¨s refusÃ©" }), { status: 403, headers });
+      if (!isServiceRoleCall) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
       const intentId = body.field_payment_intent_id;
       if (!intentId) return new Response(JSON.stringify({ error: "field_payment_intent_id requis" }), { status: 400, headers });
 
@@ -512,11 +512,11 @@ Deno.serve(async (req) => {
           discount_data: quote.discount || null,
           source_quote_id: quote.id,
           source_field_payment_intent_id: intent.id,
-          internal_notes: `Intent Field ${intent.id} finalisÃ© automatiquement`,
+          internal_notes: `Intent Field ${intent.id} finalisé automatiquement`,
         } as any)
         .select("id")
         .single();
-      if (fieldOrderError || !fieldOrder) throw fieldOrderError ?? new Error("CrÃ©ation vente Field Ã©chouÃ©e");
+      if (fieldOrderError || !fieldOrder) throw fieldOrderError ?? new Error("Création vente Field échouée");
 
       const syncResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
         method: "POST",
@@ -525,7 +525,7 @@ Deno.serve(async (req) => {
       });
       const syncData = await syncResp.json().catch(() => null);
       if (!syncResp.ok || !syncData?.success || !syncData?.orderId) {
-        throw new Error(syncData?.error || "CrÃ©ation commande Core Ã©chouÃ©e");
+        throw new Error(syncData?.error || "Création commande Core échouée");
       }
 
       await admin.from("field_quotes").update({ status: "converted", converted_order_id: syncData.orderId }).eq("id", quote.id);
@@ -563,7 +563,7 @@ Deno.serve(async (req) => {
           quantity: 1, price_monthly: Number(s.monthlyPrice ?? s.price_monthly ?? 0), price_setup: 0,
         })),
         ...equipment.map((e: any) => ({
-          name: e.name, category: e.category || "Ã‰quipement",
+          name: e.name, category: e.category || "Équipement",
           quantity: Number(e.quantity || 1), price_monthly: 0, price_setup: Number(e.price || 0),
         })),
       ];
@@ -587,7 +587,7 @@ Deno.serve(async (req) => {
           source_quote_id: quoteId,
           internal_notes: `Commande terrain â€” Agent: ${quote.agent_name || ""} (quote ${quoteId})`,
         } as any).select("id").single();
-      if (foErr || !fieldOrder) throw foErr ?? new Error("CrÃ©ation field_sales_orders Ã©chouÃ©e");
+      if (foErr || !fieldOrder) throw foErr ?? new Error("Création field_sales_orders échouée");
 
       // Trigger sync to Core to create order + invoice + commission
       const syncResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
@@ -616,7 +616,7 @@ Deno.serve(async (req) => {
 
       const customerName = [customer.first_name, customer.last_name].filter(Boolean).join(" ").trim();
       if (!customerName) return new Response(JSON.stringify({ error: "Nom du client requis" }), { status: 400, headers });
-      if (!customer.phone?.trim()) return new Response(JSON.stringify({ error: "TÃ©lÃ©phone du client requis" }), { status: 400, headers });
+      if (!customer.phone?.trim()) return new Response(JSON.stringify({ error: "Téléphone du client requis" }), { status: 400, headers });
       if (!customer.address?.trim()) return new Response(JSON.stringify({ error: "Adresse du client requise" }), { status: 400, headers });
       if (rawServices.length === 0) return new Response(JSON.stringify({ error: "Au moins un service est requis" }), { status: 400, headers });
 
@@ -630,7 +630,7 @@ Deno.serve(async (req) => {
         })),
         ...rawEquipment.map((equipment: any) => ({
           name: equipment.name,
-          category: equipment.category || "Ã‰quipement",
+          category: equipment.category || "Équipement",
           quantity: Number(equipment.quantity || 1),
           price_monthly: 0,
           price_setup: Number(equipment.price || 0),
@@ -667,7 +667,7 @@ Deno.serve(async (req) => {
         .select("id")
         .single();
 
-      if (fieldOrderError || !fieldOrder) throw fieldOrderError || new Error("Impossible de crÃ©er la vente terrain");
+      if (fieldOrderError || !fieldOrder) throw fieldOrderError || new Error("Impossible de créer la vente terrain");
 
       await admin.from("field_order_status_history").insert({
         field_order_id: fieldOrder.id,
@@ -675,7 +675,7 @@ Deno.serve(async (req) => {
         old_status: null,
         new_status: postAction === "submit-sale" ? "submitted" : "draft",
         changed_by_user_id: userId,
-        change_reason: postAction === "submit-sale" ? "CrÃ©ation depuis le portail Field" : "Brouillon crÃ©Ã© depuis le portail Field",
+        change_reason: postAction === "submit-sale" ? "Création depuis le portail Field" : "Brouillon créé depuis le portail Field",
       } as any);
 
       if (postAction === "create-draft") {
@@ -702,10 +702,10 @@ Deno.serve(async (req) => {
 
       const syncData = await syncResponse.json().catch(() => null);
       if (!syncResponse.ok) {
-        throw new Error(syncData?.error || `La synchronisation de la vente a Ã©chouÃ© (${syncResponse.status})`);
+        throw new Error(syncData?.error || `La synchronisation de la vente a échoué (${syncResponse.status})`);
       }
       if (!syncData?.success || !syncData?.invoice_id) {
-        throw new Error(syncData?.error || "La synchronisation de la vente a Ã©chouÃ©");
+        throw new Error(syncData?.error || "La synchronisation de la vente a échoué");
       }
 
       return new Response(JSON.stringify({
@@ -725,7 +725,7 @@ Deno.serve(async (req) => {
       const warnings: string[] = [];
 
       if (!body.customer_name?.trim()) issues.push("Nom du client requis");
-      if (!body.customer_phone?.trim()) issues.push("TÃ©lÃ©phone du client requis");
+      if (!body.customer_phone?.trim()) issues.push("Téléphone du client requis");
       if (!body.customer_email?.trim()) issues.push("Courriel du client requis");
       if (!body.customer_address?.trim()) issues.push("Adresse du client requise");
       if (!body.customer_postal_code?.trim()) issues.push("Code postal requis");
@@ -762,7 +762,7 @@ Deno.serve(async (req) => {
       });
       const syncData = await syncResponse.json().catch(() => null);
       if (!syncResponse.ok || !syncData?.success) {
-        throw new Error(syncData?.error || `La synchronisation de la vente a Ã©chouÃ© (${syncResponse.status})`);
+        throw new Error(syncData?.error || `La synchronisation de la vente a échoué (${syncResponse.status})`);
       }
 
       return new Response(JSON.stringify({ success: true, order_id: orderId, core_order_id: syncData.orderId || null, invoice_id: syncData.invoice_id || null, sync_status: "synced", message: "Commande soumise" }), { headers });
@@ -813,7 +813,7 @@ Deno.serve(async (req) => {
         });
       } catch (_e) {}
 
-      return new Response(JSON.stringify({ success: true, message: "Sync relancÃ©e", attempt_count: newCount }), { headers });
+      return new Response(JSON.stringify({ success: true, message: "Sync relancée", attempt_count: newCount }), { headers });
     }
 
     // Add note
@@ -834,11 +834,11 @@ Deno.serve(async (req) => {
 
       const { data: order } = await admin.from("field_sales_orders").select("payment_status, sync_status").eq("id", orderId).single();
       if (order?.payment_status === "confirmed" || order?.sync_status === "synced") {
-        return new Response(JSON.stringify({ error: "Impossible d'annuler une commande payÃ©e ou synchronisÃ©e" }), { status: 400, headers });
+        return new Response(JSON.stringify({ error: "Impossible d'annuler une commande payée ou synchronisée" }), { status: 400, headers });
       }
 
       await admin.from("field_sales_orders").update({ payment_status: "cancelled", sync_status: "error", sync_error: "Cancelled by agent", updated_at: new Date().toISOString() }).eq("id", orderId);
-      await admin.from("field_order_status_history").insert({ field_order_id: orderId, status_domain: "order", old_status: order?.payment_status, new_status: "cancelled", changed_by_user_id: userId, change_reason: "AnnulÃ©e par l'agent" });
+      await admin.from("field_order_status_history").insert({ field_order_id: orderId, status_domain: "order", old_status: order?.payment_status, new_status: "cancelled", changed_by_user_id: userId, change_reason: "Annulée par l'agent" });
 
       return new Response(JSON.stringify({ success: true }), { headers });
     }

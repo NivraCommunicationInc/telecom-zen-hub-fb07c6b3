@@ -14,6 +14,8 @@ export const corsHeaders = {
 export const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 export const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 export const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+const NOVA_MODEL = Deno.env.get("NOVA_MODEL") || "claude-sonnet-4-6";
 
 export const SUPPORT_BCC = "support@nivra-telecom.ca";
 export const ADMIN_EMAIL = "support@nivra-telecom.ca";
@@ -222,30 +224,31 @@ export async function queueEmail(
   }
 }
 
-export async function callGeminiJSON(prompt: string, model = "google/gemini-2.5-pro"): Promise<any> {
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+export async function callGeminiJSON(prompt: string, _model = "google/gemini-2.5-pro"): Promise<any> {
+  // Lovable AI gateway removed — route to Anthropic Claude
+  if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
+      model: NOVA_MODEL,
+      max_tokens: 2048,
+      messages: [{ role: "user", content: `${prompt}\n\nRespond with valid JSON only.` }],
     }),
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`Gemini ${res.status}: ${t.slice(0, 300)}`);
+    throw new Error(`Anthropic ${res.status}: ${t.slice(0, 300)}`);
   }
   const data = await res.json();
-  const content = data.choices?.[0]?.message?.content ?? "{}";
+  const content = data.content?.[0]?.text ?? "{}";
   try {
     return JSON.parse(content);
   } catch (_e) {
-    // attempt to extract JSON from text
     const m = content.match(/\{[\s\S]*\}/);
     return m ? JSON.parse(m[0]) : {};
   }

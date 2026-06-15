@@ -31,16 +31,16 @@ const DOC_LABELS: Record<string, string> = {
   suspension_notice: "Avis de suspension de service",
   cancellation_confirmation: "Confirmation d'annulation",
   chargeback_notice: "Avis de chargeback",
-  final_refund_receipt: "ReÃ§u de remboursement final",
+  final_refund_receipt: "Reçu de remboursement final",
   delivery_slip: "Bon de livraison",
-  return_instructions: "Instructions de retour d'Ã©quipement",
+  return_instructions: "Instructions de retour d'équipement",
   installation_report: "Rapport d'installation",
   activation_confirmation: "Confirmation d'activation de service",
   contract_amendment: "Avenant au contrat de service",
   formal_demand: "Mise en demeure",
   collections_transfer: "Transfert au recouvrement",
-  complaint_acknowledgment: "AccusÃ© de rÃ©ception de plainte",
-  preauthorization_confirmation: "Confirmation de prÃ©autorisation",
+  complaint_acknowledgment: "Accusé de réception de plainte",
+  preauthorization_confirmation: "Confirmation de préautorisation",
 };
 
 

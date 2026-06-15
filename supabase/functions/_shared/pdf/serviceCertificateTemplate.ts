@@ -1,5 +1,5 @@
 ﻿/**
- * Service Certificate â€” Attestation de service actif (souvent demandÃ©e pour preuves d'adresse).
+ * Service Certificate â€” Attestation de service actif (souvent demandée pour preuves d'adresse).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";

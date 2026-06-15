@@ -149,7 +149,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const refundAmount = amount ? Math.round(amount * 100) / 100 : payment.amount;
-    const isPartial = amount !== undefined && amount < payment.amount;
+    const isPartial = amount !== undefined && amount < Number(payment.amount);
 
     if (refundAmount > Number(payment.amount)) {
       return new Response(

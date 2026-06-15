@@ -185,7 +185,7 @@ function buildInvoiceLines(payload: CheckoutPayload, invoiceId: string) {
     const unit = toMoney(eq.unit_price);
     lines.push({
       invoice_id: invoiceId,
-      description: eq.name || "Ã‰quipement",
+      description: eq.name || "Équipement",
       unit_price: unit,
       quantity: qty,
       line_total: toMoney(unit * qty),
@@ -694,7 +694,7 @@ serve(async (req) => {
             payment_status: paid ? "paid" : (payload.payment?.method === "etransfer" ? "pending" : "pre_authorized"),
             service_type: derivedServiceType,
             fulfillment_type: isStreamingOnly ? "digital" : null,
-            delivery_method: isStreamingOnly ? "Livraison numÃ©rique par courriel" : null,
+            delivery_method: isStreamingOnly ? "Livraison numérique par courriel" : null,
             order_type: "new",
             total_amount: canonicalGrandTotal,
             environment: "live",
@@ -998,10 +998,10 @@ serve(async (req) => {
               if (lineType === "discount") return "fee";
               const d = (desc || "").toLowerCase();
               if (d.includes("internet") || d.includes("fibre") || d.includes("fiber")) return "internet";
-              if (d.includes("tÃ©lÃ©") || d.includes("tv") || d.includes("chaÃ®ne") || d.includes("channel")) return "tv";
+              if (d.includes("télé") || d.includes("tv") || d.includes("chaîne") || d.includes("channel")) return "tv";
               if (d.includes("mobile") || d.includes("cellulaire")) return "mobile";
               if (d.includes("netflix") || d.includes("disney") || d.includes("spotify") || d.includes("streaming")) return "streaming";
-              if (d.includes("sÃ©curitÃ©") || d.includes("alarme") || d.includes("security")) return "security";
+              if (d.includes("sécurité") || d.includes("alarme") || d.includes("security")) return "security";
               return "addon";
             };
 

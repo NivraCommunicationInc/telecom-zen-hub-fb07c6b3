@@ -1,5 +1,5 @@
 ﻿/**
- * Welcome Letter â€” Lettre de bienvenue (envoyÃ©e aprÃ¨s activation du service).
+ * Welcome Letter â€” Lettre de bienvenue (envoyée après activation du service).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";

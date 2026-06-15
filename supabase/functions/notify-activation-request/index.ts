@@ -90,14 +90,14 @@ serve(async (req) => {
           <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">ðŸ”” Nouvelle demande d'activation</h1>
         </td></tr>
         <tr><td style="background:#fff;padding:30px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
-          <p style="margin:0 0 20px;color:#374151;font-size:15px;">Une nouvelle demande d'activation WiFi vient d'Ãªtre soumise.</p>
+          <p style="margin:0 0 20px;color:#374151;font-size:15px;">Une nouvelle demande d'activation WiFi vient d'être soumise.</p>
           <table role="presentation" style="width:100%;background:#f9fafb;border-radius:8px;margin-bottom:20px;">
             <tr><td style="padding:16px;">
               <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Client:</strong> ${clientName}</p>
               <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Compte:</strong> #${clientNumber}</p>
               <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Courriel:</strong> ${clientEmail}</p>
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>TÃ©lÃ©phone contact:</strong> ${ar.contact_phone}</p>
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>RÃ©seau WiFi demandÃ©:</strong> <code>${ar.wifi_network_name}</code></p>
+              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Téléphone contact:</strong> ${ar.contact_phone}</p>
+              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Réseau WiFi demandé:</strong> <code>${ar.wifi_network_name}</code></p>
               <p style="margin:0;font-size:13px;color:#6b7280;"><strong>Soumis Ã :</strong> ${new Date(ar.submitted_at).toLocaleString("fr-CA", { timeZone: "America/Toronto" })}</p>
             </td></tr>
           </table>
@@ -107,7 +107,7 @@ serve(async (req) => {
           </td></tr></table>
         </td></tr>
         <tr><td style="background:#1f2937;padding:20px;text-align:center;border-radius:0 0 12px 12px;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;">Notification automatique â€” Nivra TÃ©lÃ©com Admin</p>
+          <p style="margin:0;color:#9ca3af;font-size:12px;">Notification automatique â€” Nivra Télécom Admin</p>
         </td></tr>
       </table>
     </td></tr>

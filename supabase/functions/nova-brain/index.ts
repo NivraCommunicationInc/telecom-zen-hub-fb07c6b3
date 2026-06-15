@@ -507,7 +507,7 @@ async function executeTool(
         const reason = input.reason as string;
         const months = (input.months as number) ?? 1;
         if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: "Invalid amount" };
-        if (amount > 500) return { ok: false, error: "CrÃ©dit maximum 500$ CAD par NOVA. Pour un montant supÃ©rieur, un admin doit l'appliquer manuellement dans Core." };
+        if (amount > 500) return { ok: false, error: "Crédit maximum 500$ CAD par NOVA. Pour un montant supérieur, un admin doit l'appliquer manuellement dans Core." };
         const { data, error } = await supabase
           .from("account_adjustments")
           .insert({
@@ -608,7 +608,7 @@ async function executeTool(
       }
 
       case "create_work_order": {
-        if (!input.confirmed) return { ok: false, error: "Confirmation requise pour crÃ©er un ordre de travail." };
+        if (!input.confirmed) return { ok: false, error: "Confirmation requise pour créer un ordre de travail." };
         const { data, error } = await supabase.from("work_orders").insert({
           account_id: input.account_id as string,
           work_type: input.work_type as string,
@@ -718,7 +718,7 @@ serve(async (req) => {
   if (!apiKey) {
     console.error("[nova-brain] ANTHROPIC_API_KEY missing");
     return new Response(
-      JSON.stringify({ error: "configuration_error", detail: "NOVA n'est pas configurÃ©. Contactez l'administrateur." }),
+      JSON.stringify({ error: "configuration_error", detail: "NOVA n'est pas configuré. Contactez l'administrateur." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
@@ -763,28 +763,28 @@ serve(async (req) => {
       .join("\n");
 
     const baseSystem = `Tu es NOVA, le Digital Brain de Nivra Telecom.
-Tu es le co-fondateur IA de l'Ã©quipe.
+Tu es le co-fondateur IA de l'équipe.
 
-PERSONNALITÃ‰:
-- Tu penses comme un CEO de tÃ©lÃ©coms expÃ©rimentÃ©.
-- Tu parles directement, sans bullshit. RÃ©ponses courtes quand possible, longues quand nÃ©cessaire.
-- Tu proposes TOUJOURS 2-3 actions concrÃ¨tes aprÃ¨s chaque analyse.
-- Tu utilises les outils Ã  ta disposition au lieu de spÃ©culer.
-- Tu rÃ©ponds en franÃ§ais quÃ©bÃ©cois professionnel par dÃ©faut (sauf si on te parle en anglais).
-- Jamais de rÃ©ponses gÃ©nÃ©riques type "Comment puis-je vous aider ?". Va droit au but.
+PERSONNALITÉ:
+- Tu penses comme un CEO de télécoms expérimenté.
+- Tu parles directement, sans bullshit. Réponses courtes quand possible, longues quand nécessaire.
+- Tu proposes TOUJOURS 2-3 actions concrètes après chaque analyse.
+- Tu utilises les outils Ã  ta disposition au lieu de spéculer.
+- Tu réponds en français québécois professionnel par défaut (sauf si on te parle en anglais).
+- Jamais de réponses génériques type "Comment puis-je vous aider ?". Va droit au but.
 
 OUTILS DISPONIBLES:
-Tu as accÃ¨s Ã  des outils (get_account_state, search_customers, get_business_metrics,
-queue_internal_email, remember_for_later). Utilise-les dÃ¨s que Ã§a aide. Quand quelqu'un
-te demande l'Ã©tat d'un client, NE devine PAS â€” appelle get_account_state.
+Tu as accès Ã  des outils (get_account_state, search_customers, get_business_metrics,
+queue_internal_email, remember_for_later). Utilise-les dès que ça aide. Quand quelqu'un
+te demande l'état d'un client, NE devine PAS â€” appelle get_account_state.
 
 RÃˆGLES STRICTES:
-- Jamais de chiffres inventÃ©s. Si tu ne sais pas, dis-le et appelle un outil.
-- Pour envoyer un email Ã  un CLIENT (pas l'Ã©quipe interne), refuse et demande approbation humaine.
-- Pour suspendre / annuler un compte, refuse de le faire toi-mÃªme â€” c'est une action admin.`;
+- Jamais de chiffres inventés. Si tu ne sais pas, dis-le et appelle un outil.
+- Pour envoyer un email Ã  un CLIENT (pas l'équipe interne), refuse et demande approbation humaine.
+- Pour suspendre / annuler un compte, refuse de le faire toi-même â€” c'est une action admin.`;
 
-    const contextSection = `\n\nDONNÃ‰ES NIVRA EN TEMPS RÃ‰EL:\n${JSON.stringify(contextData || {}, null, 2)}`;
-    const memorySection = memoryText ? `\n\nMÃ‰MOIRE LONG-TERME:\n${memoryText}` : "";
+    const contextSection = `\n\nDONNÉES NIVRA EN TEMPS RÉEL:\n${JSON.stringify(contextData || {}, null, 2)}`;
+    const memorySection = memoryText ? `\n\nMÉMOIRE LONG-TERME:\n${memoryText}` : "";
 
     // System prompt as a list so we can mark the cacheable prefix.
     const systemPrompt = [
@@ -866,7 +866,7 @@ RÃˆGLES STRICTES:
 
     // If we ran out of iterations without a final text, surface that explicitly.
     if (!finalText) {
-      finalText = "Je n'ai pas pu finaliser ma rÃ©ponse aprÃ¨s plusieurs tentatives. Reformule ta demande ou contacte le support.";
+      finalText = "Je n'ai pas pu finaliser ma réponse après plusieurs tentatives. Reformule ta demande ou contacte le support.";
     }
 
     const durationMs = Date.now() - startedAt;

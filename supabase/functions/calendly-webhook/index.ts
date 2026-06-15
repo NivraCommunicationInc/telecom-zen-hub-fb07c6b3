@@ -155,11 +155,11 @@ const handler = async (req: Request): Promise<Response> => {
             entityType: "appointment",
             entityId: appointment?.id,
             html: violetShell({
-              preheader: "Votre rendez-vous Nivra est confirmÃ©.",
-              badge: "RENDEZ-VOUS CONFIRMÃ‰",
-              heroTitle: "Rendez-vous confirmÃ©",
+              preheader: "Votre rendez-vous Nivra est confirmé.",
+              badge: "RENDEZ-VOUS CONFIRMÉ",
+              heroTitle: "Rendez-vous confirmé",
               greeting: `Bonjour ${invitee.name},`,
-              bodyHtml: "Votre rendez-vous a Ã©tÃ© confirmÃ©. Voici les dÃ©tails ci-dessous.",
+              bodyHtml: "Votre rendez-vous a été confirmé. Voici les détails ci-dessous.",
               cardTitle: "Rendez-vous",
               cardRows: [
                 ["Date et heure", new Date(scheduledEvent.start_time).toLocaleString('fr-CA', { dateStyle: 'full', timeStyle: 'short' })],

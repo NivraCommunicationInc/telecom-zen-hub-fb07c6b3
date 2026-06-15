@@ -31,7 +31,7 @@ serve(async (req: Request) => {
     if (!authHeader) {
       console.error("[admin-change-password] No authorization header");
       return new Response(
-        JSON.stringify({ error: "Non autorisÃ©" }),
+        JSON.stringify({ error: "Non autorisé" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -67,7 +67,7 @@ serve(async (req: Request) => {
     if (roleError || !roleData) {
       console.error("[admin-change-password] Not admin:", roleError);
       return new Response(
-        JSON.stringify({ error: "AccÃ¨s rÃ©servÃ© aux administrateurs" }),
+        JSON.stringify({ error: "Accès réservé aux administrateurs" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -78,7 +78,7 @@ serve(async (req: Request) => {
     // Validate new password requirements
     if (!newPassword || newPassword.length < 12) {
       return new Response(
-        JSON.stringify({ error: "Le mot de passe doit contenir au moins 12 caractÃ¨res" }),
+        JSON.stringify({ error: "Le mot de passe doit contenir au moins 12 caractères" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -92,7 +92,7 @@ serve(async (req: Request) => {
 
     if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/.test(newPassword)) {
       return new Response(
-        JSON.stringify({ error: "Le mot de passe doit contenir au moins un caractÃ¨re spÃ©cial" }),
+        JSON.stringify({ error: "Le mot de passe doit contenir au moins un caractère spécial" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -163,7 +163,7 @@ serve(async (req: Request) => {
     console.log("[admin-change-password] Password changed successfully for:", user.email);
 
     return new Response(
-      JSON.stringify({ success: true, message: "Mot de passe changÃ© avec succÃ¨s" }),
+      JSON.stringify({ success: true, message: "Mot de passe changé avec succès" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

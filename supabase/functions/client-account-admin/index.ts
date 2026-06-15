@@ -61,7 +61,7 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json(401, { error: "Non autorisÃ©" });
+  if (!authHeader) return json(401, { error: "Non autorisé" });
 
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authHeader } },
@@ -80,7 +80,7 @@ serve(async (req) => {
     .eq("user_id", user.id);
   const allowedRoles = new Set(["admin", "employee", "agent", "manager", "core_admin", "super_admin", "supervisor"]);
   const { isStaff } = await checkStaffAuth(admin, user.id);
-  if (!isStaff) return json(403, { error: "RÃ©servÃ© au personnel autorisÃ©" });
+  if (!isStaff) return json(403, { error: "Réservé au personnel autorisé" });
   // Admin gate for sensitive actions (email change, etc.)
   const adminRoles = new Set(["admin", "core_admin", "super_admin"]);
   const isAdmin = (roles || []).some((r: any) => adminRoles.has(r.role));
@@ -159,7 +159,7 @@ serve(async (req) => {
       template_vars: { first_name: firstName, ...vars },
       status: "queued",
     });
-    if (error) throw new Error(`Ã‰chec mise en file courriel: ${error.message}`);
+    if (error) throw new Error(`Échec mise en file courriel: ${error.message}`);
   };
 
   const genRecoveryLink = async (email: string) => {
@@ -169,7 +169,7 @@ serve(async (req) => {
       options: { redirectTo: `${origin}/portal/reset-password` },
     });
     if (error || !data?.properties?.action_link) {
-      throw new Error(error?.message || "Lien de rÃ©initialisation indisponible");
+      throw new Error(error?.message || "Lien de réinitialisation indisponible");
     }
     return data.properties.action_link as string;
   };
@@ -185,7 +185,7 @@ serve(async (req) => {
           portal_label: "votre espace client Nivra",
         });
         await audit("password_reset_sent", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Courriel de rÃ©initialisation envoyÃ©" });
+        return json(200, { success: true, message: "Courriel de réinitialisation envoyé" });
       }
 
       case "send_invite": {
@@ -204,7 +204,7 @@ serve(async (req) => {
           email: targetEmail,
         });
         await audit("invite_sent", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Invitation envoyÃ©e au client" });
+        return json(200, { success: true, message: "Invitation envoyée au client" });
       }
 
       case "force_confirm_email": {
@@ -212,7 +212,7 @@ serve(async (req) => {
         const { error } = await admin.auth.admin.updateUserById(targetId, { email_confirm: true });
         if (error) throw error;
         await audit("email_confirmed", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Courriel confirmÃ©" });
+        return json(200, { success: true, message: "Courriel confirmé" });
       }
 
       case "change_email": {
@@ -258,7 +258,7 @@ serve(async (req) => {
           reason: String(body.reason).trim(),
           changed_by: user.id,
         }, true);
-        return json(200, { success: true, message: "Courriel mis Ã  jour. L'ancienne adresse a Ã©tÃ© notifiÃ©e." });
+        return json(200, { success: true, message: "Courriel mis Ã  jour. L'ancienne adresse a été notifiée." });
       }
 
       case "force_logout": {
@@ -266,7 +266,7 @@ serve(async (req) => {
         const { error } = await admin.auth.admin.signOut(targetId);
         if (error) throw error;
         await audit("force_logout", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Sessions du client rÃ©voquÃ©es" });
+        return json(200, { success: true, message: "Sessions du client révoquées" });
       }
 
       case "set_temporary_password": {
@@ -275,7 +275,7 @@ serve(async (req) => {
         const { error } = await admin.auth.admin.updateUserById(targetId, { password: np });
         if (error) throw error;
         await audit("temp_password_set", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Mot de passe temporaire dÃ©fini", temporary_password: np });
+        return json(200, { success: true, message: "Mot de passe temporaire défini", temporary_password: np });
       }
 
       case "resend_welcome": {
@@ -283,7 +283,7 @@ serve(async (req) => {
           email: targetEmail,
         });
         await audit("welcome_resent", { email: targetEmail }, true);
-        return json(200, { success: true, message: "Courriel de bienvenue renvoyÃ©" });
+        return json(200, { success: true, message: "Courriel de bienvenue renvoyé" });
       }
 
       default:

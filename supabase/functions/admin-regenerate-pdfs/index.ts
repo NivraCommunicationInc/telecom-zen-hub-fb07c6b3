@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   /* â”€â”€ 1. Verify admin JWT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!token) {
-    return new Response(JSON.stringify({ error: "Non authentifiÃ©" }), {
+    return new Response(JSON.stringify({ error: "Non authentifié" }), {
       status: 401, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (!roleRow) {
-    return new Response(JSON.stringify({ error: "AccÃ¨s rÃ©servÃ© aux administrateurs" }), {
+    return new Response(JSON.stringify({ error: "Accès réservé aux administrateurs" }), {
       status: 403, headers: { ...cors, "Content-Type": "application/json" },
     });
   }

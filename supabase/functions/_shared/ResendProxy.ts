@@ -120,9 +120,9 @@ function sanitizeSubject(raw: string): string {
   s = s.replace(/\s{2,}/g, " ").trim();
 
   // ALL CAPS detection â€” if >=60% of letters are uppercase, sentence-case it
-  const letters = s.replace(/[^A-Za-zÃ€-Ã¿]/g, "");
+  const letters = s.replace(/[^A-Za-zÀ-Ã¿]/g, "");
   if (letters.length >= 6) {
-    const upper = letters.replace(/[^A-ZÃ€-Ãž]/g, "").length;
+    const upper = letters.replace(/[^A-ZÀ-Ãž]/g, "").length;
     if (upper / letters.length >= 0.6) {
       s = s.toLowerCase();
       s = s.charAt(0).toUpperCase() + s.slice(1);

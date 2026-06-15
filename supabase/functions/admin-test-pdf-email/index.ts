@@ -40,7 +40,7 @@ async function sendWithPdf(opts: {
     heroTitle: opts.heroTitle,
     heroSub: opts.heroSub,
     cardRows: opts.cardRows,
-    helpHtml: 'Des questions? RÃ©pondez Ã  ce courriel ou Ã©crivez Ã  <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>.',
+    helpHtml: 'Des questions? Répondez Ã  ce courriel ou écrivez Ã  <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a>.',
   });
 
   return resend.emails.send({
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
   /* â”€â”€ Auth â”€â”€ */
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!token) {
-    return new Response(JSON.stringify({ error: "Non authentifiÃ©" }), {
+    return new Response(JSON.stringify({ error: "Non authentifié" }), {
       status: 401, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (!lastOrder) {
-      return new Response(JSON.stringify({ error: "Aucune commande trouvÃ©e" }), {
+      return new Response(JSON.stringify({ error: "Aucune commande trouvée" }), {
         status: 404, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
           subject: `Nivra Telecom â€” Facture #${invoiceNum}`,
           badge: "FACTURE",
           heroTitle: `Facture #${invoiceNum}`,
-          heroSub: "Votre facture est disponible en piÃ¨ce jointe.",
+          heroSub: "Votre facture est disponible en pièce jointe.",
           cardRows: [
             ["Commande", orderNum],
             ["Facture", invoiceNum],
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
         });
         results.push({ type: "facture", status: "ok" });
       } else {
-        results.push({ type: "facture", status: "error", detail: "PDF null â€” donnÃ©es manquantes" });
+        results.push({ type: "facture", status: "error", detail: "PDF null â€” données manquantes" });
       }
     } catch (e) {
       results.push({ type: "facture", status: "error", detail: e.message });
@@ -158,17 +158,17 @@ Deno.serve(async (req) => {
     results.push({ type: "facture", status: "skipped", detail: "Aucune facture pour cette commande" });
   }
 
-  /* â”€â”€ 2. ReÃ§u â”€â”€ */
+  /* â”€â”€ 2. Reçu â”€â”€ */
   if (invoiceId) {
     try {
       const att = await buildReceiptPdfAttachment(invoiceId, "Recu");
       if (att) {
         await sendWithPdf({
           to,
-          subject: `Nivra Telecom â€” ReÃ§u de paiement #${invoiceNum}`,
-          badge: "REÃ‡U DE PAIEMENT",
-          heroTitle: "ReÃ§u de paiement",
-          heroSub: "Votre reÃ§u de paiement est disponible en piÃ¨ce jointe.",
+          subject: `Nivra Telecom â€” Reçu de paiement #${invoiceNum}`,
+          badge: "REÇU DE PAIEMENT",
+          heroTitle: "Reçu de paiement",
+          heroSub: "Votre reçu de paiement est disponible en pièce jointe.",
           cardRows: [
             ["Commande", orderNum],
             ["Facture", invoiceNum],
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
         });
         results.push({ type: "recu", status: "ok" });
       } else {
-        results.push({ type: "recu", status: "error", detail: "PDF null â€” donnÃ©es manquantes" });
+        results.push({ type: "recu", status: "error", detail: "PDF null â€” données manquantes" });
       }
     } catch (e) {
       results.push({ type: "recu", status: "error", detail: e.message });
@@ -196,14 +196,14 @@ Deno.serve(async (req) => {
         subject: `Nivra Telecom â€” Contrat de service #${orderNum}`,
         badge: "CONTRAT DE SERVICE",
         heroTitle: "Votre contrat de service",
-        heroSub: "Votre contrat est disponible en piÃ¨ce jointe.",
+        heroSub: "Votre contrat est disponible en pièce jointe.",
         cardRows: [["Commande", orderNum]],
         filename: att.filename,
         pdfBase64: att.content,
       });
       results.push({ type: "contrat", status: "ok" });
     } else {
-      results.push({ type: "contrat", status: "error", detail: "PDF null â€” donnÃ©es manquantes" });
+      results.push({ type: "contrat", status: "error", detail: "PDF null â€” données manquantes" });
     }
   } catch (e) {
     results.push({ type: "contrat", status: "error", detail: e.message });
@@ -218,14 +218,14 @@ Deno.serve(async (req) => {
         subject: `Nivra Telecom â€” Sommaire de commande #${orderNum}`,
         badge: "SOMMAIRE DE COMMANDE",
         heroTitle: `Commande #${orderNum}`,
-        heroSub: "Votre sommaire de commande est disponible en piÃ¨ce jointe.",
+        heroSub: "Votre sommaire de commande est disponible en pièce jointe.",
         cardRows: [["Commande", orderNum]],
         filename: att.filename,
         pdfBase64: att.content,
       });
       results.push({ type: "sommaire", status: "ok" });
     } else {
-      results.push({ type: "sommaire", status: "error", detail: "PDF null â€” donnÃ©es manquantes" });
+      results.push({ type: "sommaire", status: "error", detail: "PDF null â€” données manquantes" });
     }
   } catch (e) {
     results.push({ type: "sommaire", status: "error", detail: e.message });

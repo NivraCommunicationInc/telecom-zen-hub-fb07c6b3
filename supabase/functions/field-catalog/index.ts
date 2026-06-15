@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
         .from("services")
         .select("*")
         .eq("is_active", true)
-        .eq("category", "Ã‰quipement")
+        .eq("category", "Équipement")
         .order("display_order", { ascending: true });
       if (error) throw error;
 

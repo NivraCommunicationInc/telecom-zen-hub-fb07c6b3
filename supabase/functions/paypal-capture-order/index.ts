@@ -96,7 +96,7 @@ function isRecurringEligible(order: any): boolean {
   }
   const st = (order.service_type || "").toLowerCase();
   if (st.includes("internet") || st.includes("mobile") || st.includes("tv") ||
-      st.includes("streaming") || st.includes("sÃ©curitÃ©") || st.includes("security")) {
+      st.includes("streaming") || st.includes("sécurité") || st.includes("securite") || st.includes("security")) {
     return true;
   }
   return false;
@@ -518,9 +518,9 @@ serve(async (req) => {
           <p><strong>Capture ID:</strong> ${captureId}</p>
           <p><strong>Montant:</strong> ${amount} ${currencyCode}</p>
           <p><strong>Payeur:</strong> ${payerFirstName} ${payerLastName} &lt;${payerEmail}&gt;</p>
-          <p><strong>TÃ©lÃ©phone:</strong> ${payerPhone || "n/a"}</p>
+          <p><strong>Téléphone:</strong> ${payerPhone || "n/a"}</p>
           <p><strong>Tentative invoice_id:</strong> ${invoiceId}</p>
-          <p>L'argent a Ã©tÃ© capturÃ© par PayPal mais aucune facture n'a Ã©tÃ© trouvÃ©e. RÃ©cupÃ©ration manuelle requise immÃ©diatement.</p>
+          <p>L'argent a été capturé par PayPal mais aucune facture n'a été trouvée. Récupération manuelle requise immédiatement.</p>
         `;
         await supabase.from("email_queue").insert([
           {

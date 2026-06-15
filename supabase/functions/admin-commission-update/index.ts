@@ -105,8 +105,8 @@ Deno.serve(async (req) => {
       await admin.from("employee_notifications").insert({
         user_id: (data as any).agent_id,
         notification_type: "system",
-        title: "Commission approuvÃ©e",
-        message: `Une commission de ${(data as any).amount}$ a Ã©tÃ© approuvÃ©e.`,
+        title: "Commission approuvée",
+        message: `Une commission de ${(data as any).amount}$ a été approuvée.`,
         is_read: false,
       } as any);
     }

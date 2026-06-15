@@ -49,16 +49,16 @@ serve(async (req: Request) => {
         <p style="margin:8px 0 0;color:#94A3B8;font-size:14px;">Templates PDF â€” usage interne</p>
       </td></tr>
       <tr><td style="padding:40px;">
-        <h2 style="margin:0 0 16px;color:#0F172A;font-size:22px;font-weight:600;">${attachments.length} templates PDF en piÃ¨ces jointes</h2>
-        <p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.7;">${body.intro || "Copie vierge de tous les templates PDF actuellement utilisÃ©s par le moteur Nivra."}</p>
+        <h2 style="margin:0 0 16px;color:#0F172A;font-size:22px;font-weight:600;">${attachments.length} templates PDF en pièces jointes</h2>
+        <p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.7;">${body.intro || "Copie vierge de tous les templates PDF actuellement utilisés par le moteur Nivra."}</p>
         <div style="background:#F0FDFA;border-left:4px solid #14B8A6;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px;">
           <p style="margin:0 0 8px;color:#0F766E;font-size:14px;font-weight:600;">Documents inclus :</p>
           <ul style="margin:0;padding-left:20px;">${fileList}</ul>
         </div>
-        <p style="margin:0;color:#64748B;font-size:13px;line-height:1.6;">Champs dynamiques entre crochets [...]. Watermark "DOCUMENT MODÃˆLE" appliquÃ©.</p>
+        <p style="margin:0;color:#64748B;font-size:13px;line-height:1.6;">Champs dynamiques entre crochets [...]. Watermark "DOCUMENT MODÃˆLE" appliqué.</p>
       </td></tr>
       <tr><td style="background:#F8FAFC;padding:24px 40px;border-top:1px solid #E2E8F0;text-align:center;">
-        <p style="margin:0 0 8px;color:#64748B;font-size:13px;">Nivra Communications Inc. | Laval, QuÃ©bec</p>
+        <p style="margin:0 0 8px;color:#64748B;font-size:13px;">Nivra Communications Inc. | Laval, Québec</p>
         <p style="margin:0;color:#94A3B8;font-size:12px;">${dateStr}</p>
       </td></tr>
     </table>

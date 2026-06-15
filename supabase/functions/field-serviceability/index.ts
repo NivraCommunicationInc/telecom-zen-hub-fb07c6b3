@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
       if (rolesError) throw rolesError;
       if (!allowedRoles?.length) {
-        return new Response(JSON.stringify({ error: "AccÃ¨s non autorisÃ©" }), { status: 403, headers });
+        return new Response(JSON.stringify({ error: "Accès non autorisé" }), { status: 403, headers });
       }
 
       const profileFilters = [

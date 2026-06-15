@@ -66,14 +66,14 @@ Deno.serve(async (req) => {
 
       const kpis = [
         makeKPI("Ventes ce mois", orders.length, cfg("default_sales_target", 20), "sales_count", "ventes"),
-        makeKPI("Revenus gÃ©nÃ©rÃ©s", totalRevenue, cfg("default_revenue_target", 5000), "revenue", "$", true),
-        makeKPI("Commissions gagnÃ©es", totalCommissions, cfg("default_commission_target", 1500), "commissions", "$", true),
-        makeKPI("Leads crÃ©Ã©s", leads.length, cfg("default_leads_target", 50), "leads_created", "leads"),
+        makeKPI("Revenus générés", totalRevenue, cfg("default_revenue_target", 5000), "revenue", "$", true),
+        makeKPI("Commissions gagnées", totalCommissions, cfg("default_commission_target", 1500), "commissions", "$", true),
+        makeKPI("Leads créés", leads.length, cfg("default_leads_target", 50), "leads_created", "leads"),
         makeKPI("Leads convertis", leadsWon, 10, "leads_won", "convertis"),
         makeKPI("Taux de conversion", conversionRate, cfg("default_conversion_target", 40), "conversion_rate", "%"),
-        makeKPI("Rues complÃ©tÃ©es", streetsCompleted, cfg("default_streets_target", 15), "streets_completed", "rues"),
-        makeKPI("Portes cognÃ©es", totalDoors, cfg("default_doors_target", 500), "doors_knocked", "portes"),
-        makeKPI("Commandes synchronisÃ©es", syncedOrders, orders.length || 1, "synced_orders", "sync"),
+        makeKPI("Rues complétées", streetsCompleted, cfg("default_streets_target", 15), "streets_completed", "rues"),
+        makeKPI("Portes cognées", totalDoors, cfg("default_doors_target", 500), "doors_knocked", "portes"),
+        makeKPI("Commandes synchronisées", syncedOrders, orders.length || 1, "synced_orders", "sync"),
       ];
 
       const overallProgress = kpis.reduce((sum, k) => sum + k.progress, 0) / kpis.length;
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       const { error } = await admin.from("field_territory_streets").insert({
         agent_id: userId,
         street_name: streetName,
-        city: sanitizeString(body.city || "MontrÃ©al", 200),
+        city: sanitizeString(body.city || "Montréal", 200),
         postal_code: body.postal_code?.trim() || null,
         total_doors: body.total_doors || 0,
         notes: body.notes?.trim() || null,

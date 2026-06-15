@@ -26,8 +26,8 @@ const handler = async (req: Request): Promise<Response> => {
       templateVars: {
         client_name: name || "Client",
         order_number: ticketNumber || "",
-        service_type: "ChaÃ®nes TV",
-        channels_list: channelNames || "ChaÃ®nes sÃ©lectionnÃ©es",
+        service_type: "Chaînes TV",
+        channels_list: channelNames || "Chaînes sélectionnées",
         channels_count: String(channels?.length || 0),
         total_amount: totalPrice || 0,
         notes: notes || "",

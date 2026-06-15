@@ -1,10 +1,10 @@
 ﻿/**
  * Nivra Contract Template V5.0 â€” Telecom-Grade Professional Standard
  * 
- * 4-page contract with integrated modalitÃ©s:
+ * 4-page contract with integrated modalités:
  * Page 1: Header + Client ID + Financial Summary
  * Page 2: Services & Equipment + Conditions 1-5
- * Page 3: Conditions 6-12 (ModalitÃ©s intÃ©grÃ©es)
+ * Page 3: Conditions 6-12 (Modalités intégrées)
  * Page 4: Signatures + Legal Notice
  */
 

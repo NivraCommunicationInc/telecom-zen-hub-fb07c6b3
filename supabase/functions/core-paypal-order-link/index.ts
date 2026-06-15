@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
       .eq("user_id", callerId);
     const hasRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
     if (!hasRole) {
-      return new Response(JSON.stringify({ error: "AccÃ¨s refusÃ©" }), { status: 403, headers });
+      return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
     }
 
     const body = await req.json();
@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
     );
     const approvalUrl = approvalLink?.href || null;
     if (!approvalUrl) {
-      return new Response(JSON.stringify({ error: "PayPal n'a pas renvoyÃ© de lien d'approbation" }), { status: 500, headers });
+      return new Response(JSON.stringify({ error: "PayPal n'a pas renvoyé de lien d'approbation" }), { status: 500, headers });
     }
 
     // Stamp order
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         <div style="font-family:Arial,sans-serif;color:#111;max-width:600px;margin:0 auto;padding:24px;">
           <h2 style="color:#0066CC;margin:0 0 16px;">Lien de paiement â€” Nivra Telecom</h2>
           <p>Bonjour ${fullName},</p>
-          <p>Voici le lien sÃ©curisÃ© pour rÃ©gler votre commande
+          <p>Voici le lien sécurisé pour régler votre commande
             <strong>${order.order_number || order.id.slice(0, 8)}</strong>
             d'un montant de <strong>${amount.toFixed(2)} $ CAD</strong>.</p>
           <p style="margin:24px 0;">
