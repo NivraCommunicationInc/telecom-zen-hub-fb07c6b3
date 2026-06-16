@@ -37,55 +37,57 @@ const EQUIPMENT_LABELS: Record<EquipmentType, string> = {
   other: "Autre",
 };
 
+function detectItemType(name: string, category: string): EquipmentType | null {
+  const n = (name + " " + category).toLowerCase();
+  if (n.includes("esim")) return "esim";
+  if (n.includes("sim")) return "sim";
+  if (n.includes("borne") || n.includes("born_wifi") || n.includes("borne_wifi")) return "borne_wifi";
+  if (n.includes("routeur") || n.includes("router") || n.includes("modem")) return "router";
+  if (n.includes("tv") || n.includes("box") || n.includes("terminal") || n.includes("télé") || n.includes("iptv")) return "tv_box";
+  if (n.includes("mobile") || n.includes("cellulaire") || n.includes("device")) return "device";
+  return null;
+}
+
 function getEquipmentTypesForOrder(order: any, items: any[]): EquipmentType[] {
   const serviceType = (order?.service_type || "").toLowerCase();
-  const itemNames = items.map(i => (i.product_name || i.plan_name || "").toLowerCase()).join(" ");
-  const combined = `${serviceType} ${itemNames}`;
 
-  const types: EquipmentType[] = [];
-
-  // Internet-related
-  if (combined.includes("internet") || combined.includes("fibre")) {
-    if (combined.includes("borne") || combined.includes("born")) {
-      types.push("borne_wifi");
-    } else {
-      types.push("router");
-    }
-    if (combined.includes("modem")) {
-      types.push("modem");
+  // Build list from items WITH quantities (e.g. 2 TV boxes = ["tv_box","tv_box"])
+  const fromItems: EquipmentType[] = [];
+  for (const item of items) {
+    const name = item.product_name || item.plan_name || item.item_name || "";
+    const cat = item.category || item.item_category || "";
+    const qty = Math.max(1, Number(item.quantity || item.qty || 1));
+    const detected = detectItemType(name, cat);
+    if (detected) {
+      for (let i = 0; i < qty; i++) fromItems.push(detected);
     }
   }
 
-  // TV-related
+  if (fromItems.length > 0) return fromItems;
+
+  // Fallback: infer from service type string
+  const types: EquipmentType[] = [];
+  const combined = serviceType + " " + items.map(i => (i.product_name || i.plan_name || "").toLowerCase()).join(" ");
+
+  if (combined.includes("internet") || combined.includes("fibre")) {
+    types.push(combined.includes("borne") ? "borne_wifi" : "router");
+    if (combined.includes("modem")) types.push("modem");
+  }
   if (combined.includes("tv") || combined.includes("télé") || combined.includes("iptv") || combined.includes("box")) {
     types.push("tv_box");
   }
-
-  // Mobile-related
   if (combined.includes("mobile") || combined.includes("cellulaire") || combined.includes("sim")) {
-    if (combined.includes("esim")) {
-      types.push("esim");
-    } else {
-      types.push("sim");
-    }
+    types.push(combined.includes("esim") ? "esim" : "sim");
   }
-
-  // Router in items specifically (e.g. "Routeur Nivra Born WiFi")
   if (combined.includes("routeur") && !types.includes("router") && !types.includes("borne_wifi")) {
     types.push("borne_wifi");
   }
 
-  // If nothing matched, use generic based on order type
   if (types.length === 0) {
-    if (serviceType.includes("internet")) {
-      types.push("router");
-    } else if (serviceType.includes("mobile")) {
-      types.push("sim");
-    } else if (serviceType.includes("tv")) {
-      types.push("tv_box");
-    } else {
-      types.push("other");
-    }
+    if (serviceType.includes("internet")) types.push("router");
+    else if (serviceType.includes("mobile")) types.push("sim");
+    else if (serviceType.includes("tv")) types.push("tv_box");
+    else types.push("other");
   }
 
   return types;
@@ -163,9 +165,11 @@ export function EquipmentStep({ proc }: Props) {
         status: "assigned",
       });
     }
-    // If still empty, create one unit of the first suggested type
+    // If still empty, create one unit per suggested type (respects quantities from order items)
     if (initialUnits.length === 0) {
-      initialUnits.push(createEmptyUnit(suggestedTypes[0]));
+      for (const t of suggestedTypes) {
+        initialUnits.push(createEmptyUnit(t));
+      }
     }
   }
 

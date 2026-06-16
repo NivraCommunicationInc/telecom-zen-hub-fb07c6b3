@@ -7,6 +7,53 @@
 import { useEffect, useMemo, useState } from "react";
 import { adminClient as supabase } from "@/integrations/backend";
 import { toast } from "sonner";
+
+async function queueChannelConfirmedEmail(order: any, channels: { name: string; category: string }[], premiumTotal: number) {
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email, first_name")
+      .eq("user_id", order.user_id)
+      .maybeSingle();
+
+    const email = order.client_email || profile?.email;
+    if (!email) return;
+
+    await supabase.from("email_queue").insert({
+      to_email: email,
+      template_key: "client_tv_channels_confirmed",
+      template_vars: {
+        first_name: profile?.first_name || order.client_first_name || "",
+        order_number: order.order_number || order.id?.slice(0, 8),
+        channel_count: channels.length,
+        channels: channels.slice(0, 30),
+        premium_total: premiumTotal > 0 ? `${premiumTotal.toFixed(2)} $` : "0,00 $",
+      },
+      status: "pending",
+    });
+  } catch (e) {
+    console.error("[TVChannels] email queue error:", e);
+  }
+}
+
+async function createChannelConfirmedTicket(order: any, channels: { name: string }[]) {
+  try {
+    if (!order.user_id) return;
+    const list = channels.slice(0, 10).map(c => c.name).join(", ") + (channels.length > 10 ? ` … +${channels.length - 10}` : "");
+    await supabase.from("support_tickets").insert({
+      user_id: order.user_id,
+      order_id: order.id,
+      subject: "Chaînes TV",
+      message: `Sélection de ${channels.length} chaîne(s) confirmée et activée : ${list}`,
+      status: "closed",
+      priority: "low",
+      category: "tv",
+      source: "system",
+    });
+  } catch (e) {
+    console.error("[TVChannels] ticket create error:", e);
+  }
+}
 import { Tv, CheckCircle2, Loader2, Save, Zap, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -238,6 +285,12 @@ export function TVChannelActivationStep({ proc }: Props) {
     setLoading("activate");
     try {
       await persistSelection();
+      // Send confirmation email + create closed ticket
+      const confirmed = channelOptions.filter(c => c.selected).map(c => ({ name: c.name, category: c.category }));
+      await Promise.allSettled([
+        queueChannelConfirmedEmail(order, confirmed, totalPrice),
+        createChannelConfirmedTicket(order, confirmed),
+      ]);
       toast.success("Chaînes activées sur le compte client");
     } catch (error: any) {
       console.error("[TVChannels] Activate error:", error);

@@ -118,6 +118,20 @@ const ClientCancellations = () => {
   const requests = ((canonical?.cancellationRequests ?? []) as any[])
     .slice().sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
 
+  const activeSubscriptions = ((canonical?.subscriptions ?? []) as any[])
+    .filter(s => ["active","paused","pause_requested"].includes(String(s.status || "").toLowerCase()));
+
+  const mapCategoryToType = (cat: string): ServiceType => {
+    const c = (cat || "").toLowerCase();
+    if (c.includes("internet")) return "internet";
+    if (c.includes("tv") || c.includes("télé") || c.includes("tele")) return "tv";
+    if (c.includes("mobile") || c.includes("cellulaire")) return "mobile";
+    if (c.includes("streaming")) return "streaming";
+    if (c.includes("security") || c.includes("sécurité")) return "security";
+    if (c.includes("bundle") || c.includes("combo")) return "bundle";
+    return "bundle";
+  };
+
   /* Mutation */
   const mutation = useMutation({
     mutationFn: async (f: typeof form) => {
@@ -436,35 +450,44 @@ const ClientCancellations = () => {
           </DialogHeader>
 
           <div style={{ display:"flex", flexDirection:"column", gap:16, paddingTop:8 }}>
-            {/* Service type */}
+            {/* Service selection — from active subscriptions */}
             <div>
               <label style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.5)", display:"block", marginBottom:7, letterSpacing:.5 }}>
-                Type de service <span style={{ color:"#f87171" }}>*</span>
+                Service à annuler <span style={{ color:"#f87171" }}>*</span>
               </label>
-              <select
-                value={form.service_type}
-                onChange={e => setForm({ ...form, service_type: e.target.value as ServiceType })}
-                style={{ ...inputSx, appearance:"none" }}
-              >
-                <option value="">Sélectionnez un service</option>
-                {Object.entries(SERVICE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
-
-            {/* Identifier */}
-            {(form.service_type === "mobile" || form.service_type === "internet") && (
-              <div>
-                <label style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.5)", display:"block", marginBottom:7, letterSpacing:.5 }}>
-                  {form.service_type === "mobile" ? "Numéro de téléphone" : "Adresse du service"}
-                </label>
-                <input
-                  style={inputSx}
+              {activeSubscriptions.length > 0 ? (
+                <select
                   value={form.service_identifier}
-                  onChange={e => setForm({ ...form, service_identifier: e.target.value })}
-                  placeholder={form.service_type === "mobile" ? "XXX-XXX-XXXX" : "123 rue Exemple"}
-                />
-              </div>
-            )}
+                  onChange={e => {
+                    const sub = activeSubscriptions.find((s: any) => s.id === e.target.value);
+                    if (sub) {
+                      setForm({
+                        ...form,
+                        service_type: mapCategoryToType(sub.service_category || sub.plan_code || ""),
+                        service_identifier: sub.id,
+                      });
+                    }
+                  }}
+                  style={{ ...inputSx, appearance:"none" }}
+                >
+                  <option value="">Sélectionnez un service</option>
+                  {activeSubscriptions.map((sub: any) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.plan_name || sub.plan_code || "Abonnement"} — {Number(sub.plan_price || 0).toFixed(2)} $/mois
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  value={form.service_type}
+                  onChange={e => setForm({ ...form, service_type: e.target.value as ServiceType })}
+                  style={{ ...inputSx, appearance:"none" }}
+                >
+                  <option value="">Sélectionnez un service</option>
+                  {Object.entries(SERVICE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              )}
+            </div>
 
             {/* Reason */}
             <div>

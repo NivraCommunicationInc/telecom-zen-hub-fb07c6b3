@@ -102,6 +102,14 @@ const PayInvoiceDialog = ({
               email: profile?.email || undefined,
               first_name: profile?.first_name || undefined,
               last_name: profile?.last_name || undefined,
+              phone: profile?.phone || undefined,
+              address: profile?.service_address ? {
+                address_line_1: profile.service_address,
+                admin_area_2: profile.service_city || undefined,
+                admin_area_1: profile.service_province || undefined,
+                postal_code: profile.service_postal_code || undefined,
+                country_code: "CA",
+              } : undefined,
             }}
             onSuccess={() => handlePaymentSuccess()}
             onError={handlePaymentError}

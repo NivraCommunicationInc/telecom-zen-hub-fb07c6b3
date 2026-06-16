@@ -911,12 +911,23 @@ const ClientTickets = () => {
             {/* Subject */}
             <div>
               <Label className="text-sm font-medium">Sujet *</Label>
-              <Input
-                placeholder="Décrivez brièvement votre demande"
+              <Select
                 value={newTicket.subject}
-                onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
-                className="bg-white mt-1"
-              />
+                onValueChange={(v) => setNewTicket({ ...newTicket, subject: v })}
+              >
+                <SelectTrigger className="bg-white mt-1">
+                  <SelectValue placeholder="Sélectionnez un sujet" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Facturation">Facturation</SelectItem>
+                  <SelectItem value="Chaînes TV">Chaînes TV</SelectItem>
+                  <SelectItem value="Support général">Support général</SelectItem>
+                  <SelectItem value="Problème technique">Problème technique</SelectItem>
+                  <SelectItem value="Équipement">Équipement</SelectItem>
+                  <SelectItem value="Annulation">Annulation</SelectItem>
+                  <SelectItem value="Autre">Autre</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Priority */}

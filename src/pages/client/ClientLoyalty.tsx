@@ -23,6 +23,7 @@ type LoyaltyPoints = {
   available_points: number;
   lifetime_points: number;
   tier: "bronze" | "silver" | "gold" | "platinum";
+  card_number?: string;
 };
 type Reward = {
   id: string; name_fr: string; description_fr: string | null;
@@ -96,6 +97,42 @@ export default function ClientLoyalty() {
           <p className="text-slate-600 mt-1">Gagnez des points à chaque paiement et échangez-les contre des récompenses.</p>
         </header>
 
+        {/* Loyalty card visual */}
+        {points?.card_number && (
+          <div
+            className="relative rounded-2xl overflow-hidden p-6 text-white shadow-xl"
+            style={{ background: "linear-gradient(135deg, #0066CC 0%, #7C3AED 100%)", minHeight: 180 }}
+          >
+            {/* Background pattern */}
+            <div className="absolute inset-0 opacity-10" style={{
+              backgroundImage: "radial-gradient(circle at 80% 20%, white 1px, transparent 1px), radial-gradient(circle at 20% 80%, white 1px, transparent 1px)",
+              backgroundSize: "40px 40px",
+            }} />
+            <div className="relative z-10 flex flex-col justify-between h-full">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-lg tracking-wide">NIVRA FIDÉLITÉ</span>
+                <Badge style={{ background: tier.color, color: "white" }} className="text-sm px-3 py-1">
+                  <Award className="w-3 h-3 mr-1" />{tier.label}
+                </Badge>
+              </div>
+              <div className="mt-8">
+                <p className="text-xs opacity-70 mb-1 tracking-widest">NUMÉRO DE CARTE</p>
+                <p className="text-2xl font-mono font-bold tracking-widest">{points.card_number}</p>
+              </div>
+              <div className="flex items-end justify-between mt-4">
+                <div>
+                  <p className="text-xs opacity-70">Points disponibles</p>
+                  <p className="text-3xl font-bold">{(points?.available_points ?? 0).toLocaleString("fr-CA")}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs opacity-70">Total vie</p>
+                  <p className="text-lg font-semibold">{(points?.lifetime_points || 0).toLocaleString("fr-CA")} pts</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Balance & tier */}
         <Card>
           <CardContent className="p-6">
@@ -125,10 +162,11 @@ export default function ClientLoyalty() {
           <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="w-5 h-5" />Comment gagner des points</CardTitle></CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm">
-              <li>• <strong>Paiement à temps :</strong> 10 pts par dollar payé</li>
+              <li>• <strong>Paiement de facture :</strong> 100 pts par commande</li>
               <li>• <strong>Parrainage activé :</strong> 500 pts</li>
               <li>• <strong>Anniversaire de compte :</strong> 200 pts/an</li>
               <li>• <strong>Activation de service :</strong> 100 pts</li>
+              <li className="text-slate-500 text-xs mt-2">2 000 points = crédit de 25 $ sur votre prochain paiement</li>
             </ul>
           </CardContent>
         </Card>

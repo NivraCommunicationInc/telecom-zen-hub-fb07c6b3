@@ -163,9 +163,9 @@ serve(async (req) => {
     }
 
     if (!customer) {
-      const fallbackName = (body.customer_name || String(claimsData.claims.email || "Client")).trim();
+      const fallbackName = (body.customer_name || String(user?.email || "Client")).trim();
       const [firstName, ...lastNameParts] = fallbackName.split(/\s+/).filter(Boolean);
-      const customerEmail = body.customer_email?.trim() || String(claimsData.claims.email || "").trim();
+      const customerEmail = body.customer_email?.trim() || String(user?.email || "").trim();
 
       if (!customerEmail) {
         return new Response(
@@ -252,7 +252,7 @@ serve(async (req) => {
 
     const effectiveCustomer = customer ?? {
       id: subscription?.customer_id,
-      email: body.customer_email?.trim() || String(claimsData.claims.email || "").trim(),
+      email: body.customer_email?.trim() || String(user?.email || "").trim(),
       first_name: "Client",
       last_name: "Nivra",
       phone: "",
@@ -352,7 +352,7 @@ serve(async (req) => {
     const customerFirstName = effectiveCustomer.first_name?.trim() || fallbackFirstName || "Client";
     const customerLastName = effectiveCustomer.last_name?.trim() || fallbackLastNameParts.join(" ") || "Nivra";
     const customerEmail =
-      effectiveCustomer.email?.trim() || body.customer_email?.trim() || String(claimsData.claims.email || "").trim();
+      effectiveCustomer.email?.trim() || body.customer_email?.trim() || String(user?.email || "").trim();
 
     if (!customerEmail) {
       return new Response(

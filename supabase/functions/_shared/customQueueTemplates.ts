@@ -8177,6 +8177,50 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // CLIENT — TV channel selection confirmed (FEATURE 3)
+    // ===================================================================
+    case "client_tv_channels_confirmed": {
+      const firstName = esc(v.first_name || clientName || "Client");
+      const orderNumber = esc(v.order_number || "—");
+      const channelCount = Number(v.channel_count || 0);
+      const channelList = Array.isArray(v.channels) ? v.channels : [];
+      const premiumTotal = esc(v.premium_total || "0,00 $");
+
+      const channelRows: [string, string][] = channelList.slice(0, 20).map((ch: any) => [
+        String(ch.name || "—"), String(ch.category || "—"),
+      ]);
+
+      return {
+        subject: `Vos chaînes TV ont été confirmées — Commande ${orderNumber}`,
+        html: shell({
+          preheader: `Votre sélection de ${channelCount} chaîne(s) TV a été confirmée.`,
+          badge: "CHAÎNES TV CONFIRMÉES",
+          heroTitle: "Votre sélection de chaînes TV est confirmée",
+          heroSub: `${channelCount} chaîne(s) activée(s) sur votre compte.`,
+          icon: "check",
+          greeting: `Bonjour ${firstName},`,
+          bodyText: `Nous confirmons que votre sélection de chaînes TV pour la commande ${orderNumber} a été enregistrée et activée sur votre décodeur.`,
+          cardTitle: "Chaînes sélectionnées",
+          cardRows: [
+            ["Nombre de chaînes", String(channelCount)],
+            ["Chaînes incluses", "Voir liste ci-dessous"],
+            ...(v.premium_total && v.premium_total !== "0,00 $" ? [["Supplément premium", premiumTotal] as [string,string]] : []),
+          ],
+          extraHtml: channelRows.length > 0
+            ? `<table width="100%" cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin-top:12px;font-size:13px;">
+              <tr><th align="left" style="border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:500;">Chaîne</th><th align="left" style="border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:500;">Catégorie</th></tr>
+              ${channelRows.map(([n,c]) => `<tr><td style="padding:4px 0;color:#111827;">${n}</td><td style="padding:4px 0;color:#6b7280;">${c}</td></tr>`).join("")}
+              ${channelList.length > 20 ? `<tr><td colspan="2" style="color:#6b7280;font-style:italic;">… et ${channelList.length - 20} autre(s) chaîne(s)</td></tr>` : ""}
+            </table>`
+            : undefined,
+          ctaPrimaryUrl: `${APP_URL}/portail`,
+          ctaPrimaryLabel: "Voir mon portail",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
     default:
       return null;
     }

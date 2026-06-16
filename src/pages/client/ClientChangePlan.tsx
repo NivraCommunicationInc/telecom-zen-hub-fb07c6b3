@@ -64,7 +64,7 @@ const ClientChangePlan = () => {
         .from("services")
         .select("id, name, price, description, features_json, category")
         .eq("is_active", true)
-        .in("category", ["internet", "bundle", "tv"])
+        .in("category", ["internet", "bundle", "tv", "combo"])
         .order("price", { ascending: true });
       if (error) throw error;
       return (data as Plan[]) || [];
@@ -74,18 +74,26 @@ const ClientChangePlan = () => {
   const currentPrice = subscription?.plan_price ?? 0;
   const currentName = subscription?.plan_name ?? "—";
 
+  const hasBundle = ["bundle", "combo"].includes((subscription?.service_category || "").toLowerCase());
+
   const enrichedPlans = useMemo(() => {
-    return (plans || []).map((p) => {
-      const isCurrent = subscription?.plan_name?.toLowerCase() === p.name.toLowerCase();
-      const diff = p.price - currentPrice;
-      const changeType: "upgrade" | "downgrade" | "current" = isCurrent
-        ? "current"
-        : diff > 0
-          ? "upgrade"
-          : "downgrade";
-      return { ...p, isCurrent, diff, changeType };
-    });
-  }, [plans, subscription, currentPrice]);
+    return (plans || [])
+      .filter((p) => {
+        // If client has TV+Internet bundle/combo, hide internet-only plans
+        if (hasBundle && p.category === "internet") return false;
+        return true;
+      })
+      .map((p) => {
+        const isCurrent = subscription?.plan_name?.toLowerCase() === p.name.toLowerCase();
+        const diff = p.price - currentPrice;
+        const changeType: "upgrade" | "downgrade" | "current" = isCurrent
+          ? "current"
+          : diff > 0
+            ? "upgrade"
+            : "downgrade";
+        return { ...p, isCurrent, diff, changeType };
+      });
+  }, [plans, subscription, currentPrice, hasBundle]);
 
   const effectiveDate = subscription?.next_renewal_at
     ? format(new Date(subscription.next_renewal_at), "d MMMM yyyy", { locale: fr })
@@ -198,6 +206,14 @@ const ClientChangePlan = () => {
         {/* Available plans */}
         <section>
           <h2 className="text-xl font-bold mb-3">Forfaits disponibles</h2>
+          {enrichedPlans.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="py-10 text-center">
+                <p className="text-muted-foreground">Aucun forfait disponible pour le moment.</p>
+                <p className="text-sm text-muted-foreground mt-1">Contactez le support pour modifier votre forfait.</p>
+              </CardContent>
+            </Card>
+          )}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {enrichedPlans.map((p) => (
               <Card

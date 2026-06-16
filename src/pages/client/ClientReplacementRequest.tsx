@@ -219,6 +219,19 @@ const ClientReplacementRequest = () => {
 
   const canSubmit = category && reason && billableAcknowledged;
 
+  const activeEquipment = (canonicalData?.equipment ?? []).filter(
+    (eq: any) => ["assigned", "deployed", "active"].includes(String(eq.status || "").toLowerCase())
+  );
+
+  const mapEquipmentCategory = (eq: any): string => {
+    const cat = (eq.catalog_name || eq.category || "").toLowerCase();
+    if (cat.includes("sim")) return "sim";
+    if (cat.includes("router") || cat.includes("borne") || cat.includes("wifi")) return "router";
+    if (cat.includes("terminal") || cat.includes("tv") || cat.includes("box")) return "terminal";
+    if (cat.includes("phone") || cat.includes("télé")) return "phone";
+    return "equipment";
+  };
+
   return (
     <ClientLayout>
       <div className="space-y-6">
@@ -230,8 +243,8 @@ const ClientReplacementRequest = () => {
               {isFrench ? "Remplacement & Accessoires" : "Replacement & Accessories"}
             </h1>
             <p className="text-muted-foreground mt-1">
-              {isFrench 
-                ? "Demandez un remplacement de SIM, équipement ou accessoire" 
+              {isFrench
+                ? "Demandez un remplacement de SIM, équipement ou accessoire"
                 : "Request a SIM, equipment, or accessory replacement"}
             </p>
           </div>
@@ -242,6 +255,41 @@ const ClientReplacementRequest = () => {
             </Button>
           )}
         </div>
+
+        {/* Active Equipment */}
+        {!showForm && activeEquipment.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{isFrench ? "Mon équipement actif" : "My Active Equipment"}</CardTitle>
+              <CardDescription>
+                {isFrench ? "Cliquez sur un équipement pour soumettre une demande de remplacement." : "Click on an item to request a replacement."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {activeEquipment.map((eq: any) => (
+                <div key={eq.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                  <div>
+                    <p className="font-medium text-sm">{eq.catalog_name || eq.category || "Équipement"}</p>
+                    {eq.serial_number && <p className="text-xs text-muted-foreground font-mono">SN: {eq.serial_number}</p>}
+                    {eq.mac_address && <p className="text-xs text-muted-foreground font-mono">MAC: {eq.mac_address}</p>}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setCategory(mapEquipmentCategory(eq));
+                      setClientMessage(`Équipement à remplacer: ${eq.catalog_name || eq.category || ""} (SN: ${eq.serial_number || "N/A"})`);
+                      setShowForm(true);
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                    {isFrench ? "Remplacer" : "Replace"}
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* New Request Form */}
         {showForm && (

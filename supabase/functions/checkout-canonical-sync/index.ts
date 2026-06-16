@@ -1149,7 +1149,9 @@ serve(async (req) => {
 
         if (!existingServiceCount || existingServiceCount === 0) {
           const serviceItems: Array<Record<string, unknown>> = [];
+          const ONE_TIME_CATS = new Set(["equipment","router","borne_wifi","modem","terminal","tv_box","sim","esim","device","one_time","delivery","installation","activation","fee","other"]);
           for (const svc of payload.services || []) {
+            if (ONE_TIME_CATS.has((svc.category || "").toLowerCase())) continue;
             // â˜… FIX: Resolve unit_price from multiple possible fields, never allow 0
             const resolvedPrice = toMoney(svc.plan_price ?? svc.price ?? svc.monthly_price ?? 0);
             if (resolvedPrice <= 0) {
@@ -1159,7 +1161,7 @@ serve(async (req) => {
               subscription_id: subscriptionId,
               service_code: svc.plan_code || svc.name.toLowerCase().replace(/\s+/g, "_"),
               service_name: svc.name,
-              service_type: svc.category?.toLowerCase() || "service",
+              service_type: "recurring",
               unit_price: resolvedPrice > 0 ? resolvedPrice : toMoney(svc.plan_price || planPrice),
               quantity: Number(svc.quantity || 1),
               is_active: true,

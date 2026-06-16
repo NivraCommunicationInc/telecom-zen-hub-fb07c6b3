@@ -27,6 +27,7 @@ import AccountBlockingControls from "@/components/admin/AccountBlockingControls"
 import { AuthorizedUsersCard } from "@/components/admin/AuthorizedUsersCard";
 import ClientActivityLogTable from "@/components/admin/ClientActivityLogTable";
 import AdminSecurityControls from "@/components/admin/AdminSecurityControls";
+import { AdminEmailChangePanel } from "@/components/admin/AdminEmailChangePanel";
 import { ClientCommunicationsPanel } from "@/components/admin/ClientCommunicationsPanel";
 
 export default function AdminAccountProfile() {
@@ -204,19 +205,27 @@ export default function AdminAccountProfile() {
             </TabsContent>
 
             <TabsContent value="security">
-              {data.clientId && data.profile && (
-                <AdminSecurityControls
-                  clientId={data.clientId}
-                  clientEmail={data.profile.email}
-                  securityStatus={data.profile.security_status || "normal"}
-                  securityAlertLevel={data.profile.security_alert_level || "none"}
-                  securityReason={data.profile.security_reason}
-                  securityFlaggedAt={data.profile.security_flagged_at}
-                  securityFlaggedOrderId={data.profile.security_flagged_order_id}
-                  securityRequiresPinReset={data.profile.security_requires_pin_reset || false}
-                  onUpdate={() => data.refetch()}
-                />
-              )}
+              <div className="space-y-4">
+                {data.clientId && data.profile && (
+                  <AdminSecurityControls
+                    clientId={data.clientId}
+                    clientEmail={data.profile.email}
+                    securityStatus={data.profile.security_status || "normal"}
+                    securityAlertLevel={data.profile.security_alert_level || "none"}
+                    securityReason={data.profile.security_reason}
+                    securityFlaggedAt={data.profile.security_flagged_at}
+                    securityFlaggedOrderId={data.profile.security_flagged_order_id}
+                    securityRequiresPinReset={data.profile.security_requires_pin_reset || false}
+                    onUpdate={() => data.refetch()}
+                  />
+                )}
+                {data.clientId && (
+                  <AdminEmailChangePanel
+                    clientId={data.clientId}
+                    currentEmail={data.profile?.email}
+                  />
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="equipment">
