@@ -191,10 +191,10 @@ async function enrichFromDb(
       }
       if (customerId) {
         const { data: sub } = await admin
-          .from("billing_subscriptions")
-          .select("id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor")
-          .eq("customer_id", customerId)
-          .order("created_at", { ascending: false })
+          .from(“billing_subscriptions”)
+          .select(“id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor”)
+          .eq(“customer_id”, customerId)
+          .order(“created_at”, { ascending: false })
           .limit(1)
           .maybeSingle();
         if (sub) {
@@ -211,6 +211,24 @@ async function enrichFromDb(
           }
         }
       }
+    }
+
+    // Fallback: if subscription lookup yielded no plan data, try most recent order
+    if ((!out.monthly_amount || !out.service_name) && out.client_id) {
+      try {
+        const { data: order } = await admin
+          .from(“orders”)
+          .select(“plan_name, plan_price, total_amount, service_name”)
+          .eq(“user_id”, out.client_id)
+          .order(“created_at”, { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (order) {
+          out.service_name = out.service_name || order.service_name || order.plan_name;
+          out.plan_name = out.plan_name || order.plan_name;
+          out.monthly_amount = out.monthly_amount ?? Number(order.plan_price ?? 0);
+        }
+      } catch (_e) { /* silent */ }
     }
   } catch (e) {
     console.warn("[dispatcher] enrichFromDb soft-fail:", e?.message);
@@ -274,9 +292,9 @@ function normalizePayload(
       return {
         ...base,
         letter_number: p.letter_number || `BVN-${Date.now()}`,
-        service_name: p.service_name || p.plan_name || "Service Nivra",
+        service_name: p.service_name || p.plan_name || base.service_name || "Service Nivra Telecom",
         activation_date: p.activation_date || p.created_at || nowIso(),
-        monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? 0),
+        monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? p.plan_price ?? base.monthly_amount ?? 0),
         next_billing_date: p.next_billing_date || null,
         portal_url: p.portal_url || "https://nivra-telecom.ca/portal",
       };
@@ -292,11 +310,12 @@ function normalizePayload(
             old_value: "â€”",
             new_value: String(p.service_name || p.service_code || "Nouveau service"),
           }];
-          if (p.unit_price !== undefined && p.unit_price !== null) {
+          const tarif = Number(p.unit_price ?? p.plan_price ?? p.monthly_amount ?? p.new_monthly_amount ?? 0);
+          if (tarif > 0 || p.unit_price !== undefined) {
             changes.push({
-              field: "Tarif mensuel",
-              old_value: "â€”",
-              new_value: `${Number(p.unit_price).toFixed(2)} $`,
+              field: “Tarif mensuel”,
+              old_value: “â€””,
+              new_value: `${tarif.toFixed(2)} $`,
             });
           }
         } else if (p.change_type === "service_removed") {
