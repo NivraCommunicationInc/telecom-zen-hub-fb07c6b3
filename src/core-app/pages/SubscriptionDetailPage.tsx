@@ -10,6 +10,7 @@ import {
   ArrowLeft, User, MapPin, Package, FileText, History,
   Zap, ExternalLink, ToggleRight, CreditCard,
   PauseCircle, PlayCircle, XCircle, ShoppingCart, Users,
+  Pencil, Plus, Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -17,6 +18,18 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const fmtCAD = (n: number | null | undefined) =>
   n != null ? `${n.toFixed(2)} $` : "—";
@@ -36,6 +49,94 @@ export default function SubscriptionDetailPage() {
   const { subscription, customer, address, account, invoices, audit, accountNumber, isLoading } =
     useAdminSubscriptionDetail(id);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // ── service line management ──────────────────────────────────────────────
+  const [deleteSvc, setDeleteSvc] = useState<any>(null);
+  const [showChangePlan, setShowChangePlan] = useState(false);
+  const [showAddSvc, setShowAddSvc] = useState(false);
+
+  const [planName, setPlanName] = useState("");
+  const [planPrice, setPlanPrice] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
+
+  const [newSvcName, setNewSvcName] = useState("");
+  const [newSvcCode, setNewSvcCode] = useState("");
+  const [newSvcType, setNewSvcType] = useState<"recurring" | "one_time" | "streaming">("recurring");
+  const [newSvcPrice, setNewSvcPrice] = useState("");
+  const [newSvcQty, setNewSvcQty] = useState("1");
+  const [savingSvc, setSavingSvc] = useState(false);
+
+  const refetch = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-subscription-detail", id] });
+  };
+
+  async function handleDeleteService() {
+    if (!deleteSvc) return;
+    const { error } = await supabase
+      .from("billing_subscription_services")
+      .update({ is_active: false, removed_at: new Date().toISOString() })
+      .eq("id", deleteSvc.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Service "${deleteSvc.service_name}" désactivé`);
+    setDeleteSvc(null);
+    refetch();
+  }
+
+  function openChangePlan() {
+    setPlanName(subscription?.plan_name ?? "");
+    setPlanPrice(String(subscription?.plan_price ?? ""));
+    setShowChangePlan(true);
+  }
+
+  async function handleChangePlan() {
+    if (!id) return;
+    const price = parseFloat(planPrice);
+    if (!planName.trim() || isNaN(price) || price < 0) {
+      toast.error("Nom et prix valides requis");
+      return;
+    }
+    setSavingPlan(true);
+    const { error } = await supabase
+      .from("billing_subscriptions")
+      .update({ plan_name: planName.trim(), plan_price: price, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    setSavingPlan(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Forfait mis à jour — reflété à la prochaine facture");
+    setShowChangePlan(false);
+    refetch();
+  }
+
+  function openAddService() {
+    setNewSvcName(""); setNewSvcCode(""); setNewSvcType("recurring");
+    setNewSvcPrice(""); setNewSvcQty("1");
+    setShowAddSvc(true);
+  }
+
+  async function handleAddService() {
+    if (!id) return;
+    if (!newSvcName.trim()) { toast.error("Nom du service requis"); return; }
+    const price = parseFloat(newSvcPrice || "0");
+    const qty = parseInt(newSvcQty || "1", 10);
+    setSavingSvc(true);
+    const { error } = await supabase
+      .from("billing_subscription_services")
+      .insert({
+        subscription_id: id,
+        service_name: newSvcName.trim(),
+        service_code: newSvcCode.trim() || newSvcName.trim().toLowerCase().replace(/\s+/g, "_"),
+        service_type: newSvcType,
+        unit_price: isNaN(price) ? 0 : price,
+        quantity: isNaN(qty) || qty < 1 ? 1 : qty,
+        is_active: newSvcType === "recurring" || newSvcType === "streaming",
+        added_at: new Date().toISOString(),
+      });
+    setSavingSvc(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Service "${newSvcName.trim()}" ajouté`);
+    setShowAddSvc(false);
+    refetch();
+  }
 
   const updateStatus = async (newStatus: string, label: string) => {
     if (!id || !subscription) return;
@@ -190,7 +291,26 @@ export default function SubscriptionDetailPage() {
       </Section>
 
       {/* Services inclus */}
-      <Section title="Services inclus" icon={Package} noPad>
+      <SectionWithActions
+        title={`Services inclus (${services.length})`}
+        icon={Package}
+        actions={
+          <div className="flex gap-2">
+            <button
+              onClick={openChangePlan}
+              className="flex items-center gap-1 rounded border border-[hsl(220,15%,20%)] px-2.5 py-1 text-[11px] text-[hsl(220,10%,55%)] hover:text-white hover:border-emerald-500/30 transition-colors"
+            >
+              <Pencil className="h-3 w-3" /> Changer forfait
+            </button>
+            <button
+              onClick={openAddService}
+              className="flex items-center gap-1 rounded border border-emerald-500/30 px-2.5 py-1 text-[11px] text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+            >
+              <Plus className="h-3 w-3" /> Ajouter service
+            </button>
+          </div>
+        }
+      >
         {services.length === 0 ? (
           <p className="text-[hsl(220,10%,35%)] text-xs text-center py-6">Aucun service inclus</p>
         ) : (
@@ -198,16 +318,16 @@ export default function SubscriptionDetailPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[hsl(220,15%,16%)]">
-                  {["Service", "Code", "Type", "Prix unitaire", "Qté", "Actif"].map((h, i) => (
-                    <th key={h} className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] ${i === 3 ? "text-right" : i === 4 ? "text-center" : "text-left"}`}>
+                  {["Service", "Code", "Type", "Prix unitaire", "Qté", "Statut", ""].map((h, i) => (
+                    <th key={i} className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] ${i === 3 ? "text-right" : i === 4 ? "text-center" : "text-left"}`}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {services.map((svc: any) => (
-                  <tr key={svc.id} className="border-b border-[hsl(220,15%,14%)] last:border-0">
+                {[...services].sort((a: any, b: any) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1)).map((svc: any) => (
+                  <tr key={svc.id} className={`border-b border-[hsl(220,15%,14%)] last:border-0 ${!svc.is_active ? "opacity-50" : ""}`}>
                     <td className="px-4 py-2.5 text-white font-medium">{svc.service_name}</td>
                     <td className="px-4 py-2.5 font-mono text-[hsl(220,10%,50%)]">{svc.service_code}</td>
                     <td className="px-4 py-2.5 text-[hsl(220,10%,55%)]">{svc.service_type || "—"}</td>
@@ -220,13 +340,23 @@ export default function SubscriptionDetailPage() {
                         <span className="text-[hsl(220,10%,35%)]">Inactif</span>
                       )}
                     </td>
+                    <td className="px-4 py-2.5 text-right">
+                      {svc.is_active && (
+                        <button
+                          onClick={() => setDeleteSvc(svc)}
+                          className="text-[hsl(220,10%,35%)] hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </Section>
+      </SectionWithActions>
 
       {/* Source order */}
       {subscription.order_id && (
@@ -308,6 +438,145 @@ export default function SubscriptionDetailPage() {
           </div>
         )}
       </Section>
+
+      {/* ── Dialog: Désactiver service ─────────────────────────────────── */}
+      <AlertDialog open={!!deleteSvc} onOpenChange={(o) => { if (!o) setDeleteSvc(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Désactiver ce service ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deleteSvc?.service_name}</strong> sera marqué inactif dans cet abonnement.
+              Vous pouvez le rajouter manuellement si nécessaire.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteService} className="bg-destructive hover:bg-destructive/90">
+              Désactiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Dialog: Changer forfait ────────────────────────────────────── */}
+      <Dialog open={showChangePlan} onOpenChange={setShowChangePlan}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Changer le forfait principal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="core-plan-name">Nom du forfait</Label>
+              <Input
+                id="core-plan-name"
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value)}
+                placeholder="Ex: Internet Giga"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="core-plan-price">Prix mensuel ($)</Label>
+              <Input
+                id="core-plan-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={planPrice}
+                onChange={(e) => setPlanPrice(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Le changement s'applique à la prochaine facture générée.
+            </p>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setShowChangePlan(false)} className="rounded border border-[hsl(220,15%,20%)] px-3 py-1.5 text-xs text-[hsl(220,10%,55%)] hover:text-white transition-colors">
+              Annuler
+            </button>
+            <button onClick={handleChangePlan} disabled={savingPlan} className="rounded bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs text-white font-medium disabled:opacity-50 transition-colors">
+              {savingPlan ? "Enregistrement…" : "Enregistrer"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Ajouter service ────────────────────────────────────── */}
+      <Dialog open={showAddSvc} onOpenChange={setShowAddSvc}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ajouter une ligne de service</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="core-svc-name">Nom du service *</Label>
+              <Input
+                id="core-svc-name"
+                value={newSvcName}
+                onChange={(e) => setNewSvcName(e.target.value)}
+                placeholder="Ex: Internet Giga"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="core-svc-code">Code (optionnel)</Label>
+              <Input
+                id="core-svc-code"
+                value={newSvcCode}
+                onChange={(e) => setNewSvcCode(e.target.value)}
+                placeholder="internet_giga"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={newSvcType} onValueChange={(v) => setNewSvcType(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recurring">Récurrent</SelectItem>
+                  <SelectItem value="one_time">Frais unique</SelectItem>
+                  <SelectItem value="streaming">Streaming</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="core-svc-price">Prix ($)</Label>
+                <Input
+                  id="core-svc-price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newSvcPrice}
+                  onChange={(e) => setNewSvcPrice(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="core-svc-qty">Quantité</Label>
+                <Input
+                  id="core-svc-qty"
+                  type="number"
+                  min="1"
+                  value={newSvcQty}
+                  onChange={(e) => setNewSvcQty(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Les lignes récurrentes seront incluses dans la prochaine facture.
+            </p>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setShowAddSvc(false)} className="rounded border border-[hsl(220,15%,20%)] px-3 py-1.5 text-xs text-[hsl(220,10%,55%)] hover:text-white transition-colors">
+              Annuler
+            </button>
+            <button onClick={handleAddService} disabled={savingSvc} className="rounded bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs text-white font-medium disabled:opacity-50 transition-colors">
+              {savingSvc ? "Ajout…" : "Ajouter"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -457,6 +726,23 @@ function Section({ title, icon: Icon, children, noPad }: { title: string; icon: 
       <div className={noPad ? "" : "px-4 py-3 space-y-2"}>
         {children}
       </div>
+    </div>
+  );
+}
+
+function SectionWithActions({ title, icon: Icon, children, actions }: {
+  title: string; icon: any; children: React.ReactNode; actions?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[hsl(220,15%,16%)]">
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-[hsl(220,10%,45%)]" />
+          <h2 className="text-xs font-semibold text-white uppercase tracking-wider">{title}</h2>
+        </div>
+        {actions && <div>{actions}</div>}
+      </div>
+      {children}
     </div>
   );
 }
