@@ -1150,8 +1150,10 @@ serve(async (req) => {
         if (!existingServiceCount || existingServiceCount === 0) {
           const serviceItems: Array<Record<string, unknown>> = [];
           const ONE_TIME_CATS = new Set(["equipment","router","borne_wifi","modem","terminal","tv_box","sim","esim","device","one_time","delivery","installation","activation","fee","other"]);
+          const ONE_TIME_NAME_RE = /équipement|borne\s*(wifi|nivra)|terminal|router|routeur|frais\s+de\s+mise\s+en\s+service|frais\s+d.activation|frais.*livraison|carte\s+sim/i;
           for (const svc of payload.services || []) {
             if (ONE_TIME_CATS.has((svc.category || "").toLowerCase())) continue;
+            if (ONE_TIME_NAME_RE.test(svc.name || "")) continue;
             // â˜… FIX: Resolve unit_price from multiple possible fields, never allow 0
             const resolvedPrice = toMoney(svc.plan_price ?? svc.price ?? svc.monthly_price ?? 0);
             if (resolvedPrice <= 0) {
