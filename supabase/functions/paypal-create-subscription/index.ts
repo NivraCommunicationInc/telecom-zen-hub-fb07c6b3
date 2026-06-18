@@ -333,11 +333,16 @@ serve(async (req) => {
       invoiceId = invoice?.id ?? null;
     }
 
-    const nextBillingAnchor =
+    const rawAnchor =
       (subscription as any)?.next_renewal_at ||
       ((subscription as any)?.cycle_end_date
         ? new Date(`${(subscription as any).cycle_end_date}T00:00:00.000Z`).toISOString()
         : null);
+
+    // PayPal rejects start_time in the past (SUBSCRIPTION_START_TIME_IN_THE_PAST).
+    // Only pass it if it's at least 10 minutes in the future.
+    const tenMinsFromNow = new Date(Date.now() + 10 * 60 * 1000);
+    const nextBillingAnchor = rawAnchor && new Date(rawAnchor) > tenMinsFromNow ? rawAnchor : null;
 
     await adminSupabase
       .from("paypal_autopay_attempts")
