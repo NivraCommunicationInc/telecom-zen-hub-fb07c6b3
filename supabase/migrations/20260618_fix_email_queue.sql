@@ -20,13 +20,17 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public, pgmq AS $$
   SELECT pgmq.delete('transactional_emails_dlq', p_msg_id);
 $$;
 
--- Cron: process-email-queue toutes les minutes (meme modele que email-queue-drain / cron ID 30)
+-- Cron: process-email-queue toutes les minutes — utilise vault pour la cle (jamais hardcoder)
+SELECT cron.unschedule('process-email-queue') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'process-email-queue');
 SELECT cron.schedule(
   'process-email-queue',
   '* * * * *',
   $$SELECT net.http_post(
     url:='https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/process-email-queue',
-    headers:='{"Content-Type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhY3huYmp2Y3l2aHJ0dHBya3hyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDQyMjY2MywiZXhwIjoyMDk1OTk4NjYzfQ.gfv9cuDf4XFVbaKmuA2ofx8IC-pJ6NyjpX3SXr3dw-M"}'::jsonb,
+    headers:=jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'SUPABASE_SERVICE_ROLE_KEY')
+    ),
     body:='{}'::jsonb
   )$$
 );

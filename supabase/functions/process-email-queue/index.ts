@@ -34,6 +34,10 @@ function getRetryAfterSeconds(error: unknown): number {
 }
 
 function parseJwtClaims(token: string): Record<string, unknown> | null {
+  // Supabase new opaque key format (non-JWT): prefix encodes the role
+  if (token.startsWith('sb_secret_')) return { role: 'service_role' }
+  if (token.startsWith('sb_publishable_')) return { role: 'anon' }
+
   const parts = token.split('.')
   if (parts.length < 2) {
     return null
