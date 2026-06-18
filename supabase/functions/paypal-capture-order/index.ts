@@ -659,12 +659,13 @@ async function attemptRecurringSetup(
     let planCode = "";
 
     if (nivraSubId) {
-      // Get item-level detail from billing_subscription_services
+      // Only sum recurring/streaming services — never one_time/equipment/fee
       const { data: services } = await supabase
         .from("billing_subscription_services")
-        .select("service_code, service_name, unit_price")
+        .select("service_code, service_name, unit_price, service_type")
         .eq("subscription_id", nivraSubId)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .in("service_type", ["recurring", "streaming"]);
 
       if (services && services.length > 0) {
         recurringTotal = services.reduce((sum: number, s: any) => sum + Number(s.unit_price), 0);
