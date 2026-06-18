@@ -256,7 +256,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Settings,
     items: [
       { icon: FileText, label: "SOPs", href: "/sops" },
-      { icon: Shield, label: "Surveillance IA", href: "/monitor", adminOnly: true },
+      { icon: Shield, label: "Surveillance IA", href: "/system-health", adminOnly: true },
       { icon: BarChart3, label: "Analytics IA", href: "/analytics-ai", adminOnly: true },
       { icon: Heart, label: "Rétention IA", href: "/retention", adminOnly: true },
       { icon: Bot, label: "Support IA", href: "/support-ai", adminOnly: true },
