@@ -856,7 +856,7 @@ const ClientTickets = () => {
                 <SelectTrigger className="bg-white mt-1">
                   <SelectValue placeholder="Sélectionnez une catégorie" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200] bg-white">
                   {Object.entries(categoryConfig).map(([key, config]) => (
                     <SelectItem key={key} value={key}>{config.label}</SelectItem>
                   ))}
@@ -918,7 +918,7 @@ const ClientTickets = () => {
                 <SelectTrigger className="bg-white mt-1">
                   <SelectValue placeholder="Sélectionnez un sujet" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200] bg-white">
                   <SelectItem value="Facturation">Facturation</SelectItem>
                   <SelectItem value="Chaînes TV">Chaînes TV</SelectItem>
                   <SelectItem value="Support général">Support général</SelectItem>
