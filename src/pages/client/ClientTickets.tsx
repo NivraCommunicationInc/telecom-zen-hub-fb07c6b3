@@ -872,7 +872,7 @@ const ClientTickets = () => {
                   <SelectTrigger className="bg-white mt-1">
                     <SelectValue placeholder="Sélectionnez" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[200] bg-white">
                     {Object.entries(issueTypeConfig)
                       .filter(([_, c]) => c.category === newTicket.category)
                       .map(([key, c]) => (
@@ -892,7 +892,7 @@ const ClientTickets = () => {
                     <SelectTrigger className="bg-white mt-1">
                       <SelectValue placeholder="Sélectionnez la commande" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[200] bg-white">
                       {clientOrders.map((order: any) => (
                         <SelectItem key={order.id} value={order.id}>
                           {order.order_number || order.id.slice(0, 8)} - {order.service_type}
