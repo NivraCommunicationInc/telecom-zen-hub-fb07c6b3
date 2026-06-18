@@ -1,5 +1,5 @@
 ﻿/**
- * nova-brain â€” NOVA Digital Brain (Claude Sonnet 4.7 + tool use + caching)
+ * nova-brain -- NOVA Digital Brain (Claude Sonnet 4.7 + tool use + caching)
  *
  * What changed in this rewrite:
  *   - Model: claude-3-haiku-20240307 â†’ claude-sonnet-4-5 (configurable via NOVA_MODEL env)
@@ -39,7 +39,7 @@ const corsHeaders = {
 };
 
 const AGENT = "nova-brain";
-// Model â€” overridable via NOVA_MODEL env. Default to Sonnet 4.5 (proven alias).
+// Model -- overridable via NOVA_MODEL env. Default to Sonnet 4.5 (proven alias).
 // Set NOVA_MODEL=claude-sonnet-4-7 (or claude-opus-4-7) in Lovable Secrets
 // once you've confirmed the alias works for your Anthropic plan.
 const MODEL = Deno.env.get("NOVA_MODEL") ?? "claude-sonnet-4-5";
@@ -51,19 +51,19 @@ const MAX_TOOL_ITERATIONS = 5;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// TOOL DEFINITIONS â€” what NOVA can DO, not just talk about.
+// â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// TOOL DEFINITIONS -- what NOVA can DO, not just talk about.
 //
 // Two categories:
-//  (1) Read-only / safe â€” NOVA can call these freely (queries, lookups, memory)
-//  (2) Mutating â€” NOVA must explain what it's about to do, then act
+//  (1) Read-only / safe -- NOVA can call these freely (queries, lookups, memory)
+//  (2) Mutating -- NOVA must explain what it's about to do, then act
 //      (suspend, credit, cancel, email customer with approval)
 //
-// Truly destructive actions (delete account, refund) stay OUT â€” those require
+// Truly destructive actions (delete account, refund) stay OUT -- those require
 // a human admin click in Core, not a voice command.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const TOOLS = [
-  // â”€â”€â”€ READ / LOOKUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€â"€ READ / LOOKUP â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   {
     name: "get_account_state",
     description:
@@ -135,7 +135,7 @@ const TOOLS = [
     input_schema: {
       type: "object",
       properties: {
-        account_id: { type: "string", description: "Optional â€” filter to one customer" },
+        account_id: { type: "string", description: "Optional -- filter to one customer" },
         priority: { type: "string", enum: ["urgent", "high", "normal", "low"] },
         limit: { type: "integer", minimum: 1, maximum: 50 },
       },
@@ -147,7 +147,7 @@ const TOOLS = [
     input_schema: { type: "object", properties: {} },
   },
 
-  // â”€â”€â”€ MUTATING â€” require user confirmation in the prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€â"€ MUTATING -- require user confirmation in the prompt â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   {
     name: "credit_account",
     description:
@@ -173,7 +173,7 @@ const TOOLS = [
       properties: {
         account_id: { type: "string" },
         reason: { type: "string" },
-        confirmed: { type: "boolean", description: "Must be true â€” user has explicitly confirmed this action" },
+        confirmed: { type: "boolean", description: "Must be true -- user has explicitly confirmed this action" },
       },
       required: ["account_id", "reason", "confirmed"],
     },
@@ -202,7 +202,7 @@ const TOOLS = [
         account_id: { type: "string" },
         scope: { type: "string", enum: ["service", "full"] },
         reason: { type: "string" },
-        confirmed: { type: "boolean", description: "Must be true â€” user has explicitly confirmed this cancellation" },
+        confirmed: { type: "boolean", description: "Must be true -- user has explicitly confirmed this cancellation" },
       },
       required: ["account_id", "scope", "reason", "confirmed"],
     },
@@ -234,7 +234,7 @@ const TOOLS = [
         work_type: { type: "string", enum: ["installation", "repair", "upgrade", "disconnection"] },
         notes: { type: "string" },
         priority: { type: "string", enum: ["normal", "urgent"], description: "Default: normal" },
-        confirmed: { type: "boolean", description: "Must be true â€” user confirmed" },
+        confirmed: { type: "boolean", description: "Must be true -- user confirmed" },
       },
       required: ["account_id", "work_type", "notes", "confirmed"],
     },
@@ -254,12 +254,12 @@ const TOOLS = [
     },
   },
 
-  // â”€â”€â”€ NOTIFICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€â"€ NOTIFICATIONS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   {
     name: "queue_internal_email",
     description:
       "Queue an internal email to the ops team (support@nivra-telecom.ca). Use for recaps, alerts, " +
-      "'remind me about X'. NEVER use this to email a customer â€” that's queue_customer_email.",
+      "'remind me about X'. NEVER use this to email a customer -- that's queue_customer_email.",
     input_schema: {
       type: "object",
       properties: {
@@ -273,7 +273,7 @@ const TOOLS = [
     name: "queue_customer_email",
     description:
       "Queue an email TO A CUSTOMER. Requires explicit user confirmation in the prompt (e.g. " +
-      "'envoie-lui un courriel pour lui dire X â€” vas-y'). Returns the queue_id so the user can review.",
+      "'envoie-lui un courriel pour lui dire X -- vas-y'). Returns the queue_id so the user can review.",
     input_schema: {
       type: "object",
       properties: {
@@ -289,7 +289,7 @@ const TOOLS = [
     },
   },
 
-  // â”€â”€â”€ MEMORY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€â"€ MEMORY â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   {
     name: "remember_for_later",
     description:
@@ -306,31 +306,31 @@ const TOOLS = [
         },
         importance: { type: "integer", minimum: 1, maximum: 10 },
       },
-      required: [“title”, “content”, “memory_type”],
+      required: ["title", "content", "memory_type"],
     },
   },
 
   // ─── HUMAN HANDOFF ─────────────────────────────────────────────────────────
   {
-    name: “transfer_to_human_agent”,
+    name: "transfer_to_human_agent",
     description:
-      “Transfer this conversation to a human support agent when you cannot resolve the issue after 3 attempts “ +
-      “or when the customer explicitly requests a human. Creates a support ticket with full conversation context “ +
-      “and sends an email alert to the support team.”,
+      "Transfer this conversation to a human support agent when you cannot resolve the issue after 3 attempts " +
+      "or when the customer explicitly requests a human. Creates a support ticket with full conversation context " +
+      "and sends an email alert to the support team.",
     input_schema: {
-      type: “object”,
+      type: "object",
       properties: {
-        reason: { type: “string”, description: “Why transferring to human” },
-        urgency: { type: “string”, enum: [“low”, “medium”, “high”, “critical”], description: “Urgency level” },
-        summary: { type: “string”, description: “Summary of conversation so far including what was attempted” },
+        reason: { type: "string", description: "Why transferring to human" },
+        urgency: { type: "string", enum: ["low", "medium", "high", "critical"], description: "Urgency level" },
+        summary: { type: "string", description: "Summary of conversation so far including what was attempted" },
       },
-      required: [“reason”, “summary”],
+      required: ["reason", "summary"],
     },
   },
 
-  // â”€â”€â”€ FRONTEND COMMANDS â€” pilot the UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€â"€ FRONTEND COMMANDS -- pilot the UI â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   {
-    name: “ui_navigate”,
+    name: "ui_navigate",
     description:
       "Tell the frontend to navigate to a Nivra admin page. Use when the user says 'open client X' or " +
       "'go to the cancellation page'. The frontend listens to this tool result and changes route.",
@@ -360,9 +360,9 @@ const TOOLS = [
   },
 ];
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// TOOL HANDLERS â€” actual execution per tool name.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// TOOL HANDLERS -- actual execution per tool name.
+// â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 async function executeTool(
   supabase: any,
   name: string,
@@ -432,7 +432,7 @@ async function executeTool(
         return { ok: true, result: { stored: true } };
       }
 
-      // â”€â”€â”€ READ-ONLY LOOKUPS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // â"€â"€â"€ READ-ONLY LOOKUPS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
       case "get_customer_payments": {
         const limit = (input.limit as number) ?? 10;
         const accountId = input.account_id as string;
@@ -518,7 +518,7 @@ async function executeTool(
         return { ok: true, result: data ?? [] };
       }
 
-      // â”€â”€â”€ MUTATING ACTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // â"€â"€â"€ MUTATING ACTIONS â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
       case "credit_account": {
         const accountId = input.account_id as string;
         const amount = Number(input.amount);
@@ -584,7 +584,7 @@ async function executeTool(
 
       case "trigger_cancellation": {
         if (!input.confirmed) return { ok: false, error: "Confirmation requise. Demandez Ã  l'utilisateur de confirmer explicitement l'annulation, puis relancez avec confirmed: true." };
-        // Delegate to the cancel-account orchestrator built earlier â€” atomic + audited.
+        // Delegate to the cancel-account orchestrator built earlier -- atomic + audited.
         const res = await fetch(`${SUPABASE_URL}/functions/v1/cancel-account`, {
           method: "POST",
           headers: {
@@ -654,7 +654,7 @@ async function executeTool(
         return { ok: true, result: { porting_request_id: data?.id } };
       }
 
-      // â”€â”€â”€ CUSTOMER EMAIL (must be confirmed by user) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // â"€â"€â"€ CUSTOMER EMAIL (must be confirmed by user) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
       case "queue_customer_email": {
         if (input.confirmed_by_user !== true) {
           return {
@@ -690,40 +690,40 @@ async function executeTool(
       }
 
       // ─── HUMAN HANDOFF ────────────────────────────────────────────────────
-      case “transfer_to_human_agent”: {
+      case "transfer_to_human_agent": {
         const reason = input.reason as string;
-        const urgency = (input.urgency as string) ?? “medium”;
+        const urgency = (input.urgency as string) ?? "medium";
         const summary = input.summary as string;
 
         // Create support ticket
         const { data: ticket, error: ticketErr } = await supabase
-          .from(“support_tickets”)
+          .from("support_tickets")
           .insert({
             subject: `[NOVA Handoff] ${reason}`,
             body: `Résumé NOVA:\n${summary}\n\nRaison du transfert: ${reason}\nUrgence: ${urgency}`,
-            priority: urgency === “critical” ? “urgent” : urgency === “high” ? “high” : urgency === “medium” ? “normal” : “low”,
-            category: “nova_handoff”,
-            status: “open”,
-            created_by_name: “NOVA Digital Brain”,
+            priority: urgency === "critical" ? "urgent" : urgency === "high" ? "high" : urgency === "medium" ? "normal" : "low",
+            category: "nova_handoff",
+            status: "open",
+            created_by_name: "NOVA Digital Brain",
           })
-          .select(“id, ticket_number”)
+          .select("id, ticket_number")
           .maybeSingle();
 
         if (ticketErr) {
-          console.error(“[nova-brain] transfer_to_human_agent ticket creation failed:”, ticketErr);
+          console.error("[nova-brain] transfer_to_human_agent ticket creation failed:", ticketErr);
         }
 
         // Send email alert to support team
-        await supabase.from(“email_queue”).insert({
+        await supabase.from("email_queue").insert({
           event_key: `nova_handoff_${Date.now()}`,
-          to_email: “support@nivra-telecom.ca”,
-          template_key: “generic_internal_note”,
+          to_email: "support@nivra-telecom.ca",
+          template_key: "generic_internal_note",
           subject: `[NOVA Handoff] ${urgency.toUpperCase()} — ${reason}`,
           template_vars: {
-            body_text: `NOVA a transféré une conversation vers un agent humain.\n\nTicket: ${ticket?.ticket_number ?? “—“}\nUrgence: ${urgency}\nRaison: ${reason}\n\nRésumé:\n${summary}`,
-            sender: “NOVA Digital Brain”,
+            body_text: `NOVA a transféré une conversation vers un agent humain.\n\nTicket: ${ticket?.ticket_number ?? "—"}\nUrgence: ${urgency}\nRaison: ${reason}\n\nRésumé:\n${summary}`,
+            sender: "NOVA Digital Brain",
           },
-          status: “queued”,
+          status: "queued",
         }).then(() => undefined, () => undefined);
 
         return {
@@ -732,13 +732,13 @@ async function executeTool(
             transferred: true,
             ticket_id: ticket?.id,
             ticket_number: ticket?.ticket_number,
-            message: “Je vous transfère maintenant vers un agent. Un membre de notre équipe vous contactera sous peu.”,
+            message: "Je vous transfère maintenant vers un agent. Un membre de notre équipe vous contactera sous peu.",
           },
         };
       }
 
-      // â”€â”€â”€ FRONTEND COMMANDS â€” the UI listens for these in the response â”€â”€
-      case “ui_navigate”: {
+      // â"€â"€â"€ FRONTEND COMMANDS -- the UI listens for these in the response â"€â"€
+      case "ui_navigate": {
         return {
           ok: true,
           result: {
@@ -771,7 +771,7 @@ async function executeTool(
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  // Auth gate: nova-brain is internal â€” require service role or AGENT_SECRET
+  // Auth gate: nova-brain is internal -- require service role or AGENT_SECRET
   const _nb_auth = req.headers.get("Authorization") ?? "";
   const _nb_secret = Deno.env.get("AGENT_SECRET");
   if (_nb_auth !== `Bearer ${SERVICE_KEY}` && (!_nb_secret || _nb_auth !== `Bearer ${_nb_secret}`)) {
@@ -809,11 +809,11 @@ serve(async (req) => {
       );
     }
 
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     // Build system prompt with cached memory + real-time context.
     // The 'cache_control: ephemeral' marker tells Anthropic to cache
     // the prefix for 5 min so multi-turn conversations are fast & cheap.
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     const [{ data: contextData }, { data: memories }] = await Promise.all([
       supabase.rpc("get_nova_context"),
       supabase
@@ -825,7 +825,7 @@ serve(async (req) => {
     ]);
 
     const memoryText = (memories || [])
-      .map((m: any) => `â€¢ [${m.memory_type}] ${m.title}: ${m.content}`)
+      .map((m: any) => `* [${m.memory_type}] ${m.title}: ${m.content}`)
       .join("\n");
 
     const baseSystem = `Tu es NOVA, le Digital Brain de Nivra Telecom.
@@ -842,12 +842,12 @@ PERSONNALITÉ:
 OUTILS DISPONIBLES:
 Tu as accès Ã  des outils (get_account_state, search_customers, get_business_metrics,
 queue_internal_email, remember_for_later). Utilise-les dès que ça aide. Quand quelqu'un
-te demande l'état d'un client, NE devine PAS â€” appelle get_account_state.
+te demande l'état d'un client, NE devine PAS -- appelle get_account_state.
 
 RÃˆGLES STRICTES:
 - Jamais de chiffres inventés. Si tu ne sais pas, dis-le et appelle un outil.
 - Pour envoyer un email Ã  un CLIENT (pas l'équipe interne), refuse et demande approbation humaine.
-- Pour suspendre / annuler un compte, refuse de le faire toi-même â€” c'est une action admin.
+- Pour suspendre / annuler un compte, refuse de le faire toi-même -- c'est une action admin.
 - Après 3 tentatives infructueuses de résoudre un problème client, utilise PROACTIVEMENT l'outil transfer_to_human_agent.
 - Si un client demande explicitement à parler à un humain, utilise IMMÉDIATEMENT transfer_to_human_agent sans hésiter.`;
 
@@ -859,7 +859,7 @@ RÃˆGLES STRICTES:
       {
         type: "text",
         text: baseSystem + memorySection,
-        // Cache the personality + memory â€” stable across turns.
+        // Cache the personality + memory -- stable across turns.
         cache_control: { type: "ephemeral" },
       },
       {
@@ -871,10 +871,10 @@ RÃˆGLES STRICTES:
 
     const client = new Anthropic({ apiKey });
 
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // AGENTIC LOOP â€” Claude may want to call tools, then think again.
+    // â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+    // AGENTIC LOOP -- Claude may want to call tools, then think again.
     // We loop up to MAX_TOOL_ITERATIONS times until it returns a final text.
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     let conversationMessages = [...messages];
     let finalText = "";
     let totalUsage = {
@@ -939,9 +939,9 @@ RÃˆGLES STRICTES:
 
     const durationMs = Date.now() - startedAt;
 
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // AUDIT TRAIL â€” nova_reasoning_log (granular) + agent_audit_log (rollup)
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+    // AUDIT TRAIL -- nova_reasoning_log (granular) + agent_audit_log (rollup)
+    // â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     try {
       const { data: logRow } = await supabase
         .from("nova_reasoning_log")
@@ -958,7 +958,7 @@ RÃˆGLES STRICTES:
         .maybeSingle();
       reasoningLogId = logRow?.id ?? null;
     } catch (logErr) {
-      // The table may not have this exact shape â€” log to console but don't fail.
+      // The table may not have this exact shape -- log to console but don't fail.
       console.warn("[nova-brain] reasoning_log insert failed:", logErr);
     }
 
