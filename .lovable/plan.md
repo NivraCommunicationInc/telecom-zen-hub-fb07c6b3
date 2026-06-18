@@ -1,101 +1,73 @@
-## Diagnostic
+# Plan d'exécution — Lot de corrections & nouvelles fonctionnalités
 
-Trois problèmes confirmés en BD :
+Demande très large. Je propose de la découper en **9 chantiers** indépendants. Confirme l'ordre (ou dis "tout") et je commence. Chaque chantier est livrable seul.
 
-1. **Rôles incorrects** dans certaines edge functions des phases 11-15 :
-   - `account-documents-list`, `security-account-actions`, `communication-account-actions` vérifient le rôle inexistant `support_agent` → 403 systématique pour les staff `employee`. L'enum réel contient : `admin, client, technician, employee, influencer, field_sales, sales, kyc_agent, billing_admin, techops, support, supervisor`.
+---
 
-2. **Documents incomplets** : `account-documents-list` lit `contracts`, `client_auto_documents`, `client_documents`, `order_documents` — mais **ignore** `billing_invoices` et `monthly_invoices` qui contiennent les vraies factures du client. Résultat : un client avec 5 factures mensuelles voit "Aucun document".
+## 1. Nivra Core — Traitement de commande (équipement + date + anti-fraude)
+- **Équipement pré-rempli** : à l'étape "Équipement" du workspace, lire `order_items` et générer automatiquement N cartes (1 borne, 2 terminaux TV, etc.) prêtes à recevoir serial/MAC. Plus de bouton "+ ajouter".
+- **Date de commande** affichée dans le header du workspace + colonne dans la liste.
+- **Rendez-vous technicien synchronisé** : à la confirmation, créer/MAJ `technician_assignments` avec la date + plage horaire choisies au checkout. Si modifié dans Core → propagé au portail technicien (realtime).
+- **Anti-fraude** : nouveau module `fraud_check` qui calcule un score (0–100) à la création d'une commande :
+  - Vérifie cohérence nom/DOB/adresse vs `profiles`, `orders` historiques, `account_fraud_incidents`
+  - Détecte: même adresse + nom différent, email jetable, téléphone réutilisé, mismatch nom CB
+  - Hook prêt pour brancher futur credit check / KYC ID (interface `fraud_provider`)
+  - Badge visible dans le workspace : Vert <30, Jaune 30–70, Rouge >70 + raisons listées
+- Tables: réutilise `account_fraud_incidents` + nouvelle `order_fraud_assessments`
 
-3. **Phases 12-20 isolées** : les nouvelles dialogues (SMS, Appels, Préférences, Étiquettes, Suivis, Loi 25, Fraude) ont leur propre table mais n'agrègent rien depuis l'existant (notes, tickets, paiements, sessions). Vivantes mais vides au premier ouverture.
+## 2. Installation TV+Internet → 1 seul RDV
+Quand une commande contient un forfait TV bundle internet, ne créer **qu'un seul** `installation_job` / `technician_assignment` partagé. Corriger split actuel.
 
-## Plan — 2 lots
+## 3. Chaînes TV — règles strictes + packs aléatoires + email + ticket
+- Respect du forfait : base + X chaînes standard (limite dure dans `TVChannelSelectionBase`)
+- Chaînes premium = surcharge automatique ajoutée à la facture mensuelle
+- Boutons "Pack rapide" : Sport, Francophone, Mix Sport+Séries, Famille (auto-sélection)
+- Email post-sélection avec lien `?token=…` qui ouvre directement la page de modification dans le portail
+- Création auto d'un `internal_ticket` (catégorie "channel_selection") visible dans Core
 
-### Lot A — Audit & correctifs des dialogues existantes (Phases 11-20)
+## 4. PDF Contract + Modalités fusionnés (nouveau template telecom premium)
+- Nouveau template **PDF unifié v4** "Contrat & Modalités" — un seul document
+- Réutilise palette du site (#7c3aed accent, navy/dark) — style telecom moderne
+- Reçus & factures harmonisés au même style
+- Skill PDF: QA visuel page par page avant livraison
+- Texte mis à jour selon dernières conditions
 
-**A1. Standardiser la vérification de rôles staff**
-Créer une fonction PL/pgSQL `public.has_staff_role(_user_id uuid)` retournant `true` si l'utilisateur a au moins un de : `admin, employee, supervisor, support, billing_admin, kyc_agent, techops`. Remplacer les multi-`has_role()` dans **toutes** les edge functions du Compte 360 par cet appel unique. Élimine les erreurs `support_agent`.
+## 5. Portail client — Paiements (bug adresse + détails commande)
+- Quand client connecté avec adresse au profil : pré-remplir + ne pas redemander pour add-credit / pay-invoice / paiement libre
+- Bouton "Détails" commande : actuellement redirige vers `/`, corriger vers `/portal/orders/:id`
 
-**A2. Étendre `account-documents-list`**
-Ajouter la lecture de :
-- `billing_invoices` (factures mensuelles auto) → catégorie "Facture"
-- `monthly_invoices` (factures cycle) → catégorie "Facture mensuelle"  
-- `payments` → générer un item "Reçu de paiement" par paiement complété
-- `quotes` (si lié au client) → catégorie "Soumission"
+## 6. Portail client — Tickets, Changement de forfait, Remplacement, Annulation
+- **Création ticket** : peupler le select "Sujet" (facturation, chaînes, support général, technique, équipement, autre)
+- **Changement forfait** : afficher forfait actuel + alternatives compatibles (cacher Internet si bundle TV+Internet déjà actif). Soumission → notif Core qui orchestre le changement + prorata via règles existantes
+- **Remplacement d'équipement** : lister équipements actifs par service, bouton "Demander remplacement" → ticket Core
+- **Annulation/Pause** : lister services actifs, sélection + raison → demande dans Core avec notif
 
-Chaque item conserve son `source` (`invoice`, `receipt`, `quote`) avec icône dédiée et tab supplémentaire.
+## 7. Changement d'email (client + Core)
+- Portail client : nouveau flow avec OTP de confirmation sur l'ancien ET le nouveau
+- Core : possibilité de changer l'email d'un client (avec audit + notif au client)
 
-**A3. Test fumée systématique**
-Pour chaque dialogue (Documents, Sécurité, Communications, SMS, Appels, Préférences, Étiquettes, Suivis, Loi 25, Fraude, Timeline, Disputes, Collections, KYC, Référrals) :
-- Appeler l'action `list` via `curl_edge_functions` avec un client réel ayant des données
-- Vérifier : pas de 403, pas de 500, payload non-vide quand des données existent
-- Corriger les colonnes erronées, les filtres trop stricts, les rôles manquants
+## 8. PayPal pré-autorisé — fix PAYPAL_CREATE_FAILED
+- Debug edge function `paypal-create-billing-agreement` (probable: plan_id manquant ou montant 0)
+- Logs + retry + message d'erreur lisible
 
-**A4. Fix le bouton "Documents" qui s'affiche vide**
-Vérifier explicitement avec un client qui a des `client_auto_documents` (38 rows en BD) que le dialogue les affiche après les corrections A1 + A2.
+## 9. Programme fidélité refonte + Carte de fidélité
+- **Barème durci** : 1 pt = 1$ dépensé (au lieu du généreux actuel), récompenses à 2000 pts = 25$, 5000 pts = 75$, 10000 pts = 200$
+- **Carte de fidélité** : numéro auto-généré (format NIV-XXXX-XXXX-XXXX), statut Bronze/Argent/Or/Platine selon points cumulés
+- Design carte premium (gradient violet, hologramme CSS, QR code)
+- Gestion Core : voir/ajuster points, suspendre carte, historique
 
-### Lot B — Phase 21 : Claim de commandes/factures par vérification d'email
+---
 
-**Règle métier** : lorsqu'un utilisateur crée un compte avec un email qui apparaît déjà dans `orders.guest_email`, `quotes.client_email`, `billing_invoices.recipient_email` ou `client_auto_documents.recipient_email`, le système doit :
-1. Détecter ces enregistrements orphelins à la création du compte
-2. **Bloquer le claim** tant que l'email n'est pas vérifié par un code OTP envoyé par courriel
-3. Une fois le code validé, rattacher tous les enregistrements au nouveau `user_id` et `account_id`
-4. Auditer chaque rattachement dans `admin_audit_log`
+## Ordre d'exécution recommandé
+1. **Quick wins** (#5 détails commande + adresse, #6 select tickets, #8 PayPal) — 1 tour
+2. **Chantier Core** (#1 équipement+date+fraude, #2 RDV unifié) — 1 tour
+3. **Chaînes TV** (#3) — 1 tour
+4. **PDF unifié** (#4) — 1 tour avec QA skill
+5. **Portail flows lourds** (#6 changement forfait, remplacement, annulation, #7 email) — 1 tour
+6. **Fidélité + carte** (#9) — 1 tour
 
-**B1. Migration BD**
-- Table `email_claim_challenges` : `id, target_email, user_id, code_hash (sha256), expires_at (10 min), attempts (max 5), verified_at, created_at`. RLS : user voit/modifie uniquement ses propres challenges.
-- Fonction `count_claimable_records(_email text)` : retourne un JSON `{orders: n, quotes: n, invoices: n, auto_docs: n}` sans exposer les données.
-- Fonction `apply_email_claim(_user_id uuid, _email text)` (SECURITY DEFINER) : exécute le rattachement transactionnel et insère l'audit log. N'est appelée qu'après vérification du code.
-
-**B2. Edge function `account-claim-actions`**
-Actions :
-- `detect` : appelée à la première connexion. Retourne le compteur via `count_claimable_records`.
-- `request_code` : génère un code 6 chiffres, le hash, l'insère dans `email_claim_challenges` (expire 10 min), envoie l'email via `send-transactional-email` (template `account-claim-verification`).
-- `verify_code` : vérifie le code, incrémente `attempts`, et si valide appelle `apply_email_claim` puis envoie l'email de confirmation (template `account-claim-success`).
-
-**B3. Template email**
-Créer `_shared/transactional-email-templates/account-claim-verification.tsx` avec le template corporate (bleu #0066CC, footer Nivra). Code 6 chiffres en gros. Expire en 10 min. Mention sécurité.
-
-**B4. UI**
-- Bannière `AccountClaimBanner.tsx` dans le portail client (`/portal`) : si `count > 0`, afficher "Nous avons trouvé X commandes / Y factures associées à votre email. Vérifiez votre adresse pour les récupérer." Bouton "Vérifier mon email".
-- Dialogue `ClaimVerificationDialog.tsx` : champ code 6 chiffres, bouton "Renvoyer le code" (rate-limit 60s), affiche le résultat.
-
-**B5. Audit & sécurité**
-- Rate limit : max 3 demandes de code par adresse par heure
-- Lock après 5 mauvais codes (challenge expiré)
-- Audit chaque `claim_apply` avec compteur d'éléments rattachés
-- Aucune fuite : `count_claimable_records` retourne uniquement des compteurs, jamais les IDs/numéros
-
-## Détails techniques
-
-```text
-Tables touchées
-├── A1: helper SQL public.has_staff_role(_user_id uuid) → bool
-├── A2: account-documents-list ajoute billing_invoices, monthly_invoices, payments
-├── B1: email_claim_challenges (nouvelle)
-│       count_claimable_records (SQL function)
-│       apply_email_claim (SQL function, SECURITY DEFINER)
-└── B5: admin_audit_log entries: account_ops.claim_request|verify|apply
-
-Edge functions
-├── A1: patch ~10 fonctions (rôles)
-├── A2: patch account-documents-list
-└── B2: account-claim-actions (nouvelle)
-
-Composants UI
-├── A3: aucune modif UI si edge fix suffit
-├── B4: AccountClaimBanner.tsx
-└── B4: ClaimVerificationDialog.tsx (dans src/pages/portal/)
-```
-
-## Ordre d'exécution
-
-1. **Lot A d'abord** (fonctionnel cassé → priorité) — migration helper + patch des fonctions + test fumée
-2. **Lot B ensuite** — migration + edge function + template email + UI portail client
-
-## Hors scope
-
-- Refonte UI des dialogues (déjà OK)
-- Migration des roles existants (l'enum reste tel quel)
-- Auto-claim sans vérification (refusé pour raison de sécurité)
-- Notification staff lors d'un claim (peut être ajouté en suivi)
+## Confirmation
+Dis-moi:
+- **"go tout"** → j'attaque dans l'ordre ci-dessus
+- **"go #X #Y"** → je fais seulement ces chantiers
+- **modifs** → ajuste et je remets le plan à jour
