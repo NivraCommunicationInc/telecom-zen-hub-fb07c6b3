@@ -60,7 +60,7 @@ const nowIso = () => new Date().toISOString();
 // Lazily-initialized admin client used only to enrich payloads when the
 // trigger payload is incomplete (e.g. missing monthly amount, activation date,
 // service address). Strict fail-soft: if enrichment fails we fall back to the
-// raw payload â€” generation never throws because of enrichment.
+// raw payload — generation never throws because of enrichment.
 let _admin: any = null;
 function getAdmin() {
   if (_admin) return _admin;
@@ -73,7 +73,7 @@ function getAdmin() {
 
 /**
  * Pull authoritative client/account/subscription data from the database when
- * the trigger payload is missing key fields. Best-effort â€” never throws.
+ * the trigger payload is missing key fields. Best-effort — never throws.
  */
 async function enrichFromDb(
   docType: AutoDocType,
@@ -104,7 +104,7 @@ async function enrichFromDb(
       if (cust) {
         out.client_email = out.client_email || cust.email;
         out.client_phone = out.client_phone || cust.phone;
-        // billing_customers names can be null â€” profiles is the source of truth
+        // billing_customers names can be null — profiles is the source of truth
         if (cust.user_id) {
           const { data: prof } = await admin.from("profiles").select("first_name, last_name").eq("user_id", cust.user_id).maybeSingle();
           out.first_name = out.first_name || prof?.first_name || cust.first_name;
@@ -191,10 +191,10 @@ async function enrichFromDb(
       }
       if (customerId) {
         const { data: sub } = await admin
-          .from(“billing_subscriptions”)
-          .select(“id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor, order_id”)
-          .eq(“customer_id”, customerId)
-          .order(“created_at”, { ascending: false })
+          .from("billing_subscriptions")
+          .select("id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor, order_id")
+          .eq("customer_id", customerId)
+          .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
         if (sub) {
@@ -206,21 +206,21 @@ async function enrichFromDb(
           out.next_billing_date = out.next_billing_date || sub.next_renewal_at;
           out.account_status = out.account_status || sub.status;
           if (!out.first_billing_cycle && sub.cycle_start_date && sub.cycle_end_date) {
-            out.first_billing_cycle = `${sub.cycle_start_date} â€” ${sub.cycle_end_date}`;
+            out.first_billing_cycle = `${sub.cycle_start_date} — ${sub.cycle_end_date}`;
           }
           // welcome_letter, service_certificate, activation_confirmation must show the price
           // frozen at order time (order_items.unit_price), never the live plan_price which
           // changes when the customer upgrades. Other doc types keep reading plan_price.
-          const priceSnapshot = [“welcome_letter”, “service_certificate”, “activation_confirmation”].includes(docType);
+          const priceSnapshot = ["welcome_letter", "service_certificate", "activation_confirmation"].includes(docType);
           if (priceSnapshot && out.monthly_amount == null) {
             const orderId = (sub as any).order_id || out.order_id;
             let snapshotPrice: number | null = null;
             if (orderId) {
               const { data: items } = await admin
-                .from(“order_items”)
-                .select(“unit_price”)
-                .eq(“order_id”, orderId)
-                .eq(“is_recurring”, true);
+                .from("order_items")
+                .select("unit_price")
+                .eq("order_id", orderId)
+                .eq("is_recurring", true);
               if (items && items.length > 0) {
                 snapshotPrice = items.reduce((s: number, it: any) => s + Number(it.unit_price ?? 0), 0);
               }
@@ -237,23 +237,23 @@ async function enrichFromDb(
     if ((!out.monthly_amount || !out.service_name) && out.client_id) {
       try {
         const { data: order } = await admin
-          .from(“orders”)
-          .select(“id, plan_name, plan_price, total_amount, service_name”)
-          .eq(“user_id”, out.client_id)
-          .order(“created_at”, { ascending: false })
+          .from("orders")
+          .select("id, plan_name, plan_price, total_amount, service_name")
+          .eq("user_id", out.client_id)
+          .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
         if (order) {
           out.service_name = out.service_name || order.service_name || order.plan_name;
           out.plan_name = out.plan_name || order.plan_name;
           // Same snapshot rule: price-sensitive docs use order_items, not order.plan_price.
-          const priceSnapshot = [“welcome_letter”, “service_certificate”, “activation_confirmation”].includes(docType);
+          const priceSnapshot = ["welcome_letter", "service_certificate", "activation_confirmation"].includes(docType);
           if (priceSnapshot && out.monthly_amount == null) {
             const { data: items } = await admin
-              .from(“order_items”)
-              .select(“unit_price”)
-              .eq(“order_id”, order.id)
-              .eq(“is_recurring”, true);
+              .from("order_items")
+              .select("unit_price")
+              .eq("order_id", order.id)
+              .eq("is_recurring", true);
             const snapshotPrice = items && items.length > 0
               ? items.reduce((s: number, it: any) => s + Number(it.unit_price ?? 0), 0)
               : null;
@@ -313,9 +313,9 @@ function normalizePayload(
     client_city: p.client_city || addr.city || "",
     client_province: p.client_province || addr.province || "QC",
     client_postal: p.client_postal || addr.postal_code || "",
-    account_number: p.account_number || "â€”",
+    account_number: p.account_number || "—",
     issue_date: p.issue_date || nowIso(),
-    // Service fields â€” always have a value
+    // Service fields — always have a value
     service_name: p.service_name || p.plan_name || "Service Nivra Telecom",
     monthly_amount: Number(p.monthly_amount ?? p.unit_price ?? p.plan_price ?? 0),
     activation_date: p.activation_date || p.active_since || p.created_at || nowIso(),
@@ -341,14 +341,14 @@ function normalizePayload(
         if (p.change_type === "service_added" || p.service_name) {
           changes = [{
             field: "Service ajouté",
-            old_value: "â€”",
+            old_value: "—",
             new_value: String(p.service_name || p.service_code || "Nouveau service"),
           }];
           const tarif = Number(p.unit_price ?? p.plan_price ?? p.monthly_amount ?? p.new_monthly_amount ?? 0);
           if (tarif > 0 || p.unit_price !== undefined) {
             changes.push({
-              field: “Tarif mensuel”,
-              old_value: “â€””,
+              field: "Tarif mensuel",
+              old_value: "—",
               new_value: `${tarif.toFixed(2)} $`,
             });
           }
@@ -356,21 +356,21 @@ function normalizePayload(
           changes = [{
             field: "Service retiré",
             old_value: String(p.service_name || p.service_code || "Service"),
-            new_value: "â€”",
+            new_value: "—",
           }];
         } else {
           changes = [{
             field: "Modification",
-            old_value: "â€”",
+            old_value: "—",
             new_value: String(p.change_type || "Mise Ã  jour du contrat"),
           }];
         }
       }
       // Sanitize each row
       changes = changes.map((c) => ({
-        field: String(c?.field ?? "â€”"),
-        old_value: String(c?.old_value ?? "â€”"),
-        new_value: String(c?.new_value ?? "â€”"),
+        field: String(c?.field ?? "—"),
+        old_value: String(c?.old_value ?? "—"),
+        new_value: String(c?.new_value ?? "—"),
       }));
       return {
         ...base,
@@ -389,7 +389,7 @@ function normalizePayload(
       return {
         ...base,
         notice_number: p.notice_number || `ADR-${Date.now()}`,
-        old_address: p.old_address || "â€”",
+        old_address: p.old_address || "—",
         new_address: p.new_address || `${addr.street}, ${addr.city} ${addr.province} ${addr.postal_code}`,
         effective_date: p.effective_date || nowIso(),
       };
@@ -398,7 +398,7 @@ function normalizePayload(
       return {
         ...base,
         notice_number: p.notice_number || `PAY-${Date.now()}`,
-        old_method: p.old_method || "â€”",
+        old_method: p.old_method || "—",
         new_method: p.new_method || "Nouveau moyen de paiement",
         effective_date: p.effective_date || nowIso(),
       };
@@ -409,7 +409,7 @@ function normalizePayload(
         ...base,
         certificate_number: p.certificate_number || `CRT-${Date.now()}`,
         service_name: p.service_name || p.plan_name || "Service Nivra",
-        service_address: p.service_address && typeof p.service_address === "string" ? p.service_address : (addr2.street || base.client_address || "â€”"),
+        service_address: p.service_address && typeof p.service_address === "string" ? p.service_address : (addr2.street || base.client_address || "—"),
         service_city: p.service_city || addr2.city || base.client_city || "",
         service_province: p.service_province || addr2.province || base.client_province || "QC",
         service_postal: p.service_postal || addr2.postal_code || base.client_postal || "",
@@ -441,7 +441,7 @@ function normalizePayload(
         service_name: p.service_name || p.plan_name || "Service Nivra",
         cancellation_date: p.cancellation_date || nowIso(),
         effective_date: p.effective_date || p.cancellation_date || nowIso(),
-        reason: p.reason || "â€”",
+        reason: p.reason || "—",
         final_balance: Number(p.final_balance ?? p.amount_due ?? 0),
         equipment_to_return: Array.isArray(p.equipment_to_return) ? p.equipment_to_return : undefined,
         refund_pending: p.refund_pending ? Number(p.refund_pending) : undefined,
@@ -453,7 +453,7 @@ function normalizePayload(
         ...base,
         notice_number: p.notice_number || `CHB-${Date.now()}`,
         chargeback_date: p.chargeback_date || p.chargeback_opened_at || nowIso(),
-        invoice_number: p.invoice_number || "â€”",
+        invoice_number: p.invoice_number || "—",
         invoice_date: p.invoice_date || p.created_at || base.issue_date,
         invoice_amount: Number(p.invoice_amount ?? p.amount ?? 0),
         chargeback_amount: Number(p.chargeback_amount ?? p.amount ?? 0),
@@ -481,11 +481,11 @@ function normalizePayload(
       return {
         ...base,
         slip_number: p.slip_number || `BL-${Date.now()}`,
-        order_number: p.order_number || "â€”",
-        carrier: p.carrier || "â€”",
-        tracking_number: p.tracking_number || "â€”",
+        order_number: p.order_number || "—",
+        carrier: p.carrier || "—",
+        tracking_number: p.tracking_number || "—",
         estimated_delivery: p.estimated_delivery || undefined,
-        delivery_address: p.delivery_address || base.client_address || "â€”",
+        delivery_address: p.delivery_address || base.client_address || "—",
         delivery_city: p.delivery_city || base.client_city || "",
         delivery_province: p.delivery_province || base.client_province || "QC",
         delivery_postal: p.delivery_postal || base.client_postal || "",
@@ -508,7 +508,7 @@ function normalizePayload(
       return {
         ...base,
         instruction_number: p.instruction_number || `RET-${Date.now()}`,
-        order_number: p.order_number || "â€”",
+        order_number: p.order_number || "—",
         items: Array.isArray(p.items) ? p.items.map((it: any) => ({
           description: it.description || it.name || String(it),
           serial_number: it.serial_number || it.imei || undefined,
@@ -528,9 +528,9 @@ function normalizePayload(
         ...base,
         report_number: p.report_number || `INS-${Date.now()}`,
         appointment_date: p.appointment_date || p.installation_date || p.scheduled_at || nowIso(),
-        technician_name: p.technician_name || "â€”",
+        technician_name: p.technician_name || "—",
         technician_id: p.technician_id || undefined,
-        service_address: p.service_address || base.client_address || "â€”",
+        service_address: p.service_address || base.client_address || "—",
         service_city: p.service_city || base.client_city || "",
         service_province: p.service_province || base.client_province || "QC",
         service_postal: p.service_postal || base.client_postal || "",
@@ -573,7 +573,7 @@ function normalizePayload(
         demand_date: p.demand_date || nowIso(),
         total_due: Number(p.total_due ?? p.amount_due ?? 0),
         invoices: Array.isArray(p.invoices) ? p.invoices.map((inv: any) => ({
-          invoice_number: String(inv.invoice_number || "â€”"),
+          invoice_number: String(inv.invoice_number || "—"),
           invoice_date: String(inv.invoice_date || inv.date || ""),
           amount: Number(inv.amount ?? 0),
           days_overdue: Number(inv.days_overdue ?? 0),
