@@ -192,7 +192,7 @@ async function enrichFromDb(
       if (customerId) {
         const { data: sub } = await admin
           .from(“billing_subscriptions”)
-          .select(“id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor”)
+          .select(“id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor, order_id”)
           .eq(“customer_id”, customerId)
           .order(“created_at”, { ascending: false })
           .limit(1)
@@ -201,13 +201,33 @@ async function enrichFromDb(
           out.subscription_id = out.subscription_id || sub.id;
           out.service_name = out.service_name || sub.plan_name;
           out.plan_name = out.plan_name || sub.plan_name;
-          out.monthly_amount = out.monthly_amount ?? Number(sub.plan_price ?? 0);
           out.activation_date = out.activation_date || sub.cycle_start_date || sub.created_at;
           out.active_since = out.active_since || sub.cycle_start_date || sub.created_at;
           out.next_billing_date = out.next_billing_date || sub.next_renewal_at;
           out.account_status = out.account_status || sub.status;
           if (!out.first_billing_cycle && sub.cycle_start_date && sub.cycle_end_date) {
             out.first_billing_cycle = `${sub.cycle_start_date} â€” ${sub.cycle_end_date}`;
+          }
+          // welcome_letter, service_certificate, activation_confirmation must show the price
+          // frozen at order time (order_items.unit_price), never the live plan_price which
+          // changes when the customer upgrades. Other doc types keep reading plan_price.
+          const priceSnapshot = [“welcome_letter”, “service_certificate”, “activation_confirmation”].includes(docType);
+          if (priceSnapshot && out.monthly_amount == null) {
+            const orderId = (sub as any).order_id || out.order_id;
+            let snapshotPrice: number | null = null;
+            if (orderId) {
+              const { data: items } = await admin
+                .from(“order_items”)
+                .select(“unit_price”)
+                .eq(“order_id”, orderId)
+                .eq(“is_recurring”, true);
+              if (items && items.length > 0) {
+                snapshotPrice = items.reduce((s: number, it: any) => s + Number(it.unit_price ?? 0), 0);
+              }
+            }
+            out.monthly_amount = snapshotPrice ?? Number(sub.plan_price ?? 0);
+          } else {
+            out.monthly_amount = out.monthly_amount ?? Number(sub.plan_price ?? 0);
           }
         }
       }
@@ -218,7 +238,7 @@ async function enrichFromDb(
       try {
         const { data: order } = await admin
           .from(“orders”)
-          .select(“plan_name, plan_price, total_amount, service_name”)
+          .select(“id, plan_name, plan_price, total_amount, service_name”)
           .eq(“user_id”, out.client_id)
           .order(“created_at”, { ascending: false })
           .limit(1)
@@ -226,7 +246,21 @@ async function enrichFromDb(
         if (order) {
           out.service_name = out.service_name || order.service_name || order.plan_name;
           out.plan_name = out.plan_name || order.plan_name;
-          out.monthly_amount = out.monthly_amount ?? Number(order.plan_price ?? 0);
+          // Same snapshot rule: price-sensitive docs use order_items, not order.plan_price.
+          const priceSnapshot = [“welcome_letter”, “service_certificate”, “activation_confirmation”].includes(docType);
+          if (priceSnapshot && out.monthly_amount == null) {
+            const { data: items } = await admin
+              .from(“order_items”)
+              .select(“unit_price”)
+              .eq(“order_id”, order.id)
+              .eq(“is_recurring”, true);
+            const snapshotPrice = items && items.length > 0
+              ? items.reduce((s: number, it: any) => s + Number(it.unit_price ?? 0), 0)
+              : null;
+            out.monthly_amount = snapshotPrice ?? Number(order.plan_price ?? 0);
+          } else {
+            out.monthly_amount = out.monthly_amount ?? Number(order.plan_price ?? 0);
+          }
         }
       } catch (_e) { /* silent */ }
     }
