@@ -190,13 +190,25 @@ async function enrichFromDb(
         }
       }
       if (customerId) {
-        const { data: sub } = await admin
+        // Prefer active/pending subscription; only fall back to cancelled/other if none active.
+        // Without this guard a cancelled sub created after the active one wins, showing wrong price.
+        const subSelect = "id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor, order_id";
+        const { data: activeSub } = await admin
           .from("billing_subscriptions")
-          .select("id, plan_name, plan_price, cycle_start_date, cycle_end_date, status, next_renewal_at, created_at, billing_cycle_anchor, order_id")
+          .select(subSelect)
           .eq("customer_id", customerId)
+          .in("status", ["active", "pending"])
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
+        const sub = activeSub ?? (await admin
+          .from("billing_subscriptions")
+          .select(subSelect)
+          .eq("customer_id", customerId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        ).data ?? null;
         if (sub) {
           out.subscription_id = out.subscription_id || sub.id;
           out.service_name = out.service_name || sub.plan_name;

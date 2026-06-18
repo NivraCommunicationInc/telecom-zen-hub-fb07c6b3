@@ -1,7 +1,7 @@
 ﻿import { createClient } from "npm:@supabase/supabase-js@2";
 
 /**
- * nivra-core-sync â€” Webhook endpoint called by Nivra Core Worker
+ * nivra-core-sync - Webhook endpoint called by Nivra Core Worker
  * after creating order/invoice/payment/subscription.
  * 
  * Writes canonical records to local Supabase tables for portal visibility.
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // â”€â”€ Auth: verify webhook secret â”€â”€
+    // â"€â"€ Auth: verify webhook secret â"€â"€
     const webhookSecret = Deno.env.get("NIVRA_WEBHOOK_SECRET");
     const providedSecret = req.headers.get("x-webhook-secret");
 
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     const results: Record<string, any> = {};
     const errors: string[] = [];
 
-    // â”€â”€ 1. Upsert billing_customer â”€â”€
+    // â"€â"€ 1. Upsert billing_customer â"€â"€
     try {
       const { data: existingCustomer } = await admin
         .from("billing_customers")
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
       }
       results.customer_id = customerId;
 
-      // â”€â”€ 2. Resolve or create account â€” BLOCKING â”€â”€
+      // â"€â"€ 2. Resolve or create account - BLOCKING â"€â"€
       let accountId: string | null = null;
       {
         const { data: acct } = await admin
@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
             .select("id")
             .single();
           if (acctErr) {
-            // Handle race condition: unique index violation â†’ re-fetch
+            // Handle race condition: unique index violation â†' re-fetch
             if (acctErr.code === '23505') {
               console.warn("[nivra-core-sync] Account exists (race), re-fetching");
               const { data: reFetched } = await admin
@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
             }
           } else {
             accountId = newAcct.id;
-            console.log("[nivra-core-sync] âœ“ Account created:", payload.account.account_number);
+            console.log("[nivra-core-sync] OK: Account created:", payload.account.account_number);
           }
         }
         
@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
           const errMsg = `FATAL: No account_id resolved for user ${payload.customer.user_id}. Order sync blocked.`;
           console.error("[nivra-core-sync]", errMsg);
           errors.push(errMsg);
-          // Return early â€” order trigger will reject NULL account_id anyway
+          // Return early - order trigger will reject NULL account_id anyway
           return new Response(
             JSON.stringify({ ok: false, results, errors }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // â”€â”€ 3. Upsert order â”€â”€
+      // â"€â"€ 3. Upsert order â"€â"€
       const { error: orderErr } = await admin.from("orders").upsert(
         {
           id: payload.order.id,
@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
         results.order = "synced";
       }
 
-      // â”€â”€ 3. Upsert billing_invoice â”€â”€
+      // â"€â"€ 3. Upsert billing_invoice â"€â"€
       const { error: invoiceErr } = await admin.from("billing_invoices").upsert(
         {
           id: payload.invoice.id,
@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
         results.invoice = "synced";
       }
 
-      // â”€â”€ 4. Upsert billing_payment â”€â”€
+      // â"€â"€ 4. Upsert billing_payment â"€â"€
       const { error: paymentErr } = await admin.from("billing_payments").upsert(
         {
           id: payload.payment.id,
@@ -326,7 +326,7 @@ Deno.serve(async (req) => {
         results.payment = "synced";
       }
 
-      // â”€â”€ 5. Upsert billing_subscription â€” DETERMINISTIC â”€â”€
+      // â"€â"€ 5. Upsert billing_subscription - DETERMINISTIC â"€â"€
       // Always ensure a subscription exists for the order.
       // If payload.subscription is provided, use it. Otherwise, derive from order data.
       {
@@ -339,7 +339,7 @@ Deno.serve(async (req) => {
 
         if (existingSub) {
           results.subscription = "already_exists";
-          console.log("[nivra-core-sync] âœ“ Subscription already exists for order:", payload.order.order_number);
+          console.log("[nivra-core-sync] OK: Subscription already exists for order:", payload.order.order_number);
         } else if (payload.subscription) {
           const { error: subErr } = await admin.from("billing_subscriptions").upsert(
             {
@@ -365,7 +365,7 @@ Deno.serve(async (req) => {
             results.subscription = "synced";
           }
         } else {
-          // No subscription in payload â€” create a pending one from order data
+          // No subscription in payload - create a pending one from order data
           // The DB trigger trg_ensure_subscription_on_invoice_paid is the final safety net,
           // but we create proactively to avoid relying on trigger chain.
           const subId = crypto.randomUUID();
@@ -392,12 +392,85 @@ Deno.serve(async (req) => {
             errors.push(`subscription_fallback: ${subErr.message}`);
           } else {
             results.subscription = "created_from_order";
-            console.log("[nivra-core-sync] âœ“ Subscription auto-created for order:", payload.order.order_number);
+            console.log("[nivra-core-sync] OK: Subscription auto-created for order:", payload.order.order_number);
           }
         }
       }
 
-      // â”€â”€ 6. Log to transaction_events for audit trail â”€â”€
+      // ── 5.5. Populate order_items for PDF snapshot system ──
+      // order_items.is_recurring drives the price snapshot in dispatcher.ts.
+      // Without this, PDFs fall back to live plan_price and show wrong amounts after upgrades.
+      {
+        try {
+          const orderId = payload.order.id;
+          const { count: existingCount } = await admin
+            .from("order_items")
+            .select("id", { count: "exact", head: true })
+            .eq("order_id", orderId)
+            .eq("is_recurring", true);
+
+          if (!existingCount || existingCount === 0) {
+            const inferServiceType = (name: string, code?: string): string => {
+              const d = String(name || code || "").toLowerCase();
+              if (d.includes("internet") || d.includes("giga") || d.includes("fibre") || d.includes("fiber")) return "internet";
+              if (d.includes("tv") || d.includes("télé") || d.includes("chaîne") || d.includes("channel")) return "tv";
+              if (d.includes("mobile") || d.includes("cellulaire")) return "mobile";
+              return "internet";
+            };
+            const toMoney2 = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0; };
+
+            const lineItems: any[] = Array.isArray(payload.order.line_items) ? payload.order.line_items : [];
+            let itemsToInsert: any[] = [];
+
+            if (lineItems.length > 0) {
+              itemsToInsert = lineItems
+                .filter((li: any) => li.type !== "discount")
+                .map((li: any, idx: number) => ({
+                  order_id: orderId,
+                  item_number: idx + 1,
+                  service_type: inferServiceType(li.name || li.description || "", li.plan_code),
+                  plan_name: li.name || li.description || "Service",
+                  description: li.description || li.name || "Service",
+                  unit_price: toMoney2(li.unit_price ?? li.price ?? 0),
+                  quantity: Number(li.quantity || 1),
+                  line_total: toMoney2(li.line_total ?? (li.unit_price ?? li.price ?? 0) * (li.quantity || 1)),
+                  is_recurring: li.type === "service" || li.is_recurring === true,
+                  status: "active",
+                }));
+            } else if (payload.subscription) {
+              // Fallback: one recurring item from subscription plan data
+              itemsToInsert = [{
+                order_id: orderId,
+                item_number: 1,
+                service_type: inferServiceType(payload.subscription.plan_name, payload.subscription.plan_code),
+                plan_name: payload.subscription.plan_name,
+                description: payload.subscription.plan_name,
+                unit_price: toMoney2(payload.subscription.plan_price),
+                quantity: 1,
+                line_total: toMoney2(payload.subscription.plan_price),
+                is_recurring: true,
+                status: "active",
+              }];
+            }
+
+            if (itemsToInsert.length > 0) {
+              const { error: itemsErr } = await admin.from("order_items").insert(itemsToInsert);
+              if (itemsErr) {
+                console.warn("[nivra-core-sync] order_items insert failed:", itemsErr);
+                errors.push(`order_items: ${itemsErr.message}`);
+              } else {
+                results.order_items = itemsToInsert.length;
+              }
+            }
+          } else {
+            results.order_items = "already_exists";
+          }
+        } catch (err: any) {
+          errors.push(`order_items: ${err?.message || String(err)}`);
+        }
+      }
+
+      // â"€â"€ 6. Log to transaction_events for audit trail â"€â"€
       await admin.from("transaction_events").insert({
         user_id: payload.customer.user_id,
         event_type: payload.event === "checkout_completed" ? "order_created" : payload.event,

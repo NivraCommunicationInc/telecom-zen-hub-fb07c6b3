@@ -114,6 +114,20 @@ serve(async (req) => {
       }
     }
 
+    // Resolve the user's most recent active order so new subscriptions are linked from creation.
+    let preResolvedOrderId: string | null = null;
+    {
+      const { data: latestOrder } = await adminSupabase
+        .from("orders")
+        .select("id")
+        .eq("user_id", userId)
+        .in("status", ["activated", "active"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      preResolvedOrderId = latestOrder?.id ?? null;
+    }
+
     // ═══ Create or reuse attempt log ═══
     if (body.attempt_id) {
       attemptId = body.attempt_id;
@@ -209,6 +223,7 @@ serve(async (req) => {
             plan_price: 0,
             status: "pending",
             auto_billing_enabled: false,
+            order_id: preResolvedOrderId,
           })
           .select(
             "id, customer_id, order_id, last_invoice_id, plan_code, plan_name, plan_price, paypal_subscription_id, recurring_setup_status, next_renewal_at, cycle_end_date",
@@ -235,6 +250,7 @@ serve(async (req) => {
           plan_price: 0,
           status: "pending",
           auto_billing_enabled: false,
+          order_id: preResolvedOrderId,
         })
         .select(
           "id, customer_id, order_id, last_invoice_id, plan_code, plan_name, plan_price, paypal_subscription_id, recurring_setup_status, next_renewal_at, cycle_end_date",
