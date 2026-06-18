@@ -7,7 +7,7 @@
  * - If balance_due = 0, full amount becomes credit
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,21 @@ export const AddAccountCredit = ({
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+
+  // Load profile address so PayPalButton can pre-fill billing info — fixes
+  // "Adresse de service manquante" prompt when paying credit top-ups.
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, email, phone, service_address, service_city, service_province, service_postal_code")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (data) setProfile(data);
+    })();
+  }, [userId]);
 
   const balanceDue = currentBalance > 0 ? currentBalance : 0;
   const existingCredit = currentBalance < 0 ? Math.abs(currentBalance) : 0;
@@ -299,6 +314,19 @@ export const AddAccountCredit = ({
               amount={amount}
               creditTopup={true}
               description="Crédit au compte — Nivra Telecom"
+              customer={{
+                email: profile?.email || userEmail || undefined,
+                first_name: profile?.first_name || undefined,
+                last_name: profile?.last_name || undefined,
+                phone: profile?.phone || undefined,
+                address: profile?.service_address ? {
+                  address_line_1: profile.service_address,
+                  admin_area_2: profile.service_city || undefined,
+                  admin_area_1: profile.service_province || "QC",
+                  postal_code: profile.service_postal_code || undefined,
+                  country_code: "CA",
+                } : undefined,
+              }}
               onSuccess={(captureId) => handlePayPalSuccess(captureId)}
               onError={(msg) => toast.error(msg)}
             />

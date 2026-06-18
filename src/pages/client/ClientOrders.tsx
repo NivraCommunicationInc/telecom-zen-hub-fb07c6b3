@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,6 +109,7 @@ const leftAccent = (order: any, needsPay: boolean) =>
 
 const ClientOrders = () => {
   const { user } = useClientAuth();
+  const { orderId: orderIdParam } = useParams<{ orderId?: string }>();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -118,6 +120,16 @@ const ClientOrders = () => {
 
   // Realtime: refresh when an order updates
   usePortalRealtime(["orders"], [["canonical-client-data", user?.id]]);
+
+  // Auto-open dialog if URL contains :orderId (deep-link from dashboard "Détails")
+  useEffect(() => {
+    if (!orderIdParam || !orders.length) return;
+    const found = orders.find((o: any) => o.id === orderIdParam);
+    if (found) {
+      setSelectedOrder(found);
+      setDetailsOpen(true);
+    }
+  }, [orderIdParam, orders]);
 
   // Check if order is equipment type
   const isEquipmentOrder = (order: any) => {

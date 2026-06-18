@@ -151,16 +151,24 @@ const InlineCardForm = ({ amount, invoiceId, orderId, fieldIntentId, creditTopup
     e.preventDefault();
     if (submitting || !fieldsRef.current || capturedRef.current) return;
     if (!name.trim())     { setError("Entrez le nom sur la carte"); return; }
-    if (!billingPostal)   { setError("Adresse de service manquante"); return; }
     if (normalizedAmt <= 0) { setError("Montant invalide"); return; }
     setError(null);
     setSubmitting(true);
     timerRef.current = setTimeout(() => { setError("Délai dépassé. Réessayez."); setSubmitting(false); }, 90_000);
     try {
-      await fieldsRef.current.submit({
-        cardholderName: name.trim(),
-        billingAddress: { addressLine1: billingAddress, adminArea2: billingCity, adminArea1: customer?.address?.admin_area_1 || "QC", postalCode: billingPostal, countryCode: "CA" },
-      });
+      // Build billing address only when we have a postal code.
+      // Otherwise omit entirely — PayPal CardFields will validate via AVS using card data.
+      const submitArgs: any = { cardholderName: name.trim() };
+      if (billingPostal) {
+        submitArgs.billingAddress = {
+          addressLine1: billingAddress,
+          adminArea2: billingCity,
+          adminArea1: customer?.address?.admin_area_1 || "QC",
+          postalCode: billingPostal,
+          countryCode: "CA",
+        };
+      }
+      await fieldsRef.current.submit(submitArgs);
       if (timerRef.current) clearTimeout(timerRef.current);
       if (!capturedRef.current) setSubmitting(false);
     } catch (e: any) {
