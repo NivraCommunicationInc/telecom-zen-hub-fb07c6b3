@@ -135,9 +135,9 @@ BEGIN
       SELECT * INTO v_promo
       FROM public.promotions
       WHERE UPPER(code) = UPPER(p_promo_code)
-        AND is_active = TRUE
-        AND (starts_at IS NULL OR starts_at <= now())
-        AND (ends_at IS NULL OR ends_at >= now())
+        AND status = 'active'
+        AND (start_at IS NULL OR start_at <= now())
+        AND (end_at IS NULL OR end_at >= now())
       LIMIT 1;
 
       IF FOUND THEN
@@ -156,7 +156,7 @@ BEGIN
           'discount_cents', v_promo_discount,
           'discount_amount', v_promo_discount / 100.0,
           'min_payable_cents', 0,
-          'duration', COALESCE(v_promo.duration, 'one_time'),
+          'duration', COALESCE(v_promo.duration_months::text, 'one_time'),
           'applies_to', jsonb_build_object('plan', true, 'equipment', false, 'fees', false)
         );
       END IF;
