@@ -27,7 +27,7 @@ export const SEO_CONFIG = {
    * 
    * 🔴 REQUIRED: Add your verification code here to enable Google Search Console
    */
-  googleSiteVerification: "",
+  googleSiteVerification: "castUHS8H6TxOGUeJdddYf_Fz3FDtx5awVNw_BvJZe0",
   
   /**
    * Base URL for canonical URLs and sitemaps
