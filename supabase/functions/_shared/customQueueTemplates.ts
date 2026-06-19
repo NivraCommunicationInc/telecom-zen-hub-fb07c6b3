@@ -851,7 +851,7 @@ export function renderQueueTemplate(
           cardTitle: "Détails",
           cardRows: [
             ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
-            ["Date de suspension", fmtDate(v.suspended_at || new Date().toISOString())],
+            ["Date de suspension", fmtDate(v.suspension_date || v.suspended_at || new Date().toISOString())],
             ["Solde dû", money(v.balance_due ?? v.amount)],
           ],
           ctaPrimaryUrl: `${portalUrl}/facturation`,
