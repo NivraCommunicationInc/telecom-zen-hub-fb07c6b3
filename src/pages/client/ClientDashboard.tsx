@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useClientPerks } from "@/hooks/useClientPerks";
+import { ClientPerksWidget } from "@/components/client/ClientPerksWidget";
 
 /* ─── Keyframe styles injected once ──────────────────────────── */
 const KEYFRAMES = `
@@ -133,6 +135,7 @@ const ClientDashboard = () => {
 
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
   const { data: canon }           = useCanonicalClientData(user?.id);
+  const { data: perks }           = useClientPerks(user?.id);
 
   const profile  = canon?.profile;
   const account  = canon?.account;
@@ -349,6 +352,16 @@ const ClientDashboard = () => {
               </motion.div>
             ))}
           </motion.div>
+
+          {/* ════ PROMOTIONS & CRÉDITS ═══════════════════════════════ */}
+          {(perks?.promotions?.length ?? 0) + (perks?.credits?.length ?? 0) > 0 && (
+            <motion.div initial="hidden" animate="visible" custom={2} variants={up}>
+              <ClientPerksWidget
+                promotions={perks?.promotions ?? []}
+                credits={perks?.credits ?? []}
+              />
+            </motion.div>
+          )}
 
           {/* ════ QUICK ACTIONS ══════════════════════════════════════ */}
           <motion.div initial="hidden" animate="visible" custom={2} variants={up} style={{ marginBottom: 32 }}>
