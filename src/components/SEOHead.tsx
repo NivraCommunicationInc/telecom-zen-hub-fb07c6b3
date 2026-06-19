@@ -47,6 +47,7 @@ export const SEOHead = ({
 
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:site" content="@NivraQC" />
       {title && <meta name="twitter:title" content={title} />}
       {description && <meta name="twitter:description" content={description} />}
       <meta name="twitter:image" content={fullOgImage} />
@@ -64,7 +65,7 @@ export const SEO_DATA = {
   home: {
     title: "Nivra Telecom | Internet & TV prépayé au Québec",
     description:
-      "Internet haute vitesse dès 45$/mois, TV et Mobile 4G sans contrat au Québec. Montréal, Laval, Québec, Rive-Sud et plus.",
+      "Internet haute vitesse dès 45$/mois, TV et Mobile 4G sans contrat au Québec. Zéro vérification de crédit, activation en 10 min. Alternative à Bell et Vidéotron. Montréal, Laval, Québec, Rive-Sud.",
   },
   about: {
     title: "À propos de Nivra Telecom | Notre mission et valeurs",
@@ -84,12 +85,12 @@ export const SEO_DATA = {
   internet: {
     title: "Internet haute vitesse au Québec | Nivra Telecom",
     description:
-      "Internet 100 Mbps, 500 Mbps et Giga jusqu'à 1 010 Mbps. Données illimitées. Sans contrat. Dès 45$/mois.",
+      "Forfaits Internet sans contrat au Québec : 400, 600 Mbps et GIGA 940 Mbps. Données illimitées. Aucune vérification de crédit. Prix à vie garanti. Dès 45$/mois taxes incluses.",
   },
   tv: {
     title: "Télévision au Québec | Nivra Telecom — Forfaits dès 75$/mois",
     description:
-      "Forfaits TV avec Internet. Chaînes générales, sports, cinéma. Dès 75$/mois avec Internet.",
+      "Forfaits TV IPTV sans contrat au Québec. 100+ chaînes HD : générales, sports, cinéma. Sans engagement, sans vérification de crédit. Bundlé avec Internet dès 75$/mois.",
   },
   mobile: {
     title: "Forfaits Mobile 4G au Québec | Nivra Telecom — Dès 50$/mois",
@@ -99,12 +100,12 @@ export const SEO_DATA = {
   streaming: {
     title: "Services de streaming | Nivra Telecom Québec",
     description:
-      "Ajoutez Netflix, Disney+, Spotify et plus à votre forfait. Prix réduits en combinant avec nos services télécom.",
+      "Ajoutez Netflix, Disney+, Spotify et plus à votre forfait Nivra. Prix réduits disponibles en combinant avec Internet, TV ou mobile sans contrat au Québec.",
   },
   faq: {
-    title: "FAQ - Questions fréquentes | Nivra Telecom",
+    title: "FAQ Internet sans contrat Québec | Nivra Telecom",
     description:
-      "Trouvez les réponses à vos questions sur les forfaits, l'installation, la facturation et le support technique chez Nivra Telecom.",
+      "Questions fréquentes sur l'Internet sans contrat, la vérification de crédit, l'activation, la facturation et le support chez Nivra Telecom. Réponses rapides.",
   },
   careers: {
     title: "Carrières chez Nivra Telecom | Emplois au Québec",

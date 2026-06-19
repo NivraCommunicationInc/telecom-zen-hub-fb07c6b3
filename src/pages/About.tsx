@@ -37,6 +37,7 @@ const About = () => {
       <SEOHead
         title="À propos de Nivra Telecom | Fournisseur Internet sans contrat au Québec"
         description="Découvrez Nivra Telecom, entreprise québécoise offrant Internet et TV sans contrat. Notre mission: un service transparent, simple et honnête pour tous les Québécois."
+        canonical="https://nivra-telecom.ca/a-propos"
       />
       <Header />
 

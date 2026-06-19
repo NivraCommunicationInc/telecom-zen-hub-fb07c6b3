@@ -73,7 +73,7 @@ const InternetPasCherQuebec = () => {
   return (
     <>
       <Helmet>
-        <title>Internet pas cher au Québec — GIGA 60$/mois sans contrat | Nivra Telecom</title>
+        <title>Internet pas cher Québec — GIGA 60$/mois sans contrat | Nivra</title>
         <meta
           name="description"
           content="Internet GIGA 940 Mbps à 60$/mois sans contrat, sans vérification de crédit. Fournisseur local québécois, sans engagement. Réservation en 30 secondes."
