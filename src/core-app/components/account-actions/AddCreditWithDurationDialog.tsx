@@ -81,6 +81,7 @@ export function AddCreditWithDurationDialog({ accountId, customerId, clientId, c
         type: adjustmentType,
         amount: parsedAmount,
         description: descriptionParts.join(" "),
+        is_permanent: isPermanent,
         months_total: isPermanent ? 9999 : durationMonths,
         months_remaining: isPermanent ? 9999 : durationMonths,
         applied_count: 0,
