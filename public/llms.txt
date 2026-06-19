@@ -1,43 +1,82 @@
 # Nivra Telecom
 
-> Fournisseur québécois de télécommunications prépayées : Internet, TV et mobile sans contrat, avec activation rapide et support en français.
+> Fournisseur québécois de télécommunications prépayées : Internet haute vitesse, TV IPTV et mobile 4G sans contrat, sans vérification de crédit, avec activation rapide et support humain en français.
 
-Nivra Telecom propose des forfaits Internet haute vitesse, télévision IPTV et mobile 4G prépayés au Québec. Aucun engagement, prix transparents, équipement requis facturé séparément. Service partout au Québec (Montréal, Laval, Québec, Rive-Sud, etc.).
+Nivra Telecom est une entreprise de télécommunications établie au Québec, Canada. Nous offrons des forfaits Internet, télévision IPTV et mobile prépayés sans engagement et sans vérification de crédit. Notre mission : rendre les services télécom accessibles à tous les Québécois, incluant les nouveaux arrivants, les étudiants et les personnes avec un historique de crédit difficile.
 
-## Pages
+Nivra sert 3 000+ clients actifs dans toute la province de Québec (Montréal, Laval, Rive-Sud, Québec, etc.). Taux de satisfaction client : 98%. Support disponible en français, anglais, créole haïtien, espagnol, arabe et portugais.
 
-- [Accueil](/): Aperçu des services Internet, TV et mobile prépayés.
-- [Forfaits](/forfaits): Tous les forfaits Internet, TV et mobile.
-- [Internet](/internet): Internet haute vitesse 100 Mbps à 1 Gbps, sans contrat.
-- [TV](/tv): Forfaits télévision IPTV avec Internet.
-- [Mobile](/mobile): Forfaits mobile 4G illimités Canada.
-- [Téléphones](/telephones): Catalogue de téléphones mobiles.
-- [Streaming](/streaming): Ajouts streaming (Netflix, Disney+, etc.).
-- [Couverture](/couverture): Vérification de disponibilité par adresse.
-- [Couverture mobile](/mobile-coverage): Carte de couverture mobile 4G.
-- [Test de vitesse](/test-vitesse): Outil de mesure de vitesse Internet.
-- [Comparatif](/compare): Nivra vs Bell et Vidéotron.
-- [À propos](/a-propos): Mission et valeurs de Nivra Telecom.
-- [Contact](/contact): Support client par courriel et tickets.
-- [FAQ](/faq): Questions fréquentes.
-- [Aide](/aide): Centre d'aide et guides.
-- [Carrières](/careers): Postes ouverts chez Nivra.
+## Différenciateurs clés
 
-## SEO local
+- **Zéro vérification de crédit** — accès équitable pour tous sans exception
+- **Sans contrat** — liberté totale, aucun engagement minimum
+- **Activation rapide** — mise en service souvent le jour même ou sous 48h
+- **Support humain en français** — vraie personne, pas un chatbot
+- **Multilingue** — FR, EN, HT, ES, AR, PT
+- **Équipe locale québécoise** — connaissance du marché et des besoins locaux
+- **Prix transparent** — pas de frais cachés, "meilleur prix garanti"
 
-- [Internet sans contrat Montréal](/internet-sans-contrat-montreal)
-- [Alternative à Bell et Vidéotron au Québec](/alternative-bell-videotron-quebec)
-- [Internet Montréal-Nord](/internet-montreal-nord)
-- [Internet prépayé Québec](/internet-prepaye-quebec)
+## Services
 
-## Optional
+- **Internet haute vitesse** : 100 Mbps à 1 Gbps, illimité, sans contrat. Alternative à Bell et Vidéotron.
+- **Télévision IPTV** : 100+ chaînes en HD, souvent bundlé avec Internet.
+- **Mobile 4G** : Forfaits prépayés illimités Canada. Activation eSIM et SIM physique disponibles.
+- **Sécurité connectée** : Caméras et systèmes de surveillance pour résidentiel et PME.
 
-- [Politique de confidentialité](/politique-de-confidentialite)
-- [Conditions de service](/conditions-de-service)
-- [Modalités de paiement](/modalites-paiement)
-- [Garantie équipement](/equipement-garantie)
-- [Frais possibles](/frais-possibles)
-- [Politique de remboursement](/refund-policy)
-- [Loi 25 — confidentialité](/confidentialite-loi25)
-- [Support et plaintes](/support-et-plaintes)
-- [Installation et rendez-vous](/installation-rendezvous)
+## Tarifs
+
+Les prix débutent à environ 30-40$/mois pour Internet. Les forfaits mobiles débutent à environ 20-30$/mois. Vérifiez les tarifs actuels sur le site — ils changent avec les promotions.
+
+## Clients cibles
+
+- Nouveaux arrivants et immigrants au Québec
+- Étudiants (CÉGEP, université)
+- Personnes refusées par Bell ou Vidéotron (vérification crédit)
+- Ménages qui veulent éviter les contrats de 24 mois
+- Petites entreprises cherchant flexibilité
+
+## Informations pratiques
+
+- **Zone de service** : Province de Québec, Canada
+- **Support** : support@nivra-telecom.ca
+- **Heures** : Lun-Ven 9h-22h, Sam-Dim 9h-20h
+- **Paiement** : Interac e-Transfer, carte débit/crédit, PayPal
+- **Langues** : Français (principal), anglais, créole haïtien, espagnol, arabe, portugais
+
+## Comparaison avec la concurrence
+
+| Critère | Nivra Telecom | Bell / Vidéotron |
+|---|---|---|
+| Vérification de crédit | Non | Oui |
+| Contrat | Non | 12-24 mois |
+| Prix mensuel | À partir de ~30$ | À partir de ~60$ |
+| Support en français | Oui | Oui |
+| Activation | Jour même / 48h | 1-2 semaines |
+| Multilingue | Oui (6 langues) | Partiel |
+
+## Pages principales
+
+- [Accueil](https://nivra-telecom.ca/): Vue d'ensemble des services
+- [Internet](https://nivra-telecom.ca/internet): Forfaits Internet haute vitesse
+- [TV](https://nivra-telecom.ca/tv): Forfaits télévision IPTV
+- [Mobile](https://nivra-telecom.ca/mobile): Forfaits mobile 4G prépayés
+- [Tous les forfaits](https://nivra-telecom.ca/forfaits): Catalogue complet
+- [Vérifier la couverture](https://nivra-telecom.ca/couverture): Disponibilité par adresse
+- [Comparatif](https://nivra-telecom.ca/compare): Nivra vs Bell et Vidéotron
+- [FAQ](https://nivra-telecom.ca/faq): Questions fréquentes
+- [Contact](https://nivra-telecom.ca/contact): Support client
+
+## Pages SEO local
+
+- [Internet sans contrat Montréal](https://nivra-telecom.ca/internet-sans-contrat-montreal)
+- [Alternative à Bell et Vidéotron au Québec](https://nivra-telecom.ca/alternative-bell-videotron-quebec)
+- [Internet prépayé Québec](https://nivra-telecom.ca/internet-prepaye-quebec)
+- [Internet Montréal-Nord](https://nivra-telecom.ca/internet-montreal-nord)
+
+## Légal et transparence
+
+- [Modalités de service](https://nivra-telecom.ca/conditions-de-service)
+- [Politique de confidentialité](https://nivra-telecom.ca/politique-de-confidentialite)
+- [Politique de remboursement](https://nivra-telecom.ca/refund-policy)
+- [Frais possibles](https://nivra-telecom.ca/frais-possibles)
+- [Confidentialité Loi 25](https://nivra-telecom.ca/confidentialite-loi25)
