@@ -8222,6 +8222,39 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
+    // REFUND ISSUED — PayPal refund confirmation
+    // ===================================================================
+    case "refund_issued": {
+      const refundAmount = money(v.refund_amount ?? v.amount);
+      const refundMethod = esc(v.refund_method || "PayPal");
+      const refundReason = esc(v.reason || "Demande de remboursement");
+      const invoiceNum = esc(v.invoice_number || "");
+      return {
+        subject: `Remboursement effectué${invoiceNum ? ` — Facture #${invoiceNum}` : ""} — Nivra Telecom`,
+        html: shell({
+          preheader: `Un remboursement de ${refundAmount} a été effectué sur votre compte.`,
+          badge: "REMBOURSEMENT EFFECTUÉ",
+          heroTitle: "Votre remboursement a été effectué",
+          heroSub: "Le montant sera crédité selon votre mode de paiement.",
+          icon: "check",
+          greeting,
+          bodyText: `Nous confirmons le traitement de votre remboursement. Le délai d'apparition sur votre compte peut varier de quelques minutes à 5 jours ouvrables selon votre institution financière.`,
+          cardTitle: "Détails du remboursement",
+          cardRows: [
+            ...(invoiceNum ? [["Facture", `#${invoiceNum}`] as [string, string]] : []),
+            ["Montant remboursé", String(refundAmount)],
+            ["Méthode", String(refundMethod)],
+            ["Raison", String(refundReason)],
+          ],
+          ctaPrimaryUrl: `${PORTAL_URL}/facturation`,
+          ctaPrimaryLabel: "Voir mon historique",
+          afterCardText: `Délai habituel : <strong>1 à 5 jours ouvrables</strong> selon votre institution financière.`,
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // SUBSCRIPTION CANCELLATION CONFIRMATION
     // ===================================================================
     case "subscription_cancellation_confirmation": {
