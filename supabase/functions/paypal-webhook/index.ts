@@ -1020,6 +1020,145 @@ serve(async (req) => {
         break;
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // PAYMENT.SALE.REFUNDED
+      // PayPal executed a refund externally (via their dashboard or
+      // a 3rd-party process). DB was not updated — fix it here.
+      // → billing_payments.status = refunded / partially_refunded
+      // → billing_invoices updated
+      // → internal team alert only (NOT sent to client — PayPal
+      //   already notified the client on their end)
+      // ═══════════════════════════════════════════════════════════════
+      case "PAYMENT.SALE.REFUNDED": {
+        // PayPal v1 resource = refund object:
+        //   resource.id           = refund transaction ID
+        //   resource.sale_id      = original sale ID (stored in billing_payments.provider_payment_id)
+        //   resource.parent_payment = original PayPal payment ID
+        //   resource.amount.total = refunded amount
+        const refundId = event.resource.id;
+        const originalSaleId = (event.resource as any).sale_id as string | undefined;
+        const refundAmount = parseFloat(
+          (event.resource as any).amount?.total ||
+          (event.resource as any).amount?.value ||
+          "0"
+        );
+
+        console.log(`[PayPal Webhook] PAYMENT.SALE.REFUNDED: refundId=${refundId}, saleId=${originalSaleId}, amount=${refundAmount}`);
+
+        // Find the original payment — try sale_id first, then refund_id as fallback
+        const lookupIds = ([originalSaleId, refundId]).filter(Boolean) as string[];
+        const { data: payment } = await supabase
+          .from("billing_payments")
+          .select("id, amount, status, invoice_id, customer_id, payment_number")
+          .in("provider_payment_id", lookupIds)
+          .maybeSingle();
+
+        if (!payment) {
+          console.warn(`[PayPal Webhook] PAYMENT.SALE.REFUNDED: no payment found for saleId=${originalSaleId}, refundId=${refundId}`);
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "paypal_refund_unmatched",
+            entity_type: "paypal_webhook",
+            entity_reference: refundId,
+            severity: "high",
+            details: {
+              paypal_refund_id: refundId,
+              original_sale_id: originalSaleId,
+              refund_amount: refundAmount,
+              event_id: event.id,
+              reason: "No billing_payment found with matching provider_payment_id",
+            },
+            resolved: false,
+          });
+          break;
+        }
+
+        if (["refunded", "partially_refunded"].includes(payment.status)) {
+          console.log(`[PayPal Webhook] Payment ${payment.id} already refunded — skipping`);
+          break;
+        }
+
+        const isPartial = refundAmount > 0 && refundAmount < Number(payment.amount);
+        const newPaymentStatus = isPartial ? "partially_refunded" : "refunded";
+
+        // Update billing_payments
+        await supabase.from("billing_payments").update({
+          status: newPaymentStatus as any,
+          legacy_note: `[REMBOURSÉ PayPal — externe${isPartial ? " PARTIEL" : ""}] ${refundAmount.toFixed(2)} CAD — Refund ID: ${refundId}`,
+        }).eq("id", payment.id);
+
+        // Update billing_invoices
+        if (payment.invoice_id) {
+          const { data: inv } = await supabase
+            .from("billing_invoices")
+            .select("total, amount_paid")
+            .eq("id", payment.invoice_id)
+            .single();
+          if (inv) {
+            const newPaid = Math.max(0, Number(inv.amount_paid || 0) - refundAmount);
+            await supabase.from("billing_invoices").update({
+              status: (isPartial ? "partially_refunded" : "refunded") as any,
+              amount_paid: newPaid,
+              balance_due: Math.max(0, Number(inv.total) - newPaid),
+              notes: `[REMBOURSÉ PayPal — externe] ${refundAmount.toFixed(2)} CAD — Refund ID: ${refundId}`,
+            }).eq("id", payment.invoice_id);
+          }
+        }
+
+        // Internal billing_system_alert (audit trail)
+        await supabase.from("billing_system_alerts").insert({
+          alert_type: "paypal_external_refund",
+          entity_type: "billing_payments",
+          entity_id: payment.id,
+          severity: "medium",
+          details: {
+            paypal_refund_id: refundId,
+            original_sale_id: originalSaleId,
+            refund_amount: refundAmount,
+            is_partial: isPartial,
+            payment_number: payment.payment_number,
+            invoice_id: payment.invoice_id,
+            customer_id: payment.customer_id,
+            event_id: event.id,
+            new_payment_status: newPaymentStatus,
+          },
+          resolved: false,
+        });
+
+        // Internal team email — look up customer for context
+        const { data: customer } = await supabase
+          .from("billing_customers")
+          .select("email, first_name, last_name")
+          .eq("id", payment.customer_id)
+          .maybeSingle();
+
+        await supabase.from("email_queue").insert({
+          event_key: `paypal_external_refund_${refundId}`,
+          idempotency_key: `paypal_external_refund_${refundId}`,
+          to_email: "support@nivra-telecom.ca",
+          from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+          subject: `Remboursement PayPal externe — ${refundAmount.toFixed(2)} $ CAD — ${customer ? `${customer.first_name} ${customer.last_name}` : payment.payment_number}`,
+          template_key: "admin_alert_chargeback",
+          template_vars: {
+            client_full_name: customer ? `${customer.first_name} ${customer.last_name}` : "Client inconnu",
+            client_email: customer?.email || "N/A",
+            amount: refundAmount.toFixed(2),
+            paypal_transaction_id: originalSaleId || refundId,
+            paypal_dispute_id: refundId,
+            event_type: "PAYMENT.SALE.REFUNDED (remboursement externe PayPal)",
+            dispute_timestamp: event.create_time || new Date().toISOString(),
+            order_id: null,
+            invoice_id: payment.invoice_id,
+          },
+          status: "queued",
+          priority: 15,
+          attempts: 0,
+          max_attempts: 3,
+        });
+
+        console.log(`[PayPal Webhook] ✓ PAYMENT.SALE.REFUNDED: payment ${payment.id} → ${newPaymentStatus} (${refundAmount.toFixed(2)} CAD)`);
+        break;
+      }
+
       default:
         console.log(`[PayPal Webhook] Unhandled event type: ${event.event_type}`);
     }
