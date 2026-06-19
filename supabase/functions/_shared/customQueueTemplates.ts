@@ -8221,6 +8221,44 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // SUBSCRIPTION CANCELLATION CONFIRMATION
+    // ===================================================================
+    case "subscription_cancellation_confirmation": {
+      const cancelReason = esc(v.reason || "Demande du client");
+      const cancelDate = fmtDate(v.cancellation_date || new Date().toISOString());
+      const subsCancelled = Number(v.subscriptions_cancelled ?? 0);
+      const invoicesVoided = Number(v.invoices_voided ?? 0);
+      const hasEquipment = v.scope === "full" || v.has_equipment === true;
+      return {
+        subject: `Confirmation d'annulation de compte — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre demande d'annulation a été traitée.`,
+          badge: "COMPTE ANNULÉ",
+          heroTitle: "Votre compte a été annulé",
+          heroSub: "Votre demande d'annulation a été traitée avec succès.",
+          icon: "x",
+          greeting,
+          bodyText: `Nous avons bien traité votre demande d'annulation. Tous vos services ont été résiliés à la date indiquée ci-dessous.`,
+          cardTitle: "Détails de l'annulation",
+          cardRows: [
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Date d'annulation", String(cancelDate)],
+            ["Raison", String(cancelReason)],
+            ...(subsCancelled > 0 ? [["Services résiliés", String(subsCancelled)] as [string, string]] : []),
+            ...(invoicesVoided > 0 ? [["Factures annulées", String(invoicesVoided)] as [string, string]] : []),
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Nous contacter",
+          afterCardText: hasEquipment
+            ? `<strong style="color:#1a1a2e;">Retour d'équipement :</strong> Si vous avez reçu de l'équipement Nivra (routeur, décodeur), veuillez le retourner dans les <strong>30 jours</strong>. Contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a> pour les instructions de retour.`
+            : `Conservez cet email pour vos dossiers. Pour toute question, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+          helpVariant: "neutral",
+          helpHtml: `Vous changez d'avis ? Contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a> dès que possible — nous serons heureux de vous aider.`,
+        }),
+      };
+    }
+
     default:
       return null;
     }
