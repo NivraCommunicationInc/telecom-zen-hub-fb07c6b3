@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
+import { nextAnchoredDate } from "../_shared/billing-utils.ts";
 
 /**
  * ============================================================================
@@ -161,7 +162,7 @@ function parseCustomId(customId: string | undefined): Record<string, string> {
 async function findSubscription(supabase: any, paypalSubscriptionId: string) {
   const { data } = await supabase
     .from("billing_subscriptions")
-    .select("id, customer_id, plan_name, plan_code, plan_price, cycle_start_date, cycle_end_date, status, recurring_setup_status, order_id, customer:billing_customers(email, first_name, last_name, phone)")
+    .select("id, customer_id, plan_name, plan_code, plan_price, cycle_start_date, cycle_end_date, billing_anchor_date, status, recurring_setup_status, order_id, customer:billing_customers(email, first_name, last_name, phone)")
     .eq("paypal_subscription_id", paypalSubscriptionId)
     .maybeSingle();
   return data;
@@ -592,8 +593,10 @@ serve(async (req) => {
           // Advance billing cycle if fully paid
           if (rpcResult?.is_fully_paid) {
             const newCycleStart = new Date(sub.cycle_end_date);
-            const newCycleEnd = new Date(sub.cycle_end_date);
-            newCycleEnd.setDate(newCycleEnd.getDate() + 30);
+            const anchorDay = sub.billing_anchor_date
+              ? new Date(sub.billing_anchor_date).getDate()
+              : new Date(sub.cycle_start_date).getDate();
+            const newCycleEnd = nextAnchoredDate(anchorDay, newCycleStart);
 
             await supabase
               .from("billing_subscriptions")
