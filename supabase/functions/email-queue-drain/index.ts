@@ -28,6 +28,7 @@ interface QueueRow {
   attempts: number;
   max_attempts: number;
   variables: Record<string, unknown> | null;
+  attachments: Array<{ filename: string; content?: string; path?: string }> | null;
 }
 
 async function sendViaResend(
@@ -36,20 +37,25 @@ async function sendViaResend(
   subject: string,
   html: string,
   fromEmail?: string | null,
+  attachments?: Array<{ filename: string; content?: string; path?: string }> | null,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    const payload: Record<string, unknown> = {
+      from: fromEmail || CANONICAL_FROM,
+      to: [to],
+      subject,
+      html,
+    };
+    if (attachments && attachments.length > 0) {
+      payload.attachments = attachments;
+    }
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        from: fromEmail || CANONICAL_FROM,
-        to: [to],
-        subject,
-        html,
-      }),
+      body: JSON.stringify(payload),
     });
     if (r.ok) return { ok: true };
     const txt = await r.text();
@@ -100,7 +106,7 @@ Deno.serve(async (req) => {
   // Fetch queued rows (status queued or failed with remaining retries)
   const { data: rows, error: fetchErr } = await supabase
     .from("email_queue")
-    .select("id, event_key, to_email, template_key, template_vars, subject, from_email, language, attempts, max_attempts, variables")
+    .select("id, event_key, to_email, template_key, template_vars, subject, from_email, language, attempts, max_attempts, variables, attachments")
     .in("status", ["queued", "failed"])
     .order("created_at", { ascending: true })
     .limit(batchSize);
@@ -166,7 +172,7 @@ Deno.serve(async (req) => {
         html = fallbackHtml(subject, row.template_key, vars);
       }
 
-      const sendResult = await sendViaResend(resendApiKey, row.to_email, subject, html, row.from_email);
+      const sendResult = await sendViaResend(resendApiKey, row.to_email, subject, html, row.from_email, row.attachments);
 
       if (sendResult.ok) {
         await supabase
