@@ -33,6 +33,8 @@ import {
   generateComplaintAcknowledgmentPDF,
   generatePreauthorizationConfirmationPDF,
 } from "./index";
+import { generateReactivationNoticePDF } from "./reactivationNoticeTemplate";
+import { generateCreditNotePDF } from "./creditNoteTemplate";
 import { checkRequiredFields } from "./_pdfSanitize";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -48,6 +50,8 @@ const REQUIRED_FIELDS_BY_TYPE: Record<string, string[]> = {
   service_certificate:         ["client_name", "account_number", "service_name"],
   suspension_notice:           ["client_name", "account_number", "suspension_date", "reason"],
   cancellation_confirmation:   ["client_name", "account_number", "service_name", "effective_date"],
+  credit_note:                 ["client_name", "account_number", "description", "amount"],
+  reactivation_notice:         ["client_name", "account_number", "service_name", "reactivation_date"],
   chargeback_notice:           ["client_name", "account_number", "amount", "chargeback_date"],
   final_refund_receipt:        ["client_name", "account_number", "amount", "refund_date"],
   delivery_slip:               ["client_name", "tracking_number"],
@@ -110,7 +114,9 @@ export type AutoDocType =
   | "formal_demand"
   | "collections_transfer"
   | "complaint_acknowledgment"
-  | "preauthorization_confirmation";
+  | "preauthorization_confirmation"
+  | "credit_note"
+  | "reactivation_notice";
 
 export interface DispatchResult {
   blob: Blob;
@@ -294,6 +300,22 @@ export function dispatchAutoDocument(
         safePayload.confirmation_number,
       );
     }
+    case "credit_note": {
+      const result = generateCreditNotePDF(safePayload as any);
+      return pdfResultToBlob(
+        result,
+        `Note_Credit_${safePayload.credit_note_number || safePayload.credit_number || "DOC"}.pdf`,
+        safePayload.credit_note_number || safePayload.credit_number,
+      );
+    }
+    case "reactivation_notice": {
+      const result = generateReactivationNoticePDF(safePayload as any);
+      return pdfResultToBlob(
+        result,
+        `Avis_Reactivation_${safePayload.notice_number || "DOC"}.pdf`,
+        safePayload.notice_number,
+      );
+    }
     default: {
       throw new Error(`Unknown doc_type: ${docType}`);
     }
@@ -319,4 +341,6 @@ export const DOC_TYPE_LABELS: Record<AutoDocType, string> = {
   collections_transfer: "Transfert au recouvrement",
   complaint_acknowledgment: "Accusé de réception de plainte",
   preauthorization_confirmation: "Confirmation de préautorisation",
+  credit_note: "Note de crédit",
+  reactivation_notice: "Avis de réactivation",
 };

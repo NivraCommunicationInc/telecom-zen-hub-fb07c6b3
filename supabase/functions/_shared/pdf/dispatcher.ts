@@ -24,6 +24,8 @@ import { generateFormalDemandPDF } from "./formalDemandTemplate.ts";
 import { generateCollectionsTransferPDF } from "./collectionsTransferTemplate.ts";
 import { generateComplaintAcknowledgmentPDF } from "./complaintAcknowledgmentTemplate.ts";
 import { generatePreauthorizationConfirmationPDF } from "./preauthorizationConfirmationTemplate.ts";
+import { generateCreditNoteAutoPDF } from "./creditNoteTemplate.ts";
+import { generateReactivationNoticePDF } from "./reactivationNoticeTemplate.ts";
 
 export type AutoDocType =
   | "welcome_letter"
@@ -42,7 +44,9 @@ export type AutoDocType =
   | "formal_demand"
   | "collections_transfer"
   | "complaint_acknowledgment"
-  | "preauthorization_confirmation";
+  | "preauthorization_confirmation"
+  | "credit_note"
+  | "reactivation_notice";
 
 export interface DispatchResult {
   bytes: Uint8Array;
@@ -179,7 +183,7 @@ async function enrichFromDb(
     }
 
     // Fetch most recent active subscription for service info
-    const needsSub = ["service_certificate", "activation_confirmation", "welcome_letter", "suspension_notice", "cancellation_confirmation", "contract_amendment"].includes(docType);
+    const needsSub = ["service_certificate", "activation_confirmation", "welcome_letter", "suspension_notice", "cancellation_confirmation", "contract_amendment", "reactivation_notice", "credit_note"].includes(docType);
     if (needsSub && (out.client_id || out.client_email || out.email)) {
       let customerId = out.customer_id;
       if (!customerId) {
@@ -632,6 +636,27 @@ function normalizePayload(
         notes: p.notes || undefined,
       };
 
+    case "credit_note":
+      return {
+        ...base,
+        credit_number: p.credit_number || `CRE-${Date.now()}`,
+        description: p.description || "Credit appliqué au compte",
+        amount: Number(p.amount ?? 0),
+        credit_type: p.credit_type || p.type || "credit",
+        months_total: p.months_total ? Number(p.months_total) : undefined,
+        is_permanent: p.is_permanent ?? false,
+      };
+
+    case "reactivation_notice":
+      return {
+        ...base,
+        notice_number: p.notice_number || `REA-${Date.now()}`,
+        service_name: p.service_name || p.plan_name || "Service Nivra",
+        reactivation_date: p.reactivation_date || nowIso(),
+        monthly_amount: Number(p.monthly_amount ?? p.plan_price ?? 0),
+        next_billing_date: p.next_billing_date || p.next_renewal_at || null,
+      };
+
     default:
       return base;
   }
@@ -708,6 +733,10 @@ export async function dispatchAutoDocument(
       return toResult(generateComplaintAcknowledgmentPDF(p as any), `Accuse_Plainte_${p.acknowledgment_number}.pdf`, p.acknowledgment_number);
     case "preauthorization_confirmation":
       return toResult(generatePreauthorizationConfirmationPDF(p as any), `Confirmation_Preautorisation_${p.confirmation_number}.pdf`, p.confirmation_number);
+    case "credit_note":
+      return toResult(generateCreditNoteAutoPDF(p as any), `Note_Credit_${p.credit_number}.pdf`, p.credit_number);
+    case "reactivation_notice":
+      return toResult(generateReactivationNoticePDF(p as any), `Avis_Reactivation_${p.notice_number}.pdf`, p.notice_number);
     default:
       throw new Error(`Unknown doc_type: ${docType}`);
   }

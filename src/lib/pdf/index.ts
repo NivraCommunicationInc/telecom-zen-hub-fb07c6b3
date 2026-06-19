@@ -71,8 +71,9 @@ export { generateWelcomeLetterPDF, type WelcomeLetterData } from "./welcomeLette
 export { generateAddressChangePDF, type AddressChangeData } from "./addressChangeTemplate";
 export { generatePaymentMethodChangePDF, type PaymentMethodChangeData } from "./paymentMethodChangeTemplate";
 export { generateServiceCertificatePDF, type ServiceCertificateData } from "./serviceCertificateTemplate";
-// Lot 3 — Suspension / Cancellation
+// Lot 3 — Suspension / Cancellation / Reactivation
 export { generateSuspensionNoticePDF, type SuspensionNoticeData } from "./suspensionNoticeTemplate";
+export { generateReactivationNoticePDF, type ReactivationNoticeData } from "./reactivationNoticeTemplate";
 export { generateCancellationConfirmationPDF, type CancellationConfirmationData } from "./cancellationConfirmationTemplate";
 export { generateChargebackNoticePDF, type ChargebackNoticeData } from "./chargebackNoticeTemplate";
 export { generateFinalRefundReceiptPDF, type FinalRefundReceiptData } from "./finalRefundReceiptTemplate";
