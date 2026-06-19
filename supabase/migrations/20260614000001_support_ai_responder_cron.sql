@@ -8,11 +8,12 @@ SELECT cron.unschedule('support-ai-responder') WHERE EXISTS (
 SELECT cron.schedule(
   'support-ai-responder',
   '*/2 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/support-ai-responder',
-    headers := '{"Content-Type": "application/json"}'::jsonb,
-    body := '{"cron": true}'::jsonb
-  );
-  $$
+  $$SELECT net.http_post(
+    url:='https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/support-ai-responder',
+    headers:=jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'SUPABASE_SERVICE_ROLE_KEY')
+    ),
+    body:='{"cron": true}'::jsonb
+  )$$
 );
