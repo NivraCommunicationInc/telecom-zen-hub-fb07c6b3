@@ -13,6 +13,7 @@
  *   admin_audit_log  → service_reactivated
  */
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { activateNivraPayPalSubscription } from "./nivraPayPalSubscriptionFactory.ts";
 
 export interface ReactivationResult {
   reactivated: boolean;
@@ -43,7 +44,7 @@ export async function reactivateIfSuspended(
     // ── 1. Fetch subscription ────────────────────────────────────────
     const { data: sub, error: subErr } = await supabase
       .from("billing_subscriptions")
-      .select("id, status, customer_id, plan_name, order_id")
+      .select("id, status, customer_id, plan_name, order_id, paypal_subscription_id")
       .eq("id", subscriptionId)
       .maybeSingle();
 
@@ -75,6 +76,19 @@ export async function reactivateIfSuspended(
     if (reactivateErr) {
       console.error(`[reactivation] Failed to reactivate subscription ${subscriptionId}:`, reactivateErr);
       return { ...base, message: `reactivation_failed: ${reactivateErr.message}` };
+    }
+
+    // ── 2b. Reactivate PayPal subscription so billing resumes ────────
+    if (sub.paypal_subscription_id) {
+      const { success: ppOk, error: ppErr } = await activateNivraPayPalSubscription(
+        sub.paypal_subscription_id,
+        `Paiement reçu — réactivation (trigger: ${trigger}, invoice: ${invoiceId})`,
+      );
+      if (ppOk) {
+        console.log(`[reactivation] ✓ PayPal subscription ${sub.paypal_subscription_id} reactivated`);
+      } else {
+        console.error(`[reactivation] ⚠ PayPal reactivation failed ${sub.paypal_subscription_id}: ${ppErr}`);
+      }
     }
 
     // ── 3. Reactivate linked order ───────────────────────────────────

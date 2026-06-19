@@ -463,6 +463,83 @@ export async function createNivraPayPalSubscription(
 }
 
 // ============================================================================
+// PAYPAL SUBSCRIPTION LIFECYCLE — suspend / activate / cancel
+// ============================================================================
+
+export async function suspendNivraPayPalSubscription(
+  paypalSubscriptionId: string,
+  reason = "Service suspendu pour non-paiement",
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const accessToken = await getPayPalAccessToken();
+    const res = await fetch(
+      `https://api-m.paypal.com/v1/billing/subscriptions/${paypalSubscriptionId}/suspend`,
+      {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      },
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      return { success: false, error: err };
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function activateNivraPayPalSubscription(
+  paypalSubscriptionId: string,
+  reason = "Service réactivé suite au paiement",
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const accessToken = await getPayPalAccessToken();
+    const res = await fetch(
+      `https://api-m.paypal.com/v1/billing/subscriptions/${paypalSubscriptionId}/activate`,
+      {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      },
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      return { success: false, error: err };
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function cancelNivraPayPalSubscription(
+  paypalSubscriptionId: string,
+  reason = "Abonnement annulé — fenêtre de réactivation expirée",
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const accessToken = await getPayPalAccessToken();
+    const res = await fetch(
+      `https://api-m.paypal.com/v1/billing/subscriptions/${paypalSubscriptionId}/cancel`,
+      {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      },
+    );
+    // 404 = already cancelled, 422 = already in terminal state — both are acceptable
+    if (!res.ok && res.status !== 404 && res.status !== 422) {
+      const err = await res.text();
+      return { success: false, error: err };
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// ============================================================================
 // HELPERS
 // ============================================================================
 
