@@ -142,7 +142,7 @@ BEGIN
 
       IF FOUND THEN
         v_eligible_cents := v_recurring_subtotal;
-        IF v_promo.discount_type = 'percentage' THEN
+        IF v_promo.discount_type = 'percent' THEN
           v_promo_discount := LEAST(v_eligible_cents, ROUND(v_eligible_cents * v_promo.discount_value / 100.0)::INTEGER);
         ELSIF v_promo.discount_type = 'fixed_amount' THEN
           v_promo_discount := LEAST(v_eligible_cents, ROUND(v_promo.discount_value * 100)::INTEGER);

@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
 
         if (p) {
           let discountAmount = 0;
-          if (p.discount_type === "percentage") {
+          if (p.discount_type === "percent") {
             discountAmount = Math.round(recurringSubtotal * Number(p.discount_value || 0) / 100 * 100) / 100;
           } else {
             discountAmount = Number(p.discount_value || 0);
