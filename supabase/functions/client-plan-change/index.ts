@@ -252,7 +252,7 @@ serve(async (req) => {
     const effDisplay = changeType === "upgrade" ? "immédiatement" : "votre prochain renouvellement";
     await admin.from("email_queue").insert({
       to_email: clientEmail,
-      template_key: "plan_change_requested",
+      template_key: changeType === "upgrade" ? "plan_change_approved" : "plan_change_requested",
       template_vars: {
         first_name: firstName,
         to_email: clientEmail,
