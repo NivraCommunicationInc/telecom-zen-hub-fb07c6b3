@@ -106,7 +106,7 @@ BEGIN
       '0 6 * * *',
       $job$
         SELECT net.http_post(
-          url := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/nivra-health-check',
+          url := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/nivra-health-check',
           headers := jsonb_build_object('Content-Type','application/json'),
           body := '{}'::jsonb
         );

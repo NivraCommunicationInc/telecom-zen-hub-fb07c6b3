@@ -41,7 +41,7 @@ BEGIN
     RETURN;
   END IF;
 
-  v_url  := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1';
+  v_url  := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1';
   v_auth := 'Bearer ' || v_secret;
 
   -- Idempotent: drop any prior schedules with our jobnames first

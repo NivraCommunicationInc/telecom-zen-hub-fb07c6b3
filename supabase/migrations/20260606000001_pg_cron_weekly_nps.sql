@@ -30,7 +30,7 @@ SELECT cron.schedule(
   '0 13 * * 1',
   $$
   SELECT net.http_post(
-    url     := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/weekly-sales-report',
+    url     := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/weekly-sales-report',
     headers := jsonb_build_object(
       'Content-Type',  'application/json',
       'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0Z25nbXR4Z2dhc2NieG5zd3ZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxMDE2MzYsImV4cCI6MjA4MjY3NzYzNn0.BYQ3k1-N2_bbXCRTRcJ6FWoI6HuDP6BdhSrmCYhJai8'
@@ -50,7 +50,7 @@ SELECT cron.schedule(
   '0 14 * * *',
   $$
   SELECT net.http_post(
-    url     := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/nps-survey-batch',
+    url     := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/nps-survey-batch',
     headers := jsonb_build_object(
       'Content-Type',  'application/json',
       'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0Z25nbXR4Z2dhc2NieG5zd3ZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxMDE2MzYsImV4cCI6MjA4MjY3NzYzNn0.BYQ3k1-N2_bbXCRTRcJ6FWoI6HuDP6BdhSrmCYhJai8'

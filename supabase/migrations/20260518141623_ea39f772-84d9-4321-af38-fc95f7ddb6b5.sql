@@ -6,7 +6,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_action TEXT;
-  v_url CONSTANT TEXT := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/paypal-sync-subscription-state';
+  v_url CONSTANT TEXT := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/paypal-sync-subscription-state';
   v_anon_key CONSTANT TEXT := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0Z25nbXR4Z2dhc2NieG5zd3ZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxMDE2MzYsImV4cCI6MjA4MjY3NzYzNn0.BYQ3k1-N2_bbXCRTRcJ6FWoI6HuDP6BdhSrmCYhJai8';
 BEGIN
   IF NEW.paypal_subscription_id IS NULL THEN

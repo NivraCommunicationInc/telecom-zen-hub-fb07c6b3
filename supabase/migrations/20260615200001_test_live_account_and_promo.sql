@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migration: Code promo TESTLIVE99 + complétion profil
--- Projet cible: xtgngmtxggascbxnswvb (ancien projet Lovable)
+-- Projet cible: lacxnbjvcyvhrttprkxr (ancien projet Lovable)
 -- Date: 2026-06-15 (v2 — user créé via signUp, pas via SQL)
 -- Idempotent: oui
 -- ============================================================

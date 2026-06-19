@@ -120,7 +120,7 @@ DECLARE
   v_url TEXT;
   v_key TEXT;
 BEGIN
-  v_url := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/notify-maintenance';
+  v_url := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1/notify-maintenance';
   v_key := current_setting('app.service_role_key', true);
 
   FOR v_incident IN

@@ -96,7 +96,7 @@ BEGIN
     RETURN;
   END IF;
 
-  v_url  := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1';
+  v_url  := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1';
   v_auth := 'Bearer ' || v_secret;
 
   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'agent-crm-email-blast-10utc') THEN
@@ -212,7 +212,7 @@ VALUES (
 -- ==============================================================================
 DO $$
 DECLARE
-  v_url     text := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1';
+  v_url     text := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1';
   v_secret  text;
   v_auth    text;
   v_blast_req_id  bigint;

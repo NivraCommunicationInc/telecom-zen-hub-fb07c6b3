@@ -32,7 +32,7 @@ ON CONFLICT (agent_name) DO UPDATE SET
 -- 3. Reprogrammer les cron jobs en utilisant la clé du coffre-fort existante
 DO $$
 DECLARE
-  v_url    text := 'https://xtgngmtxggascbxnswvb.supabase.co/functions/v1';
+  v_url    text := 'https://lacxnbjvcyvhrttprkxr.supabase.co/functions/v1';
   v_secret text;
   v_auth   text;
 BEGIN
