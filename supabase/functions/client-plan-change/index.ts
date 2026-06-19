@@ -192,7 +192,7 @@ serve(async (req) => {
                 balance_due: proTotal,
                 amount_paid: 0,
                 currency: "CAD",
-                status: "open",
+                status: "pending",
                 due_date: todayDate.toISOString().slice(0, 10),
                 cycle_start_date: bSub.cycle_start_date,
                 cycle_end_date: bSub.cycle_end_date,
