@@ -397,7 +397,8 @@ serve(async (req) => {
                 const fullName = prof?.full_name || [prof?.first_name, prof?.last_name].filter(Boolean).join(" ") || "Client";
 
                 // Collect adj updates — applied AFTER adjLines are inserted (E5 atomicity fix)
-                const pendingAdjUpdates: Array<{ id: string; update: Record<string, unknown> }> = [];
+                // creditPrevRemaining: stored so we can restore months_remaining on overflow
+                const pendingAdjUpdates: Array<{ id: string; update: Record<string, unknown>; creditPrevRemaining?: number }> = [];
 
                 for (const adj of adjustments as any[]) {
                   const amt = Number(adj.amount || 0);
@@ -490,7 +491,7 @@ serve(async (req) => {
                     pendingAdjUpdates.push({ id: adj.id, update: { applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString() } });
                   } else {
                     const nextRemaining = Math.max(0, prevRemaining - 1);
-                    pendingAdjUpdates.push({ id: adj.id, update: { months_remaining: nextRemaining, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: nextRemaining <= 0 ? "completed" : "active" } });
+                    pendingAdjUpdates.push({ id: adj.id, update: { months_remaining: nextRemaining, applied_count: (adj.applied_count||0)+1, last_applied_at: new Date().toISOString(), status: nextRemaining <= 0 ? "completed" : "active" }, creditPrevRemaining: prevRemaining });
                     if (isCredit && toEmail) {
                       try {
                         if (nextRemaining === 1) {
@@ -506,7 +507,19 @@ serve(async (req) => {
 
                 if (adjLines.length > 0) {
                   await supabase.from("billing_invoice_lines").insert(adjLines);
-                  finalTotal = Math.max(0, baseTotal + adjDelta);
+                  const rawTotal = baseTotal + adjDelta;
+                  finalTotal = Math.max(0, rawTotal);
+                  // If credits exceed the invoice amount, preserve months_remaining for next cycle
+                  const creditOverflow = rawTotal < 0 ? -rawTotal : 0;
+                  if (creditOverflow > 0.005) {
+                    console.log(`[billing-generate-renewals] Credit overflow ${creditOverflow.toFixed(2)} on ${invoiceNumber} — months_remaining preserved (not consumed this cycle)`);
+                    for (const pu of pendingAdjUpdates) {
+                      if (pu.creditPrevRemaining !== undefined) {
+                        pu.update.months_remaining = pu.creditPrevRemaining;
+                        pu.update.status = "active";
+                      }
+                    }
+                  }
                   const invoiceFieldUpdate: Record<string, number> = { total: finalTotal, balance_due: finalTotal };
                   if (netSubtotalDelta !== 0) {
                     invoiceFieldUpdate.subtotal   = Math.max(0, Number(invoice.subtotal)   + netSubtotalDelta);
