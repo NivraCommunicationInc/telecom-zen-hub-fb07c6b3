@@ -400,7 +400,6 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = bulletClause(doc, "Le paiement doit etre confirme AVANT la date de cycle pour renouveler le service.", y);
     y = bulletClause(doc, "La confirmation est automatique pour PayPal. Pour Interac, la confirmation est effectuee manuellement dans un delai de vingt-quatre (24) heures ouvrables.", y);
     y = bulletClause(doc, "Aucun paiement en especes, cheque ou mandat-poste n'est accepte.", y);
-    y = bulletClause(doc, "Tout paiement en retard de plus de cinq (5) jours apres la date d'echeance peut entrainer des frais de retard de 5,00 $.", y);
     y += 3;
 
     y = sectionTitle(doc, 4, "PRELEVEMENTS AUTOMATIQUES (AUTOPAY)", y);
@@ -408,6 +407,11 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = bulletClause(doc, "Le client peut activer ou desactiver l'autopay a tout moment via son portail client.", y);
     y = bulletClause(doc, "La desactivation de l'autopay entraine le retrait immediat du rabais, effectif des la prochaine facture.", y);
     y = bulletClause(doc, "Le prelevement est effectue automatiquement a la date d'echeance de la facture.", y);
+    y += 3;
+
+    y = sectionTitle(doc, "4bis", "CHANGEMENT DE FORFAIT", y);
+    y = bulletClause(doc, "En cas de changement de forfait (upgrade), le nouveau tarif prend effet immediatement et un ajustement proratise au prorata journalier du cycle en cours est facture sur-le-champ.", y);
+    y = bulletClause(doc, "En cas de reduction de forfait (downgrade), le changement prend effet au prochain cycle de renouvellement, sans frais ni remboursement pour le cycle en cours.", y);
     y += 3;
 
     y = sectionTitle(doc, 5, "PROMOTION ET RABAIS APPLICABLE", y);
@@ -439,13 +443,13 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = bulletClause(doc, "Apres cinq (5) jours de retard (J+5), le service est suspendu. La facture demeure en souffrance et le client dispose d'un delai de reactivation de cinq (5) jours supplementaires.", y);
     y = bulletClause(doc, "Apres dix (10) jours de retard (J+10), la facture est annulee et aucune dette n'est portee au dossier. La reactivation requiert un nouveau cycle de paiement.", y);
     y = bulletClause(doc, "Le client conserve son numero et ses donnees pendant une periode de grace de quatre-vingt-dix (90) jours apres suspension. Apres 90 jours, le numero peut devenir irrecuperable.", y);
-    y = bulletClause(doc, "Exception - Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
+    y = bulletClause(doc, "Exception - Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ plus taxes applicables (TPS/TVQ) s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
     y += 3;
 
     y = sectionTitle(doc, 7, "RESILIATION", y);
-    y = bulletClause(doc, "Le client peut resilier son service a tout moment sans penalite, avec un preavis de trente (30) jours.", y);
-    y = bulletClause(doc, "La resiliation prend effet a la fin de la periode de facturation en cours deja payee.", y);
-    y = bulletClause(doc, "Aucun remboursement n'est accorde pour la periode prepayee en cours ou pour les frais uniques deja acquittes.", y);
+    y = bulletClause(doc, "Le client peut resilier a tout moment via le portail client ou en contactant le service a la clientele.", y);
+    y = bulletClause(doc, "Le service reste actif jusqu'a la fin du cycle prepaye en cours.", y);
+    y = bulletClause(doc, "Aucun remboursement partiel n'est accorde pour les jours non utilises.", y);
     y = bulletClause(doc, "La portabilite du numero est disponible conformement aux directives du CRTC.", y);
     y = bulletClause(doc, "Nivra se reserve le droit de resilier immediatement le service en cas d'utilisation abusive, frauduleuse ou contraire aux presentes conditions.", y);
     y += 3;
