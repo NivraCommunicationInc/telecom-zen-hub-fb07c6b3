@@ -177,23 +177,32 @@ Deno.serve(async (req) => {
     }));
     if (rows.length > 0) await supabase.from("site_health_checks").insert(rows);
 
-    // Email critical
+    // Email critical — once per day (event_key dedup)
     const critical = findings.filter((f) => f.status === "critical");
     if (critical.length > 0) {
-      await supabase.from("email_queue").insert({
-        to_email: ALERT_EMAIL,
-        template_key: "site_health_alert",
-        subject: "[ALERTE CRITIQUE] Problème détecté — Nivra Telecom",
-        template_vars: {
-          client_name: "Équipe Nivra",
-          health_score: ai?.score ?? 0,
-          critical_count: critical.length,
-          total_issues: findings.filter((f) => f.status !== "ok").length,
-          summary: ai?.summary ?? "Plusieurs problèmes critiques détectés.",
-          issues: critical.map((c) => ({ title: c.title, description: c.description ?? "" })),
-        },
-        status: "queued",
-      });
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const { data: existingAlert } = await supabase
+        .from("email_queue")
+        .select("id")
+        .eq("event_key", `site_monitor_alert_${todayKey}`)
+        .maybeSingle();
+      if (!existingAlert) {
+        await supabase.from("email_queue").insert({
+          event_key: `site_monitor_alert_${todayKey}`,
+          to_email: ALERT_EMAIL,
+          template_key: "site_health_alert",
+          subject: "[ALERTE CRITIQUE] Problème détecté — Nivra Telecom",
+          template_vars: {
+            client_name: "Équipe Nivra",
+            health_score: ai?.score ?? 0,
+            critical_count: critical.length,
+            total_issues: findings.filter((f) => f.status !== "ok").length,
+            summary: ai?.summary ?? "Plusieurs problèmes critiques détectés.",
+            issues: critical.map((c) => ({ title: c.title, description: c.description ?? "" })),
+          },
+          status: "queued",
+        });
+      }
     }
 
     await supabase.from("agent_audit_log").insert({

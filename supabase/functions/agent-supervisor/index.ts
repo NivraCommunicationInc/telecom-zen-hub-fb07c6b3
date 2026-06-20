@@ -209,21 +209,30 @@ Deno.serve(async (req) => {
     `Santé globale: ${globalHealth}/100 — ${activeCount} actifs, ${errorCount} en erreur`,
     { global_health: globalHealth, active: activeCount, errors: errorCount, gemini: geminiSummary });
 
-  // Email alert on low global health
+  // Email alert on low global health — once per day (event_key dedup)
   if (globalHealth < 50 || failing.length >= 2) {
-    await supabase.from("email_queue").insert({
-      to_email: ALERT_EMAIL,
-      template_key: "agent_supervisor_alert",
-      template_vars: {
-        global_health: globalHealth,
-        active_count: activeCount,
-        error_count: errorCount,
-        failing_agents: failing,
-        gemini_summary: geminiSummary,
-      },
-      status: "queued",
-    });
-    await logEvent(supabase, AGENT, "email_sent", `Alerte superviseur envoyée à ${ALERT_EMAIL}`);
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const { data: existingAlert } = await supabase
+      .from("email_queue")
+      .select("id")
+      .eq("event_key", `supervisor_alert_${todayKey}`)
+      .maybeSingle();
+    if (!existingAlert) {
+      await supabase.from("email_queue").insert({
+        event_key: `supervisor_alert_${todayKey}`,
+        to_email: ALERT_EMAIL,
+        template_key: "agent_supervisor_alert",
+        template_vars: {
+          global_health: globalHealth,
+          active_count: activeCount,
+          error_count: errorCount,
+          failing_agents: failing,
+          gemini_summary: geminiSummary,
+        },
+        status: "queued",
+      });
+      await logEvent(supabase, AGENT, "email_sent", `Alerte superviseur envoyée à ${ALERT_EMAIL}`);
+    }
   }
 
   const completedAt = new Date();

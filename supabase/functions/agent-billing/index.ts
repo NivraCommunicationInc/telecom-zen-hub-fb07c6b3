@@ -288,7 +288,7 @@ async function reconcile(supabase: any) {
   const { data: subs } = await supabase.from("billing_subscriptions").select("plan_price").eq("status", "active");
   const expectedMRR = (subs ?? []).reduce((s: number, r: any) => s + Number(r.plan_price ?? 0), 0);
   const since = new Date(Date.now() - 30 * 86400_000).toISOString();
-  const { data: payments } = await supabase.from("payments").select("amount").eq("status", "succeeded").gte("created_at", since);
+  const { data: payments } = await supabase.from("billing_payments").select("amount").eq("status", "confirmed").gte("created_at", since);
   const actual30d = (payments ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
   const discrepancy = expectedMRR - actual30d;
   return { expected_mrr: expectedMRR, actual_30d: actual30d, discrepancy };
@@ -305,7 +305,9 @@ Deno.serve(async (req) => {
     if (body.action === "reconcile") {
       const r = await reconcile(supabase);
       if (Math.abs(r.discrepancy) > expectedTolerance(r.expected_mrr)) {
+        const todayKey = new Date().toISOString().slice(0, 10);
         await supabase.from("email_queue").insert({
+          event_key: `billing_reconcile_mrr_${todayKey}`,
           to_email: ALERT_EMAIL,
           template_key: "site_health_alert",
           subject: "Écart de réconciliation MRR détecté",
