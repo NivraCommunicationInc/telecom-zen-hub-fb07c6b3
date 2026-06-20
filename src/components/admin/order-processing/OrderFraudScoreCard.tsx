@@ -16,11 +16,18 @@ const LEVEL_CONFIG = {
 };
 
 const FLAG_LABELS: Record<string, string> = {
-  email_jetable:      "Email jetable / temporaire",
-  commandes_recentes: "Plusieurs commandes récentes (7j)",
-  adresse_incomplete: "Adresse incomplète",
-  telephone_manquant: "Téléphone manquant",
-  nom_suspect:        "Nom suspect (test/fake/admin)",
+  email_jetable:          "Email jetable / temporaire",
+  commandes_recentes:     "Plusieurs commandes récentes (7j)",
+  commandes_multiples_24h:"Plusieurs commandes en 24h",
+  adresse_incomplete:     "Adresse incomplète",
+  telephone_manquant:     "Téléphone manquant",
+  telephone_invalide:     "Format téléphone invalide",
+  nom_suspect:            "Nom suspect (test/fake/admin)",
+  compte_moins_1h:        "Compte créé < 1h avant la commande",
+  compte_meme_jour:       "Compte créé le même jour",
+  incidents_fraude:       "Incidents de fraude antérieurs",
+  heure_suspecte:         "Heure inhabituelle (3h–5h)",
+  province_hors_qc:       "Province hors Québec",
 };
 
 interface Props {

@@ -145,12 +145,18 @@ export function OrderOverview({ orderId, onSwitchToProcess }: Props) {
       )}
 
       {/* Anti-fraud score */}
-      <OrderFraudScoreCard
-        fraudScore={order.fraud_score ?? 0}
-        fraudLevel={order.fraud_level ?? "none"}
-        fraudFlags={order.fraud_flags ?? {}}
-        fraudBlocked={order.fraud_blocked ?? false}
-      />
+      {(() => {
+        const rf = order.risk_flags;
+        const fraud = rf && !Array.isArray(rf) && typeof rf === 'object' && 'score' in rf ? rf as { score: number; level: string; flags: Record<string, number>; blocked: boolean } : null;
+        return (
+          <OrderFraudScoreCard
+            fraudScore={fraud?.score ?? 0}
+            fraudLevel={fraud?.level ?? "none"}
+            fraudFlags={fraud?.flags ?? {}}
+            fraudBlocked={fraud?.blocked ?? false}
+          />
+        );
+      })()}
 
       {/* Phase 3 — Lifecycle timeline + boutons de transition rapide (admin) */}
       <OrderLifecycleAdminPanel orderId={order.id} installationType={order.installation_type} />

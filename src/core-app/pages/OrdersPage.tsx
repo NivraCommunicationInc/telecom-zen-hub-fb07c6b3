@@ -19,6 +19,7 @@ import { corePath } from "@/core-app/lib/corePaths";
 import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { Search, ShoppingCart, RefreshCw, Timer, AlertTriangle } from "lucide-react";
+import { OrderFraudScoreCard } from "@/components/admin/order-processing/OrderFraudScoreCard";
 import { differenceInMinutes } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -362,6 +363,24 @@ const OrdersPage = () => {
                     💳 Carte manuelle
                   </span>
                 )}
+
+                {(() => {
+                  const rf = o.risk_flags as any;
+                  if (rf && !Array.isArray(rf) && typeof rf === 'object' && rf.score > 0) {
+                    return (
+                      <div className="shrink-0">
+                        <OrderFraudScoreCard
+                          compact
+                          fraudScore={rf.score}
+                          fraudLevel={rf.level ?? "none"}
+                          fraudFlags={rf.flags ?? {}}
+                          fraudBlocked={rf.blocked ?? false}
+                        />
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {sla ? (
                   <span
