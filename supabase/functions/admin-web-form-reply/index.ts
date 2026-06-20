@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { violetShell, violetEsc } from "../_shared/violetEmailShell.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -154,42 +155,17 @@ serve(async (req) => {
 
           const replyToken = emailMap?.reply_token;
 
-          const emailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #16a34a; color: white; padding: 16px 20px; border-radius: 8px 8px 0 0; }
-    .content { background: #f9fafb; padding: 24px; border-radius: 0 0 8px 8px; }
-    .message-box { background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #16a34a; margin: 16px 0; }
-    .footer { text-align: center; color: #666; font-size: 12px; margin-top: 24px; }
-    .ref { color: #888; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h2 style="margin: 0;">Réponse de Nivra Télécom</h2>
-      <p class="ref" style="color: #d1fae5; margin: 4px 0 0 0;">Réf: ${thread.thread_number}</p>
-    </div>
-    <div class="content">
-      <p>Bonjour ${thread.contact_full_name},</p>
-      
-      <div class="message-box">
-        ${body_html || body_text.replace(/\n/g, "<br>")}
-      </div>
-      
-      <p style="margin-top: 24px; color: #666;">Vous pouvez répondre directement à cet email pour continuer la conversation.</p>
-    </div>
-    <div class="footer">
-      <p>${staffName}<br>Nivra Télécom</p>
-    </div>
-  </div>
-</body>
-</html>`;
+          const safeBody = body_html
+            ? body_html
+            : violetEsc(body_text).replace(/\n/g, "<br>");
+          const emailHtml = violetShell({
+            badge: "Support Nivra Télécom",
+            heroTitle: "Réponse de notre équipe",
+            heroSub: `Référence : ${violetEsc(thread.thread_number)}`,
+            greeting: `Bonjour ${violetEsc(thread.contact_full_name)},`,
+            bodyHtml: `<div style="background:#f8fafc;border-left:4px solid #0066CC;border-radius:0 6px 6px 0;padding:14px 18px;margin:0 0 16px;font-size:14px;line-height:1.7;color:#1a1a1a;">${safeBody}</div>`,
+            helpHtml: `Vous pouvez répondre directement à cet email pour continuer la conversation avec <strong>${violetEsc(staffName)}</strong>.`,
+          });
 
           const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "support@nivra-telecom.ca";
           const replyTo = replyToken

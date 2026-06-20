@@ -1,5 +1,5 @@
 ﻿/**
- * Technician Installation Report â€” Rapport d'installation par technicien.
+ * Technician Installation Report - Rapport d'installation par technicien.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -31,9 +31,9 @@ export interface InstallationReportData {
 const outcomeLabel = (o: string): { text: string; color: [number, number, number] } => {
   switch (o) {
     case "success": return { text: "INSTALLATION REUSSIE", color: [22, 163, 74] };
-    case "partial": return { text: "INSTALLATION PARTIELLE â€” Suivi requis", color: [217, 119, 6] };
+    case "partial": return { text: "INSTALLATION PARTIELLE - Suivi requis", color: [217, 119, 6] };
     case "failed": return { text: "INSTALLATION ECHOUEE", color: [220, 50, 50] };
-    default: return { text: "â€”", color: [100, 100, 100] };
+    default: return { text: "-", color: [100, 100, 100] };
   }
 };
 

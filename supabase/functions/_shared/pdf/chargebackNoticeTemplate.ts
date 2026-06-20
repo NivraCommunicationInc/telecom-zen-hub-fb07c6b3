@@ -1,5 +1,5 @@
 ﻿/**
- * Chargeback Notice â€” Avis de retrofacturation (chargeback).
+ * Chargeback Notice - Avis de retrofacturation (chargeback).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";

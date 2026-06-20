@@ -1,5 +1,5 @@
 ﻿/**
- * Address Change Notice â€” Confirmation de changement d'adresse de service.
+ * Address Change Notice - Confirmation de changement d'adresse de service.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -28,9 +28,9 @@ export interface AddressChangeData {
 const continuityLabel = (t: string): string => {
   switch (t) {
     case "no_interruption": return "Aucune interruption de service prevue";
-    case "scheduled_interruption": return "Interruption planifiee â€” voir notes";
+    case "scheduled_interruption": return "Interruption planifiee - voir notes";
     case "reinstall_required": return "Reinstallation requise par technicien";
-    default: return "â€”";
+    default: return "-";
   }
 };
 

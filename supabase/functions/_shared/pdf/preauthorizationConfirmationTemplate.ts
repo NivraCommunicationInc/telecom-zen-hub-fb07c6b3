@@ -1,5 +1,5 @@
 ﻿/**
- * Preauthorization Confirmation â€” Confirmation de pre-autorisation de paiement.
+ * Preauthorization Confirmation - Confirmation de pre-autorisation de paiement.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";

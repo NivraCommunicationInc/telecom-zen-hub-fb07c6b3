@@ -1,5 +1,5 @@
 ﻿/**
- * Suspension Notice â€” Avis de suspension du service.
+ * Suspension Notice - Avis de suspension du service.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";

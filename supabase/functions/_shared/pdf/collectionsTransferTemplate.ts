@@ -1,5 +1,5 @@
 ﻿/**
- * Collections Transfer Notice â€” Avis de transfert au recouvrement externe.
+ * Collections Transfer Notice - Avis de transfert au recouvrement externe.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";

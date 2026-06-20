@@ -1,5 +1,5 @@
 ﻿/**
- * Service Certificate â€” Attestation de service actif (souvent demandée pour preuves d'adresse).
+ * Service Certificate - Attestation de service actif (souvent demandée pour preuves d'adresse).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -63,7 +63,7 @@ export function generateServiceCertificatePDF(data: ServiceCertificateData): PDF
     doc.setFontSize(9);
     doc.setTextColor(60, 60, 60);
     doc.text("Document genere electroniquement et certifie conforme.", 15, y); y += 5;
-    doc.text("Service a la clientele â€” Nivra Telecom", 15, y); y += 5;
+    doc.text("Service a la clientele - Nivra Telecom", 15, y); y += 5;
     doc.text(`Reference: ${data.certificate_number}`, 15, y);
 
     drawFooter(doc);

@@ -1,5 +1,5 @@
 ﻿/**
- * Nivra Contract Template V5.0 â€” Telecom-Grade Professional Standard
+ * Nivra Contract Template V5.0 - Telecom-Grade Professional Standard
  * 
  * 4-page contract with integrated modalités:
  * Page 1: Header + Client ID + Financial Summary
@@ -77,7 +77,7 @@ export interface ContractDataV3 {
     unit_price: number;
   }>;
 
-  // Field-sales attribution (ADD-ONLY â€” only rendered when sale_source === 'field_sales')
+  // Field-sales attribution (ADD-ONLY - only rendered when sale_source === 'field_sales')
   sale_source?: string;
   agent_name?: string;
   agent_number?: string;
@@ -100,66 +100,76 @@ const fmt = (amount: number): string =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "â€”";
+  if (!dateStr) return "-";
   const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (ymd) {
     const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
-  return "â€”";
+  return "-";
 };
 
-const NAVY = [30, 64, 120] as const;
-const GREEN_ACCENT = [34, 139, 34] as const;
+const NAVY        = [0, 102, 204] as const;   // #0066CC — was [30,64,120]
+const GREEN_ACCENT = [124, 58, 237] as const; // #7C3AED violet — was green
 
 function drawHeader(doc: jsPDF, contractNum: string, pageLabel: string) {
   const pw = doc.internal.pageSize.getWidth();
-  doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pw, 32, "F");
-  // Green accent line
-  doc.setFillColor(...GREEN_ACCENT);
-  doc.rect(0, 32, pw, 1.5, "F");
+
+  // Blue main zone (0 – 29 mm)
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.rect(0, 0, pw, 29, "F");
+
+  // Violet accent strip (29 – 32 mm)
+  doc.setFillColor(GREEN_ACCENT[0], GREEN_ACCENT[1], GREEN_ACCENT[2]);
+  doc.rect(0, 29, pw, 3, "F");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(17);
   doc.setTextColor(255, 255, 255);
-  doc.text("NIVRA TELECOM", 15, 14);
+  doc.text("NIVRA TELECOM", 15, 13);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(180, 200, 230);
+  doc.setTextColor(200, 220, 245);
   doc.text("CONTRAT DE SERVICE DE TELECOMMUNICATIONS", 15, 22);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(255, 255, 255);
-  doc.text(`No ${contractNum}`, pw - 15, 14, { align: "right" });
+  doc.text(`No ${contractNum}`, pw - 15, 13, { align: "right" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(180, 200, 230);
+  doc.setTextColor(200, 220, 245);
   doc.text(pageLabel, pw - 15, 22, { align: "right" });
 }
 
 function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  doc.setDrawColor(200, 200, 200);
-  doc.line(15, ph - 14, pw - 15, ph - 14);
+
+  // Violet accent line
+  doc.setFillColor(124, 58, 237);
+  doc.rect(0, ph - 16, pw, 1.5, "F");
+
+  // Grey band
+  doc.setFillColor(248, 250, 252);
+  doc.rect(0, ph - 14.5, pw, 14.5, "F");
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
-  doc.setTextColor(130, 130, 130);
-  doc.text(`${NIVRA.legalName} | ${NIVRA.email} | ${NIVRA.website}`, 15, ph - 9);
-  doc.text(`Page ${pageNum} de ${totalPages}`, pw - 15, ph - 9, { align: "right" });
-  doc.text("Ce document constitue un contrat legalement contraignant.", pw / 2, ph - 5, { align: "center" });
+  doc.setTextColor(100, 116, 139);
+  doc.text(`${NIVRA.legalName} | ${NIVRA.email} | ${NIVRA.website}`, 15, ph - 8.5);
+  doc.text(`Page ${pageNum} de ${totalPages}`, pw - 15, ph - 8.5, { align: "right" });
+  doc.text("Ce document constitue un contrat legalement contraignant.", pw / 2, ph - 4, { align: "center" });
 }
 
 function sectionTitle(doc: jsPDF, num: number | string, title: string, y: number): number {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(30, 64, 120);
+  doc.setTextColor(0, 102, 204);
   doc.text(`${num}. ${title}`, 15, y);
-  doc.setDrawColor(30, 64, 120);
+  doc.setDrawColor(124, 58, 237);
   doc.line(15, y + 1.5, 190, y + 1.5);
   return y + 7;
 }
@@ -194,7 +204,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     const totalPages = 4;
 
     // ===================================================================
-    // PAGE 1 â€” IDENTIFICATION & SOMMAIRE FINANCIER
+    // PAGE 1 - IDENTIFICATION & SOMMAIRE FINANCIER
     // ===================================================================
     drawHeader(doc, data.contract_number, "Identification");
 
@@ -220,40 +230,40 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
 
     labelStyle(); doc.text("Nom complet", col1, y);
     labelStyle(); doc.text("No de compte", col2, y); y += 4;
-    valueStyle(); doc.text(data.client_name || "â€”", col1, y);
+    valueStyle(); doc.text(data.client_name || "-", col1, y);
     valueStyle(); doc.text(data.account_number, col2, y); y += 6;
 
     labelStyle(); doc.text("Courriel", col1, y);
     labelStyle(); doc.text("No de commande", col2, y); y += 4;
-    valueStyle(); doc.text(data.client_email || "â€”", col1, y);
+    valueStyle(); doc.text(data.client_email || "-", col1, y);
     valueStyle(); doc.text(data.order_number, col2, y); y += 6;
 
     labelStyle(); doc.text("Telephone", col1, y);
     labelStyle(); doc.text("Methode de paiement", col2, y); y += 4;
-    valueStyle(); doc.text(data.client_phone || "â€”", col1, y);
-    valueStyle(); doc.text(data.payment_method === "card" ? "Carte de credit" : data.payment_method === "paypal" ? "PayPal" : data.payment_method || "â€”", col2, y); y += 6;
+    valueStyle(); doc.text(data.client_phone || "-", col1, y);
+    valueStyle(); doc.text(data.payment_method === "card" ? "Carte de credit" : data.payment_method === "paypal" ? "PayPal" : data.payment_method || "-", col2, y); y += 6;
 
     labelStyle(); doc.text("Adresse de facturation", col1, y);
     labelStyle(); doc.text("Adresse de service", col2, y); y += 4;
     valueStyle();
-    const billParts = doc.splitTextToSize(data.billing_address || "â€”", 85);
+    const billParts = doc.splitTextToSize(data.billing_address || "-", 85);
     doc.text(billParts, col1, y);
-    const svcParts = doc.splitTextToSize(data.service_address || "â€”", 85);
+    const svcParts = doc.splitTextToSize(data.service_address || "-", 85);
     doc.text(svcParts, col2, y);
     y += Math.max(billParts.length, svcParts.length) * 4 + 6;
 
-    // FIELD-SALES AGENT BLOCK (ADD-ONLY â€” conditional)
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY - conditional)
     if (data.sale_source === "field_sales" && (data.agent_name || data.agent_number)) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
-      doc.setTextColor(30, 64, 120);
+      doc.setTextColor(0, 102, 204);
       doc.text("Representant commercial", 15, y);
       y += 4;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(40, 40, 40);
-      doc.text(`Nom : ${data.agent_name || "â€”"}`, 17, y); y += 4;
-      doc.text(`Badge : ${data.agent_number || "â€”"}`, 17, y); y += 4;
+      doc.text(`Nom : ${data.agent_name || "-"}`, 17, y); y += 4;
+      doc.text(`Badge : ${data.agent_number || "-"}`, 17, y); y += 4;
       doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 6;
       doc.setTextColor(0, 0, 0);
     }
@@ -264,7 +274,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     // Services mensuels recurrents
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.setTextColor(30, 64, 120);
+    doc.setTextColor(0, 102, 204);
     doc.text("Services mensuels recurrents", 17, y);
     doc.text("Tarif/mois", 170, y, { align: "right" });
     y += 5;
@@ -285,7 +295,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     // Equipment & Fees
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.setTextColor(30, 64, 120);
+    doc.setTextColor(0, 102, 204);
     doc.text("Frais uniques (equipement, activation, livraison)", 17, y);
     y += 5;
     doc.setFont("helvetica", "normal");
@@ -326,7 +336,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.text("TPS (5%)", 105, y); doc.text(fmt(data.tax_gst), 170, y, { align: "right" }); y += 5;
     doc.text("TVQ (9,975%)", 105, y); doc.text(fmt(data.tax_qst), 170, y, { align: "right" }); y += 6;
 
-    doc.setFillColor(30, 64, 120);
+    doc.setFillColor(0, 102, 204);
     doc.rect(100, y, 90, 8, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
@@ -347,7 +357,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     if (hasActivation) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
-      doc.setTextColor(30, 64, 120);
+      doc.setTextColor(0, 102, 204);
       doc.text("Details d'activation / installation", 15, y);
       y += 4;
       doc.setFont("helvetica", "normal");
@@ -364,7 +374,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     drawFooter(doc, 1, totalPages);
 
     // ===================================================================
-    // PAGE 2 â€” CONDITIONS GENERALES (1-5)
+    // PAGE 2 - CONDITIONS GENERALES (1-5)
     // ===================================================================
     doc.addPage();
     drawHeader(doc, data.contract_number, "Conditions generales");
@@ -403,7 +413,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = sectionTitle(doc, 5, "PROMOTION ET RABAIS APPLICABLE", y);
     if (data.has_discount && Array.isArray(data.discount_lines) && data.discount_lines.length > 0) {
       for (const dl of data.discount_lines) {
-        y = bulletClause(doc, `${dl.description} â€” ${fmt(dl.unit_price)}/mois`, y);
+        y = bulletClause(doc, `${dl.description} - ${fmt(dl.unit_price)}/mois`, y);
       }
       y = bulletClause(doc, "Cette promotion s'applique uniquement aux elements et a la duree specifies dans l'offre.", y);
     } else if (data.discount_amount > 0) {
@@ -418,7 +428,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     drawFooter(doc, 2, totalPages);
 
     // ===================================================================
-    // PAGE 3 â€” MODALITES (6-12)
+    // PAGE 3 - MODALITES (6-12)
     // ===================================================================
     doc.addPage();
     drawHeader(doc, data.contract_number, "Modalites de service");
@@ -429,7 +439,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = bulletClause(doc, "Apres cinq (5) jours de retard (J+5), le service est suspendu. La facture demeure en souffrance et le client dispose d'un delai de reactivation de cinq (5) jours supplementaires.", y);
     y = bulletClause(doc, "Apres dix (10) jours de retard (J+10), la facture est annulee et aucune dette n'est portee au dossier. La reactivation requiert un nouveau cycle de paiement.", y);
     y = bulletClause(doc, "Le client conserve son numero et ses donnees pendant une periode de grace de quatre-vingt-dix (90) jours apres suspension. Apres 90 jours, le numero peut devenir irrecuperable.", y);
-    y = bulletClause(doc, "Exception â€” Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
+    y = bulletClause(doc, "Exception - Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
     y += 3;
 
     y = sectionTitle(doc, 7, "RESILIATION", y);
@@ -473,7 +483,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     drawFooter(doc, 3, totalPages);
 
     // ===================================================================
-    // PAGE 4 â€” SIGNATURES & AVIS LEGAL
+    // PAGE 4 - SIGNATURES & AVIS LEGAL
     // ===================================================================
     doc.addPage();
     drawHeader(doc, data.contract_number, "Signatures");
@@ -482,7 +492,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     // Acceptance clause
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.setTextColor(30, 64, 120);
+    doc.setTextColor(0, 102, 204);
     doc.text("DECLARATION ET ACCEPTATION", 15, y);
     doc.line(15, y + 1.5, 190, y + 1.5);
     y += 8;
@@ -510,7 +520,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     // SIGNATURES
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(30, 64, 120);
+    doc.setTextColor(0, 102, 204);
     doc.text("SIGNATURES", 15, y);
     doc.setDrawColor(30, 64, 120);
     doc.line(15, y + 1.5, 190, y + 1.5);
@@ -532,7 +542,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
-    doc.text(data.client_name || "â€”", 15, y);
+    doc.text(data.client_name || "-", 15, y);
     doc.text(data.admin_signature_name || "Representant autorise", 110, y);
     y += 5;
 

@@ -1,5 +1,5 @@
 ﻿/**
- * Final Refund Receipt â€” Recu de remboursement final (apres annulation/cloture).
+ * Final Refund Receipt - Recu de remboursement final (apres annulation/cloture).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";

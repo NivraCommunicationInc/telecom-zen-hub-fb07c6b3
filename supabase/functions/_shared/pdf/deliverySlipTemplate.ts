@@ -1,5 +1,5 @@
 ﻿/**
- * Delivery Slip â€” Bon de livraison d'equipement.
+ * Delivery Slip - Bon de livraison d'equipement.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -69,7 +69,7 @@ export function generateDeliverySlipPDF(data: DeliverySlipData): PDFGenerationRe
       const lines = doc.splitTextToSize(it.description, 90) as string[];
       let dy = y + 4;
       for (const l of lines) { doc.text(l, 17, dy); dy += 4.5; }
-      doc.text(it.serial_number || "â€”", 110, y + 4);
+      doc.text(it.serial_number || "-", 110, y + 4);
       doc.text(String(it.quantity), 180, y + 4, { align: "right" });
       const h = Math.max(7, lines.length * 4.5 + 2);
       doc.setDrawColor(230, 230, 230);

@@ -1,5 +1,5 @@
 ﻿/**
- * Cancellation Confirmation â€” Confirmation d'annulation de service.
+ * Cancellation Confirmation - Confirmation d'annulation de service.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
@@ -55,7 +55,7 @@ export function generateCancellationConfirmationPDF(data: CancellationConfirmati
     } else if (data.final_balance < 0) {
       y = drawKeyValue(doc, "Credit en votre faveur", fmtCAD(Math.abs(data.final_balance)), y);
     } else {
-      y = drawKeyValue(doc, "Solde", "0,00 $ â€” Aucun montant du", y);
+      y = drawKeyValue(doc, "Solde", "0,00 $ - Aucun montant du", y);
     }
     if (data.refund_pending && data.refund_pending > 0) {
       y = drawKeyValue(doc, "Remboursement a venir", fmtCAD(data.refund_pending), y);

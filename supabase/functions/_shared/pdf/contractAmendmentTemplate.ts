@@ -1,5 +1,5 @@
 ﻿/**
- * Contract Amendment â€” Avenant au contrat de service.
+ * Contract Amendment - Avenant au contrat de service.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
