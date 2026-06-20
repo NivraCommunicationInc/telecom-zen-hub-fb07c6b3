@@ -25,6 +25,7 @@ declare global {
 }
 
 const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+const E2E_MODE = import.meta.env.VITE_E2E_MODE === "true";
 const SCRIPT_ID = "cf-turnstile-script";
 
 export default function CloudflareTurnstile({ onVerify, onExpire, onError, className }: CloudflareTurnstileProps) {
@@ -49,7 +50,7 @@ export default function CloudflareTurnstile({ onVerify, onExpire, onError, class
   }, [onExpire, onError]);
 
   useEffect(() => {
-    if (!SITE_KEY) return;
+    if (!SITE_KEY || E2E_MODE) return;
 
     // Load script if not present
     if (!document.getElementById(SCRIPT_ID)) {
@@ -72,7 +73,7 @@ export default function CloudflareTurnstile({ onVerify, onExpire, onError, class
     };
   }, [renderWidget]);
 
-  if (!SITE_KEY) return null;
+  if (!SITE_KEY || E2E_MODE) return null;
 
   return <div ref={containerRef} className={className} />;
 }
