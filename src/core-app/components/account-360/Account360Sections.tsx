@@ -11,7 +11,7 @@ import {
 import {
   Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare,
   Calendar, Shield, Activity, AlertTriangle, ExternalLink, Zap, User,
-  MapPin, Globe, Hash, Clock, CheckCircle2, Wallet,
+  MapPin, Globe, Hash, Clock, CheckCircle2, Wallet, TrendingUp, TrendingDown,
 } from "lucide-react";
 import { InvoiceActionMenu } from "@/core-app/components/account-actions/InvoiceActions";
 import { SubscriptionActionMenu } from "@/core-app/components/account-actions/SubscriptionActions";
@@ -74,6 +74,20 @@ export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: an
     )}
   </div>
 );
+
+/* ── Credit Score helpers ── */
+const CREDIT_FACTOR_LABELS: Record<string, string> = {
+  anciennete_2ans:               "Ancienneté 2+ ans",
+  anciennete_1an:                "Ancienneté 1+ an",
+  anciennete_6mois:              "Ancienneté 6+ mois",
+  paiements_ponctuels:           "Factures payées",
+  comptes_bon_standing:          "Compte en bon standing",
+  factures_overdue:              "Factures impayées actuelles",
+  factures_serieusement_overdue: "Factures > 90 jours",
+  factures_non_payees:           "Créances irrécouvrables",
+  comptes_annules:               "Compte annulé précédent",
+  chargebacks:                   "Rétrofacturations",
+};
 
 /* ── Billing / Account ── */
 export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInvoices, totalPaid }: any) => {
@@ -153,6 +167,79 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
         <InfoLine label="Créé le" value={fmtDate(acct.created_at)} />
       </div>
     </Panel>
+    {/* Score de crédit interne */}
+    {data.creditScore && (
+      <Panel className={
+        data.creditScore.credit_grade === "A" || data.creditScore.credit_grade === "B"
+          ? "border-emerald-500/30"
+          : data.creditScore.credit_grade === "C"
+          ? "border-amber-500/30"
+          : "border-red-500/30"
+      }>
+        <PanelHeader icon={CreditCard} title="Score de crédit interne" />
+        <div className="p-3 space-y-2">
+          {/* Score bar */}
+          <div className="flex items-center gap-3">
+            <span className={`text-3xl font-bold font-mono ${
+              data.creditScore.credit_grade === "A" || data.creditScore.credit_grade === "B" ? "text-emerald-400"
+              : data.creditScore.credit_grade === "C" ? "text-amber-400"
+              : "text-red-400"
+            }`}>{data.creditScore.credit_grade}</span>
+            <div className="flex-1 space-y-1">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-core-text-secondary">{data.creditScore.grade_label}</span>
+                <span className="text-core-text-label tabular-nums">{data.creditScore.current_score}/100</span>
+              </div>
+              <div className="h-2 bg-[hsl(220,15%,14%)] rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${
+                    data.creditScore.credit_grade === "A" || data.creditScore.credit_grade === "B" ? "bg-emerald-500"
+                    : data.creditScore.credit_grade === "C" ? "bg-amber-500"
+                    : "bg-red-500"
+                  }`}
+                  style={{ width: `${data.creditScore.current_score}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Résumé */}
+          {!data.creditScore.has_history ? (
+            <p className="text-[11px] text-core-text-disabled italic">Nouveau client — score neutre (50/100), aucun historique chez Nivra.</p>
+          ) : (
+            <p className="text-[11px] text-core-text-label">
+              {[
+                data.creditScore.invoices_paid > 0 && `${data.creditScore.invoices_paid} facture${data.creditScore.invoices_paid > 1 ? "s" : ""} payée${data.creditScore.invoices_paid > 1 ? "s" : ""}`,
+                data.creditScore.invoices_overdue > 0 && `${data.creditScore.invoices_overdue} en retard`,
+                data.creditScore.invoices_bad_debt > 0 && `${data.creditScore.invoices_bad_debt} créance${data.creditScore.invoices_bad_debt > 1 ? "s" : ""} irrécouvrable${data.creditScore.invoices_bad_debt > 1 ? "s" : ""}`,
+                data.creditScore.chargebacks > 0 && `${data.creditScore.chargebacks} chargeback${data.creditScore.chargebacks > 1 ? "s" : ""}`,
+                data.creditScore.account_age_days > 0 && `${Math.floor(data.creditScore.account_age_days / 30)} mois d'ancienneté`,
+              ].filter(Boolean).join(" · ")}
+            </p>
+          )}
+
+          {/* Facteurs détaillés */}
+          {data.creditScore.has_history && Object.keys(data.creditScore.factors || {}).length > 0 && (
+            <div className="space-y-1 pt-1 border-t border-[hsl(220,15%,14%)]">
+              {Object.entries(data.creditScore.factors as Record<string, number>).map(([k, v]) => (
+                <div key={k} className="flex justify-between text-[11px]">
+                  <span className="text-core-text-secondary">{CREDIT_FACTOR_LABELS[k] || k.replace(/_/g, " ")}</span>
+                  <span className={`font-semibold tabular-nums flex items-center gap-0.5 ${v > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {v > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    {v > 0 ? "+" : ""}{v} pts
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-[10px] text-core-text-disabled">
+            Calculé le {new Date(data.creditScore.last_assessed_at).toLocaleDateString("fr-CA")}
+          </p>
+        </div>
+      </Panel>
+    )}
+
     <Panel>
       <PanelHeader icon={Clock} title="Cycle de facturation" />
       <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">

@@ -50,12 +50,19 @@ async function processOne(admin: any, job: JobRow): Promise<{ ok: boolean; error
       });
     if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
 
+    // 2b. Compute SHA-256 of the raw PDF bytes for integrity verification
+    const hashBuf = await crypto.subtle.digest("SHA-256", dispatched.bytes);
+    const pdfHash = Array.from(new Uint8Array(hashBuf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
     // 3. Mark job as generated (creates client_auto_documents row via RPC)
     const { error: markErr } = await admin.rpc("mark_document_job_generated", {
       p_job_id: job.id,
       p_storage_path: storagePath,
       p_file_size_bytes: dispatched.fileSizeBytes,
       p_doc_number: dispatched.docNumber || null,
+      p_pdf_hash: pdfHash,
     });
     if (markErr) throw new Error(`mark_generated failed: ${markErr.message}`);
 

@@ -30,6 +30,15 @@ export const NIVRA = {
   tagline: "Fournisseur de services de télécommunications — Province de Québec",
 } as const;
 
+/**
+ * Legal terms version — bump TERMS_VERSION whenever the contract text changes.
+ * This value is embedded in every generated contract PDF.
+ */
+export const CONTRACT = {
+  TERMS_VERSION: "V5.0",
+  TERMS_DATE: "2026-01-01",
+} as const;
+
 /** Tax rates for Quebec */
 export const TAX = {
   GST_RATE: 0.05,

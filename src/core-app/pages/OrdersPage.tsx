@@ -366,7 +366,7 @@ const OrdersPage = () => {
 
                 {(() => {
                   const rf = o.risk_flags as any;
-                  if (rf && !Array.isArray(rf) && typeof rf === 'object' && rf.score > 0) {
+                  if (rf && !Array.isArray(rf) && typeof rf === 'object' && (rf.score > 0 || rf.combined_blocked)) {
                     return (
                       <div className="shrink-0">
                         <OrderFraudScoreCard
@@ -375,6 +375,9 @@ const OrdersPage = () => {
                           fraudLevel={rf.level ?? "none"}
                           fraudFlags={rf.flags ?? {}}
                           fraudBlocked={rf.blocked ?? false}
+                          combinedDecision={rf.combined_decision}
+                          combinedBlocked={rf.combined_blocked}
+                          credit={rf.credit ?? null}
                         />
                       </div>
                     );

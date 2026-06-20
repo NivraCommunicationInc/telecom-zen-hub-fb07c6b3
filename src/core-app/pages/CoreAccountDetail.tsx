@@ -253,6 +253,7 @@ const CoreAccountDetail = () => {
           accountId={accountId}
           clientId={data.clientId}
           subscriptions={data.subscriptions}
+          creditScore={data.creditScore}
           onRefresh={data.refetch}
         />
       </div>

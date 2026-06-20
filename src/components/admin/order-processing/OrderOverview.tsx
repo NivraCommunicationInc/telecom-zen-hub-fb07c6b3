@@ -144,16 +144,20 @@ export function OrderOverview({ orderId, onSwitchToProcess }: Props) {
         </div>
       )}
 
-      {/* Anti-fraud score */}
+      {/* Anti-fraud + credit scores */}
       {(() => {
         const rf = order.risk_flags;
-        const fraud = rf && !Array.isArray(rf) && typeof rf === 'object' && 'score' in rf ? rf as { score: number; level: string; flags: Record<string, number>; blocked: boolean } : null;
+        if (!rf || Array.isArray(rf) || typeof rf !== 'object' || !('score' in rf)) return null;
+        const r = rf as any;
         return (
           <OrderFraudScoreCard
-            fraudScore={fraud?.score ?? 0}
-            fraudLevel={fraud?.level ?? "none"}
-            fraudFlags={fraud?.flags ?? {}}
-            fraudBlocked={fraud?.blocked ?? false}
+            fraudScore={r.score ?? 0}
+            fraudLevel={r.level ?? "none"}
+            fraudFlags={r.flags ?? {}}
+            fraudBlocked={r.blocked ?? false}
+            combinedDecision={r.combined_decision}
+            combinedBlocked={r.combined_blocked}
+            credit={r.credit ?? null}
           />
         );
       })()}

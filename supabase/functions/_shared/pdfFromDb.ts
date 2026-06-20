@@ -17,17 +17,28 @@ import { generateReceiptPDF, type ReceiptData } from "./locked-pdf/receiptTempla
 import { generateContractV3PDF, type ContractDataV3 } from "./locked-pdf/contractTemplateV3.ts";
 import { generateOrderSummaryPDF, type OrderSummaryV3Data } from "./locked-pdf/orderSummaryTemplate.ts";
 import type { InvoiceDataV2 } from "./locked-pdf/types.ts";
+import { CONTRACT } from "./locked-pdf/companyInfo.ts";
 
 export interface QueuedAttachment {
   filename: string;
   content: string; // base64
   contentType: string;
+  hash_sha256?: string; // SHA-256 of raw PDF bytes for integrity verification
 }
 
 function getServiceClient(): SupabaseClient {
   const url = Deno.env.get("SUPABASE_URL")!;
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   return createClient(url, key);
+}
+
+/** SHA-256 of raw PDF bytes as a lowercase hex string. */
+async function computePdfHash(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hashBuf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /** Convert a Blob returned by jsPDF into a base64 string. */
@@ -301,7 +312,7 @@ export async function buildInvoicePdfAttachment(
         id, invoice_number, created_at, due_date, total, subtotal,
         tps_amount, tvq_amount, amount_paid, balance_due, status,
         cycle_start_date, cycle_end_date, type, order_id,
-        billing_snapshot_account_number,
+        address_snapshot,
         customer:billing_customers(id, email, first_name, last_name, phone, user_id),
         order:orders(id, order_number, service_type, client_full_address),
         lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type, metadata)
@@ -320,15 +331,11 @@ export async function buildInvoicePdfAttachment(
     const orderId: string | null = (invoice as any).order_id || order?.id || null;
     const orderNumber: string | undefined = order?.order_number || undefined;
     const orderClientFullAddress: string = (order as any).client_full_address || "";
-    let clientName = [customer.first_name, customer.last_name].filter(Boolean).join(" ");
-    if (!clientName && customer.user_id) {
-      const { data: _prof } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", customer.user_id).maybeSingle();
-      clientName = [(_prof as any)?.first_name, (_prof as any)?.last_name].filter(Boolean).join(" ");
-    }
-    clientName = clientName || "Client";
+    // billing_customers.first_name/last_name are stable — no live profiles fallback
+    const clientName = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Client";
 
-    let accountNumber = (invoice as any).billing_snapshot_account_number || "";
-    if (!accountNumber && customer.user_id) {
+    let accountNumber = "";
+    if (customer.user_id) {
       const { data } = await supabase
         .from("accounts")
         .select("account_number")
@@ -350,11 +357,15 @@ export async function buildInvoicePdfAttachment(
       return null;
     }
 
-    // Address fallback chain: accounts → orders.shipping → profiles.service
-    const addr = await resolveClientAddress(supabase, {
-      userId: customer.user_id,
-      orderId,
-    });
+    // Address: use billing_invoices.address_snapshot (figé à la création) first,
+    // then fall back to live accounts/profiles chain only if snapshot absent
+    const addrSnap = (invoice as any).address_snapshot;
+    const invoiceAddr = addrSnap?.address
+      ? { line1: addrSnap.address || "", city: addrSnap.city || "", province: addrSnap.province || "QC", postal: addrSnap.postal_code || "" }
+      : null;
+    const addr = invoiceAddr
+      ? { billing: invoiceAddr, service: invoiceAddr }
+      : await resolveClientAddress(supabase, { userId: customer.user_id, orderId });
 
     // Phone enrichment if invoice ties to an order with phone(s)
     const hasEquipmentLine = lines.some(
@@ -474,12 +485,16 @@ export async function buildInvoicePdfAttachment(
       console.warn(`[pdfFromDb] generateInvoiceV3PDF failed: ${result.error}`);
       return null;
     }
-    const base64 = await blobToBase64(result.blob);
+    const [base64, hash_sha256] = await Promise.all([
+      blobToBase64(result.blob),
+      computePdfHash(result.blob),
+    ]);
     const invNum = (invoice as any).invoice_number || invoiceId.slice(0, 8);
     return {
       filename: result.filename || `${filenamePrefix}_${invNum}_Nivra.pdf`,
       content: base64,
       contentType: "application/pdf",
+      hash_sha256,
     };
   } catch (err) {
     console.error("[pdfFromDb] buildInvoicePdfAttachment error:", err);
@@ -502,7 +517,7 @@ export async function buildReceiptPdfAttachment(
       .select(`
         id, invoice_number, created_at, paid_at, total, subtotal,
         tps_amount, tvq_amount, amount_paid, payment_method, balance_due,
-        billing_snapshot_account_number, order_id,
+        address_snapshot, order_id,
         customer:billing_customers(email, first_name, last_name, phone, user_id),
         order:orders(order_number, client_full_address),
         lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type)
@@ -528,15 +543,11 @@ export async function buildReceiptPdfAttachment(
     const customer = (invoice as any).customer || {};
     const order = (invoice as any).order || {};
     const lines: any[] = (invoice as any).lines || [];
-    let clientName = [customer.first_name, customer.last_name].filter(Boolean).join(" ");
-    if (!clientName && customer.user_id) {
-      const { data: _prof } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", customer.user_id).maybeSingle();
-      clientName = [(_prof as any)?.first_name, (_prof as any)?.last_name].filter(Boolean).join(" ");
-    }
-    clientName = clientName || "Client";
+    // billing_customers.first_name/last_name are stable — no live profiles fallback
+    const clientName = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Client";
 
-    let accountNumber = (invoice as any).billing_snapshot_account_number || "";
-    if (!accountNumber && customer.user_id) {
+    let accountNumber = "";
+    if (customer.user_id) {
       const { data } = await supabase
         .from("accounts")
         .select("account_number")
@@ -558,12 +569,25 @@ export async function buildReceiptPdfAttachment(
       return null;
     }
 
-    const addr = await resolveClientAddress(supabase, {
-      userId: customer.user_id,
-      orderId: (invoice as any).order_id || null,
-    });
-    const receiptOrderFullAddress: string = (order as any).client_full_address || "";
-    const clientAddress = joinAddress(addr.service) || joinAddress(addr.billing) || receiptOrderFullAddress || undefined;
+    // Address: use billing_invoices.address_snapshot (figé) first, then live fallback
+    const rcptAddrSnap = (invoice as any).address_snapshot;
+    let clientAddress: string | undefined;
+    if (rcptAddrSnap?.address) {
+      clientAddress = joinAddress({
+        line1: rcptAddrSnap.address || "",
+        city: rcptAddrSnap.city || "",
+        province: rcptAddrSnap.province || "QC",
+        postal: rcptAddrSnap.postal_code || "",
+      }) || undefined;
+    }
+    if (!clientAddress) {
+      const addr = await resolveClientAddress(supabase, {
+        userId: customer.user_id,
+        orderId: (invoice as any).order_id || null,
+      });
+      const receiptOrderFullAddress: string = (order as any).client_full_address || "";
+      clientAddress = joinAddress(addr.service) || joinAddress(addr.billing) || receiptOrderFullAddress || undefined;
+    }
 
     // ADD-ONLY: detect unpaid card_manual flow → payment_status='pending'
     let orderPaymentMethod: string | null = null;
@@ -623,12 +647,16 @@ export async function buildReceiptPdfAttachment(
       console.warn(`[pdfFromDb] generateReceiptPDF failed: ${result.error}`);
       return null;
     }
-    const base64 = await blobToBase64(result.blob);
+    const [base64, hash_sha256] = await Promise.all([
+      blobToBase64(result.blob),
+      computePdfHash(result.blob),
+    ]);
     const num = payment?.payment_number || (invoice as any).invoice_number || invoiceId.slice(0, 8);
     return {
       filename: result.filename || `${filenamePrefix}_${num}_Nivra.pdf`,
       content: base64,
       contentType: "application/pdf",
+      hash_sha256,
     };
   } catch (err) {
     console.error("[pdfFromDb] buildReceiptPdfAttachment error:", err);
@@ -654,7 +682,7 @@ export async function buildContractPdfAttachment(
         client_full_address,
         shipping_address, shipping_city, shipping_province, shipping_postal_code,
         subtotal, total_amount, tps_amount, tvq_amount, discount_amount,
-        equipment_details, equipment_line_details,
+        equipment_details,
         user_id
       `)
       .eq("id", orderId)
@@ -666,12 +694,8 @@ export async function buildContractPdfAttachment(
     }
 
     const o = order as any;
-    let clientName = [o.client_first_name, o.client_last_name].filter(Boolean).join(" ");
-    if (!clientName && o.user_id) {
-      const { data: _prof } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", o.user_id).maybeSingle();
-      clientName = [(_prof as any)?.first_name, (_prof as any)?.last_name].filter(Boolean).join(" ");
-    }
-    clientName = clientName || "Client";
+    // orders.client_first_name/last_name are snapshot fields captured at order creation
+    const clientName = [o.client_first_name, o.client_last_name].filter(Boolean).join(" ") || "Client";
 
     // Account number
     let accountNumber = "";
@@ -774,11 +798,12 @@ export async function buildContractPdfAttachment(
 
     // CANONICAL TAX SOURCE: billing_invoices is the source of truth (post-discount).
     // orders.tps_amount/tvq_amount may reflect pre-discount taxes — never use for contract math.
+    // Take the FIRST invoice for this order (the original one-time charge), not the most recent
     const { data: invoiceForTaxes } = await supabase
       .from("billing_invoices")
       .select("id, subtotal, tps_amount, tvq_amount, total")
       .eq("order_id", orderId)
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
     const taxGst = invoiceForTaxes
@@ -809,13 +834,18 @@ export async function buildContractPdfAttachment(
       : Number(o.discount_amount || 0);
     const contractDiscountLabel = contractDiscountLines[0]?.description;
 
-    // Real billing vs service address (separate)
-    const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
-    const billingAddress = joinAddress(addr.billing) || o.client_full_address || "";
-    const serviceAddress = joinAddress(addr.service)
-      || [o.shipping_address, o.shipping_city, o.shipping_postal_code].filter(Boolean).join(", ")
-      || o.client_full_address
-      || "";
+    // Address: orders.shipping_* are snapshot fields captured at order creation.
+    // Fall back to live accounts/profiles only when orders has no address.
+    const orderShipping = o.shipping_address
+      ? joinAddress({ line1: o.shipping_address, city: o.shipping_city || "", province: o.shipping_province || "QC", postal: o.shipping_postal_code || "" })
+      : "";
+    let billingAddress = orderShipping || o.client_full_address || "";
+    let serviceAddress = orderShipping || o.client_full_address || "";
+    if (!billingAddress || !serviceAddress) {
+      const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
+      if (!billingAddress) billingAddress = joinAddress(addr.billing) || "";
+      if (!serviceAddress) serviceAddress = joinAddress(addr.service) || "";
+    }
 
     // Real signature data from contracts table (if exists)
     let signature: {
@@ -848,7 +878,7 @@ export async function buildContractPdfAttachment(
       contract_number:
         opts.contractNumber || signature.contract_number || `CTR-${o.order_number || orderId.slice(0, 8)}`,
       contract_date: o.created_at,
-      terms_version: "V5.0",
+      terms_version: CONTRACT.TERMS_VERSION,
       client_name: clientName,
       client_email: o.client_email || "",
       client_phone: o.client_phone || "",
@@ -890,12 +920,16 @@ export async function buildContractPdfAttachment(
       console.warn(`[pdfFromDb] generateContractV3PDF failed: ${result.error}`);
       return null;
     }
-    const base64 = await blobToBase64(result.blob);
+    const [base64, hash_sha256] = await Promise.all([
+      blobToBase64(result.blob),
+      computePdfHash(result.blob),
+    ]);
     const prefix = opts.filenamePrefix || "Contrat";
     return {
       filename: result.filename || `${prefix}_${o.order_number || orderId.slice(0, 8)}_Nivra.pdf`,
       content: base64,
       contentType: "application/pdf",
+      hash_sha256,
     };
   } catch (err) {
     console.error("[pdfFromDb] buildContractPdfAttachment error:", err);
@@ -922,7 +956,7 @@ export async function buildSummaryPdfAttachment(
         client_first_name, client_last_name, client_email, client_phone,
         client_full_address,
         shipping_address, shipping_city, shipping_province, shipping_postal_code,
-        equipment_line_details, equipment_details, user_id
+        equipment_details, user_id
       `)
       .eq("id", orderId)
       .maybeSingle();

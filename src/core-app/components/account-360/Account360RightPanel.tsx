@@ -4,7 +4,7 @@
  */
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Panel, PanelHeader, InfoLine, fmtCAD, fmtDate, label, resolveAccountCycle } from "./Account360Helpers";
-import { CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin } from "lucide-react";
+import { CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin, CreditCard } from "lucide-react";
 import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 
 interface Props {
@@ -19,12 +19,13 @@ interface Props {
   accountId: string | undefined;
   clientId: string | undefined;
   subscriptions?: any[];
+  creditScore?: any;
   onRefresh: () => void;
 }
 
 export function Account360RightPanel({
   account, profile, clientName, latestKyc, totalDue, totalPaid,
-  monthlyRevenue, unpaidCount, clientId, subscriptions = [], onRefresh,
+  monthlyRevenue, unpaidCount, clientId, subscriptions = [], creditScore, onRefresh,
 }: Props) {
   const acct = account;
   const cycle = resolveAccountCycle(acct, subscriptions);
@@ -85,6 +86,43 @@ export function Account360RightPanel({
           <InfoLine label="Facturation" value={[acct.billing_address, acct.billing_city].filter(Boolean).join(", ") || "—"} />
         </div>
       </Panel>
+
+      {/* Credit Score */}
+      {creditScore && (
+        <Panel>
+          <PanelHeader icon={CreditCard} title="Score de crédit" />
+          <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
+            <InfoLine
+              label="Score"
+              value={
+                <span className={`font-bold tabular-nums ${
+                  creditScore.credit_grade === "A" || creditScore.credit_grade === "B" ? "text-emerald-400"
+                  : creditScore.credit_grade === "C" ? "text-amber-400"
+                  : "text-red-400"
+                }`}>
+                  {creditScore.credit_grade} — {creditScore.current_score}/100
+                </span>
+              }
+            />
+            <InfoLine label="Classe" value={creditScore.grade_label} />
+            {creditScore.invoices_paid > 0 && (
+              <InfoLine label="Fact. payées" value={<span className="text-emerald-400">{creditScore.invoices_paid}</span>} />
+            )}
+            {creditScore.invoices_overdue > 0 && (
+              <InfoLine label="En retard" value={<span className="text-red-400">{creditScore.invoices_overdue}</span>} />
+            )}
+            {creditScore.invoices_bad_debt > 0 && (
+              <InfoLine label="À perte" value={<span className="text-red-400 font-bold">{creditScore.invoices_bad_debt}</span>} />
+            )}
+            {creditScore.chargebacks > 0 && (
+              <InfoLine label="Chargebacks" value={<span className="text-red-400 font-bold">{creditScore.chargebacks}</span>} />
+            )}
+            {!creditScore.has_history && (
+              <div className="px-3 py-1.5 text-[10px] text-core-text-disabled italic">Nouveau client — score neutre</div>
+            )}
+          </div>
+        </Panel>
+      )}
 
       {/* KYC */}
       <Panel>

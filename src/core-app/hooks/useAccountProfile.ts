@@ -394,6 +394,20 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!clientId,
   });
 
+  const creditScore = useQuery({
+    queryKey: ["account-credit-score", clientId],
+    queryFn: async () => {
+      if (!clientId) return null;
+      const { data } = await supabase
+        .from("account_credit_scores")
+        .select("*")
+        .eq("client_id", clientId)
+        .maybeSingle();
+      return data ?? null;
+    },
+    enabled: !!clientId,
+  });
+
   const serviceAddresses = useQuery({
     queryKey: ["account-profile-service-addresses", customerId],
     queryFn: async () => {
@@ -438,6 +452,7 @@ export function useAccountProfile(accountId: string | undefined) {
     serviceAddresses.refetch();
     documents.refetch();
     contracts.refetch();
+    creditScore.refetch();
   };
 
   return {
@@ -458,6 +473,7 @@ export function useAccountProfile(accountId: string | undefined) {
     serviceAddresses: serviceAddresses.data || [],
     documents: documents.data || [],
     contracts: contracts.data || [],
+    creditScore: creditScore.data ?? null,
     customerId,
     clientId,
     isLoading,
