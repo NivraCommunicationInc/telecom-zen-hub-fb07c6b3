@@ -47,34 +47,52 @@ serve(async (req) => {
     console.log(`[billing-generate-renewals] Looking for subscriptions ending ${windowStartStr} → ${windowEndStr}`);
 
     // ── Detect active subscriptions with NULL cycle_end_date ──
-    // These will never be billed by the normal query. Halt the run so the operator is alerted.
+    // These are never picked up by the main window query (WHERE cycle_end_date BETWEEN x AND y).
+    // Auto-repair each one using cycle_start_date + anchor_day, then CONTINUE the run.
+    // A single broken subscription must never block billing for all other clients.
     const { data: nullCycleSubs } = await supabase
       .from("billing_subscriptions")
-      .select("id, customer_id, plan_name, created_at")
+      .select("id, customer_id, plan_name, created_at, cycle_start_date, billing_anchor_date")
       .eq("status", "active")
       .is("cycle_end_date", null);
 
     if (nullCycleSubs?.length) {
-      console.error(`[billing-generate-renewals] CRITICAL: ${nullCycleSubs.length} active subscription(s) with NULL cycle_end_date — halting run`);
+      console.error(`[billing-generate-renewals] WARNING: ${nullCycleSubs.length} active subscription(s) with NULL cycle_end_date — attempting auto-repair, run continues`);
       for (const orphan of nullCycleSubs) {
+        let repaired = false;
+        try {
+          const refDateStr = orphan.cycle_start_date ?? orphan.created_at;
+          const refDate = new Date(refDateStr);
+          const anchorDay = orphan.billing_anchor_date
+            ? new Date(orphan.billing_anchor_date).getDate()
+            : refDate.getDate();
+          const computedEnd = nextAnchoredDate(anchorDay, refDate);
+          await supabase.from("billing_subscriptions").update({
+            cycle_end_date: computedEnd.toISOString().split("T")[0],
+            updated_at: new Date().toISOString(),
+          }).eq("id", orphan.id);
+          repaired = true;
+          console.log(`[billing-generate-renewals] Auto-repaired cycle_end_date → ${computedEnd.toISOString().split("T")[0]} for subscription ${orphan.id}`);
+        } catch (repairErr) {
+          console.error(`[billing-generate-renewals] Auto-repair failed for ${orphan.id}:`, repairErr);
+        }
         await supabase.from("billing_system_alerts").insert({
           alert_type: "null_cycle_end_date",
           entity_type: "billing_subscription",
           entity_id: orphan.id,
           severity: "critical",
-          details: { message: `Abonnement actif sans cycle_end_date — ne sera jamais facturé`, customer_id: orphan.customer_id, plan_name: orphan.plan_name, created_at: orphan.created_at },
+          details: {
+            message: repaired
+              ? `cycle_end_date NULL — réparé automatiquement, valider manuellement`
+              : `cycle_end_date NULL — échec de réparation automatique, intervention requise`,
+            customer_id: orphan.customer_id,
+            plan_name: orphan.plan_name,
+            created_at: orphan.created_at,
+            auto_repaired: repaired,
+          },
         }).catch(() => {});
       }
-      return new Response(
-        JSON.stringify({
-          error: "HALTED",
-          reason: "null_cycle_end_date",
-          count: nullCycleSubs.length,
-          subscription_ids: nullCycleSubs.map((s: any) => s.id),
-          message: `${nullCycleSubs.length} abonnement(s) actifs sans cycle_end_date — corrigez ces enregistrements avant de relancer`,
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      // Do NOT return — continue processing all subscriptions with valid cycle_end_date.
     }
 
     // Find active subscriptions ending within the catch-up window
