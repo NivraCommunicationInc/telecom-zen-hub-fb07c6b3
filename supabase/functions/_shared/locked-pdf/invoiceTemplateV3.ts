@@ -122,7 +122,7 @@ function drawClientBlock(doc: jsPDF, data: {
   y += 5;
   if (data.email) doc.text(data.email, 15, y);
   if (data.city) {
-    doc.text(`${data.city}, ${data.province || "QC"} ${data.postal || ""}`, 110, y);
+    doc.text(`${data.city} ${data.province || "QC"} ${data.postal || ""}, Canada`, 110, y);
   }
   y += 5;
   if (data.phone) { doc.text(data.phone, 15, y); y += 5; }

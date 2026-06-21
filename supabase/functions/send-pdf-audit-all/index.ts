@@ -119,7 +119,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // â"€â"€ 2. Fetch related records â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-    const [profileRes, accountRes, invoiceRes, contractRes] = await Promise.all([
+    const [profileRes, accountRes, invoiceByOrderRes, contractRes] = await Promise.all([
       sb.from("profiles").select("*").eq("user_id", order.user_id).maybeSingle(),
       sb.from("accounts").select("*").eq("client_id", order.user_id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
       sb.from("billing_invoices").select("*").eq("order_id", order.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -128,8 +128,18 @@ Deno.serve(async (req: Request) => {
 
     const profile = profileRes.data;
     const account = accountRes.data;
-    const invoice = invoiceRes.data;
     const contract = contractRes.data;
+
+    // billing_invoices.order_id is null for most records — fall back to customer_id lookup
+    let invoice = invoiceByOrderRes.data;
+    if (!invoice && order.user_id) {
+      const { data: bc } = await sb.from("billing_customers").select("id").eq("user_id", order.user_id).maybeSingle();
+      if (bc?.id) {
+        const { data: invByCust } = await sb.from("billing_invoices").select("*").eq("customer_id", bc.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        invoice = invByCust;
+        if (invByCust) overrideInvoiceId = invByCust.id;
+      }
+    }
 
     // Build resolved client info for auto-doc templates
     const clientName = [order.client_first_name, order.client_last_name].filter(Boolean).join(" ")

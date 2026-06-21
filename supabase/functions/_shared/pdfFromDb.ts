@@ -141,9 +141,8 @@ async function resolveClientAddress(
 }
 
 function joinAddress(a: { line1: string; city: string; province: string; postal: string }): string {
-  return [a.line1, a.city, [a.province, a.postal].filter(Boolean).join(" ")]
-    .filter((s) => s && s.trim())
-    .join(", ");
+  const cityProvPostal = [a.city, a.province, a.postal].filter(Boolean).join(" ");
+  return [a.line1, cityProvPostal, "Canada"].filter((s) => s && s.trim()).join(", ");
 }
 
 /**
@@ -702,13 +701,14 @@ export async function buildContractPdfAttachment(
     let clientPhone = o.client_phone || "";
     let paymentMethod = "Manuel";
     if (o.user_id) {
-      const [acctRes, billingCustRes] = await Promise.all([
+      const [acctRes, billingCustRes, subRes] = await Promise.all([
         supabase.from("accounts").select("account_number").eq("client_id", o.user_id).maybeSingle(),
-        supabase.from("billing_customers").select("phone, autopay_enabled").eq("user_id", o.user_id).maybeSingle(),
+        supabase.from("billing_customers").select("phone").eq("user_id", o.user_id).maybeSingle(),
+        supabase.from("billing_subscriptions").select("auto_billing_enabled").eq("order_id", orderId).maybeSingle(),
       ]);
       accountNumber = acctRes.data?.account_number || "";
       if (!clientPhone) clientPhone = billingCustRes.data?.phone || "";
-      if (billingCustRes.data?.autopay_enabled) paymentMethod = "PPA (Prélèvement Pré-Autorisé)";
+      if (subRes.data?.auto_billing_enabled) paymentMethod = "PPA (Prélèvement Pré-Autorisé)";
       // Final fallback: profiles.phone
       if (!clientPhone) {
         const { data: prof } = await supabase.from("profiles").select("phone").eq("user_id", o.user_id).maybeSingle();

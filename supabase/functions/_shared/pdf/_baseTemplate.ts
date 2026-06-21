@@ -144,7 +144,7 @@ export function drawClientBlock(
 
   if (client.email) doc.text(client.email, 15, y);
   if (client.city) {
-    doc.text(`${client.city}, ${client.province || "QC"} ${client.postal || ""}`, 110, y);
+    doc.text(`${client.city} ${client.province || "QC"} ${client.postal || ""}, Canada`, 110, y);
   }
   y += 5;
 
