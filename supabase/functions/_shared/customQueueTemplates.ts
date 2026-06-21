@@ -8292,6 +8292,103 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // CHANGEMENT D'ADRESSE DE SERVICE
+    // ===================================================================
+    case "client_address_change_notice": {
+      const oldAddr = esc(v.old_address || "—");
+      const newAddr = esc(v.new_address || "—");
+      const effDate = fmtDate(v.effective_date || new Date().toISOString());
+      return {
+        subject: `Confirmation de changement d'adresse — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre adresse de service a été mise à jour.`,
+          badge: "ADRESSE MISE À JOUR",
+          heroTitle: "Adresse de service modifiée",
+          heroSub: "Votre adresse de service a été mise à jour avec succès.",
+          icon: "doc",
+          greeting,
+          bodyText: `Nous confirmons la mise à jour de votre adresse de service. Le PDF joint à cet email constitue votre confirmation officielle.`,
+          cardTitle: "Détails du changement",
+          cardRows: [
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Ancienne adresse", String(oldAddr)],
+            ["Nouvelle adresse", String(newAddr)],
+            ["Date d'effet", String(effDate)],
+          ],
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Accéder à mon espace client",
+          helpHtml: `Une question ? Contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // MISE EN DEMEURE — J+7 (dernier avis avant annulation définitive)
+    // ===================================================================
+    case "formal_demand_notice": {
+      const totalDue = money(v.total_due ?? v.amount_due);
+      const invoiceNum = esc(v.invoice_number || "");
+      const deadline = fmtDate(v.response_deadline || v.void_date || new Date().toISOString());
+      return {
+        subject: `MISE EN DEMEURE — Action requise avant ${deadline} — Nivra Telecom`,
+        html: shell({
+          preheader: `Dernier avis avant annulation définitive de votre compte.`,
+          badge: "⚠ MISE EN DEMEURE",
+          heroTitle: "Dernier avis avant annulation",
+          heroSub: `Votre compte sera annulé définitivement le ${deadline} si le solde n'est pas réglé.`,
+          icon: "alert",
+          greeting,
+          bodyText: `Malgré nos avis précédents, votre facture demeure impayée. Conformément aux modalités de votre contrat de service, nous vous adressons la présente mise en demeure. Vous disposez de <strong>3 jours</strong> pour régulariser votre situation. Passé ce délai, votre compte sera annulé définitivement et la créance pourra être transmise à un service de recouvrement.`,
+          cardTitle: "Solde exigible immédiatement",
+          cardRows: [
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ...(invoiceNum ? [["Facture", `#${invoiceNum}`] as [string, string]] : []),
+            ["Montant dû", String(totalDue)],
+            ["Délai de paiement", String(deadline)],
+          ],
+          cardEmphasizeLast: false,
+          ctaPrimaryUrl: `${PORTAL_URL}/facturation`,
+          ctaPrimaryLabel: "Payer maintenant",
+          helpVariant: "warning",
+          helpHtml: `<strong style="color:#1a1a2e;">Contestation :</strong> Si vous croyez recevoir cet avis par erreur, contactez-nous immédiatement à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
+    // TRANSFERT EN RECOUVREMENT
+    // ===================================================================
+    case "client_collections_transfer": {
+      const totalDue = money(v.total_transferred ?? v.total_due ?? v.amount_due);
+      const agencyName = esc(v.collection_agency_name || "notre service de recouvrement");
+      const transferDate = fmtDate(v.transfer_date || new Date().toISOString());
+      return {
+        subject: `Avis de transfert en recouvrement — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre compte a été transmis à un service de recouvrement.`,
+          badge: "TRANSFERT EN RECOUVREMENT",
+          heroTitle: "Votre compte est en recouvrement",
+          heroSub: "Votre dossier a été transmis à un service de recouvrement externe.",
+          icon: "alert",
+          greeting,
+          bodyText: `En raison d'un solde impayé persistant, votre dossier a été transmis à ${String(agencyName)}. À compter de maintenant, toute communication concernant ce solde devra être dirigée directement vers cet organisme. <strong>Ce transfert peut affecter votre dossier de crédit.</strong>`,
+          cardTitle: "Détails du transfert",
+          cardRows: [
+            ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
+            ["Montant transféré", String(totalDue)],
+            ["Service de recouvrement", String(agencyName)],
+            ["Date de transfert", String(transferDate)],
+          ],
+          cardEmphasizeLast: false,
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Nous contacter",
+          helpVariant: "warning",
+          helpHtml: `Pour éviter toute inscription à votre dossier de crédit, réglez votre solde immédiatement en contactant <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
     default:
       return null;
     }

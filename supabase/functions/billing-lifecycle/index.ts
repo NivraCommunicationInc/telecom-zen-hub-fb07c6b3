@@ -1051,6 +1051,79 @@ async function processChargebackFees(
 }
 
 // ========================================
+// STEP 2 — Formal demand at J+7 (after suspension at J+5, before void at J+10)
+// Idempotent via event_key: billing_demande_<invoice_id>
+// ========================================
+async function processFormalDemandJ7(
+  supabase: any,
+  stats: RunStats,
+) {
+  const today = todayStr();
+  const j7 = addDays(today, -7);
+
+  const { data: invoices, error } = await supabase
+    .from("billing_invoices")
+    .select("id, invoice_number, total, amount_due, due_date, customer:billing_customers(id, email, first_name, last_name)")
+    .eq("status", "overdue")
+    .eq("due_date", j7);
+
+  if (error) {
+    stats.errors.push(`FormalDemandJ7 query error: ${error.message}`);
+    stats.errors_count++;
+    return;
+  }
+  if (!invoices?.length) return;
+
+  for (const inv of invoices) {
+    try {
+      const customer = inv.customer;
+      if (!customer?.email) continue;
+
+      const eventKey = `billing_demande_${inv.id}`;
+      const { data: existing } = await supabase
+        .from("email_queue")
+        .select("id")
+        .eq("event_key", eventKey)
+        .maybeSingle();
+      if (existing) continue;
+
+      const { buildAutoDocPdfAttachment } = await import("./_shared/pdfFromDb.ts");
+      const voidDate = addDays(inv.due_date, 10);
+      const demandPdf = await buildAutoDocPdfAttachment("formal_demand", {
+        client_email: customer.email,
+        first_name: customer.first_name,
+        last_name: customer.last_name,
+        invoice_number: inv.invoice_number,
+        total_due: Number(inv.amount_due || inv.total || 0),
+        void_date: voidDate,
+      }).catch(() => null);
+
+      await supabase.from("email_queue").insert({
+        to_email: customer.email,
+        template_key: "formal_demand_notice",
+        template_vars: {
+          first_name: customer.first_name || "Client",
+          to_email: customer.email,
+          invoice_number: inv.invoice_number,
+          total_due: Number(inv.amount_due || inv.total || 0),
+          response_deadline: voidDate,
+          void_date: voidDate,
+        },
+        attachments: demandPdf ? [demandPdf] : null,
+        event_key: eventKey,
+        status: "queued",
+        priority: 1,
+      });
+
+      stats.reminders_queued++;
+    } catch (err) {
+      stats.errors.push(`FormalDemandJ7 error (invoice ${inv.id}): ${err instanceof Error ? err.message : String(err)}`);
+      stats.errors_count++;
+    }
+  }
+}
+
+// ========================================
 // Main handler
 // ========================================
 serve(async (req) => {
@@ -1089,6 +1162,11 @@ serve(async (req) => {
   try {
     // STEP 1: Process expirations (J+5 suspend, J+10 void)
     await processExpirations(supabase, stats);
+
+    // STEP 2: Formal demand at J+7 (after suspension, before void)
+    if (mode !== "backfill") {
+      await processFormalDemandJ7(supabase, stats);
+    }
 
     // STEP 3: Queue payment reminders (J-7, J-3, J-1, J0)
     if (mode !== "backfill") {

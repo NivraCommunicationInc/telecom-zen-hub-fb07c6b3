@@ -128,7 +128,7 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
-  const enqueueEmail = async (template_key: string, vars: Record<string, unknown>) => {
+  const enqueueEmail = async (template_key: string, vars: Record<string, unknown>, attachments?: any[] | null) => {
     if (!clientEmail) return;
     try {
       await admin.from("email_queue").insert({
@@ -142,6 +142,7 @@ serve(async (req) => {
           amount_due: fmtMoney(Number(inv.amount_due || inv.total || 0)),
           due_date: inv.due_date ? fmtDate(inv.due_date) : "—",
         },
+        attachments: attachments ?? null,
         status: "queued",
         priority: 0,
       });
@@ -227,6 +228,25 @@ serve(async (req) => {
         const { data, error } = await insertAction("escalation", { notes: body.reason || body.notes || "Escalade interne" });
         if (error) return json(500, { error: error.message });
         await audit("escalate", { reason: body.reason || null });
+
+        // Notify client of collections transfer
+        try {
+          const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+          const transferPdf = await buildAutoDocPdfAttachment("collections_transfer", {
+            client_email: clientEmail,
+            first_name: firstName,
+            last_name: profile?.last_name,
+            invoice_number: inv.invoice_number,
+            total_transferred: Number(inv.amount_due || inv.total || 0),
+            transfer_date: new Date().toISOString(),
+          }).catch(() => null);
+
+          await enqueueEmail("client_collections_transfer", {
+            transfer_date: new Date().toISOString(),
+            total_transferred: fmtMoney(Number(inv.amount_due || inv.total || 0)),
+          }, transferPdf ? [transferPdf] : null);
+        } catch (_e) { /* swallow */ }
+
         return json(200, { ok: true, id: data?.id });
       }
 

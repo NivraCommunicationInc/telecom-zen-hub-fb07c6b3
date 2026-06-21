@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { MapPin, Plus, Trash2, Edit, Home, Building } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import { supabase as clientSupabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
@@ -37,11 +38,22 @@ export function AccountAddressesTab({ account, locations, subscriptions }: Accou
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["account-profile-locations"] });
       toast({ title: "Adresse ajoutée" });
       setAddOpen(false);
       setNewLoc({ label: "", service_address: "", service_city: "", service_postal_code: "" });
+      // Notify client — fire and forget, address is already saved
+      clientSupabase.functions.invoke("account-ops-actions", {
+        body: {
+          action: "notify_address_change",
+          client_user_id: account.user_id,
+          new_address: variables.service_address,
+          new_city: variables.service_city,
+          new_postal: variables.service_postal_code,
+          old_address: account.primary_service_address || undefined,
+        },
+      }).catch(() => {});
     },
     onError: (e: any) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });

@@ -25,7 +25,8 @@ type Action =
   | "create_ticket"
   | "send_reminder"
   | "schedule_appointment"
-  | "add_internal_note";
+  | "add_internal_note"
+  | "notify_address_change";
 
 interface Body {
   action: Action;
@@ -54,6 +55,13 @@ interface Body {
   // add_internal_note
   note_type?: "Général" | "Facturation" | "Technique" | "Plainte" | "Suivi" | "Important";
   body?: string;
+
+  // notify_address_change
+  new_address?: string;
+  new_city?: string;
+  new_province?: string;
+  new_postal?: string;
+  old_address?: string;
 }
 
 const json = (status: number, payload: unknown) =>
@@ -138,13 +146,14 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
-  const enqueueEmail = async (template: string, vars: Record<string, unknown>) => {
+  const enqueueEmail = async (template: string, vars: Record<string, unknown>, attachments?: any[] | null) => {
     if (!clientEmail) return;
     try {
       await admin.from("email_queue").insert({
         to_email: clientEmail,
         template_key: template,
         template_vars: { ...vars, first_name: firstName, to_email: clientEmail },
+        attachments: attachments ?? null,
         status: "queued",
         priority: 0,
       });
@@ -277,6 +286,37 @@ serve(async (req) => {
         await audit("add_internal_note", { note_id: data.id, note_type, length: txt.length });
         // No client email — internal only.
         return json(200, { ok: true, note_id: data.id });
+      }
+
+      // ============================================================
+      case "notify_address_change": {
+        const parts = [body.new_address, body.new_city, body.new_province, body.new_postal].filter(Boolean);
+        const newAddr = parts.join(", ");
+        if (!newAddr) return json(400, { error: "Nouvelle adresse requise" });
+
+        try {
+          const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+          const addrPdf = await buildAutoDocPdfAttachment("address_change", {
+            client_email: clientEmail,
+            first_name: firstName,
+            last_name: profile?.last_name || "",
+            account_number: profile?.account_number || "",
+            new_address: newAddr,
+            old_address: body.old_address || "—",
+            effective_date: new Date().toISOString(),
+          }).catch(() => null);
+
+          await enqueueEmail("client_address_change_notice", {
+            new_address: newAddr,
+            old_address: body.old_address || "—",
+            effective_date: new Date().toISOString().split("T")[0],
+            account_number: profile?.account_number || "",
+          }, addrPdf ? [addrPdf] : null);
+
+          await audit("notify_address_change", { new_address: newAddr, old_address: body.old_address || null });
+        } catch (_e) { /* swallow */ }
+
+        return json(200, { ok: true });
       }
 
       default:
