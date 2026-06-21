@@ -550,7 +550,6 @@ async function processReminders(
         status: "queued",
         attempts: 0,
         max_attempts: 3,
-        max_retries: 3,
       });
 
       if (queueErr) {
@@ -649,8 +648,7 @@ async function processOverdue(
             status: "queued",
             attempts: 0,
             max_attempts: 3,
-            max_retries: 3,
-          });
+              });
           stats.reminders_queued++;
         }
       }
