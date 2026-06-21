@@ -39,22 +39,14 @@ export default function CorePDFTemplatesPage() {
     setResults(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error("Session expirée — reconnectez-vous");
-
       const selectedInv = invoices.find((inv: any) => inv.id === selectedInvoice);
       const orderId = (selectedInv as any)?.order_id ?? undefined;
 
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-test-pdf-email`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ to: dest, ...(orderId ? { orderId } : {}) }),
+      const { data: json, error: fnError } = await supabase.functions.invoke("admin-test-pdf-email", {
+        body: { to: dest, ...(orderId ? { orderId } : {}) },
       });
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      if (fnError) throw new Error(fnError.message);
 
       setResults(json.results ?? []);
       setSentTo(json.to ?? dest);

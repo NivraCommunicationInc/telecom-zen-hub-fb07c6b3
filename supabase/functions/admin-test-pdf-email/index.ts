@@ -10,7 +10,6 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
-import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
 import {
   buildInvoicePdfAttachment,
@@ -18,6 +17,12 @@ import {
   buildContractPdfAttachment,
   buildSummaryPdfAttachment,
 } from "../_shared/pdfFromDb.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -58,9 +63,10 @@ async function sendWithPdf(opts: {
 }
 
 Deno.serve(async (req) => {
-  const preflight = handleCorsPreflightRequest(req);
-  if (preflight) return preflight;
-  const cors = getCorsHeaders(req.headers.get("origin"));
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+  const cors = corsHeaders;
 
   /* â”€â”€ Auth â”€â”€ */
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
