@@ -143,6 +143,13 @@ serve(async (req) => {
   ) => {
     if (!clientEmail) return;
     try {
+      const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+      const chargePdf = await buildAutoDocPdfAttachment("chargeback_notice", {
+        client_email: clientEmail,
+        first_name: firstName,
+        bank_reference: dispute_number,
+        reason_code: reason_code || undefined,
+      }).catch(() => null);
       await admin.from("email_queue").insert({
         to_email: clientEmail,
         template_key: "client_dispute_status_update",
@@ -155,6 +162,7 @@ serve(async (req) => {
           reason_label: reason_code ? (REASON_LABEL[reason_code] || reason_code) : "—",
           public_message: public_message || "",
         },
+        attachments: chargePdf ? [chargePdf] : null,
         status: "queued",
         priority: 0,
       });

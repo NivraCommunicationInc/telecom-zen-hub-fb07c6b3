@@ -279,6 +279,17 @@ Deno.serve(async (req: Request) => {
           : { data: null };
 
         const refundEventKey = `paypal_refund_${payment.id}`;
+        const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+        const refundPdf = await buildAutoDocPdfAttachment("final_refund_receipt", {
+          client_email: customer.email,
+          first_name: customer.first_name,
+          last_name: customer.last_name,
+          refund_amount: refundAmount,
+          refund_method: "PayPal",
+          related_invoice: invoiceData?.invoice_number || payment.payment_number,
+          reason: reason || "Remboursement",
+          processed_date: new Date().toISOString(),
+        }).catch(() => null);
         await supabase.from("email_queue").insert({
           event_key: refundEventKey,
           idempotency_key: refundEventKey,
@@ -292,6 +303,7 @@ Deno.serve(async (req: Request) => {
             refund_method: "PayPal",
             reason,
           },
+          attachments: refundPdf ? [refundPdf] : null,
           status: "queued",
           attempts: 0,
           max_attempts: 3,

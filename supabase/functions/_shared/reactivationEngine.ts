@@ -109,6 +109,14 @@ export async function reactivateIfSuspended(
 
     // ── 5. Queue reactivation confirmation email ─────────────────────
     if (customer?.email) {
+      const { buildAutoDocPdfAttachment } = await import("./pdfFromDb.ts");
+      const reactPdf = await buildAutoDocPdfAttachment("reactivation_notice", {
+        client_email: customer.email,
+        first_name: customer.first_name,
+        last_name: customer.last_name,
+        service_name: sub.plan_name,
+        reactivation_date: now,
+      }).catch(() => null);
       await supabase.from("email_queue").insert({
         event_key: `svc_reactivated_${subscriptionId}_${Date.now()}`,
         to_email: customer.email,
@@ -120,6 +128,7 @@ export async function reactivateIfSuspended(
           reactivation_date: now.split("T")[0],
           trigger,
         },
+        attachments: reactPdf ? [reactPdf] : null,
         status: "queued",
       }).catch((e: unknown) => console.error("[reactivation] email_queue insert failed:", e));
     }

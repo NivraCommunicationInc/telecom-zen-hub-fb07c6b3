@@ -223,6 +223,8 @@ serve(async (req) => {
               prorationAddedTo = "adjustment_invoice";
 
               if (clientEmail) {
+                const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
+                const invoicePdf = await buildInvoicePdfAttachment(proInvoice.id, "Facture");
                 await admin.from("email_queue").insert({
                   to_email: clientEmail,
                   template_key: "invoice_created",
@@ -234,6 +236,7 @@ serve(async (req) => {
                     cycle_start: cycleStartDate.toISOString().slice(0, 10),
                     cycle_end: cycleEndDate.toISOString().slice(0, 10),
                   },
+                  attachments: invoicePdf ? [invoicePdf] : null,
                   status: "queued",
                   priority: 1,
                 }).catch(() => {});
@@ -250,6 +253,19 @@ serve(async (req) => {
   // Plan change notification email to client
   if (clientEmail) {
     const effDisplay = changeType === "upgrade" ? "immédiatement" : "votre prochain renouvellement";
+    const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+    const amendPdf = changeType === "upgrade"
+      ? await buildAutoDocPdfAttachment("contract_amendment", {
+          client_email: clientEmail,
+          first_name: firstName,
+          account_number: accountNumber,
+          changes: [
+            { field: "Forfait", old_value: previous_plan_name || "—", new_value: new_plan_name },
+          ],
+          effective_date: new Date().toISOString(),
+          reason: "Changement de forfait",
+        })
+      : null;
     await admin.from("email_queue").insert({
       to_email: clientEmail,
       template_key: changeType === "upgrade" ? "plan_change_approved" : "plan_change_requested",
@@ -262,6 +278,7 @@ serve(async (req) => {
         effective_date: effDisplay,
         change_type: changeType,
       },
+      attachments: amendPdf ? [amendPdf] : null,
       status: "queued",
       priority: 0,
     }).catch(() => {});

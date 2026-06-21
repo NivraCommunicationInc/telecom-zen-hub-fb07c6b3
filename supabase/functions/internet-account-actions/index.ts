@@ -169,13 +169,14 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
-  const enqueueEmail = async (template: string, vars: Record<string, unknown>) => {
+  const enqueueEmail = async (template: string, vars: Record<string, unknown>, attachments?: Array<{ filename: string; content: string; contentType: string }> | null) => {
     if (!clientEmail) return;
     try {
       await admin.from("email_queue").insert({
         to_email: clientEmail,
         template_key: template,
         template_vars: { ...vars, first_name: firstName, to_email: clientEmail },
+        attachments: attachments || null,
         status: "queued",
         priority: 0,
       });
@@ -334,6 +335,8 @@ serve(async (req) => {
                       });
                     }
 
+                    const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
+                    const invoicePdf = await buildInvoicePdfAttachment(currentInvoice.id, "Facture").catch(() => null);
                     await enqueueEmail("invoice_created", {
                       invoice_number: currentInvoice.invoice_number,
                       total: (Number(currentInvoice.total) + proTotalWithTax).toFixed(2),
@@ -341,7 +344,7 @@ serve(async (req) => {
                       due_date: bSub.cycle_end_date,
                       cycle_start: effective_date,
                       cycle_end: bSub.cycle_end_date,
-                    });
+                    }, invoicePdf ? [invoicePdf] : null);
                   } else {
                     // ── Case B: defer to next renewal via account_adjustments ─
                     const { data: acct } = await admin

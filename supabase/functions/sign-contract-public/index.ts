@@ -181,19 +181,24 @@ serve(async (req: Request) => {
 
           // Client confirmation â€” queued via canonical pipeline
           if (clientEmail) {
-            await supabase.from("email_queue").insert({
+            const { buildContractPdfAttachment } = await import(“../_shared/pdfFromDb.ts”);
+            const contractPdf = payload.order_id
+              ? await buildContractPdfAttachment(payload.order_id).catch(() => null)
+              : null;
+            await supabase.from(“email_queue”).insert({
               event_key: `contract_signed_client_${payload.contract_id}`,
               to_email: clientEmail,
-              template_key: "contract_signed_confirmation",
+              template_key: “contract_signed_confirmation”,
               template_vars: {
                 client_name: clientName,
-                order_number: order?.order_number || "",
+                order_number: order?.order_number || “”,
                 signed_at: payload.signed_at,
               } as any,
+              attachments: contractPdf ? [contractPdf] : null,
               priority: 0,
-              status: "queued",
+              status: “queued”,
             } as any).then(({ error: e }) => {
-              if (e) console.warn("[sign-contract-public] client email enqueue failed:", e.message);
+              if (e) console.warn(“[sign-contract-public] client email enqueue failed:”, e.message);
             });
           }
 

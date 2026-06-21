@@ -942,6 +942,15 @@ serve(async (req) => {
           
           if (payment.invoice?.subscription?.customer) {
             const customer = payment.invoice.subscription.customer;
+            const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+            const chargebackPdf = await buildAutoDocPdfAttachment("chargeback_notice", {
+              client_email: customer.email,
+              first_name: customer.first_name,
+              last_name: customer.last_name,
+              chargeback_amount: payment.amount,
+              chargeback_date: new Date().toISOString(),
+              bank_reference: payment.provider_payment_id,
+            }).catch(() => null);
             await supabase.from("email_queue").insert({
               event_key: `dispute_${disputeId}`,
               to_email: customer.email,
@@ -949,10 +958,11 @@ serve(async (req) => {
               template_vars: {
                 client_name: `${customer.first_name} ${customer.last_name}`,
                 amount: payment.amount?.toFixed(2),
-                dispute_type: disputeType === "disputed" ? "contestation" : 
+                dispute_type: disputeType === "disputed" ? "contestation" :
                              disputeType === "chargeback" ? "rétrofacturation" : "fraude",
                 payment_reference: payment.provider_payment_id,
               },
+              attachments: chargebackPdf ? [chargebackPdf] : null,
               status: "queued",
               priority: 20,
               attempts: 0,

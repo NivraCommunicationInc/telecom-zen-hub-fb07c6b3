@@ -283,6 +283,17 @@ async function processExpirations(
             .or(`event_key.eq.${suspKey},idempotency_key.eq.${suspKey}`)
             .maybeSingle();
           if (!existingSusp) {
+            const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+            const suspPdf = await buildAutoDocPdfAttachment("suspension_notice", {
+              client_email: inv.customer.email,
+              first_name: inv.customer.first_name,
+              last_name: inv.customer.last_name,
+              service_name: sub.plan_name || "Service Nivra",
+              suspension_date: today,
+              amount_due: inv.total,
+              invoice_numbers: [inv.invoice_number],
+              reason: "Solde impayé",
+            });
             await supabase.from("email_queue").insert({
               event_key: suspKey,
               idempotency_key: suspKey,
@@ -302,6 +313,7 @@ async function processExpirations(
                 reactivation_window: "5 jours",
                 payment_link: "https://nivra-telecom.ca/portail/facturation",
               },
+              attachments: suspPdf ? [suspPdf] : null,
               status: "queued",
               attempts: 0,
               max_attempts: 3,

@@ -177,16 +177,35 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
-  const enqueueEmail = async (template: string, vars: Record<string, unknown>) => {
+  const enqueueEmail = async (template: string, vars: Record<string, unknown>, attachments?: Array<{ filename: string; content: string; contentType: string }> | null) => {
     if (!clientEmail) return;
     try {
       await admin.from("email_queue").insert({
         to_email: clientEmail,
         template_key: template,
         template_vars: { ...vars, first_name: firstName, to_email: clientEmail },
+        attachments: attachments || null,
         status: "queued",
         priority: 0,
       });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const enqueuePaymentMethodEmail = async (changeType: string, methodLabel: string, last4?: string, newMethod?: string) => {
+    try {
+      const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+      const pdf = await buildAutoDocPdfAttachment("payment_method_change", {
+        client_email: clientEmail,
+        first_name: firstName,
+        new_method: newMethod || methodLabel,
+        effective_date: new Date().toISOString(),
+      }).catch(() => null);
+      await enqueueEmail("client_payment_method_change", {
+        change_type: changeType,
+        method_label: methodLabel,
+        last4: last4 || "—",
+        is_default: changeType === "default_set" ? "true" : "false",
+      }, pdf ? [pdf] : null);
     } catch (_e) { /* swallow */ }
   };
 
@@ -248,12 +267,7 @@ serve(async (req) => {
         await audit("add_payment_method", {
           method_id: data.id, method_type, last4: body.last4, is_default: !!body.is_default,
         });
-        await enqueueEmail("client_payment_method_change", {
-          change_type: "added",
-          method_label: METHOD_LABELS[method_type] || method_type,
-          last4: body.last4 || "—",
-          is_default: body.is_default ? "true" : "false",
-        });
+        await enqueuePaymentMethodEmail("added", METHOD_LABELS[method_type] || method_type, body.last4);
         return json(200, { ok: true, method_id: data.id });
       }
 
@@ -296,12 +310,7 @@ serve(async (req) => {
           .eq("payment_method_id", id);
 
         await audit("remove_payment_method", { method_id: id });
-        await enqueueEmail("client_payment_method_change", {
-          change_type: "removed",
-          method_label: METHOD_LABELS[existing.method_type] || existing.method_type,
-          last4: existing.last4 || "—",
-          is_default: "false",
-        });
+        await enqueuePaymentMethodEmail("removed", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
       }
 
@@ -326,12 +335,7 @@ serve(async (req) => {
         if (uErr) return json(500, { error: uErr.message });
 
         await audit("set_default_method", { method_id: id });
-        await enqueueEmail("client_payment_method_change", {
-          change_type: "default_set",
-          method_label: METHOD_LABELS[existing.method_type] || existing.method_type,
-          last4: existing.last4 || "—",
-          is_default: "true",
-        });
+        await enqueuePaymentMethodEmail("default_set", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
       }
 

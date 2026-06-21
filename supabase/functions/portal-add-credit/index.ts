@@ -182,6 +182,17 @@ serve(async (req) => {
     }
 
     // Queue confirmation email
+    const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+    const creditPdf = creditAmount > 0
+      ? await buildAutoDocPdfAttachment("credit_note", {
+          client_email: customer.email,
+          first_name: customer.first_name,
+          last_name: customer.last_name,
+          amount: creditAmount,
+          description: "Crédit appliqué au compte",
+          credit_type: "credit",
+        }).catch(() => null)
+      : null;
     await db.from("email_queue").insert({
       event_key: `credit_payment_${paypal_capture_id}`,
       to_email: customer.email,
@@ -193,6 +204,7 @@ serve(async (req) => {
         creditAdded: creditAmount.toFixed(2),
         appliedInvoices: appliedInvoices.map((i) => i.invoice_number).join(", ") || "Aucune",
       },
+      attachments: creditPdf ? [creditPdf] : null,
       priority: 0,
     });
 

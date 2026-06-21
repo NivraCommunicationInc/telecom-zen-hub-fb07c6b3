@@ -445,6 +445,15 @@ serve(async (req) => {
         .eq("user_id", account.client_id)
         .maybeSingle();
       if (profile?.email) {
+        const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+        const cancelPdf = await buildAutoDocPdfAttachment("cancellation_confirmation", {
+          client_email: profile.email,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          account_number: account.account_number,
+          cancellation_date: new Date().toISOString(),
+          reason: reason || "—",
+        }).catch(() => null);
         const { error: emailErr } = await supabase.from("email_queue").insert({
           event_key: `cancel_account_${runId}`,
           to_email: profile.email,
@@ -458,6 +467,7 @@ serve(async (req) => {
             scope,
             cancellation_date: new Date().toLocaleDateString("fr-CA"),
           },
+          attachments: cancelPdf ? [cancelPdf] : null,
           status: "queued",
           attempts: 0,
           max_attempts: 5,

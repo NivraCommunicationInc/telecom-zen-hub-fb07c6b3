@@ -1172,3 +1172,30 @@ export async function buildSummaryPdfAttachment(
     return null;
   }
 }
+
+// ============================================================================
+// AUTO-DOC DISPATCHER — wraps pdf/dispatcher.ts for any of the 19 notice types
+// ============================================================================
+export async function buildAutoDocPdfAttachment(
+  docType: string,
+  payload: Record<string, any>,
+): Promise<QueuedAttachment | null> {
+  try {
+    const { dispatchAutoDocument } = await import("./pdf/dispatcher.ts");
+    const result = await dispatchAutoDocument(docType as any, payload);
+    const bytes = result.bytes;
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)) as any);
+    }
+    return {
+      filename: result.filename,
+      content: btoa(binary),
+      contentType: "application/pdf",
+    };
+  } catch (err) {
+    console.error(`[pdfFromDb] buildAutoDocPdfAttachment(${docType}) error:`, err);
+    return null;
+  }
+}
