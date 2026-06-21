@@ -1,5 +1,5 @@
 ﻿/**
- * sign-contract-public â€” Public no-auth endpoint for click-to-sign contracts
+ * sign-contract-public â€" Public no-auth endpoint for click-to-sign contracts
  *
  * Routes:
  *   GET  ?token=...           â†’ fetch contract summary for signing page
@@ -131,7 +131,7 @@ serve(async (req: Request) => {
         return jsonResponse(payload, 400);
       }
 
-      // â”€â”€ Best-effort post-signature notifications (do not block client) â”€â”€
+      // â"€â"€ Best-effort post-signature notifications (do not block client) â"€â"€
       try {
         // 0. Persist SHA-256 hash on the contract_signatures row (LCCJTI non-repudiation)
         await supabase.from("contract_signatures")
@@ -179,26 +179,26 @@ serve(async (req: Request) => {
           const clientEmail = order?.client_email || profile?.email || null;
           const clientName = profile?.full_name || signerName || "Client";
 
-          // Client confirmation â€” queued via canonical pipeline
+          // Client confirmation â€" queued via canonical pipeline
           if (clientEmail) {
-            const { buildContractPdfAttachment } = await import(“../_shared/pdfFromDb.ts”);
+            const { buildContractPdfAttachment } = await import("../_shared/pdfFromDb.ts");
             const contractPdf = payload.order_id
               ? await buildContractPdfAttachment(payload.order_id).catch(() => null)
               : null;
-            await supabase.from(“email_queue”).insert({
+            await supabase.from("email_queue").insert({
               event_key: `contract_signed_client_${payload.contract_id}`,
               to_email: clientEmail,
-              template_key: “contract_signed_confirmation”,
+              template_key: "contract_signed_confirmation",
               template_vars: {
                 client_name: clientName,
-                order_number: order?.order_number || “”,
+                order_number: order?.order_number || "",
                 signed_at: payload.signed_at,
               } as any,
               attachments: contractPdf ? [contractPdf] : null,
               priority: 0,
-              status: “queued”,
+              status: "queued",
             } as any).then(({ error: e }) => {
-              if (e) console.warn(“[sign-contract-public] client email enqueue failed:”, e.message);
+              if (e) console.warn("[sign-contract-public] client email enqueue failed:", e.message);
             });
           }
 
