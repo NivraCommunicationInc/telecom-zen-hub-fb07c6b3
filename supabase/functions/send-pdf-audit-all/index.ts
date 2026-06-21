@@ -74,7 +74,7 @@ Deno.serve(async (req: Request) => {
     // â"€â"€ 1. Fetch last order â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     const { data: order, error: orderErr } = await sb
       .from("orders")
-      .select("*, profiles(*), accounts(*)")
+      .select("*")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -386,7 +386,7 @@ Deno.serve(async (req: Request) => {
 
     for (const [docType, prefix, payload] of autoDocTypes) {
       try {
-        const result = dispatchAutoDocument(docType as AutoDocType, payload);
+        const result = await dispatchAutoDocument(docType as AutoDocType, payload);
         if (result?.bytes?.length) {
           attachments.push({
             filename: `${prefix}.pdf`,
