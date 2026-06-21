@@ -1087,7 +1087,7 @@ async function processFormalDemandJ7(
         .maybeSingle();
       if (existing) continue;
 
-      const { buildAutoDocPdfAttachment } = await import("./_shared/pdfFromDb.ts");
+      const { buildAutoDocPdfAttachment } = await import("../_shared/pdfFromDb.ts");
       const voidDate = addDays(inv.due_date, 10);
       const demandPdf = await buildAutoDocPdfAttachment("formal_demand", {
         client_email: customer.email,
