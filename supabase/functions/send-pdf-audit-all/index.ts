@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * send-pdf-audit-all
  * ------------------
  * One-shot audit function: fetches the most recent order, generates every
@@ -18,7 +18,7 @@ import {
 } from "../_shared/pdfFromDb.ts";
 import { dispatchAutoDocument, type AutoDocType } from "../_shared/pdf/dispatcher.ts";
 
-/** Convert Uint8Array â†’ base64 string */
+/** Convert Uint8Array â†' base64 string */
 function uint8ToBase64(bytes: Uint8Array): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
@@ -33,7 +33,7 @@ const CORS = {
 const BUSINESS_EMAIL = "support@nivra-telecom.ca";
 const FROM_EMAIL = "Nivra Telecom <support@nivra-telecom.ca>";
 
-// â”€â”€ Resend direct (bypass pgmq for this one-shot audit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Resend direct (bypass pgmq for this one-shot audit) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 async function sendViaResend(
   resendKey: string,
   subject: string,
@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // â”€â”€ 1. Fetch last order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ 1. Fetch last order â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     const { data: order, error: orderErr } = await sb
       .from("orders")
       .select("*, profiles(*), accounts(*)")
@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // â”€â”€ 2. Fetch related records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ 2. Fetch related records â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     const [profileRes, accountRes, invoiceRes, contractRes] = await Promise.all([
       sb.from("profiles").select("*").eq("user_id", order.user_id).maybeSingle(),
       sb.from("accounts").select("*").eq("client_id", order.user_id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
 
     console.log(`[AuditAll] Order: ${orderNumber} | Client: ${clientName} | Invoice: ${invoiceNumber}`);
 
-    // â”€â”€ 3. Generate locked PDFs (4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ 3. Generate locked PDFs (4) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     const attachments: Array<{ filename: string; content: string; contentType: string }> = [];
     const results: Record<string, string> = {};
 
@@ -180,7 +180,7 @@ Deno.serve(async (req: Request) => {
       } catch (e) { results["summary"] = `ERR: ${e.message}`; }
     }
 
-    // â”€â”€ 4. Generate auto-document PDFs (17) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ 4. Generate auto-document PDFs (19) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     const autoDocTypes: Array<[string, string, Record<string, any>]> = [
       ["welcome_letter", "05_Lettre_Bienvenue", {
         letter_number: `LTR-${orderNumber}`,
@@ -188,6 +188,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         service_name: planName, activation_date: nowIso, plan_name: planName,
+        monthly_amount: invoiceAmount,
         issue_date: nowIso,
       }],
       ["activation_confirmation", "06_Confirmation_Activation", {
@@ -196,6 +197,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         service_name: planName, plan_name: planName, activation_date: nowIso,
+        monthly_amount: invoiceAmount,
         issue_date: nowIso,
       }],
       ["suspension_notice", "07_Avis_Suspension", {
@@ -204,7 +206,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         service_name: planName, plan_name: planName,
-        suspension_date: nowIso, reason: "Solde impayé â€” test d'audit",
+        suspension_date: nowIso, reason: "Solde impayé  --  test d'audit",
         amount_due: invoiceAmount,
         invoice_numbers: [invoiceNumber],
         reactivation_fee: 15,
@@ -217,7 +219,7 @@ Deno.serve(async (req: Request) => {
         account_number: accountNumber,
         service_name: planName, plan_name: planName,
         cancellation_date: nowIso, effective_date: nowIso,
-        reason: "Annulation Ã  la demande du client â€” test d'audit",
+        reason: "Annulation Ã  la demande du client  --  test d'audit",
         final_balance: 0,
         issue_date: nowIso,
       }],
@@ -240,7 +242,7 @@ Deno.serve(async (req: Request) => {
         refund_amount: invoiceAmount, processed_date: nowIso,
         refund_method: "Virement Interac",
         related_invoice: invoiceNumber,
-        reason: "Remboursement suite Ã  annulation â€” test d'audit",
+        reason: "Remboursement suite Ã  annulation  --  test d'audit",
         account_closed: false,
         issue_date: nowIso,
       }],
@@ -275,7 +277,7 @@ Deno.serve(async (req: Request) => {
         appointment_date: nowIso, technician_name: "Technicien Nivra",
         service_address: clientAddress, service_city: clientCity,
         service_province: clientProvince, service_postal: clientPostal,
-        service_installed: planName, equipment_installed: ["Routeur Nivra v2"],
+        service_installed: planName, equipment_installed: [{ description: "Routeur Nivra v2" }],
         outcome: "success",
         issue_date: nowIso,
       }],
@@ -284,8 +286,14 @@ Deno.serve(async (req: Request) => {
         client_name: clientName, client_email: clientEmail, client_phone: clientPhone,
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
-        contract_number: contractNumber, effective_date: nowIso,
-        amendment_summary: "Modification du forfait â€” test d'audit",
+        original_contract_number: contractNumber,
+        original_contract_date: contract?.created_at || nowIso,
+        effective_date: nowIso,
+        changes: [
+          { field: "Forfait", old_value: planName, new_value: planName + " (modifie)" },
+          { field: "Tarif mensuel", old_value: invoiceAmount.toFixed(2) + " $", new_value: invoiceAmount.toFixed(2) + " $" },
+        ],
+        new_monthly_amount: invoiceAmount,
         issue_date: nowIso,
       }],
       ["formal_demand", "15_Mise_en_Demeure", {
@@ -314,7 +322,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         complaint_received_date: nowIso,
-        complaint_summary: "Demande de vérification â€” test d'audit",
+        complaint_summary: "Demande de vérification  --  test d'audit",
         case_number: `PLT-${orderNumber}`, expected_resolution_date: nowIso,
         issue_date: nowIso,
       }],
@@ -324,7 +332,7 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         authorized_amount: invoiceAmount, payment_method: order.payment_method || "Carte de crédit",
-        capture_deadline: nowIso, purpose: "Pré-autorisation de paiement â€” test d'audit",
+        capture_deadline: nowIso, purpose: "Pré-autorisation de paiement  --  test d'audit",
         issue_date: nowIso,
       }],
       ["payment_method_change", "19_Changement_Paiement", {
@@ -351,7 +359,28 @@ Deno.serve(async (req: Request) => {
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
         account_number: accountNumber,
         service_name: planName, plan_name: planName,
+        service_address: clientAddress, service_city: clientCity, service_province: clientProvince, service_postal: clientPostal,
+        monthly_amount: invoiceAmount, status: "Actif",
         activation_date: nowIso, issue_date: nowIso,
+      }],
+      ["reactivation_notice", "22_Avis_Reactivation", {
+        notice_number: `REA-${orderNumber}`,
+        client_name: clientName, client_email: clientEmail, client_phone: clientPhone,
+        client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,
+        account_number: accountNumber,
+        service_name: planName, plan_name: planName,
+        reactivation_date: nowIso,
+        monthly_amount: invoiceAmount,
+        issue_date: nowIso,
+      }],
+      ["credit_note", "23_Note_Credit", {
+        credit_number: `CRE-${orderNumber}`,
+        client_name: clientName, client_email: clientEmail, client_phone: clientPhone,
+        account_number: accountNumber,
+        description: "Ajustement de compte - test audit",
+        amount: Math.round(invoiceAmount * 0.1 * 100) / 100,
+        credit_type: "adjustment",
+        issue_date: nowIso,
       }],
     ];
 
@@ -374,7 +403,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // â”€â”€ 5. Send ONE email with all PDFs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ 5. Send ONE email with all PDFs â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     const okCount = Object.values(results).filter((r) => r === "OK").length;
     const errList = Object.entries(results)
       .filter(([, v]) => v !== "OK")
@@ -382,18 +411,18 @@ Deno.serve(async (req: Request) => {
       .join("");
 
     const html = `
-<h2>Audit PDF â€” Tous les gabarits</h2>
+<h2>Audit PDF  --  Tous les gabarits</h2>
 <p><b>Commande:</b> ${orderNumber} &nbsp;|&nbsp; <b>Client:</b> ${clientName} &nbsp;|&nbsp; <b>Courriel:</b> ${clientEmail}</p>
 <p><b>Facture:</b> ${invoiceNumber} &nbsp;|&nbsp; <b>Contrat:</b> ${contractNumber}</p>
 <p><b>${attachments.length} PDF${attachments.length > 1 ? "s" : ""} générés sur ${autoDocTypes.length + 4} gabarits.</b></p>
 ${errList ? `<h3>Erreurs (${Object.values(results).filter((r) => r !== "OK").length})</h3><ul>${errList}</ul>` : "<p>âœ… Tous les gabarits générés sans erreur.</p>"}
 <hr/>
-<p style="font-size:11px;color:#888;">Généré par send-pdf-audit-all â€” ${new Date().toLocaleString("fr-CA")}</p>
+<p style="font-size:11px;color:#888;">Généré par send-pdf-audit-all  --  ${new Date().toLocaleString("fr-CA")}</p>
     `.trim();
 
     const emailResult = await sendViaResend(
       resendKey,
-      `Audit PDF Nivra â€” ${okCount} gabarits â€” Commande ${orderNumber}`,
+      `Audit PDF Nivra  --  ${okCount} gabarits  --  Commande ${orderNumber}`,
       html,
       attachments,
     );

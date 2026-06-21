@@ -551,7 +551,11 @@ function normalizePayload(
         service_province: p.service_province || base.client_province || "QC",
         service_postal: p.service_postal || base.client_postal || "",
         service_installed: p.service_installed || p.service_name || p.plan_name || "Service Nivra",
-        equipment_installed: Array.isArray(p.equipment_installed) ? p.equipment_installed : [],
+        equipment_installed: Array.isArray(p.equipment_installed)
+          ? p.equipment_installed.map((e: any) =>
+              typeof e === "string" ? { description: e } : { description: e.description || e.name || String(e), serial_number: e.serial_number }
+            )
+          : [],
         outcome: p.outcome || "success",
         notes: p.notes,
         start_time: p.start_time || undefined,
