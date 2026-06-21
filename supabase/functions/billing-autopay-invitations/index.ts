@@ -85,7 +85,6 @@ serve(async (req) => {
           status: "queued",
           attempts: 0,
           max_attempts: 3,
-          max_retries: 3,
         });
         queued++;
       } catch (err) {
