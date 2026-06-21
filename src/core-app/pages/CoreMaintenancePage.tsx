@@ -764,6 +764,7 @@ function ServicesSection() {
 // ============= SECTION D — INCIDENTS HISTORY =============
 function IncidentsSection() {
   const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const { data: incidents = [], isLoading } = useQuery({
     queryKey: ["core-incidents"],
@@ -824,48 +825,146 @@ function IncidentsSection() {
                 ? `${Math.floor(i.duration_minutes / 60)}h ${i.duration_minutes % 60}m`
                 : `${i.duration_minutes}m`
               : "—";
+          const isOpen = !!expanded[i.id];
           return (
-            <div
-              key={i.id}
-              className="grid grid-cols-12 px-4 py-3 border-t border-[hsl(220,15%,16%)] text-sm items-center"
-            >
-              <div className="col-span-2 text-[hsl(var(--core-text-secondary))] text-xs">
-                {format(new Date(i.started_at), "dd MMM HH:mm", { locale: frLocale })}
+            <div key={i.id} className="border-t border-[hsl(220,15%,16%)]">
+              <div className="grid grid-cols-12 px-4 py-3 text-sm items-center">
+                <div className="col-span-2 text-[hsl(var(--core-text-secondary))] text-xs">
+                  {format(new Date(i.started_at), "dd MMM HH:mm", { locale: frLocale })}
+                </div>
+                <div className="col-span-2 text-[hsl(var(--core-text-primary))] text-xs font-medium">
+                  {i.service_display_name ?? i.service_name}
+                </div>
+                <div className="col-span-2">
+                  <Badge className={`${meta.color} border-0 text-[10px]`}>{meta.label}</Badge>
+                </div>
+                <div className="col-span-1 text-xs text-[hsl(var(--core-text-secondary))]">{dur}</div>
+                <div className="col-span-3 text-xs text-[hsl(var(--core-text-secondary))] truncate" title={i.incident_message ?? ""}>
+                  {i.incident_message ?? i.incident_title}
+                </div>
+                <div className="col-span-2 text-right flex justify-end gap-1 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setExpanded((e) => ({ ...e, [i.id]: !isOpen }))}
+                    className="gap-1 h-7 text-xs bg-transparent border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))]"
+                  >
+                    {isOpen ? "Masquer" : "Livraison"}
+                  </Button>
+                  {isResolved ? (
+                    <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px] gap-1">
+                      <CheckCircle className="w-3 h-3" /> Résolu
+                    </Badge>
+                  ) : (
+                    <>
+                      <MaintenanceNotifyButton
+                        incidentId={i.id}
+                        label="Notifier"
+                        onDone={() => setExpanded((e) => ({ ...e, [i.id]: true }))}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => resolve.mutate(i.id)}
+                        disabled={resolve.isPending}
+                        className="gap-1 h-7 text-xs bg-transparent border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))]"
+                      >
+                        <RotateCcw className="w-3 h-3" /> Résoudre
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="col-span-2 text-[hsl(var(--core-text-primary))] text-xs font-medium">
-                {i.service_display_name ?? i.service_name}
-              </div>
-              <div className="col-span-2">
-                <Badge className={`${meta.color} border-0 text-[10px]`}>{meta.label}</Badge>
-              </div>
-              <div className="col-span-1 text-xs text-[hsl(var(--core-text-secondary))]">{dur}</div>
-              <div className="col-span-3 text-xs text-[hsl(var(--core-text-secondary))] truncate" title={i.incident_message ?? ""}>
-                {i.incident_message ?? i.incident_title}
-              </div>
-              <div className="col-span-2 text-right flex justify-end gap-1">
-                {isResolved ? (
-                  <Badge className="bg-emerald-600/15 text-emerald-400 border-0 text-[10px] gap-1">
-                    <CheckCircle className="w-3 h-3" /> Résolu
-                  </Badge>
-                ) : (
-                  <>
-                    <MaintenanceNotifyButton incidentId={i.id} label="Notifier" />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => resolve.mutate(i.id)}
-                      disabled={resolve.isPending}
-                      className="gap-1 h-7 text-xs bg-transparent border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))]"
-                    >
-                      <RotateCcw className="w-3 h-3" /> Résoudre
-                    </Button>
-                  </>
-                )}
-              </div>
+              {isOpen && <DeliveryStatusPanel incidentId={i.id} />}
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ============= DELIVERY STATUS PANEL =============
+function DeliveryStatusPanel({ incidentId }: { incidentId: string }) {
+  const { data, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ["core-incident-delivery", incidentId],
+    queryFn: async () => {
+      const { data: queue } = await supabase
+        .from("email_queue")
+        .select("status, sent_at, delivered_at, bounced_at, complained_at, created_at")
+        .eq("entity_type", "service_incident")
+        .eq("entity_id", incidentId);
+
+      const { count: portalCount } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("type", "maintenance")
+        .eq("link_id", incidentId);
+
+      const rows = (queue ?? []) as any[];
+      const total = rows.length;
+      const queued = rows.filter((r) => ["queued", "pending", "processing"].includes(r.status)).length;
+      const sent = rows.filter((r) => !!r.sent_at).length;
+      const delivered = rows.filter((r) => !!r.delivered_at).length;
+      const failed = rows.filter((r) =>
+        ["failed", "dlq", "bounced", "suppressed", "complained"].includes(r.status),
+      ).length;
+      const lastSent = rows
+        .map((r) => r.sent_at)
+        .filter(Boolean)
+        .sort()
+        .pop();
+
+      return { total, queued, sent, delivered, failed, lastSent, portalCount: portalCount ?? 0 };
+    },
+    refetchInterval: 5000,
+  });
+
+  const Stat = ({ label, value, color }: { label: string; value: number | string; color: string }) => (
+    <div className="px-3 py-2 rounded bg-[hsl(220,15%,8%)] border border-[hsl(220,15%,18%)]">
+      <div className="text-[10px] uppercase tracking-wider text-[hsl(var(--core-text-label))]">{label}</div>
+      <div className={`text-lg font-bold ${color}`}>{value}</div>
+    </div>
+  );
+
+  return (
+    <div className="px-4 pb-4 bg-[hsl(220,15%,9%)]">
+      <div className="flex items-center justify-between mb-2 pt-1">
+        <div className="text-xs font-semibold text-[hsl(var(--core-text-primary))]">
+          État de livraison des notifications
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="h-6 text-[10px] text-[hsl(var(--core-text-secondary))]"
+        >
+          {isRefetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+        </Button>
+      </div>
+      {isLoading ? (
+        <div className="text-xs text-[hsl(var(--core-text-label))]">
+          <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Chargement…
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <Stat label="Destinataires" value={data?.total ?? 0} color="text-[hsl(var(--core-text-primary))]" />
+            <Stat label="En file" value={data?.queued ?? 0} color="text-amber-400" />
+            <Stat label="Envoyés" value={data?.sent ?? 0} color="text-sky-400" />
+            <Stat label="Délivrés" value={data?.delivered ?? 0} color="text-emerald-400" />
+            <Stat label="Échecs" value={data?.failed ?? 0} color="text-red-400" />
+            <Stat label="Portail" value={data?.portalCount ?? 0} color="text-violet-400" />
+          </div>
+          <div className="mt-2 text-[11px] text-[hsl(var(--core-text-label))]">
+            Dernier envoi :{" "}
+            {data?.lastSent
+              ? format(new Date(data.lastSent), "dd MMM HH:mm:ss", { locale: frLocale })
+              : "—"}
+          </div>
+        </>
+      )}
     </div>
   );
 }

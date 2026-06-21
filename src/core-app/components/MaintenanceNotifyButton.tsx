@@ -1,7 +1,8 @@
 /**
- * MaintenanceNotifyButton — manually trigger maintenance notification email
- * to all active clients for a given service_incident.
- * Routes through email_queue directly (no edge function needed).
+ * MaintenanceNotifyButton — manually trigger the notify-maintenance edge function.
+ * The edge function is the single source of truth: it writes to email_queue
+ * (idempotent via event_key) AND notifications (in-portal banner).
+ * Do NOT enqueue emails directly from the client.
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -12,54 +13,25 @@ import { toast } from "sonner";
 interface Props {
   incidentId: string;
   label?: string;
+  onDone?: () => void;
 }
 
-export default function MaintenanceNotifyButton({ incidentId, label = "Notifier tous les clients" }: Props) {
+export default function MaintenanceNotifyButton({ incidentId, label = "Notifier tous les clients", onDone }: Props) {
   const [loading, setLoading] = useState(false);
 
   const handleNotify = async () => {
-    if (!confirm("Envoyer un email de maintenance à TOUS les clients actifs ?")) return;
+    if (!confirm("Envoyer la notification de maintenance (email + portail) à TOUS les clients actifs ?")) return;
     setLoading(true);
     try {
-      // Fetch incident details
-      const { data: incident } = await (supabase as any)
-        .from("service_incidents")
-        .select("title, description, service_type, started_at")
-        .eq("id", incidentId)
-        .maybeSingle();
-
-      // Fetch all active clients with emails
-      const { data: clients, error: clientsErr } = await (supabase as any)
-        .from("billing_customers")
-        .select("id, email, first_name, last_name")
-        .eq("status", "active")
-        .not("email", "is", null);
-      if (clientsErr) throw clientsErr;
-
-      if (!clients || clients.length === 0) {
-        toast.info("Aucun client actif trouvé");
-        return;
-      }
-
-      // Batch insert into email_queue
-      const rows = (clients as any[]).map((c: any) => ({
-        template_key: "maintenance_notification",
-        to_email: c.email,
-        entity_type: "service_incident",
-        entity_id: incidentId,
-        variables: {
-          client_name: `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Client",
-          incident_title: incident?.title ?? "Maintenance planifiée",
-          incident_description: incident?.description ?? "",
-          started_at: incident?.started_at ?? null,
-        },
-        priority: 2,
-      }));
-
-      const { error: queueErr } = await (supabase as any).from("email_queue").insert(rows);
-      if (queueErr) throw queueErr;
-
-      toast.success(`✓ ${clients.length} clients notifiés par email`);
+      const { data, error } = await supabase.functions.invoke("notify-maintenance", {
+        body: { incident_id: incidentId },
+      });
+      if (error) throw error;
+      const queued = data?.queued ?? 0;
+      const portal = data?.portal_notified ?? 0;
+      const total = data?.total_clients ?? 0;
+      toast.success(`✓ ${total} clients notifiés (${queued} emails, ${portal} notifications portail)`);
+      onDone?.();
     } catch (e: any) {
       toast.error(`Erreur notification: ${e.message || e}`);
     } finally {
