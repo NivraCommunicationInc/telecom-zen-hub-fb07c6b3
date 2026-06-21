@@ -1063,7 +1063,7 @@ async function processFormalDemandJ7(
 
   const { data: invoices, error } = await supabase
     .from("billing_invoices")
-    .select("id, invoice_number, total, amount_due, due_date, customer:billing_customers(id, email, first_name, last_name)")
+    .select("id, invoice_number, total, due_date, customer:billing_customers(id, email, first_name, last_name)")
     .eq("status", "overdue")
     .eq("due_date", j7);
 
@@ -1094,7 +1094,7 @@ async function processFormalDemandJ7(
         first_name: customer.first_name,
         last_name: customer.last_name,
         invoice_number: inv.invoice_number,
-        total_due: Number(inv.amount_due || inv.total || 0),
+        total_due: Number(inv.total || 0),
         void_date: voidDate,
       }).catch(() => null);
 
@@ -1105,7 +1105,7 @@ async function processFormalDemandJ7(
           first_name: customer.first_name || "Client",
           to_email: customer.email,
           invoice_number: inv.invoice_number,
-          total_due: Number(inv.amount_due || inv.total || 0),
+          total_due: Number(inv.total || 0),
           response_deadline: voidDate,
           void_date: voidDate,
         },
