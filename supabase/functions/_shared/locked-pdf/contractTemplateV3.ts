@@ -231,7 +231,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     labelStyle(); doc.text("Telephone", col1, y);
     labelStyle(); doc.text("Methode de paiement", col2, y); y += 4;
     valueStyle(); doc.text(data.client_phone || "—", col1, y);
-    valueStyle(); doc.text(data.payment_method === "card" ? "Carte de credit" : data.payment_method === "paypal" ? "PayPal" : data.payment_method || "—", col2, y); y += 6;
+    valueStyle(); doc.text(data.payment_method || "Manuel", col2, y); y += 6;
 
     labelStyle(); doc.text("Adresse de facturation", col1, y);
     labelStyle(); doc.text("Adresse de service", col2, y); y += 4;

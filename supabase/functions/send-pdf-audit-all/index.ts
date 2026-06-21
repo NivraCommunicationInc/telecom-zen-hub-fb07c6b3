@@ -180,7 +180,7 @@ Deno.serve(async (req: Request) => {
           attachments.push({ filename: `01_Facture_${invoiceNumber}.pdf`, content: att.content, contentType: "application/pdf" });
           results["invoice"] = "OK";
         } else results["invoice"] = "empty";
-      } catch (e) { results["invoice"] = `ERR: ${e.message}`; }
+      } catch (e: any) { results["invoice"] = `ERR: ${e.message}`; }
     } else results["invoice"] = "no invoice";
 
     // Receipt

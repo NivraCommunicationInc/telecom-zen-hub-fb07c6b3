@@ -315,7 +315,7 @@ export async function buildInvoicePdfAttachment(
         address_snapshot,
         customer:billing_customers(id, email, first_name, last_name, phone, user_id),
         order:orders(id, order_number, service_type, client_full_address),
-        lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type, metadata)
+        lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type)
       `)
       .eq("id", invoiceId)
       .maybeSingle();
@@ -344,17 +344,17 @@ export async function buildInvoicePdfAttachment(
       if (!accountNumber) accountNumber = data?.account_number || "";
     }
     if (!accountNumber) {
-      console.warn(`[pdfFromDb] invoice ${invoiceId} has no account_number — skipping PDF`);
-      const supabaseAlert = getServiceClient();
-      await supabaseAlert.from("billing_system_alerts").insert({
+      // billing_customer has no linked auth user — use ID prefix as fallback so PDF still generates
+      accountNumber = `CUS-${(customer.id || "000000").slice(0, 6).toUpperCase()}`;
+      console.warn(`[pdfFromDb] invoice ${invoiceId}: no account_number, using fallback ${accountNumber}`);
+      supabase.from("billing_system_alerts").insert({
         alert_type: "pdf_missing_account_number",
         entity_type: "billing_invoice",
         entity_id: invoiceId,
-        severity: "high",
+        severity: "medium",
         details: { invoice_number: (invoice as any).invoice_number, customer_id: customer.id },
         resolved: false,
       }).catch(() => {});
-      return null;
     }
 
     // Address: use billing_invoices.address_snapshot (figé à la création) first,
@@ -697,15 +697,23 @@ export async function buildContractPdfAttachment(
     // orders.client_first_name/last_name are snapshot fields captured at order creation
     const clientName = [o.client_first_name, o.client_last_name].filter(Boolean).join(" ") || "Client";
 
-    // Account number
+    // Account number + phone fallback + autopay status — single billing_customers query
     let accountNumber = "";
+    let clientPhone = o.client_phone || "";
+    let paymentMethod = "Manuel";
     if (o.user_id) {
-      const { data: acct } = await supabase
-        .from("accounts")
-        .select("account_number")
-        .eq("client_id", o.user_id)
-        .maybeSingle();
-      accountNumber = acct?.account_number || "";
+      const [acctRes, billingCustRes] = await Promise.all([
+        supabase.from("accounts").select("account_number").eq("client_id", o.user_id).maybeSingle(),
+        supabase.from("billing_customers").select("phone, autopay_enabled").eq("user_id", o.user_id).maybeSingle(),
+      ]);
+      accountNumber = acctRes.data?.account_number || "";
+      if (!clientPhone) clientPhone = billingCustRes.data?.phone || "";
+      if (billingCustRes.data?.autopay_enabled) paymentMethod = "PPA (Prélèvement Pré-Autorisé)";
+      // Final fallback: profiles.phone
+      if (!clientPhone) {
+        const { data: prof } = await supabase.from("profiles").select("phone").eq("user_id", o.user_id).maybeSingle();
+        clientPhone = prof?.phone || "";
+      }
     }
 
     // Real order_items join (canonical service list)
@@ -881,7 +889,7 @@ export async function buildContractPdfAttachment(
       terms_version: CONTRACT.TERMS_VERSION,
       client_name: clientName,
       client_email: o.client_email || "",
-      client_phone: o.client_phone || "",
+      client_phone: clientPhone,
       billing_address: billingAddress,
       service_address: serviceAddress,
       account_number: accountNumber || "—",
@@ -898,6 +906,7 @@ export async function buildContractPdfAttachment(
       tax_gst: taxGst,
       tax_qst: taxQst,
       total_due_today: totalDueToday,
+      payment_method: paymentMethod,
       signature_name: signature.signature_name,
       signature_date: signature.signature_date,
       signature_ip: signature.signature_ip,
