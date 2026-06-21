@@ -1,23 +1,23 @@
 ﻿/**
- * Nivra Invoice Template V4.0 - LOCKED PRODUCTION (2026-03-20)
+ * Nivra Invoice Template V4.0 â€” LOCKED PRODUCTION (2026-03-20)
  * 
  * Approved canonical layout:
- * â"Œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"
- * â"‚ BLUE HEADER: NIVRA TELECOM   No XXXXXXX    â"‚
- * â"‚ FACTURE                                     â"‚
- * â"œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- * â"‚ Client info          Adresse de service     â"‚
- * â"‚ Compte / Commande                           â"‚
- * â"‚ Date facturation     Date echeance          â"‚
- * â"‚ Periode                                     â"‚
- * â"œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- * â"‚ Description | Type | Montant (table)        â"‚
- * â"œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- * â"‚ Sous-total / TPS / TVQ / TOTAL              â"‚
- * â"‚ Montant paye / Solde / STATUT               â"‚
- * â"œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- * â"‚ Footer: Nivra Telecom Inc. | TPS | TVQ      â"‚
- * â""â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"˜
+ * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+ * â”‚ BLUE HEADER: NIVRA TELECOM   No XXXXXXX    â”‚
+ * â”‚ FACTURE                                     â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Client info          Adresse de service     â”‚
+ * â”‚ Compte / Commande                           â”‚
+ * â”‚ Date facturation     Date echeance          â”‚
+ * â”‚ Periode                                     â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Description | Type | Montant (table)        â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Sous-total / TPS / TVQ / TOTAL              â”‚
+ * â”‚ Montant paye / Solde / STATUT               â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Footer: Nivra Telecom Inc. | TPS | TVQ      â”‚
+ * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
  */
 
 import jsPDFModule from "npm:jspdf@2.5.2";
@@ -34,14 +34,14 @@ const fmt = (amount: number): string =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "-";
+  if (!dateStr) return "â€”";
   if (dateStr.includes("DATE_") || dateStr.includes("PERIODE")) return dateStr;
   const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (ymd) {
     const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
-  return "-";
+  return "â€”";
 };
 
 const fmtStatus = (status: string): string => {
@@ -64,66 +64,43 @@ const typeLabel = (cat: string): string => {
 };
 
 // ============================================================================
-// CANONICAL HEADER - Nivra Green/Blue header with document number
+// CANONICAL HEADER â€” Nivra Green/Blue header with document number
 // ============================================================================
 
-const BLUE_CORP:   [number, number, number] = [0, 102, 204];   // #0066CC
-const VIOLET_CORP: [number, number, number] = [124, 58, 237];  // #7C3AED
-const BLUE_LIGHT_CORP: [number, number, number] = [230, 240, 250];
-
-function drawCanonicalHeader(doc: jsPDF, title: string, docNumber: string, _color?: [number, number, number]) {
+function drawCanonicalHeader(doc: jsPDF, title: string, docNumber: string, color: [number, number, number]) {
   const pw = doc.internal.pageSize.getWidth();
-
-  // Blue main zone (0 – 36 mm)
-  doc.setFillColor(BLUE_CORP[0], BLUE_CORP[1], BLUE_CORP[2]);
-  doc.rect(0, 0, pw, 36, "F");
-
-  // Violet accent strip (36 – 40 mm)
-  doc.setFillColor(VIOLET_CORP[0], VIOLET_CORP[1], VIOLET_CORP[2]);
-  doc.rect(0, 36, pw, 4, "F");
+  doc.setFillColor(...color);
+  doc.rect(0, 0, pw, 40, "F");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
+  doc.setFontSize(18);
   doc.setTextColor(255, 255, 255);
-  doc.text("NIVRA TELECOM", 15, 17);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text(`No ${docNumber}`, pw - 15, 17, { align: "right" });
+  doc.text("NIVRA TELECOM", 15, 16);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(200, 220, 245);
-  doc.text(title.toUpperCase(), 15, 29);
-  doc.text(NIVRA.website, pw - 15, 29, { align: "right" });
+  doc.setFontSize(11);
+  doc.text(title, 15, 28);
 
-  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text(`No ${docNumber}`, pw - 15, 18, { align: "right" });
 }
 
 function drawCanonicalFooter(doc: jsPDF) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
 
-  // Violet accent line
-  doc.setFillColor(VIOLET_CORP[0], VIOLET_CORP[1], VIOLET_CORP[2]);
-  doc.rect(0, ph - 27, pw, 2, "F");
-
-  // Light grey band
-  doc.setFillColor(248, 250, 252);
-  doc.rect(0, ph - 25, pw, 25, "F");
-
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
   doc.text(
-    `${NIVRA.legalName} | ${NIVRA.email} | ${NIVRA.website}`,
+    `${NIVRA.tradeName} Inc. | ${NIVRA.email} | ${NIVRA.website}`,
     pw / 2, ph - 18, { align: "center" }
   );
   doc.text(
     `${NIVRA.tpsLabel} | ${NIVRA.tvqLabel}`,
-    pw / 2, ph - 12.5, { align: "center" }
+    pw / 2, ph - 13, { align: "center" }
   );
-  doc.text(NIVRA.address, pw / 2, ph - 7, { align: "center" });
 }
 
 function drawClientBlock(doc: jsPDF, data: {
@@ -131,59 +108,35 @@ function drawClientBlock(doc: jsPDF, data: {
   city?: string; province?: string; postal?: string;
   account: string; orderNum?: string;
 }, y: number): number {
-  const pw = doc.internal.pageSize.getWidth();
-
-  // Blue-light background panel
-  let bh = 14;
-  if (data.phone) bh += 5;
-  bh += 6; // account line
-  doc.setFillColor(BLUE_LIGHT_CORP[0], BLUE_LIGHT_CORP[1], BLUE_LIGHT_CORP[2]);
-  doc.rect(0, y - 5, pw, bh + 8, "F");
-  doc.setFillColor(VIOLET_CORP[0], VIOLET_CORP[1], VIOLET_CORP[2]);
-  doc.rect(0, y - 5, 3, bh + 8, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(BLUE_CORP[0], BLUE_CORP[1], BLUE_CORP[2]);
-  doc.text("CLIENT", 17, y);
-  if (data.address) doc.text("ADRESSE DE SERVICE", 112, y);
-  y += 6;
-
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(26, 26, 26);
-  doc.text(data.name || "—", 17, y);
-  if (data.address) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(data.address, 112, y);
-  }
-  y += 5;
+  doc.setTextColor(0, 0, 0);
+  doc.text("Client", 15, y);
+  if (data.address) doc.text("Adresse de service", 110, y);
+  y += 6;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(100, 116, 139);
-  if (data.email) doc.text(data.email, 17, y);
+  doc.setFontSize(9);
+  doc.text(data.name || "â€”", 15, y);
+  if (data.address) doc.text(data.address, 110, y);
+  y += 5;
+  if (data.email) doc.text(data.email, 15, y);
   if (data.city) {
-    doc.setTextColor(26, 26, 26);
-    doc.text(`${data.city}, ${data.province || "QC"} ${data.postal || ""}`, 112, y);
+    doc.text(`${data.city}, ${data.province || "QC"} ${data.postal || ""}`, 110, y);
   }
   y += 5;
-  if (data.phone) { doc.setTextColor(100, 116, 139); doc.text(data.phone, 17, y); y += 5; }
+  if (data.phone) { doc.text(data.phone, 15, y); y += 5; }
 
-  doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(VIOLET_CORP[0], VIOLET_CORP[1], VIOLET_CORP[2]);
   let idLine = `Compte: ${data.account}`;
   if (data.orderNum) idLine += `  |  Commande: ${data.orderNum}`;
-  doc.text(idLine, 17, y);
+  doc.text(idLine, 15, y);
   y += 8;
-  doc.setTextColor(0, 0, 0);
   return y;
 }
 
 // ============================================================================
-// MAIN GENERATOR - Canonical Invoice PDF
+// MAIN GENERATOR â€” Canonical Invoice PDF
 // ============================================================================
 
 export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
@@ -193,12 +146,12 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    // Header - Blue
+    // Header â€” Blue
     drawCanonicalHeader(doc, "FACTURE", data.invoice_number, [30, 64, 120]);
 
     // Client block
     let y = drawClientBlock(doc, {
-      name: data.customer?.full_name || "-",
+      name: data.customer?.full_name || "â€”",
       email: data.customer?.email || "",
       phone: data.customer.phone,
       address: data.customer.address_line1,
@@ -220,7 +173,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     }
     y += 4;
 
-    // FIELD-SALES AGENT BLOCK (ADD-ONLY - conditional, additive optional fields on InvoiceDataV2)
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY â€” conditional, additive optional fields on InvoiceDataV2)
     const fsData = data as any;
     if (fsData.sale_source === "field_sales" && (fsData.agent_name || fsData.agent_number)) {
       doc.setFont("helvetica", "bold");
@@ -231,8 +184,8 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(40, 40, 40);
-      doc.text(`Nom : ${fsData.agent_name || "-"}`, 17, y); y += 5;
-      doc.text(`Badge : ${fsData.agent_number || "-"}`, 17, y); y += 5;
+      doc.text(`Nom : ${fsData.agent_name || "â€”"}`, 17, y); y += 5;
+      doc.text(`Badge : ${fsData.agent_number || "â€”"}`, 17, y); y += 5;
       doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 6;
       doc.setTextColor(0, 0, 0);
     }

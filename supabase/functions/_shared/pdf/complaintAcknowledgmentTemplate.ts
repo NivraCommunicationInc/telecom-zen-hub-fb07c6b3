@@ -11,6 +11,10 @@ export interface ComplaintAcknowledgmentData {
   client_name: string;
   client_email: string;
   client_phone?: string;
+  client_address?: string;
+  client_city?: string;
+  client_province?: string;
+  client_postal?: string;
   account_number: string;
   complaint_received_date: string;
   complaint_summary: string;
@@ -27,7 +31,9 @@ export function generateComplaintAcknowledgmentPDF(data: ComplaintAcknowledgment
 
     let y = 50;
     y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, phone: data.client_phone, account_number: data.account_number,
+      name: data.client_name, email: data.client_email, phone: data.client_phone,
+      address: data.client_address, city: data.client_city, province: data.client_province, postal: data.client_postal,
+      account_number: data.account_number,
     });
 
     doc.setFontSize(9);

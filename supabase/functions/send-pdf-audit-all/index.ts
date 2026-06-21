@@ -71,13 +71,46 @@ Deno.serve(async (req: Request) => {
 
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // â"€â"€ 1. Fetch last order â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-    const { data: order, error: orderErr } = await sb
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // -- 1. Fetch order (specific orderId or last non-test order) -----------
+    let body: { orderId?: string; invoiceId?: string } = {};
+    try { body = await req.json(); } catch { /* no body */ }
+
+    // If invoiceId provided, resolve its billing_customer to find an order
+    let overrideInvoiceId: string | null = body.invoiceId ?? null;
+
+    let orderQuery = sb.from("orders").select("*");
+    if (body.orderId) {
+      orderQuery = orderQuery.eq("id", body.orderId);
+    } else if (overrideInvoiceId) {
+      // Resolve billing_customer -> user_id -> orders
+      const { data: inv } = await sb
+        .from("billing_invoices")
+        .select("id, billing_customers(user_id)")
+        .eq("id", overrideInvoiceId)
+        .maybeSingle();
+      const userId = (inv as any)?.billing_customers?.user_id;
+      if (userId) {
+        orderQuery = orderQuery.eq("user_id", userId).order("created_at", { ascending: false }).limit(1);
+      } else {
+        orderQuery = orderQuery.not("order_number", "like", "TEST-%").order("created_at", { ascending: false }).limit(1);
+      }
+    } else {
+      // Default: last non-test order (or last order with a billing_invoice)
+      const { data: lastInvRows } = await sb
+        .from("billing_invoices")
+        .select("id, order_id, billing_customers(user_id)")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const latestInv = Array.isArray(lastInvRows) && lastInvRows.length > 0 ? lastInvRows[0] : null;
+      if (latestInv) overrideInvoiceId = (latestInv as any).id;
+      const userId = (latestInv as any)?.billing_customers?.user_id;
+      if (userId) {
+        orderQuery = orderQuery.eq("user_id", userId).order("created_at", { ascending: false }).limit(1);
+      } else {
+        orderQuery = orderQuery.not("order_number", "like", "TEST-%").order("created_at", { ascending: false }).limit(1);
+      }
+    }
+    const { data: order, error: orderErr } = await orderQuery.maybeSingle();
 
     if (orderErr || !order) {
       return new Response(JSON.stringify({ error: "No orders found", detail: orderErr?.message }), {
@@ -136,10 +169,13 @@ Deno.serve(async (req: Request) => {
     const attachments: Array<{ filename: string; content: string; contentType: string }> = [];
     const results: Record<string, string> = {};
 
+    // Prefer overrideInvoiceId (from billing_invoices directly) over order-linked invoice
+    const effectiveInvoiceId = overrideInvoiceId ?? invoice?.id ?? null;
+
     // Invoice
-    if (invoice?.id) {
+    if (effectiveInvoiceId) {
       try {
-        const att = await buildInvoicePdfAttachment(invoice.id);
+        const att = await buildInvoicePdfAttachment(effectiveInvoiceId);
         if (att?.content) {
           attachments.push({ filename: `01_Facture_${invoiceNumber}.pdf`, content: att.content, contentType: "application/pdf" });
           results["invoice"] = "OK";
@@ -148,9 +184,9 @@ Deno.serve(async (req: Request) => {
     } else results["invoice"] = "no invoice";
 
     // Receipt
-    if (invoice?.id) {
+    if (effectiveInvoiceId) {
       try {
-        const att = await buildReceiptPdfAttachment(invoice.id);
+        const att = await buildReceiptPdfAttachment(effectiveInvoiceId);
         if (att?.content) {
           attachments.push({ filename: `02_Recu_${invoiceNumber}.pdf`, content: att.content, contentType: "application/pdf" });
           results["receipt"] = "OK";

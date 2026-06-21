@@ -14,6 +14,11 @@ export interface PaymentConfirmationData {
   period_end?: string | null;
   employee_name: string;
   employee_email?: string | null;
+  employee_phone?: string | null;
+  employee_address?: string | null;
+  employee_city?: string | null;
+  employee_province?: string | null;
+  employee_postal?: string | null;
   agent_number?: string | null;
   employee_role?: string | null;
   payment_method: string;
@@ -54,6 +59,11 @@ export function buildPaymentConfirmationPdf(d: PaymentConfirmationData): Uint8Ar
   y = drawClientBlock(doc, y, {
     name: d.employee_name,
     email: d.employee_email || undefined,
+    phone: d.employee_phone || undefined,
+    address: d.employee_address || undefined,
+    city: d.employee_city || undefined,
+    province: d.employee_province || undefined,
+    postal: d.employee_postal || undefined,
     account_number: d.agent_number ? `Agent ${d.agent_number}` : undefined,
   });
 

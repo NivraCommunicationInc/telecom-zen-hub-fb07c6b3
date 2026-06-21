@@ -1,20 +1,20 @@
 ﻿/**
- * Nivra Receipt Template V4.0 - LOCKED PRODUCTION (2026-03-20)
+ * Nivra Receipt Template V4.0 â€” LOCKED PRODUCTION (2026-03-20)
  * 
  * Approved canonical layout:
- * â"Œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"
- * â"‚ GREEN HEADER: NIVRA TELECOM   No XXXXXXX   â"‚
- * â"‚ RECU DE PAIEMENT                            â"‚
- * â"œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- * â"‚ "P A Y E" watermark (light green, bottom)   â"‚
- * â"‚ Client info + Adresse de service             â"‚
- * â"‚ Payment details (date, method, ref)          â"‚
- * â"‚ Resume des services factures (line items)    â"‚
- * â"‚ Sous-total / TPS / TVQ                       â"‚
- * â"‚ TOTAL PAYE: XX.XX $ (green box)              â"‚
- * â"œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- * â"‚ Footer                                       â"‚
- * â""â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"˜
+ * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+ * â”‚ GREEN HEADER: NIVRA TELECOM   No XXXXXXX   â”‚
+ * â”‚ RECU DE PAIEMENT                            â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ "P A Y E" watermark (light green, bottom)   â”‚
+ * â”‚ Client info + Adresse de service             â”‚
+ * â”‚ Payment details (date, method, ref)          â”‚
+ * â”‚ Resume des services factures (line items)    â”‚
+ * â”‚ Sous-total / TPS / TVQ                       â”‚
+ * â”‚ TOTAL PAYE: XX.XX $ (green box)              â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Footer                                       â”‚
+ * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
  */
 
 import jsPDFModule from "npm:jspdf@2.5.2";
@@ -70,7 +70,7 @@ export interface ReceiptData {
   payment_status?: "paid" | "pending" | string;
   total_due?: number;
 
-  // Field-sales attribution (ADD-ONLY - only rendered when sale_source === 'field_sales')
+  // Field-sales attribution (ADD-ONLY â€” only rendered when sale_source === 'field_sales')
   sale_source?: string;
   agent_name?: string;
   agent_number?: string;
@@ -84,19 +84,19 @@ const fmt = (amount: number): string =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "-";
+  if (!dateStr) return "â€”";
   const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (ymd) {
     const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
-  return "-";
+  return "â€”";
 };
 
 const fmtDateTime = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "-";
+  if (!dateStr) return "â€”";
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "-";
+  if (isNaN(d.getTime())) return "â€”";
   const day = d.getDate();
   const month = d.toLocaleString("fr-CA", { month: "long" });
   const year = d.getFullYear();
@@ -126,26 +126,24 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pw = doc.internal.pageSize.getWidth();
 
-    // HEADER — blue #0066CC + violet accent strip
-    doc.setFillColor(0, 102, 204);
-    doc.rect(0, 0, pw, 36, "F");
-    doc.setFillColor(124, 58, 237);
-    doc.rect(0, 36, pw, 4, "F");
+    // GREEN HEADER â€” receipt number is primary, invoice is secondary reference
+    doc.setFillColor(34, 120, 60);
+    doc.rect(0, 0, pw, 40, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     doc.setTextColor(255, 255, 255);
-    doc.text("NIVRA TELECOM", 15, 17);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text(`No ${data.receipt_number}`, pw - 15, 17, { align: "right" });
+    doc.text("NIVRA TELECOM", 15, 16);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(200, 220, 245);
-    doc.text("RECU DE PAIEMENT", 15, 29);
+    doc.setFontSize(11);
+    doc.text("RECU DE PAIEMENT", 15, 28);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(`No ${data.receipt_number}`, pw - 15, 16, { align: "right" });
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(`Facture: ${data.invoice_number}`, pw - 15, 29, { align: "right" });
+    doc.text(`Facture: ${data.invoice_number}`, pw - 15, 22, { align: "right" });
 
-    // WATERMARK (bottom area, light green) - only when payment is confirmed
+    // WATERMARK (bottom area, light green) â€” only when payment is confirmed
     if (data.payment_status !== "pending") {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(60);
@@ -154,48 +152,34 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       doc.setTextColor(0, 0, 0);
     }
 
-    // CLIENT BLOCK — blue-light background
+    // CLIENT BLOCK
     let y = 50;
-    const bh = 14 + (data.client_phone ? 5 : 0) + 6;
-    doc.setFillColor(230, 240, 250);
-    doc.rect(0, y - 5, pw, bh + 8, "F");
-    doc.setFillColor(124, 58, 237);
-    doc.rect(0, y - 5, 3, bh + 8, "F");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(0, 102, 204);
-    doc.text("CLIENT", 17, y);
-    if (data.client_address) doc.text("ADRESSE DE SERVICE", 112, y);
-    y += 6;
-
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(26, 26, 26);
-    doc.text(data.client_name || "—", 17, y);
+    doc.text("Client", 15, y);
+    if (data.client_address) doc.text("Adresse de service", 110, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(data.client_name || "â€”", 15, y);
     if (data.client_address) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      const parts = data.client_address.split(",").map((s: string) => s.trim());
-      doc.text(parts[0] || "", 112, y);
-      if (parts.length > 1) doc.text(parts.slice(1).join(", "), 112, y + 5);
+      // Parse address if it contains comma-separated parts
+      const parts = data.client_address.split(",").map(s => s.trim());
+      doc.text(parts[0] || "", 110, y);
+      if (parts.length > 1) {
+        doc.text(parts.slice(1).join(", "), 110, y + 5);
+      }
     }
     y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(100, 116, 139);
-    if (data.client_email) doc.text(data.client_email, 17, y);
+    if (data.client_email) doc.text(data.client_email, 15, y);
     y += 5;
-    if (data.client_phone) { doc.text(data.client_phone, 17, y); y += 5; }
+    if (data.client_phone) { doc.text(data.client_phone, 15, y); y += 5; }
 
-    doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.setTextColor(124, 58, 237);
     let idLine = `Compte: ${data.account_number}`;
     if (data.order_number) idLine += `  |  Commande: ${data.order_number}`;
-    doc.text(idLine, 17, y);
+    doc.text(idLine, 15, y);
     y += 10;
-    doc.setTextColor(0, 0, 0);
 
     // PAYMENT DETAILS
     doc.setFontSize(9);
@@ -212,7 +196,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     }
     y += 5;
 
-    // FIELD-SALES AGENT BLOCK (ADD-ONLY - conditional)
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY â€” conditional)
     if (data.sale_source === "field_sales" && (data.agent_name || data.agent_number)) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
@@ -222,13 +206,13 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(40, 40, 40);
-      doc.text(`Nom : ${data.agent_name || "-"}`, 17, y); y += 5;
-      doc.text(`Badge : ${data.agent_number || "-"}`, 17, y); y += 5;
+      doc.text(`Nom : ${data.agent_name || "â€”"}`, 17, y); y += 5;
+      doc.text(`Badge : ${data.agent_number || "â€”"}`, 17, y); y += 5;
       doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 6;
       doc.setTextColor(0, 0, 0);
     }
 
-    // BILLED ITEMS SUMMARY - header row when detailed_items available
+    // BILLED ITEMS SUMMARY â€” header row when detailed_items available
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text("Resume des services factures", 15, y);
@@ -271,7 +255,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setTextColor(0, 0, 0);
     y += 5;
 
-    // TOTALS - use CANONICAL values from compute_invoice_breakdown (zero local math)
+    // TOTALS â€” use CANONICAL values from compute_invoice_breakdown (zero local math)
     const tx = 120;
     const subtotal = data.subtotal ?? data.invoice_total;
     const tps = data.tps_amount ?? 0;
@@ -286,7 +270,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.text("TPS (5%)", tx, y); doc.text(fmt(tps), 185, y, { align: "right" }); y += 6;
     doc.text("TVQ (9,975%)", tx, y); doc.text(fmt(tvq), 185, y, { align: "right" }); y += 8;
 
-    // TOTAL BOX - swap between PAYE (green) and EN TRAITEMENT (orange) per payment_status
+    // TOTAL BOX â€” swap between PAYE (green) and EN TRAITEMENT (orange) per payment_status
     const isPending = data.payment_status === "pending";
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
@@ -308,24 +292,23 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       doc.text(`TOTAL PAYE: ${fmt(data.amount_paid)}`, tx + 32.5, y + 6.5, { align: "center" });
     }
 
-    // FOOTER — violet accent + grey band
+    // FOOTER â€” TPS/TVQ + adresse Nivra
     const ph = doc.internal.pageSize.getHeight();
-    doc.setFillColor(124, 58, 237);
-    doc.rect(0, ph - 27, pw, 2, "F");
-    doc.setFillColor(248, 250, 252);
-    doc.rect(0, ph - 25, pw, 25, "F");
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
     doc.text(
-      `${NIVRA.legalName} | ${NIVRA.email} | ${NIVRA.website}`,
-      pw / 2, ph - 18, { align: "center" }
+      `${NIVRA.legalName} | ${NIVRA.address}`,
+      pw / 2, ph - 21, { align: "center" }
     );
     doc.text(
       `${NIVRA.tpsLabel} | ${NIVRA.tvqLabel} | NEQ ${NIVRA.neq}`,
-      pw / 2, ph - 12.5, { align: "center" }
+      pw / 2, ph - 16, { align: "center" }
     );
-    doc.text(NIVRA.address, pw / 2, ph - 7, { align: "center" });
+    doc.text(
+      `${NIVRA.email} | ${NIVRA.website}`,
+      pw / 2, ph - 11, { align: "center" }
+    );
 
     const blob = doc.output("blob");
     return {

@@ -1,21 +1,21 @@
 ﻿/**
- * Nivra Order Summary Template V4.0 - LOCKED PRODUCTION (2026-03-20)
+ * Nivra Order Summary Template V4.0 â€” LOCKED PRODUCTION (2026-03-20)
  * 
  * Approved canonical layout:
- * â"Œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"
- * â"‚ BLUE HEADER: NIVRA TELECOM   No XXXXX      â"‚
- * â"‚ SOMMAIRE DE COMMANDE                        â"‚
- * â"œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- * â"‚ Client info + Adresse de service             â"‚
- * â"‚ "Votre selection"                            â"‚
- * â"‚ Services mensuels recurrents (light blue)    â"‚
- * â"‚ Frais uniques (light blue)                   â"‚
- * â"‚ Promotion appliquee (light green)            â"‚
- * â"‚ Sous-total / TPS / TVQ / TOTAL               â"‚
- * â"‚ PROCHAINES ETAPES (blue box)                 â"‚
- * â"œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
- * â"‚ Footer                                       â"‚
- * â""â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"˜
+ * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+ * â”‚ BLUE HEADER: NIVRA TELECOM   No XXXXX      â”‚
+ * â”‚ SOMMAIRE DE COMMANDE                        â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Client info + Adresse de service             â”‚
+ * â”‚ "Votre selection"                            â”‚
+ * â”‚ Services mensuels recurrents (light blue)    â”‚
+ * â”‚ Frais uniques (light blue)                   â”‚
+ * â”‚ Promotion appliquee (light green)            â”‚
+ * â”‚ Sous-total / TPS / TVQ / TOTAL               â”‚
+ * â”‚ PROCHAINES ETAPES (blue box)                 â”‚
+ * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+ * â”‚ Footer                                       â”‚
+ * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
  */
 
 import jsPDFModule from "npm:jspdf@2.5.2";
@@ -92,7 +92,7 @@ export interface OrderSummaryV3Data {
   install_date?: string;
   technician_name?: string;
 
-  // Field-sales attribution (ADD-ONLY - only rendered when sale_source === 'field_sales')
+  // Field-sales attribution (ADD-ONLY â€” only rendered when sale_source === 'field_sales')
   sale_source?: string;
   agent_name?: string;
   agent_number?: string;
@@ -106,13 +106,13 @@ const fmt = (amount: number): string =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "-";
+  if (!dateStr) return "â€”";
   const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (ymd) {
     const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
     return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
   }
-  return "-";
+  return "â€”";
 };
 
 // ============================================================================
@@ -130,77 +130,55 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pw = doc.internal.pageSize.getWidth();
 
-    // HEADER — blue #0066CC + violet accent strip
-    doc.setFillColor(0, 102, 204);
-    doc.rect(0, 0, pw, 36, "F");
-    doc.setFillColor(124, 58, 237);
-    doc.rect(0, 36, pw, 4, "F");
+    // BLUE HEADER
+    doc.setFillColor(41, 98, 168);
+    doc.rect(0, 0, pw, 40, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     doc.setTextColor(255, 255, 255);
-    doc.text("NIVRA TELECOM", 15, 17);
-    doc.setFont("helvetica", "bold");
+    doc.text("NIVRA TELECOM", 15, 16);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text(`No ${d.order_number}`, pw - 15, 17, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(200, 220, 245);
-    doc.text("SOMMAIRE DE COMMANDE", 15, 29);
-    doc.text(NIVRA.website, pw - 15, 29, { align: "right" });
+    doc.text("SOMMAIRE DE COMMANDE", 15, 28);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(`No ${d.order_number}`, pw - 15, 18, { align: "right" });
 
-    // CLIENT BLOCK — blue-light background
+    // CLIENT BLOCK
     let y = 50;
-    const bh2 = 14 + (d.client_phone ? 5 : 0) + 6;
-    doc.setFillColor(230, 240, 250);
-    doc.rect(0, y - 5, pw, bh2 + 8, "F");
-    doc.setFillColor(124, 58, 237);
-    doc.rect(0, y - 5, 3, bh2 + 8, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(0, 102, 204);
-    doc.text("CLIENT", 17, y);
-    if (d.service_address) doc.text("ADRESSE DE SERVICE", 112, y);
-    y += 6;
+    doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(26, 26, 26);
-    doc.text(d.client_name || "—", 17, y);
-    const addrParts = (d.service_address || "").split(",").map((s: string) => s.trim());
-    if (addrParts[0]) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.text(addrParts[0], 112, y);
-    }
-    y += 5;
+    doc.text("Client", 15, y);
+    if (d.service_address) doc.text("Adresse de service", 110, y);
+    y += 6;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(d.client_email || "", 17, y);
-    if (addrParts.length > 1) {
-      doc.setTextColor(26, 26, 26);
-      doc.text(addrParts.slice(1).join(", "), 112, y);
-    }
+    doc.setFontSize(9);
+    doc.text(d.client_name || "â€”", 15, y);
+    // Parse service address
+    const addrParts = (d.service_address || "").split(",").map((s: string) => s.trim());
+    doc.text(addrParts[0] || "", 110, y);
     y += 5;
-    if (d.client_phone) { doc.setTextColor(100, 116, 139); doc.text(d.client_phone, 17, y); y += 5; }
-    doc.setFont("helvetica", "bold");
+    doc.text(d.client_email || "", 15, y);
+    if (addrParts.length > 1) doc.text(addrParts.slice(1).join(", "), 110, y);
+    y += 5;
+    if (d.client_phone) { doc.text(d.client_phone, 15, y); y += 5; }
     doc.setFontSize(8);
-    doc.setTextColor(124, 58, 237);
-    doc.text(`Compte: ${d.account_number}  |  Commande: ${d.order_number}`, 17, y);
+    doc.text(`Compte: ${d.account_number}  |  Commande: ${d.order_number}`, 15, y);
     y += 10;
-    doc.setTextColor(0, 0, 0);
 
-    // FIELD-SALES AGENT BLOCK (ADD-ONLY - conditional)
+    // FIELD-SALES AGENT BLOCK (ADD-ONLY â€” conditional)
     if (d.sale_source === "field_sales" && (d.agent_name || d.agent_number)) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.setTextColor(0, 102, 204);
+      doc.setTextColor(30, 64, 120);
       doc.text("Representant commercial", 15, y);
       y += 5;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(40, 40, 40);
-      doc.text(`Nom : ${d.agent_name || "-"}`, 17, y); y += 5;
-      doc.text(`Badge : ${d.agent_number || "-"}`, 17, y); y += 5;
+      doc.text(`Nom : ${d.agent_name || "â€”"}`, 17, y); y += 5;
+      doc.text(`Badge : ${d.agent_number || "â€”"}`, 17, y); y += 5;
       doc.text("Type de vente : Vente terrain (Porte-a-porte)", 17, y); y += 7;
       doc.setTextColor(0, 0, 0);
     }
@@ -216,7 +194,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     // Services mensuels recurrents
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.setFillColor(230, 240, 250);
+    doc.setFillColor(235, 242, 255);
     doc.rect(15, y, 170, 7, "F");
     doc.setTextColor(0, 0, 0);
     doc.text("Services mensuels recurrents", 17, y + 5);
@@ -233,7 +211,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     const hasEquipOrFees = (d.equipment?.length > 0) || (d.fees?.length > 0);
     if (hasEquipOrFees) {
       doc.setFont("helvetica", "bold");
-      doc.setFillColor(230, 240, 250);
+      doc.setFillColor(235, 242, 255);
       doc.rect(15, y, 170, 7, "F");
       doc.text("Frais uniques", 17, y + 5);
       y += 9;
@@ -310,13 +288,13 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
 
     y += 3;
 
-    // TOTALS - use CANONICAL values from compute_invoice_breakdown (zero local math)
+    // TOTALS â€” use CANONICAL values from compute_invoice_breakdown (zero local math)
     const tx = 120;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     const canonicalSubtotal = (d.subtotal_monthly || 0) + (d.subtotal_onetime || 0);
     doc.text("Sous-total", tx, y); doc.text(fmt(canonicalSubtotal), 185, y, { align: "right" }); y += 6;
-    // Discount already shown in "Promotion appliquee" card above - show net subtotal in totals
+    // Discount already shown in "Promotion appliquee" card above â€” show net subtotal in totals
     if (d.discount_amount > 0) {
       const netSubtotal = canonicalSubtotal - d.discount_amount;
       doc.text("Sous-total apres rabais", tx, y); doc.text(fmt(netSubtotal), 185, y, { align: "right" }); y += 6;
@@ -330,7 +308,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     // PROCHAINES ETAPES
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setFillColor(230, 240, 250);
+    doc.setFillColor(235, 242, 255);
     doc.rect(15, y, 170, 7, "F");
     doc.text("PROCHAINES ETAPES", 17, y + 5);
     y += 10;
@@ -348,18 +326,15 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
       y += 6;
     }
 
-    // FOOTER — violet accent + grey band
+    // FOOTER
     const ph = doc.internal.pageSize.getHeight();
-    doc.setFillColor(124, 58, 237);
-    doc.rect(0, ph - 27, pw, 2, "F");
-    doc.setFillColor(248, 250, 252);
-    doc.rect(0, ph - 25, pw, 25, "F");
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`${NIVRA.legalName} | ${NIVRA.email} | ${NIVRA.website}`, pw / 2, ph - 18, { align: "center" });
-    doc.text(`${NIVRA.tpsLabel} | ${NIVRA.tvqLabel}`, pw / 2, ph - 12.5, { align: "center" });
-    doc.text(NIVRA.address, pw / 2, ph - 7, { align: "center" });
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
+    doc.text(
+      `${NIVRA.tradeName} Inc. | ${NIVRA.email} | ${NIVRA.website}`,
+      pw / 2, ph - 15, { align: "center" }
+    );
 
     const blob = doc.output("blob");
     return {

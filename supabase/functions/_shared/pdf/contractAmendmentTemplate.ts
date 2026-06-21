@@ -10,6 +10,11 @@ export interface ContractAmendmentData {
   issue_date: string;
   client_name: string;
   client_email: string;
+  client_phone?: string;
+  client_address?: string;
+  client_city?: string;
+  client_province?: string;
+  client_postal?: string;
   account_number: string;
   original_contract_number: string;
   original_contract_date: string;
@@ -27,7 +32,9 @@ export function generateContractAmendmentPDF(data: ContractAmendmentData): PDFGe
 
     let y = 50;
     y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, account_number: data.account_number,
+      name: data.client_name, email: data.client_email, phone: data.client_phone,
+      address: data.client_address, city: data.client_city, province: data.client_province, postal: data.client_postal,
+      account_number: data.account_number,
     });
 
     doc.setFontSize(9);
