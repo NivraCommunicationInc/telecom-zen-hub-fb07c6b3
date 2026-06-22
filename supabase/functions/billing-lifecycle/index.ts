@@ -5,6 +5,11 @@ import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 import { suspendNivraPayPalSubscription, cancelNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
 
+// Test isolation: when set, all client emails are redirected to this address.
+// Set via body.test_email — never persists across requests.
+let _testEmailOverride: string | null = null;
+function toEmail(real: string): string { return _testEmailOverride ?? real; }
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -186,7 +191,7 @@ async function processExpirations(
             await supabase.from("email_queue").insert({
               event_key: voidKey,
               idempotency_key: voidKey,
-              to_email: inv.customer.email,
+              to_email: toEmail(inv.customer.email),
               from_email: "Nivra Telecom <support@nivra-telecom.ca>",
               subject: `Nivra — Facture annulée (#${inv.invoice_number})`,
               template_key: "invoice_voided",
@@ -297,7 +302,7 @@ async function processExpirations(
             await supabase.from("email_queue").insert({
               event_key: suspKey,
               idempotency_key: suspKey,
-              to_email: inv.customer.email,
+              to_email: toEmail(inv.customer.email),
               from_email: "Nivra Telecom <support@nivra-telecom.ca>",
               subject: `Nivra — Service suspendu (#${inv.invoice_number})`,
               template_key: "service_suspended",
@@ -779,7 +784,7 @@ async function advanceReferralCycles(
                 const referredName = [referredProfile?.first_name, referredProfile?.last_name].filter(Boolean).join(" ") || "votre filleul";
                 await supabase.from("email_queue").insert({
                   event_key: eventKey,
-                  to_email: referrerProfile.email,
+                  to_email: toEmail(referrerProfile.email),
                   template_key: "client_referral_qualified",
                   template_vars: {
                     first_name: referrerProfile.first_name || "Client",
@@ -1097,7 +1102,7 @@ async function processFormalDemandJ7(
       }).catch(() => null);
 
       await supabase.from("email_queue").insert({
-        to_email: customer.email,
+        to_email: toEmail(customer.email),
         template_key: "formal_demand_notice",
         template_vars: {
           first_name: customer.first_name || "Client",
@@ -1141,6 +1146,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     if (body.mode === "backfill") mode = "backfill";
     if (body.mode === "manual") mode = "manual";
+    _testEmailOverride = typeof body.test_email === "string" ? body.test_email : null;
   } catch (_e) {
     // default mode
   }

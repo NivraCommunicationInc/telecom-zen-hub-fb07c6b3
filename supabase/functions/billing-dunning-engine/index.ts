@@ -4,11 +4,12 @@
  * Cron: 0 9 * * * (daily at 09:00 UTC)
  *
  * For each invoice with status='overdue' or 'failed':
- *   J+3  → Soft reminder email via Resend
+ *   J+3  → Soft reminder email
  *   J+7  → Urgent email
  *   J+14 → Final email + suspend subscription
  *
  * Idempotent: checks activity_logs to avoid re-sending today's actions.
+ * All emails go through email_queue (never direct Resend).
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -18,80 +19,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_EMAIL = "Nivra Telecom <facturation@nivra-telecom.ca>";
-
-async function sendResendEmail(to: string, subject: string, html: string): Promise<boolean> {
-  if (!RESEND_API_KEY) {
-    console.warn("[billing-dunning-engine] RESEND_API_KEY not configured");
-    return false;
-  }
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
-    });
-    return res.ok;
-  } catch (e) {
-    console.error("[billing-dunning-engine] Resend error:", e);
-    return false;
-  }
-}
-
 function daysDiff(dateStr: string): number {
   const date = new Date(dateStr);
   const now = new Date();
   return Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function softReminderHtml(clientName: string, amount: string, invoiceNumber: string): string {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
-      <h2 style="color:#6b21e8">Rappel de paiement — Nivra Telecom</h2>
-      <p>Bonjour ${clientName},</p>
-      <p>Nous vous rappelons que votre facture <strong>${invoiceNumber}</strong> d'un montant de <strong>${amount}</strong> est en souffrance.</p>
-      <p>Veuillez effectuer votre paiement dès que possible pour éviter toute interruption de service.</p>
-      <p><a href="https://nivra-telecom.ca/portal/billing" style="background:#6b21e8;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Payer maintenant</a></p>
-      <p>Si vous avez déjà effectué ce paiement, veuillez ignorer ce courriel.</p>
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
-      <p style="font-size:12px;color:#6b7280">Nivra Telecom · support@nivra-telecom.ca</p>
-    </div>
-  `;
-}
-
-function urgentReminderHtml(clientName: string, amount: string, invoiceNumber: string): string {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
-      <h2 style="color:#dc2626">URGENT — Paiement requis · Nivra Telecom</h2>
-      <p>Bonjour ${clientName},</p>
-      <p>Votre facture <strong>${invoiceNumber}</strong> de <strong>${amount}</strong> est maintenant en retard de 7 jours.</p>
-      <p style="color:#dc2626;font-weight:bold">Sans paiement dans les prochains jours, votre service risque d'être suspendu.</p>
-      <p><a href="https://nivra-telecom.ca/portal/billing" style="background:#dc2626;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Régulariser mon compte</a></p>
-      <p>Pour toute question: <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a></p>
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
-      <p style="font-size:12px;color:#6b7280">Nivra Telecom · support@nivra-telecom.ca</p>
-    </div>
-  `;
-}
-
-function finalNoticeHtml(clientName: string, amount: string, invoiceNumber: string): string {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
-      <h2 style="color:#dc2626">Avis final — Suspension de service · Nivra Telecom</h2>
-      <p>Bonjour ${clientName},</p>
-      <p>Malgré nos relances, votre facture <strong>${invoiceNumber}</strong> de <strong>${amount}</strong> n'a pas été réglée.</p>
-      <p style="color:#dc2626;font-weight:bold">Votre service a été suspendu en raison de ce non-paiement.</p>
-      <p>Pour réactiver votre service, veuillez payer immédiatement:</p>
-      <p><a href="https://nivra-telecom.ca/portal/billing" style="background:#dc2626;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Payer et réactiver</a></p>
-      <p>Si vous pensez recevoir ce message par erreur, contactez-nous: <a href="mailto:support@nivra-telecom.ca">support@nivra-telecom.ca</a></p>
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
-      <p style="font-size:12px;color:#6b7280">Nivra Telecom · support@nivra-telecom.ca</p>
-    </div>
-  `;
 }
 
 Deno.serve(async (req) => {
@@ -103,9 +34,14 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    let testEmailOverride: string | null = null;
+    try {
+      const body = await req.json().catch(() => ({}));
+      if (typeof body.test_email === "string") testEmailOverride = body.test_email;
+    } catch { /* */ }
+
     const todayStr = new Date().toISOString().split("T")[0];
 
-    // Fetch overdue/failed invoices with customer info
     const { data: invoices, error: invErr } = await supabase
       .from("billing_invoices")
       .select(`
@@ -131,11 +67,9 @@ Deno.serve(async (req) => {
         const customer = inv.customer as any;
         if (!customer?.email) { results.skipped++; continue; }
 
-        // Use due_date as the reference for overdue days
         const refDate = inv.due_date || inv.created_at;
         const daysOverdue = daysDiff(refDate);
 
-        // Determine which dunning action to take today
         let actionType: "j3_soft" | "j7_urgent" | "j14_final" | null = null;
         if (daysOverdue >= 14) actionType = "j14_final";
         else if (daysOverdue >= 7) actionType = "j7_urgent";
@@ -143,7 +77,7 @@ Deno.serve(async (req) => {
 
         if (!actionType) { results.skipped++; continue; }
 
-        // Idempotency: check if this action was already done today
+        // Idempotency via activity_logs
         const { data: existingLog } = await supabase
           .from("activity_logs")
           .select("id")
@@ -157,45 +91,81 @@ Deno.serve(async (req) => {
 
         const clientName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Client";
         const amountFmt = Number(inv.balance_due || inv.total).toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
-        const invoiceNumber = inv.invoice_number;
+        const toEmailAddr = testEmailOverride ?? customer.email;
 
-        let emailSent = false;
-        let emailSubject = "";
+        // Also idempotency via email_queue event_key
+        const eventKey = `billing_dunning_${inv.id}_${actionType}_${todayStr}`;
+        const { data: existingQueue } = await supabase
+          .from("email_queue")
+          .select("id")
+          .eq("event_key", eventKey)
+          .maybeSingle();
+        if (existingQueue) { results.skipped++; continue; }
+
+        let templateKey: string;
+        let subject: string;
+        let templateVars: Record<string, any>;
 
         if (actionType === "j3_soft") {
-          emailSubject = `Rappel de paiement — ${invoiceNumber}`;
-          emailSent = await sendResendEmail(
-            customer.email,
-            emailSubject,
-            softReminderHtml(clientName, amountFmt, invoiceNumber)
-          );
+          templateKey = "billing_dunning_j3";
+          subject = `Rappel de paiement — ${inv.invoice_number}`;
+          templateVars = {
+            first_name: customer.first_name || "Client",
+            invoice_number: inv.invoice_number,
+            amount: amountFmt,
+            days_overdue: daysOverdue,
+          };
         } else if (actionType === "j7_urgent") {
-          emailSubject = `URGENT — Facture ${invoiceNumber} en retard`;
-          emailSent = await sendResendEmail(
-            customer.email,
-            emailSubject,
-            urgentReminderHtml(clientName, amountFmt, invoiceNumber)
-          );
-        } else if (actionType === "j14_final") {
-          emailSubject = `Avis final — Service suspendu · ${invoiceNumber}`;
-          emailSent = await sendResendEmail(
-            customer.email,
-            emailSubject,
-            finalNoticeHtml(clientName, amountFmt, invoiceNumber)
-          );
+          templateKey = "billing_dunning_j7";
+          subject = `URGENT — Facture ${inv.invoice_number} en retard`;
+          templateVars = {
+            first_name: customer.first_name || "Client",
+            invoice_number: inv.invoice_number,
+            amount: amountFmt,
+            days_overdue: daysOverdue,
+          };
+        } else {
+          templateKey = "billing_dunning_j14";
+          subject = `Avis final — Service suspendu · ${inv.invoice_number}`;
+          templateVars = {
+            first_name: customer.first_name || "Client",
+            invoice_number: inv.invoice_number,
+            amount: amountFmt,
+            days_overdue: daysOverdue,
+          };
+        }
 
-          // Suspend subscription at J+14
-          if (inv.subscription_id) {
-            await supabase
-              .from("billing_subscriptions")
-              .update({
-                status: "suspended",
-                suspension_reason: `Non-paiement — facture ${invoiceNumber} (${daysOverdue} jours de retard)`,
-                suspension_date: todayStr,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", inv.subscription_id);
-          }
+        // Queue email via email_queue (never direct Resend)
+        const { error: qErr } = await supabase.from("email_queue").insert({
+          event_key: eventKey,
+          idempotency_key: eventKey,
+          to_email: toEmailAddr,
+          from_email: "Nivra Telecom <facturation@nivra-telecom.ca>",
+          subject,
+          template_key: templateKey,
+          template_vars: templateVars,
+          status: "queued",
+          attempts: 0,
+          max_attempts: 3,
+          priority: actionType === "j14_final" ? 1 : 0,
+        });
+
+        if (qErr) {
+          results.errors.push(`Invoice ${inv.id}: email queue error: ${qErr.message}`);
+          continue;
+        }
+
+        // Suspend subscription at J+14
+        if (actionType === "j14_final" && inv.subscription_id) {
+          await supabase
+            .from("billing_subscriptions")
+            .update({
+              status: "suspended",
+              suspension_reason: `Non-paiement — facture ${inv.invoice_number} (${daysOverdue} jours de retard)`,
+              suspension_date: todayStr,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", inv.subscription_id);
         }
 
         // Log action in activity_logs (idempotency key)
@@ -207,17 +177,18 @@ Deno.serve(async (req) => {
           actor_role: "system",
           user_id: customer.user_id || "00000000-0000-0000-0000-000000000000",
           details: {
-            invoice_number: invoiceNumber,
+            invoice_number: inv.invoice_number,
             days_overdue: daysOverdue,
             amount: inv.balance_due || inv.total,
             customer_email: customer.email,
-            email_sent: emailSent,
+            template_key: templateKey,
             subscription_suspended: actionType === "j14_final" && !!inv.subscription_id,
+            test_mode: !!testEmailOverride,
           },
         });
 
         results.processed++;
-        results.actions.push(`${actionType} → ${invoiceNumber} (${daysOverdue}j)`);
+        results.actions.push(`${actionType} → ${inv.invoice_number} (${daysOverdue}j)`);
       } catch (e: any) {
         results.errors.push(`Invoice ${inv.id}: ${e.message}`);
         console.error("[billing-dunning-engine] invoice error:", inv.id, e);

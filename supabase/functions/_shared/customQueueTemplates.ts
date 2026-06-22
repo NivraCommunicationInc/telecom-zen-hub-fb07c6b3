@@ -8389,6 +8389,94 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // RELANCES DE PAIEMENT (billing-dunning-engine)
+    // ===================================================================
+    case "billing_dunning_j3": {
+      const amount = money(v.amount ?? v.total_due);
+      const invoiceNum = esc(v.invoice_number || "");
+      return {
+        subject: `Rappel de paiement — ${invoiceNum} — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre facture ${invoiceNum} est impayée depuis ${v.days_overdue || 3} jours.`,
+          badge: "RAPPEL DE PAIEMENT",
+          heroTitle: "Rappel de paiement",
+          heroSub: `Votre facture ${invoiceNum} est impayée.`,
+          icon: "info",
+          greeting,
+          bodyText: `Nous vous rappelons que votre facture <strong>${invoiceNum}</strong> d'un montant de <strong>${amount}</strong> est en souffrance depuis ${v.days_overdue || 3} jours. Veuillez effectuer votre paiement dès que possible pour éviter toute interruption de service.`,
+          cardTitle: "Détails de la facture",
+          cardRows: [
+            ...(invoiceNum ? [["Facture", `#${invoiceNum}`] as [string, string]] : []),
+            ["Montant dû", String(amount)],
+            ["Jours de retard", String(v.days_overdue || 3)],
+          ],
+          cardEmphasizeLast: false,
+          ctaPrimaryUrl: `${PORTAL_URL}/facturation`,
+          ctaPrimaryLabel: "Payer maintenant",
+          helpVariant: "info",
+          helpHtml: `Si vous avez déjà effectué ce paiement, veuillez ignorer ce courriel ou contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    case "billing_dunning_j7": {
+      const amount = money(v.amount ?? v.total_due);
+      const invoiceNum = esc(v.invoice_number || "");
+      return {
+        subject: `URGENT — Facture ${invoiceNum} en retard — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre facture ${invoiceNum} est impayée depuis ${v.days_overdue || 7} jours. Risque de suspension.`,
+          badge: "⚠ AVIS URGENT",
+          heroTitle: "Paiement urgent requis",
+          heroSub: `Votre service risque d'être suspendu sans paiement immédiat.`,
+          icon: "alert",
+          greeting,
+          bodyText: `Votre facture <strong>${invoiceNum}</strong> de <strong>${amount}</strong> est maintenant en retard de ${v.days_overdue || 7} jours. <strong style="color:#dc2626;">Sans paiement dans les prochains jours, votre service sera suspendu.</strong>`,
+          cardTitle: "Action requise",
+          cardRows: [
+            ...(invoiceNum ? [["Facture", `#${invoiceNum}`] as [string, string]] : []),
+            ["Montant dû", String(amount)],
+            ["Jours de retard", String(v.days_overdue || 7)],
+          ],
+          cardEmphasizeLast: false,
+          ctaPrimaryUrl: `${PORTAL_URL}/facturation`,
+          ctaPrimaryLabel: "Régulariser mon compte",
+          helpVariant: "warning",
+          helpHtml: `Pour toute question, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    case "billing_dunning_j14": {
+      const amount = money(v.amount ?? v.total_due);
+      const invoiceNum = esc(v.invoice_number || "");
+      return {
+        subject: `Avis final — Service suspendu · ${invoiceNum} — Nivra Telecom`,
+        html: shell({
+          preheader: `Votre service a été suspendu en raison d'un non-paiement.`,
+          badge: "SERVICE SUSPENDU",
+          heroTitle: "Votre service a été suspendu",
+          heroSub: `Payez maintenant pour réactiver votre service.`,
+          icon: "alert",
+          greeting,
+          bodyText: `Malgré nos relances, votre facture <strong>${invoiceNum}</strong> de <strong>${amount}</strong> n'a pas été réglée. <strong style="color:#dc2626;">Votre service a été suspendu en raison de ce non-paiement.</strong> Pour réactiver votre service, veuillez payer immédiatement.`,
+          cardTitle: "Détails",
+          cardRows: [
+            ...(invoiceNum ? [["Facture", `#${invoiceNum}`] as [string, string]] : []),
+            ["Montant dû", String(amount)],
+            ["Jours de retard", String(v.days_overdue || 14)],
+            ["Statut", "SUSPENDU"],
+          ],
+          cardEmphasizeLast: false,
+          ctaPrimaryUrl: `${PORTAL_URL}/facturation`,
+          ctaPrimaryLabel: "Payer et réactiver",
+          helpVariant: "warning",
+          helpHtml: `Si vous pensez recevoir ce message par erreur, contactez-nous immédiatement à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
     default:
       return null;
     }
