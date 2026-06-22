@@ -8390,6 +8390,28 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
+    // AVIS TECHNIQUE — RASSURANCE CLIENTS (2026-06-21)
+    // ===================================================================
+    case "client_technical_notice": {
+      return {
+        subject: `Information importante — Nivra Telecom`,
+        html: shell({
+          preheader: `Information importante concernant les notifications automatiques de Nivra Telecom.`,
+          badge: "INFORMATION IMPORTANTE",
+          heroTitle: "Information importante",
+          heroSub: "Concernant les notifications automatiques reçues récemment.",
+          icon: "info",
+          greeting,
+          bodyText: `Nous sommes actuellement en train d'apporter des améliorations à nos systèmes. Si vous avez reçu un courriel automatique qui semble inhabituel ou non pertinent à votre compte au cours des dernières heures (comme un rappel de paiement ou un avis), veuillez l'ignorer — il s'agit d'un test technique de notre système et n'a aucun impact réel sur votre service ou votre facturation.<br><br>Nous nous excusons pour le désagrément. Votre service et votre compte demeurent actifs et inchangés.`,
+          ctaPrimaryUrl: `${PORTAL_URL}`,
+          ctaPrimaryLabel: "Accéder à mon compte",
+          helpVariant: "info",
+          helpHtml: `Pour toute question, notre équipe reste disponible à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // RELANCES DE PAIEMENT (billing-dunning-engine)
     // ===================================================================
     case "billing_dunning_j3": {
