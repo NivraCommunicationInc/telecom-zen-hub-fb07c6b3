@@ -342,7 +342,7 @@ Deno.serve(async (req: Request) => {
         new_monthly_amount: invoiceAmount,
         issue_date: nowIso,
       }],
-      ["formal_demand", "15_Mise_en_Demeure", {
+      ["formal_demand", "15_Avis_Final_Regularisation", {
         demand_number: `MED-${orderNumber}`,
         client_name: clientName, client_email: clientEmail, client_phone: clientPhone,
         client_address: clientAddress, client_city: clientCity, client_province: clientProvince, client_postal: clientPostal,

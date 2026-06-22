@@ -8324,22 +8324,22 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
-    // MISE EN DEMEURE — J+7 (dernier avis avant annulation définitive)
+    // AVIS FINAL DE RÉGULARISATION — J+7 (dernier avis avant annulation)
     // ===================================================================
     case "formal_demand_notice": {
       const totalDue = money(v.total_due ?? v.amount_due);
       const invoiceNum = esc(v.invoice_number || "");
       const deadline = fmtDate(v.response_deadline || v.void_date || new Date().toISOString());
       return {
-        subject: `MISE EN DEMEURE — Action requise avant ${deadline} — Nivra Telecom`,
+        subject: `Avis final de régularisation — Action requise avant ${deadline} — Nivra Telecom`,
         html: shell({
-          preheader: `Dernier avis avant annulation définitive de votre compte.`,
-          badge: "⚠ MISE EN DEMEURE",
+          preheader: `Dernier avis avant annulation de votre service.`,
+          badge: "⚠ AVIS FINAL DE RÉGULARISATION",
           heroTitle: "Dernier avis avant annulation",
-          heroSub: `Votre compte sera annulé définitivement le ${deadline} si le solde n'est pas réglé.`,
+          heroSub: `Votre service sera annulé le ${deadline} si le solde n'est pas réglé.`,
           icon: "alert",
           greeting,
-          bodyText: `Malgré nos avis précédents, votre facture demeure impayée. Conformément aux modalités de votre contrat de service, nous vous adressons la présente mise en demeure. Vous disposez de <strong>3 jours</strong> pour régulariser votre situation. Passé ce délai, votre compte sera annulé définitivement et la créance pourra être transmise à un service de recouvrement.`,
+          bodyText: `Malgré nos avis précédents, votre facture demeure impayée. Vous disposez de <strong>3 jours</strong> pour régulariser votre situation. Passé ce délai, votre compte sera annulé définitivement et le solde impayé pourra être transmis à un service de recouvrement.`,
           cardTitle: "Solde exigible immédiatement",
           cardRows: [
             ["Compte", `#${String(accountNum).replace(/^#/, "")}`],

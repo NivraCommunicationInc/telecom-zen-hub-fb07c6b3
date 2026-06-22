@@ -37,7 +37,7 @@ const DOC_LABELS: Record<string, string> = {
   installation_report: "Rapport d'installation",
   activation_confirmation: "Confirmation d'activation de service",
   contract_amendment: "Avenant au contrat de service",
-  formal_demand: "Mise en demeure",
+  formal_demand: "Avis final de régularisation",
   collections_transfer: "Transfert au recouvrement",
   complaint_acknowledgment: "Accusé de réception de plainte",
   preauthorization_confirmation: "Confirmation de préautorisation",

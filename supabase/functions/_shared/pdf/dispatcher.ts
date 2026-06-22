@@ -730,7 +730,7 @@ export async function dispatchAutoDocument(
     case "contract_amendment":
       return toResult(generateContractAmendmentPDF(p as any), `Avenant_Contrat_${p.amendment_number}.pdf`, p.amendment_number);
     case "formal_demand":
-      return toResult(generateFormalDemandPDF(p as any), `Mise_en_Demeure_${p.demand_number}.pdf`, p.demand_number);
+      return toResult(generateFormalDemandPDF(p as any), `Avis_Final_Regularisation_${p.demand_number}.pdf`, p.demand_number);
     case "collections_transfer":
       return toResult(generateCollectionsTransferPDF(p as any), `Transfert_Recouvrement_${p.transfer_number}.pdf`, p.transfer_number);
     case "complaint_acknowledgment":

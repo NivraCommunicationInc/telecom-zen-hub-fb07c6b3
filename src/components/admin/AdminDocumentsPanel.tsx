@@ -783,9 +783,9 @@ function FormalDemandDialog({ client, invoices, safe, busy }: any) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><div><DocButton icon={Gavel} label="Mise en demeure" busy={busy} /></div></DialogTrigger>
+      <DialogTrigger asChild><div><DocButton icon={Gavel} label="Avis final de régularisation" busy={busy} /></div></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Mise en demeure</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Avis final de régularisation</DialogTitle></DialogHeader>
         <div className="space-y-3 text-[12px]">
           <div className="rounded-md border border-orange-500/30 bg-orange-500/10 p-2 text-orange-400">
             ⚠ Document légal — réserver aux comptes en recouvrement avancé.
@@ -806,9 +806,9 @@ function FormalDemandDialog({ client, invoices, safe, busy }: any) {
                 days_overdue: Math.max(0, Math.floor((Date.now() - new Date(i.due_date || i.created_at).getTime()) / 86400000)),
               })),
               response_deadline: addDays(todayISO(), 10), legal_basis: "C.c.Q. art. 1594",
-            }), "Mise en demeure");
+            }), "Avis final de régularisation");
             setOpen(false);
-          }} variant="destructive">Générer la mise en demeure</Button>
+          }} variant="destructive">Générer l'avis final de régularisation</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

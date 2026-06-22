@@ -25,7 +25,7 @@ export interface FormalDemandData {
 export function generateFormalDemandPDF(data: FormalDemandData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawHeader(doc, "MISE EN DEMEURE", data.demand_number);
+    drawHeader(doc, "AVIS FINAL DE REGULARISATION", data.demand_number);
 
     let y = 50;
     y = drawClientBlock(doc, y, {
@@ -40,13 +40,13 @@ export function generateFormalDemandPDF(data: FormalDemandData): PDFGenerationRe
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("OBJET : Mise en demeure de payer", 15, y);
+    doc.text("OBJET : Avis final de regularisation", 15, y);
     y += 8;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    const intro = `Madame, Monsieur,\n\nMalgre nos rappels precedents, votre compte presente actuellement un solde impaye de ${fmtCAD(data.total_due)}. Par la presente, nous vous mettons formellement en demeure de regulariser ce solde dans un delai de DIX (10) JOURS a compter de la reception de la presente, soit au plus tard le ${fmtDate(data.response_deadline)}.`;
+    const intro = `Madame, Monsieur,\n\nMalgre nos rappels precedents, votre compte presente actuellement un solde impaye de ${fmtCAD(data.total_due)}. Par le present avis final de regularisation, nous vous prions de regulariser ce solde dans un delai de DIX (10) JOURS a compter de la reception du present avis, soit au plus tard le ${fmtDate(data.response_deadline)}.`;
     const introLines = doc.splitTextToSize(intro, 170) as string[];
     for (const l of introLines) { doc.text(l, 15, y); y += 5; }
     y += 4;
@@ -111,7 +111,7 @@ export function generateFormalDemandPDF(data: FormalDemandData): PDFGenerationRe
     doc.text("Service du recouvrement", 15, y);
 
     drawFooter(doc);
-    return { success: true, blob: doc.output("blob"), filename: `Mise_En_Demeure_${data.demand_number}_Nivra.pdf` };
+    return { success: true, blob: doc.output("blob"), filename: `Avis_Final_Regularisation_${data.demand_number}_Nivra.pdf` };
   } catch (e) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }

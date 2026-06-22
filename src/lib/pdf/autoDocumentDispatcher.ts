@@ -337,7 +337,7 @@ export const DOC_TYPE_LABELS: Record<AutoDocType, string> = {
   installation_report: "Rapport d'installation",
   activation_confirmation: "Confirmation d'activation",
   contract_amendment: "Avenant au contrat",
-  formal_demand: "Mise en demeure",
+  formal_demand: "Avis final de régularisation",
   collections_transfer: "Transfert au recouvrement",
   complaint_acknowledgment: "Accusé de réception de plainte",
   preauthorization_confirmation: "Confirmation de préautorisation",
