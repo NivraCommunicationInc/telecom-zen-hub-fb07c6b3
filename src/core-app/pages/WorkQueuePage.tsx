@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNowStrict, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { corePath } from "@/core-app/lib/corePaths";
 
 /* ── Types ── */
 interface QueueOrder {
@@ -540,7 +541,7 @@ const WorkQueuePage = () => {
                         className={`border-b border-[hsl(220,15%,14%)] last:border-0 cursor-pointer transition-colors ${isSelected ? "bg-[hsl(220,20%,13%)]" : "hover:bg-[hsl(220,15%,12%)]"}`}
                       >
                         <td className="px-3 py-2.5">
-                          <Link to={`/core/orders/${o.id}`} onClick={(e) => e.stopPropagation()} className="font-mono font-semibold text-white hover:text-emerald-400">
+                          <Link to={corePath(`/orders/${o.id}`)} onClick={(e) => e.stopPropagation()} className="font-mono font-semibold text-white hover:text-emerald-400">
                             {o.order_number || o.id.slice(0, 8)}
                           </Link>
                         </td>
@@ -567,7 +568,7 @@ const WorkQueuePage = () => {
                         </td>
                         <td className="px-3 py-2.5 text-right">
                           <Link
-                            to={`/core/orders/${o.id}`}
+                            to={corePath(`/orders/${o.id}`)}
                             onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center gap-1 rounded-md border border-[hsl(220,15%,20%)] px-2 py-1 text-[10px] font-medium text-[hsl(220,10%,65%)] hover:text-white hover:border-emerald-500/40 transition-colors"
                           >
@@ -829,7 +830,7 @@ function SidePreview({ order, onClose }: { order: QueueOrder; onClose: () => voi
       {/* Open button */}
       <div className="px-3 pt-3">
         <button
-          onClick={() => navigate(`/core/orders/${order.id}`)}
+          onClick={() => navigate(corePath(`/orders/${order.id}`))}
           className="w-full flex items-center justify-center gap-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors"
         >
           <ExternalLink className="h-3.5 w-3.5" />
@@ -929,7 +930,7 @@ function SidePreview({ order, onClose }: { order: QueueOrder; onClose: () => voi
           </button>
 
           <button
-            onClick={() => navigate(`/core/orders/${order.id}`)}
+            onClick={() => navigate(corePath(`/orders/${order.id}`))}
             className="w-full flex items-center justify-center gap-1.5 rounded-md border border-slate-700 hover:border-emerald-500/40 hover:text-white px-3 py-2 text-xs font-medium text-slate-300 transition-colors"
           >
             <ArrowRight className="h-3.5 w-3.5" />
