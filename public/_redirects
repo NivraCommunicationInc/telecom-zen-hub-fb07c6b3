@@ -1,0 +1,65 @@
+# SEO-critical files - must be served directly (not rewritten to SPA)
+/sitemap.xml /sitemap.xml 200
+/robots.txt /robots.txt 200
+
+# Google Search Console HTML file verification (pattern: googleXXXXXXXX.html)
+/google*.html /google*.html 200
+
+# ============================================
+# LEGACY STAFF PORTAL REDIRECTS -> /staff
+# ============================================
+/technician /staff 301
+/technician/* /staff 301
+/portal/login /portal/auth 301
+
+# ============================================
+# PERMANENT REDIRECTS: /client/* -> /portal/*
+# ============================================
+/client/new-order /portal/new-order 301
+/client/internet-order /portal/internet 301
+/client/tv-order /portal/tv-order 301
+/client/services /portal/services 301
+/client/dashboard /portal 301
+/client/appointments /portal/appointments 301
+/client/invoices /portal/invoices 301
+/client/monthly-invoices /portal/monthly-invoices 301
+/client/tickets /portal/tickets 301
+/client/channels /portal/channels 301
+/client/profile /portal/profile 301
+/client/payments /portal/payments 301
+/client/contracts /portal/contracts 301
+/client/orders /portal/orders 301
+/client/order-confirmation /portal/order-confirmation 301
+/client/replacement /portal/replacement 301
+/client/cancellations /portal/cancellations 301
+/client/auth /portal/auth 301
+/client/suspended /portal/suspended 301
+/client/access-blocked /portal/access-blocked 301
+/client/* /portal/:splat 301
+
+# Public KYC health endpoint proxy
+/api/kyc-health https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-health 200
+
+# Admin KYC throttle reset endpoint proxy
+/kyc-reset-throttle https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-reset-throttle 200
+/api/kyc-reset-throttle https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-reset-throttle 200
+
+# Explicit SPA rewrites for QR identity verification route
+/verify-id /index.html 200
+/verify-id/* /index.html 200
+
+# Explicit SPA rewrites for Nivra Core internal app
+/core /index.html 200
+/core/* /index.html 200
+
+# Explicit SPA rewrites for Employee, Field, and Hub portals
+/employee /index.html 200
+/employee/* /index.html 200
+/field /index.html 200
+/field/* /index.html 200
+/hub /index.html 200
+/hub/* /index.html 200
+
+# SPA catch-all - must be LAST
+/* /index.html 200
+
