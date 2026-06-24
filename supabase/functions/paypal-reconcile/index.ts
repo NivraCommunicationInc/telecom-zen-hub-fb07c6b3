@@ -86,6 +86,16 @@ Deno.serve(async (req) => {
       adminEmail = "system@cron";
     }
 
+    // Service role key check (used by cron jobs via Vault)
+    if (!isAuthorized && authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (svcKey && token === svcKey) {
+        isAuthorized = true;
+        adminEmail = "system@cron";
+      }
+    }
+
     // Admin authentication
     if (!isAuthorized && authHeader) {
       const token = authHeader.replace("Bearer ", "");

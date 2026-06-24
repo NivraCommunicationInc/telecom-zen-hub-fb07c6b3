@@ -711,20 +711,26 @@ serve(async (req) => {
     await supabase.from("billing_system_alerts").insert({
       alert_type: "cron_heartbeat",
       entity_type: "cron",
-      entity_id: "billing-generate-renewals",
+      entity_reference: "billing-generate-renewals",
       severity: "info",
-      message: `Cron OK — window ${windowStartStr}→${windowEndStr} — processed: ${results.processed}, errors: ${results.errors.length}`,
-      details: { window: `${windowStartStr}→${windowEndStr}`, ...results },
+      details: {
+        message: `Cron OK — window ${windowStartStr}→${windowEndStr} — processed: ${results.processed}, errors: ${results.errors.length}`,
+        window: `${windowStartStr}→${windowEndStr}`,
+        ...results,
+      },
     });
 
     if (results.errors.length > 0 && results.processed === 0) {
       await supabase.from("billing_system_alerts").insert({
         alert_type: "renewal_generation_all_failed",
         entity_type: "cron",
-        entity_id: "billing-generate-renewals",
+        entity_reference: "billing-generate-renewals",
         severity: "critical",
-        message: `CRITIQUE: ${results.errors.length} abonnement(s) en erreur, 0 facture créée`,
-        details: { window: `${windowStartStr}→${windowEndStr}`, errors: results.errors },
+        details: {
+          message: `CRITIQUE: ${results.errors.length} abonnement(s) en erreur, 0 facture créée`,
+          window: `${windowStartStr}→${windowEndStr}`,
+          errors: results.errors,
+        },
       });
     }
 
