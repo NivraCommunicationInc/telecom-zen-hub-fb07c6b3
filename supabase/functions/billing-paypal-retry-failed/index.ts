@@ -26,7 +26,9 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
-  // Concurrency guard — skip if a retry run is already in progress (E1 fix)
+  // Concurrency guard — skip if a retry run is already in progress
+  // Window: 2 hours (edge function max runtime is ~60s, 2h gives enough margin
+  // to detect true zombies without blocking legitimate daily runs)
   let lockId: string | null = null;
   try {
     const { data: existingRun } = await supabase
@@ -34,7 +36,7 @@ serve(async (req) => {
       .select("id, started_at")
       .eq("run_type", "paypal_retry")
       .eq("status", "running")
-      .gte("started_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .gte("started_at", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
       .maybeSingle();
 
     if (existingRun) {
@@ -64,6 +66,17 @@ serve(async (req) => {
   let retried = 0;
   let skipped = 0;
   const errors: string[] = [];
+
+  const releaseLock = async (finalStatus: "completed" | "failed") => {
+    if (!lockId) return;
+    const { error: lockErr } = await supabase
+      .from("billing_automation_runs")
+      .update({ status: finalStatus, completed_at: new Date().toISOString() })
+      .eq("id", lockId);
+    if (lockErr) {
+      console.error(`[paypal-retry] CRITICAL: Failed to release lock ${lockId} — status will stay 'running':`, lockErr.message);
+    }
+  };
 
   try {
     // Failed PayPal payments in the 24-72h retry window
@@ -164,7 +177,7 @@ serve(async (req) => {
             idempotency_key: `paypal_retry_${pmt.id}_${retryCount + 1}`,
             to_email: inv.customer.email,
             from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-            subject: chargeErr 
+            subject: chargeErr
               ? `Paiement échoué — nouvelle tentative demain`
               : `Paiement réessayé avec succès`,
             template_key: "paypal_charge_failed_retry",
@@ -189,11 +202,7 @@ serve(async (req) => {
       }
     }
 
-    if (lockId) {
-      await supabase.from("billing_automation_runs")
-        .update({ status: "completed", completed_at: new Date().toISOString() })
-        .eq("id", lockId).catch(() => {});
-    }
+    await releaseLock("completed");
     return new Response(
       JSON.stringify({ success: true, retried, skipped, errors }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -201,11 +210,7 @@ serve(async (req) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[paypal-retry] Fatal: ${msg}`);
-    if (lockId) {
-      await supabase.from("billing_automation_runs")
-        .update({ status: "failed", completed_at: new Date().toISOString() })
-        .eq("id", lockId).catch(() => {});
-    }
+    await releaseLock("failed");
     return new Response(
       JSON.stringify({ error: msg, retried }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
