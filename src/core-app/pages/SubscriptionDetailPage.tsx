@@ -17,10 +17,11 @@ import { fr } from "date-fns/locale";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { AccountAdjustmentsList } from "@/core-app/components/account-actions/AccountAdjustmentsList";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -69,6 +70,20 @@ export default function SubscriptionDetailPage() {
   const refetch = () => {
     queryClient.invalidateQueries({ queryKey: ["admin-subscription-detail", id] });
   };
+
+  const { data: accountUuid } = useQuery({
+    queryKey: ["sub-account-uuid", customer?.user_id],
+    queryFn: async () => {
+      if (!customer?.user_id) return null;
+      const { data } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("client_id", customer.user_id)
+        .maybeSingle();
+      return data?.id ?? null;
+    },
+    enabled: !!customer?.user_id,
+  });
 
   async function handleDeleteService() {
     if (!deleteSvc) return;
@@ -357,6 +372,9 @@ export default function SubscriptionDetailPage() {
           </div>
         )}
       </SectionWithActions>
+
+      {/* Rabais et crédits actifs sur ce compte */}
+      <AccountAdjustmentsList accountId={accountUuid ?? undefined} />
 
       {/* Source order */}
       {subscription.order_id && (

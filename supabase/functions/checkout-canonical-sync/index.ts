@@ -1142,12 +1142,16 @@ serve(async (req) => {
         if (subError) throw subError;
 
         // â˜… FIX GAP 2: Populate billing_subscription_services with recurring line items
-        const { count: existingServiceCount } = await admin
+        // Check only recurring+active entries — one_time/inactive entries from initial
+        // order intake must NOT block creation of proper recurring service lines.
+        const { count: existingRecurringCount } = await admin
           .from("billing_subscription_services")
           .select("id", { count: "exact", head: true })
-          .eq("subscription_id", subscriptionId);
+          .eq("subscription_id", subscriptionId)
+          .eq("service_type", "recurring")
+          .eq("is_active", true);
 
-        if (!existingServiceCount || existingServiceCount === 0) {
+        if (!existingRecurringCount || existingRecurringCount === 0) {
           const serviceItems: Array<Record<string, unknown>> = [];
           const ONE_TIME_CATS = new Set(["equipment","router","borne_wifi","modem","terminal","tv_box","sim","esim","device","one_time","delivery","installation","activation","fee","other"]);
           const ONE_TIME_NAME_RE = /équipement|borne\s*(wifi|nivra)|terminal|router|routeur|frais\s+de\s+mise\s+en\s+service|frais\s+d.activation|frais.*livraison|carte\s+sim/i;
@@ -1195,7 +1199,7 @@ serve(async (req) => {
             }
           }
         } else {
-          results.subscription_services_existing = existingServiceCount;
+          results.subscription_services_existing = existingRecurringCount;
         }
 
         // Link subscription to invoice
