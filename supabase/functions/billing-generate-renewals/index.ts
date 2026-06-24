@@ -547,9 +547,11 @@ serve(async (req) => {
                   await supabase.from("billing_invoices").update(invoiceFieldUpdate).eq("id", invoice.id);
                   // Apply adj DB updates AFTER invoice is updated (E5 fix: prevents consumed-not-applied on crash)
                   for (const { id: adjId, update: adjUpdate } of pendingAdjUpdates) {
-                    await supabase.from("account_adjustments").update(adjUpdate).eq("id", adjId).catch((e: unknown) => {
+                    try {
+                      await supabase.from("account_adjustments").update(adjUpdate).eq("id", adjId);
+                    } catch (e: unknown) {
                       console.error(`[billing-generate-renewals] adj update failed for ${adjId}:`, e);
-                    });
+                    }
                   }
                   console.log(`[billing-generate-renewals] Applied ${adjLines.length} account_adjustments to ${invoiceNumber} (delta: ${adjDelta.toFixed(2)}, finalTotal: ${finalTotal.toFixed(2)})`);
                 }
