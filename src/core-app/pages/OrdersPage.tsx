@@ -292,11 +292,7 @@ const OrdersPage = () => {
             return (
               <div
                 key={o.id}
-                onClick={() => navigate(corePath(
-                  o.order_type === "field_payment_intent"
-                    ? `/orders/field/${o.id}`
-                    : `/orders/${o.id}`
-                ))}
+                onClick={() => navigate(corePath(`/orders/${o.id}`))}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -443,11 +439,7 @@ const OrdersPage = () => {
                 )}
 
                 <Link
-                  to={corePath(
-                    o.order_type === "field_payment_intent"
-                      ? `/orders/field/${o.id}`
-                      : `/orders/${o.id}`
-                  )}
+                  to={corePath(`/orders/${o.id}`)}
                   onClick={(e) => e.stopPropagation()}
                   style={{ textDecoration: "none" }}
                 >

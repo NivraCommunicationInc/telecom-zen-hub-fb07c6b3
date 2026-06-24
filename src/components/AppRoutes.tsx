@@ -148,7 +148,6 @@ const CoreWorkQueue = lazy(() => import("@/core-app/pages/WorkQueuePage"));
 const CoreSLAPage = lazy(() => import("@/core-app/pages/CoreSLAPage"));
 const CoreOrders = lazy(() => import("@/core-app/pages/OrdersPage"));
 const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
-const CoreFieldIntentDetail = lazy(() => import("@/core-app/pages/CoreFieldIntentDetail"));
 const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
 const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
 const CoreAppointments = lazy(() => import("@/core-app/pages/AppointmentsPage"));
@@ -983,7 +982,6 @@ const AppRoutes = () => {
           <Route path="crm" element={<Suspense fallback={null}><CoreCrm /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
           <Route path="orders/manual" element={<Suspense fallback={null}><FieldNewSale exitRedirect="/core/orders" /></Suspense>} />
-          <Route path="orders/field/:intentId" element={<Suspense fallback={null}><CoreFieldIntentDetail /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
           <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
           <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
