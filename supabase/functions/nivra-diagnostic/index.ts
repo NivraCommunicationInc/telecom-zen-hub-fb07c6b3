@@ -608,5 +608,54 @@ Deno.serve(async (req) => {
     });
   }
 
-  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | fix_orphan_by_paypal_id | paypal_sub_lookup | generate_magic_link | email_audit | auth_sync_check" }, 400);
+  // ─────────────────────────────────────────────────────────────────────────
+  if (body.action === "paypal_deep_check") {
+    // Check PayPal credentials, cached plans status, and table schema integrity.
+    const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
+    const clientSecret = Deno.env.get("PAYPAL_SECRET");
+    if (!clientId || !clientSecret) return json({ error: "PAYPAL_CLIENT_ID or PAYPAL_SECRET not set" }, 500);
+
+    const auth = btoa(`${clientId}:${clientSecret}`);
+    const tokenRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
+      method: "POST",
+      headers: { "Authorization": `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: "grant_type=client_credentials",
+    });
+    if (!tokenRes.ok) return json({ error: "PayPal token failed", status: tokenRes.status, body: await tokenRes.text() }, 500);
+    const { access_token } = await tokenRes.json();
+
+    // Check each cached plan's status on PayPal
+    const { data: plans } = await sb.from("paypal_plan_cache").select("paypal_plan_id, amount_cad, is_active").eq("is_active", true);
+    const planStatuses = await Promise.all((plans ?? []).map(async (p: any) => {
+      const r = await fetch(`https://api-m.paypal.com/v1/billing/plans/${p.paypal_plan_id}`, {
+        headers: { "Authorization": `Bearer ${access_token}` },
+      });
+      const data = await r.json();
+      return { plan_id: p.paypal_plan_id, amount: p.amount_cad, http_status: r.status, paypal_status: data.status, create_time: data.create_time };
+    }));
+
+    // Check paypal_autopay_attempts table schema (detect missing columns)
+    const { data: recentAttempts, error: attemptErr } = await sb
+      .from("paypal_autopay_attempts")
+      .select("id, user_id, status, current_step, error_message, steps, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    // Check PayPal account info
+    const acctRes = await fetch("https://api-m.paypal.com/v1/oauth2/token/userinfo?schema=paypalv1.1", {
+      headers: { "Authorization": `Bearer ${access_token}` },
+    });
+    const acctData = acctRes.ok ? await acctRes.json() : null;
+
+    return json({
+      credentials_valid: true,
+      client_id_prefix: clientId.substring(0, 8) + "...",
+      paypal_account: acctData,
+      paypal_plan_statuses: planStatuses,
+      recent_attempts: recentAttempts ?? [],
+      attempt_table_error: attemptErr?.message ?? null,
+    });
+  }
+
+  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | fix_orphan_by_paypal_id | paypal_sub_lookup | generate_magic_link | paypal_deep_check | email_audit | auth_sync_check" }, 400);
 });
