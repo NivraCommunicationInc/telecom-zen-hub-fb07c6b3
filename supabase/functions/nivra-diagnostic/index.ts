@@ -453,5 +453,56 @@ Deno.serve(async (req) => {
     return json({ success: true, billing_subscription_id, paypal_subscription_id, previous_status: sub.recurring_setup_status });
   }
 
-  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | fix_orphan | email_audit | auth_sync_check" }, 400);
+  // ─────────────────────────────────────────────────────────────────────────
+  if (body.action === "paypal_webhook_check") {
+    // List current PayPal webhooks and show which URL they point to
+    const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
+    const clientSecret = Deno.env.get("PAYPAL_SECRET");
+    if (!clientId || !clientSecret) return json({ error: "PAYPAL_CLIENT_ID or PAYPAL_SECRET not set" }, 500);
+
+    const auth = btoa(`${clientId}:${clientSecret}`);
+    const tokenRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
+      method: "POST",
+      headers: { "Authorization": `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: "grant_type=client_credentials",
+    });
+    if (!tokenRes.ok) return json({ error: "PayPal token failed", status: tokenRes.status, body: await tokenRes.text() }, 500);
+    const { access_token } = await tokenRes.json();
+
+    const webhookRes = await fetch("https://api-m.paypal.com/v1/notifications/webhooks", {
+      headers: { "Authorization": `Bearer ${access_token}`, "Content-Type": "application/json" },
+    });
+    const webhooks = await webhookRes.json();
+    return json({ paypal_webhooks: webhooks, this_project_url: `https://${Deno.env.get("SUPABASE_URL")?.split("//")[1]}/functions/v1/paypal-webhook` });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  if (body.action === "paypal_webhook_update") {
+    // Update a PayPal webhook URL. Required: webhook_id, new_url
+    const { webhook_id, new_url } = body;
+    if (!webhook_id || !new_url) return json({ error: "Required: webhook_id, new_url" }, 400);
+
+    const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
+    const clientSecret = Deno.env.get("PAYPAL_SECRET");
+    if (!clientId || !clientSecret) return json({ error: "PAYPAL_CLIENT_ID or PAYPAL_SECRET not set" }, 500);
+
+    const auth = btoa(`${clientId}:${clientSecret}`);
+    const tokenRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
+      method: "POST",
+      headers: { "Authorization": `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: "grant_type=client_credentials",
+    });
+    if (!tokenRes.ok) return json({ error: "PayPal token failed" }, 500);
+    const { access_token } = await tokenRes.json();
+
+    const patchRes = await fetch(`https://api-m.paypal.com/v1/notifications/webhooks/${webhook_id}`, {
+      method: "PATCH",
+      headers: { "Authorization": `Bearer ${access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify([{ op: "replace", path: "/url", value: new_url }]),
+    });
+    const patchBody = await patchRes.json();
+    return json({ status: patchRes.status, ok: patchRes.ok, result: patchBody });
+  }
+
+  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | email_audit | auth_sync_check" }, 400);
 });
