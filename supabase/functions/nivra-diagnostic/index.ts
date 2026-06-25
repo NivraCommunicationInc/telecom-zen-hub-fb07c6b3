@@ -587,5 +587,26 @@ Deno.serve(async (req) => {
     return json({ success: true, billing_subscription_id: sub.id, paypal_subscription_id, previous_status: sub.recurring_setup_status });
   }
 
-  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | fix_orphan_by_paypal_id | paypal_sub_lookup | email_audit | auth_sync_check" }, 400);
+  // ─────────────────────────────────────────────────────────────────────────
+  if (body.action === "generate_magic_link") {
+    // Generate a one-time login URL for a client — NO email sent, NO password changed.
+    // Required: email
+    const { email } = body;
+    if (!email) return json({ error: "Required: email" }, 400);
+
+    const { data, error } = await sb.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+    if (error) return json({ error: error.message }, 500);
+
+    return json({
+      email,
+      action_link: (data as any)?.properties?.action_link ?? (data as any)?.action_link,
+      expires_in: "60 minutes",
+      note: "Ouvre ce lien dans un navigateur — connecte directement sans changer le mot de passe.",
+    });
+  }
+
+  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | fix_orphan_by_paypal_id | paypal_sub_lookup | generate_magic_link | email_audit | auth_sync_check" }, 400);
 });
