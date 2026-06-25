@@ -346,7 +346,7 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(50),
       sb.from("billing_system_alerts")
-        .select("id, alert_type, entity_id, details, created_at")
+        .select("id, alert_type, entity_id, entity_reference, details, created_at")
         .in("alert_type", ["orphan_subscription_activation", "paypal_subscription_creation_failed"])
         .order("created_at", { ascending: false })
         .limit(20),
@@ -383,7 +383,8 @@ Deno.serve(async (req) => {
       orphan_alerts: (alerts.data ?? []).map((a: any) => ({
         id: a.id,
         type: a.alert_type,
-        entity: a.entity_id,
+        entity_id: a.entity_id,
+        entity_reference: a.entity_reference,
         details: a.details,
         created: a.created_at,
       })),
@@ -504,5 +505,87 @@ Deno.serve(async (req) => {
     return json({ status: patchRes.status, ok: patchRes.ok, result: patchBody });
   }
 
-  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | email_audit | auth_sync_check" }, 400);
+  // ─────────────────────────────────────────────────────────────────────────
+  if (body.action === "paypal_sub_lookup") {
+    // Query PayPal API for a subscription's current status.
+    // Required: paypal_subscription_id
+    const { paypal_subscription_id } = body;
+    if (!paypal_subscription_id) return json({ error: "Required: paypal_subscription_id" }, 400);
+
+    const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
+    const clientSecret = Deno.env.get("PAYPAL_SECRET");
+    if (!clientId || !clientSecret) return json({ error: "PAYPAL_CLIENT_ID or PAYPAL_SECRET not set" }, 500);
+
+    const auth = btoa(`${clientId}:${clientSecret}`);
+    const tokenRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
+      method: "POST",
+      headers: { "Authorization": `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: "grant_type=client_credentials",
+    });
+    if (!tokenRes.ok) return json({ error: "PayPal token failed", status: tokenRes.status }, 500);
+    const { access_token } = await tokenRes.json();
+
+    const subRes = await fetch(`https://api-m.paypal.com/v1/billing/subscriptions/${paypal_subscription_id}`, {
+      headers: { "Authorization": `Bearer ${access_token}`, "Content-Type": "application/json" },
+    });
+    const subData = await subRes.json();
+
+    // Also check Nivra DB for this subscription
+    const { data: nivraSub } = await sb
+      .from("billing_subscriptions")
+      .select("id, customer_id, plan_name, plan_price, recurring_setup_status, recurring_provider, status, auto_billing_enabled, updated_at")
+      .eq("paypal_subscription_id", paypal_subscription_id)
+      .maybeSingle();
+
+    return json({
+      paypal_subscription_id,
+      paypal_status: subRes.status,
+      paypal_data: { status: subData.status, plan_id: subData.plan_id, create_time: subData.create_time, start_time: subData.start_time, billing_info: subData.billing_info, subscriber: subData.subscriber },
+      nivra_billing_subscription: nivraSub,
+      needs_fix: nivraSub?.recurring_setup_status !== "active" && subData.status === "ACTIVE",
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  if (body.action === "fix_orphan_by_paypal_id") {
+    // Fix an orphan by looking up billing_subscriptions via paypal_subscription_id.
+    // Required: paypal_subscription_id
+    const { paypal_subscription_id } = body;
+    if (!paypal_subscription_id) return json({ error: "Required: paypal_subscription_id" }, 400);
+
+    const { data: sub, error: fetchErr } = await sb
+      .from("billing_subscriptions")
+      .select("id, customer_id, plan_name, paypal_subscription_id, recurring_setup_status")
+      .eq("paypal_subscription_id", paypal_subscription_id)
+      .maybeSingle();
+
+    if (fetchErr) return json({ error: fetchErr.message }, 500);
+    if (!sub) return json({ error: "No billing_subscription found with this paypal_subscription_id" }, 404);
+    if (sub.recurring_setup_status === "active") return json({ info: "Already active, no fix needed", sub }, 200);
+
+    const { error: updateErr } = await sb
+      .from("billing_subscriptions")
+      .update({
+        recurring_setup_status: "active",
+        auto_billing_enabled: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sub.id);
+
+    if (updateErr) return json({ error: updateErr.message }, 500);
+
+    await sb.from("billing_subscription_trace_audit").insert({
+      subscription_id: sub.id,
+      customer_id: sub.customer_id,
+      action: "paypal_orphan_manually_linked",
+      source_type: "admin",
+      source_id: "nivra-diagnostic",
+      details: { paypal_subscription_id, fixed_at: new Date().toISOString() },
+      reason: `Orphan ${paypal_subscription_id} fixed via fix_orphan_by_paypal_id`,
+    });
+
+    return json({ success: true, billing_subscription_id: sub.id, paypal_subscription_id, previous_status: sub.recurring_setup_status });
+  }
+
+  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | fix_orphan_by_paypal_id | paypal_sub_lookup | email_audit | auth_sync_check" }, 400);
 });
