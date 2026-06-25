@@ -369,9 +369,10 @@ export async function createNivraPayPalSubscription(
   log(`✓ PayPal subscription created: ${paypalSubscription.id} | plan: ${plan.paypal_plan_id} (reused: ${plan.plan_reused})`);
 
   // ═══ STEP 6: SYNC TO NIVRA DATABASE ═══
+  // NOTE: paypal_plan_id intentionally excluded — column does not exist on billing_subscriptions.
+  // It is stored in paypal_plan_cache and billing_subscription_trace_audit.
   const updateData: Record<string, any> = {
     paypal_subscription_id: paypalSubscription.id,
-    paypal_plan_id: plan.paypal_plan_id,
     recurring_setup_status: "pending",
     recurring_provider: "paypal",
     auto_billing_enabled: true,
@@ -381,9 +382,12 @@ export async function createNivraPayPalSubscription(
   let nivraSubscriptionId = params.nivra_subscription_id;
 
   if (nivraSubscriptionId) {
-    await supabase.from("billing_subscriptions")
+    const { error: updateErr } = await supabase.from("billing_subscriptions")
       .update(updateData)
       .eq("id", nivraSubscriptionId);
+    if (updateErr) {
+      log(`WARNING: billing_subscriptions update failed (sub ${nivraSubscriptionId}): ${updateErr.message}`);
+    }
   } else {
     // Find existing subscription for this order
     const { data: existingNivra } = await supabase
@@ -394,9 +398,12 @@ export async function createNivraPayPalSubscription(
 
     if (existingNivra) {
       nivraSubscriptionId = existingNivra.id;
-      await supabase.from("billing_subscriptions")
+      const { error: updateErr } = await supabase.from("billing_subscriptions")
         .update(updateData)
         .eq("id", nivraSubscriptionId);
+      if (updateErr) {
+        log(`WARNING: billing_subscriptions update failed (sub ${nivraSubscriptionId}): ${updateErr.message}`);
+      }
     } else {
       // Should not happen in normal flow — subscription should exist from order creation
       log(`WARNING: No existing billing_subscription for order ${params.order_id} — creating one`);
