@@ -291,5 +291,8 @@ verify_jwt = false
 [functions.submit-nps-survey]
 verify_jwt = false
 
+[functions.nivra-diagnostic]
+verify_jwt = false
+
 
 
