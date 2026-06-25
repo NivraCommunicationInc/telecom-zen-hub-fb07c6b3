@@ -194,7 +194,7 @@ serve(async (req) => {
         await supabase.from("activity_logs").insert({
           user_id: "00000000-0000-0000-0000-000000000000",
           entity_type: "security_event",
-          entity_id: "paypal_webhook",
+          entity_id: null,
           action: "invalid_signature",
           details: {
             transmission_id: req.headers.get("paypal-transmission-id"),
@@ -245,8 +245,8 @@ serve(async (req) => {
       .from("activity_logs")
       .select("id")
       .eq("entity_type", "paypal_webhook")
-      .eq("entity_id", event.id)
       .eq("action", event.event_type)
+      .filter("details->>paypal_event_id", "eq", event.id)
       .maybeSingle();
 
     if (existingEvent) {
@@ -261,9 +261,10 @@ serve(async (req) => {
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
       entity_type: "paypal_webhook",
-      entity_id: event.id,
+      entity_id: null,
       action: event.event_type,
       details: {
+        paypal_event_id: event.id,
         resource_id: event.resource?.id,
         resource_type: event.resource_type,
         custom_id: event.resource?.custom_id,
@@ -1026,9 +1027,9 @@ serve(async (req) => {
         await supabase.from("activity_logs").insert({
           user_id: "00000000-0000-0000-0000-000000000000",
           entity_type: "dispute_resolution",
-          entity_id: disputeId,
+          entity_id: null,
           action: "dispute_resolved",
-          details: { outcome, event: event.event_type },
+          details: { dispute_id: disputeId, outcome, event: event.event_type },
         });
         break;
       }
