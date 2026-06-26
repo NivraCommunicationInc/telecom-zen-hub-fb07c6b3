@@ -99,8 +99,8 @@ export default function RefundPolicy() {
                   <h2 style={h2s}>3. Abonnements mensuels</h2>
                   <ul style={{ paddingLeft: "1.5rem" }}>
                     <li style={lis}>Vous pouvez annuler à tout moment via votre compte ou en contactant le support.</li>
-                    <li style={lis}>L'annulation prend effet à la fin de la période de facturation en cours, sauf mention contraire dans votre offre.</li>
-                    <li style={lis}>Aucun remboursement partiel n'est accordé pour une période déjà commencée, sauf exceptions prévues à la section 2.</li>
+                    <li style={lis}>Lors de l'annulation en cours de cycle, un crédit proportionnel aux jours non utilisés est automatiquement appliqué sous forme de crédit-compte (modèle prépayé — aucun remboursement direct au mode de paiement).</li>
+                    <li style={lis}>Le crédit-compte est utilisé automatiquement sur la prochaine facture ou peut être conservé au dossier client si aucun service actif ne subsiste.</li>
                   </ul>
                 </div>
 
@@ -151,7 +151,7 @@ export default function RefundPolicy() {
                     <ul style={{ paddingLeft: "1.5rem" }}>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> une <strong style={{ color: "#e2e8f0" }}>facture d'ajustement séparée</strong> est émise immédiatement pour le montant proratisé (différence de prix × jours restants ÷ jours réels du cycle, 28–31 jours), avec TPS + TVQ incluses. Un courriel de notification est envoyé avec lien de paiement vers le portail client.</li>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Downgrade :</strong> le nouveau tarif prend effet au prochain renouvellement. <strong style={{ color: "#e2e8f0" }}>Aucun crédit prorata ni remboursement en espèces</strong> n'est accordé pour la période en cours.</li>
-                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Le cycle en cours n'est pas remboursable</strong> si l'annulation du service se fait en cours de cycle, sauf obligation légale ou erreur de facturation.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Annulation en cours de cycle :</strong> un crédit proportionnel aux jours non utilisés est <strong style={{ color: "#e2e8f0" }}>automatiquement appliqué</strong> sous forme de crédit-compte (modèle prépayé — aucun remboursement direct au mode de paiement).</li>
                     </ul>
                   </div>
                 </div>
@@ -212,8 +212,8 @@ export default function RefundPolicy() {
                   <h2 style={h2s}>3. Monthly Subscriptions</h2>
                   <ul style={{ paddingLeft: "1.5rem" }}>
                     <li style={lis}>You can cancel at any time through your account or by contacting support.</li>
-                    <li style={lis}>Cancellation takes effect at the end of the current billing period, unless otherwise stated in your offer.</li>
-                    <li style={lis}>No partial refund is granted for a period already started, except as provided in section 2.</li>
+                    <li style={lis}>When you cancel mid-cycle, a credit proportional to the unused days is automatically applied as an account credit (prepaid model — no direct refund to the original payment method).</li>
+                    <li style={lis}>The account credit is automatically consumed by the next invoice, or remains on file if no active service is left.</li>
                   </ul>
                 </div>
 
@@ -264,7 +264,7 @@ export default function RefundPolicy() {
                     <ul style={{ paddingLeft: "1.5rem" }}>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade:</strong> a <strong style={{ color: "#e2e8f0" }}>separate adjustment invoice</strong> is issued immediately for the prorated amount (price difference × days remaining ÷ actual cycle days, 28–31 days), with GST + QST included. A notification email is sent with a payment link to your client portal.</li>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Downgrade:</strong> the new rate takes effect at the next renewal. <strong style={{ color: "#e2e8f0" }}>No prorated credit or cash refund</strong> is issued for the current billing period.</li>
-                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>The current cycle is not refundable</strong> if service is cancelled mid-cycle, except as required by law or confirmed billing error.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Mid-cycle cancellation:</strong> a credit proportional to the unused days is <strong style={{ color: "#e2e8f0" }}>automatically applied</strong> as an account credit (prepaid model — no direct refund to the original payment method).</li>
                     </ul>
                   </div>
                 </div>

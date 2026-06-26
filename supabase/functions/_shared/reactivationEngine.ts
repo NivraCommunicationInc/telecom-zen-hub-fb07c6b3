@@ -14,6 +14,7 @@
  */
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { activateNivraPayPalSubscription } from "./nivraPayPalSubscriptionFactory.ts";
+import { prorateWindow } from "./prorationMath.ts";
 
 export interface ReactivationResult {
   reactivated: boolean;
@@ -44,7 +45,7 @@ export async function reactivateIfSuspended(
     // ── 1. Fetch subscription ────────────────────────────────────────
     const { data: sub, error: subErr } = await supabase
       .from("billing_subscriptions")
-      .select("id, status, customer_id, plan_name, order_id, paypal_subscription_id")
+      .select("id, status, customer_id, plan_name, order_id, paypal_subscription_id, suspension_date, cycle_start_date, cycle_end_date, plan_price")
       .eq("id", subscriptionId)
       .maybeSingle();
 
@@ -55,7 +56,8 @@ export async function reactivateIfSuspended(
 
     base.previousStatus = sub.status;
 
-    if (sub.status !== "suspended") {
+    const wasInterrupted = sub.status === "suspended" || sub.status === "paused";
+    if (!wasInterrupted) {
       return base; // Nothing to do
     }
 
@@ -71,7 +73,7 @@ export async function reactivateIfSuspended(
         updated_at: now,
       })
       .eq("id", subscriptionId)
-      .eq("status", "suspended"); // Guard against race conditions
+      .in("status", ["suspended", "paused"]); // Guard against race conditions
 
     if (reactivateErr) {
       console.error(`[reactivation] Failed to reactivate subscription ${subscriptionId}:`, reactivateErr);
@@ -99,6 +101,56 @@ export async function reactivateIfSuspended(
         .eq("id", sub.order_id)
         .in("status", ["suspended", "cancelled", "on_hold"]);
     }
+
+    // ── 3b. Prorata credit for suspended/paused window ───────────────
+    // Scenario 4 (suspension→reactivation) & Scenario 6 (pause temporaire):
+    // Credit unused days at full daily rate via account_adjustments(credit).
+    try {
+      const planPrice = Number((sub as any).plan_price || 0);
+      if (
+        planPrice > 0 &&
+        sub.suspension_date &&
+        sub.cycle_start_date &&
+        sub.cycle_end_date
+      ) {
+        const { proratedAmount, daysRemaining, cycleTotalDays } = prorateWindow({
+          cycleStart: sub.cycle_start_date,
+          cycleEnd: sub.cycle_end_date,
+          windowStart: sub.suspension_date,
+          windowEnd: now,
+          amount: planPrice,
+        });
+        if (proratedAmount >= 0.01) {
+          // Resolve account_id via billing_customers.user_id → accounts.client_id
+          const { data: bc } = await supabase
+            .from("billing_customers").select("user_id").eq("id", sub.customer_id).maybeSingle();
+          const userId = bc?.user_id;
+          if (userId) {
+            const { data: acct } = await supabase
+              .from("accounts").select("id").eq("client_id", userId).maybeSingle();
+            if (acct?.id) {
+              const label = base.previousStatus === "paused" ? "pause" : "suspension";
+              await supabase.from("account_adjustments").insert({
+                account_id: acct.id,
+                type: "credit",
+                amount: proratedAmount,
+                description: `Crédit prorata ${label} — ${sub.plan_name || "Forfait"} (${daysRemaining}/${cycleTotalDays} jours non utilisés) — trigger ${trigger}, invoice ${invoiceId}`,
+                months_total: 1,
+                months_remaining: 1,
+                applied_count: 0,
+                status: "active",
+                is_permanent: false,
+                applies_to: "next_invoice",
+              });
+              console.log(`[reactivation] ✓ Prorata ${label} credit ${proratedAmount}$ for sub ${subscriptionId} (${daysRemaining}/${cycleTotalDays}d)`);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`[reactivation] prorata credit error for ${subscriptionId}:`, e);
+    }
+
 
     // ── 4. Get customer info for email ───────────────────────────────
     const { data: customer } = await supabase
