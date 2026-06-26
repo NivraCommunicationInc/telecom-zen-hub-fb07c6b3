@@ -196,7 +196,7 @@ serve(async (req) => {
 
               // Mark request as applied
               await supabase.from("service_change_requests")
-                .update({ status: "applied", effective_date: effectiveDateStr })
+                .update({ status: "applied", effective_date: effectiveDateStr, applied_at: new Date().toISOString() })
                 .eq("id", pendingDowngrade.id);
 
               // Mutate sub so the rest of this iteration uses the new price
