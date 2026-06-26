@@ -21563,54 +21563,63 @@ export type Database = {
       service_change_requests: {
         Row: {
           account_id: string
+          applied_at: string | null
           approved_at: string | null
           approved_by: string | null
           change_type: string
           client_id: string
           created_at: string
           current_plan_name: string | null
+          current_plan_price: number | null
           effective_date: string | null
           id: string
           notes: string | null
           requested_by: string
           requested_plan_id: string | null
           requested_plan_name: string
+          requested_plan_price: number | null
           status: string
           subscription_id: string | null
           updated_at: string
         }
         Insert: {
           account_id: string
+          applied_at?: string | null
           approved_at?: string | null
           approved_by?: string | null
           change_type?: string
           client_id: string
           created_at?: string
           current_plan_name?: string | null
+          current_plan_price?: number | null
           effective_date?: string | null
           id?: string
           notes?: string | null
           requested_by: string
           requested_plan_id?: string | null
           requested_plan_name: string
+          requested_plan_price?: number | null
           status?: string
           subscription_id?: string | null
           updated_at?: string
         }
         Update: {
           account_id?: string
+          applied_at?: string | null
           approved_at?: string | null
           approved_by?: string | null
           change_type?: string
           client_id?: string
           created_at?: string
           current_plan_name?: string | null
+          current_plan_price?: number | null
           effective_date?: string | null
           id?: string
           notes?: string | null
           requested_by?: string
           requested_plan_id?: string | null
           requested_plan_name?: string
+          requested_plan_price?: number | null
           status?: string
           subscription_id?: string | null
           updated_at?: string
