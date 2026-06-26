@@ -27,7 +27,7 @@ interface QueueRow {
   language: string | null;
   attempts: number;
   max_attempts: number;
-  variables: Record<string, unknown> | null;
+  
   attachments: Array<{ filename: string; content?: string; path?: string }> | null;
 }
 
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
   // Fetch queued rows (status queued or failed with remaining retries)
   const { data: rows, error: fetchErr } = await supabase
     .from("email_queue")
-    .select("id, event_key, to_email, template_key, template_vars, subject, from_email, language, attempts, max_attempts, variables, attachments")
+    .select("id, event_key, to_email, template_key, template_vars, subject, from_email, language, attempts, max_attempts, attachments")
     .in("status", ["queued", "failed"])
     .order("created_at", { ascending: true })
     .limit(batchSize);
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const vars = { ...(row.template_vars || {}), ...(row.variables || {}) };
+      const vars = { ...(row.template_vars || {}) };
       const lang = (row.language === "en" ? "en" : "fr") as "fr" | "en";
 
       let html = "";
