@@ -99,8 +99,8 @@ export default function RefundPolicy() {
                   <h2 style={h2s}>3. Abonnements mensuels</h2>
                   <ul style={{ paddingLeft: "1.5rem" }}>
                     <li style={lis}>Vous pouvez annuler à tout moment via votre compte ou en contactant le support.</li>
-                    <li style={lis}>L'annulation prend effet à la fin de la période de facturation en cours, sauf mention contraire dans votre offre.</li>
-                    <li style={lis}>Aucun remboursement partiel n'est accordé pour une période déjà commencée, sauf exceptions prévues à la section 2.</li>
+                    <li style={lis}>Lors de l'annulation en cours de cycle, un crédit proportionnel aux jours non utilisés est automatiquement appliqué sous forme de crédit-compte (modèle prépayé — aucun remboursement direct au mode de paiement).</li>
+                    <li style={lis}>Le crédit-compte est utilisé automatiquement sur la prochaine facture ou peut être conservé au dossier client si aucun service actif ne subsiste.</li>
                   </ul>
                 </div>
 
