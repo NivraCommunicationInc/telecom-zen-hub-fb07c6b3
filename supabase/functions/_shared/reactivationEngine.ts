@@ -73,7 +73,7 @@ export async function reactivateIfSuspended(
         updated_at: now,
       })
       .eq("id", subscriptionId)
-      .eq("status", "suspended"); // Guard against race conditions
+      .in("status", ["suspended", "paused"]); // Guard against race conditions
 
     if (reactivateErr) {
       console.error(`[reactivation] Failed to reactivate subscription ${subscriptionId}:`, reactivateErr);
