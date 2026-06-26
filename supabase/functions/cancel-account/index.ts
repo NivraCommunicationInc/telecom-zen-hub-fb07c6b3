@@ -267,7 +267,7 @@ serve(async (req) => {
 
     const subsQuery = supabase
       .from("billing_subscriptions")
-      .select("id, status, paypal_subscription_id, customer_id, plan_name")
+      .select("id, status, paypal_subscription_id, customer_id, plan_name, plan_price, cycle_start_date, cycle_end_date")
       .in("status", cancellableStatuses);
     const { data: subs } = billingCustomerIds.length > 0
       ? await subsQuery.in("customer_id", billingCustomerIds)
