@@ -14,6 +14,7 @@
  */
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { activateNivraPayPalSubscription } from "./nivraPayPalSubscriptionFactory.ts";
+import { prorateWindow } from "./prorationMath.ts";
 
 export interface ReactivationResult {
   reactivated: boolean;
