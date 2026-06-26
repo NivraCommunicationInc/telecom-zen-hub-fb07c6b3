@@ -168,10 +168,10 @@ serve(async (req) => {
           if (bcUser?.user_id) {
             const { data: pendingDowngrade } = await supabase
               .from("service_change_requests")
-              .select("id, requested_plan_name, requested_plan_price, requested_plan_id, current_plan_name, subscription_id")
+              .select("id, requested_plan_name, requested_plan_price, requested_plan_id, current_plan_name, subscription_id, change_type")
               .eq("client_id", bcUser.user_id)
               .eq("status", "pending")
-              .eq("change_type", "downgrade")
+              .in("change_type", ["downgrade", "remove_service"])
               .order("created_at", { ascending: true })
               .limit(1)
               .maybeSingle();
@@ -196,7 +196,7 @@ serve(async (req) => {
 
               // Mark request as applied
               await supabase.from("service_change_requests")
-                .update({ status: "applied", effective_date: effectiveDateStr })
+                .update({ status: "applied", effective_date: effectiveDateStr, applied_at: new Date().toISOString() })
                 .eq("id", pendingDowngrade.id);
 
               // Mutate sub so the rest of this iteration uses the new price

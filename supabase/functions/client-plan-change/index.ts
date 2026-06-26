@@ -54,7 +54,7 @@ serve(async (req) => {
     new_monthly_price?: number;
     previous_plan_name?: string;
     previous_monthly_price?: number;
-    change_type?: "upgrade" | "downgrade";
+    change_type?: "upgrade" | "downgrade" | "add_service" | "remove_service";
   };
   try { body = await req.json(); }
   catch { return json(400, { error: "Corps JSON invalide" }); }
@@ -70,6 +70,10 @@ serve(async (req) => {
 
   const changeType = change_type || "upgrade";
   const effectiveDate = new Date().toISOString().slice(0, 10);
+
+  // Immediate-effect changes: upgrade and add_service apply now and bill prorata.
+  // Deferred-effect changes: downgrade and remove_service apply at next renewal.
+  const isImmediate = changeType === "upgrade" || changeType === "add_service";
 
   // Get billing customer — ownership proof
   const { data: bc } = await admin
@@ -91,6 +95,12 @@ serve(async (req) => {
   const accountNumber = profile?.account_number || "";
 
   // Insert service_change_request for audit trail
+  const noteMap: Record<string, string> = {
+    upgrade: "Changement immédiat. Prorata facturé immédiatement.",
+    add_service: "Ajout de service immédiat. Prorata facturé immédiatement.",
+    downgrade: "Demande client — effectif au prochain renouvellement.",
+    remove_service: "Retrait demandé — effectif au prochain renouvellement.",
+  };
   const { data: scr, error: scrErr } = await admin
     .from("service_change_requests")
     .insert({
@@ -98,16 +108,16 @@ serve(async (req) => {
       client_id: user.id,
       subscription_id: subscription_id ?? null,
       current_plan_name: previous_plan_name ?? null,
+      current_plan_price: previous_monthly_price != null ? Number(previous_monthly_price) : null,
       requested_plan_id: new_plan_id ?? null,
       requested_plan_name: new_plan_name,
       requested_plan_price: Number(new_monthly_price),
       change_type: changeType,
-      status: changeType === "upgrade" ? "approved" : "pending",
+      status: isImmediate ? "approved" : "pending",
       requested_by: user.id,
-      effective_date: changeType === "upgrade" ? effectiveDate : null,
-      notes: changeType === "upgrade"
-        ? `Changement immédiat. Prorata ajouté à la prochaine facture mensuelle.`
-        : `Demande client — effectif au prochain renouvellement.`,
+      effective_date: isImmediate ? effectiveDate : null,
+      applied_at: isImmediate ? new Date().toISOString() : null,
+      notes: noteMap[changeType] || noteMap.upgrade,
     })
     .select("id")
     .single();
@@ -117,28 +127,31 @@ serve(async (req) => {
   let prorationTotal: number | null = null;
   let prorationAddedTo: "adjustment_invoice" | "current_invoice" | "next_renewal" | null = null;
 
-  // ── Upgrade: apply immediately + queue proration on next renewal invoice ──────────
-  if (changeType === "upgrade") {
+  // ── Immediate-effect: upgrade OR add_service — apply now + prorata invoice ──────────
+  if (isImmediate) {
     const prevPrice = Number(previous_monthly_price ?? 0);
     const newPrice = Number(new_monthly_price);
-    const priceDiff = newPrice - prevPrice;
+    // upgrade => bill only the delta; add_service => bill the full new service
+    const proratableAmount = changeType === "add_service" ? newPrice : (newPrice - prevPrice);
 
-    // Update subscription record immediately (both tables)
-    if (subscription_id) {
+    // Update subscription record immediately (upgrade only — add_service does not replace plan)
+    if (changeType === "upgrade") {
+      if (subscription_id) {
+        await admin
+          .from("subscriptions")
+          .update({ plan_name: new_plan_name, monthly_price: newPrice, amount: newPrice })
+          .eq("id", subscription_id);
+      }
+      // billing_subscriptions drives renewal invoices — must stay in sync
       await admin
-        .from("subscriptions")
-        .update({ plan_name: new_plan_name, monthly_price: newPrice, amount: newPrice })
-        .eq("id", subscription_id);
+        .from("billing_subscriptions")
+        .update({ plan_name: new_plan_name, plan_price: newPrice })
+        .eq("customer_id", bc.id)
+        .eq("status", "active");
     }
-    // billing_subscriptions drives renewal invoices — must stay in sync
-    await admin
-      .from("billing_subscriptions")
-      .update({ plan_name: new_plan_name, plan_price: newPrice })
-      .eq("customer_id", bc.id)
-      .eq("status", "active");
 
-    // Prorated charge (only if price actually increased)
-    if (priceDiff > 0 && prevPrice > 0) {
+    // Prorated charge (only if there's something positive to bill)
+    if (proratableAmount > 0) {
       try {
         const { data: bSub } = await admin
           .from("billing_subscriptions")
@@ -160,10 +173,12 @@ serve(async (req) => {
           const cycleTotalDays = Math.max(28, Math.round(
             (cycleEndDate.getTime() - cycleStartDate.getTime()) / 86_400_000
           ));
-          const prorationSubtotal = Math.round(priceDiff * (daysRemaining / cycleTotalDays) * 100) / 100;
+          const prorationSubtotal = Math.round(proratableAmount * (daysRemaining / cycleTotalDays) * 100) / 100;
 
           if (prorationSubtotal >= 0.01) {
-            const lineDesc = `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`;
+            const lineDesc = changeType === "add_service"
+              ? `Ajout de service proratisé — ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`
+              : `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`;
             const { tps: proTps, tvq: proTvq, total: proTotal } = computeTaxes(prorationSubtotal);
 
             // Snapshot account_number at invoice creation time (avoids extra DB lookup in pdfFromDb)

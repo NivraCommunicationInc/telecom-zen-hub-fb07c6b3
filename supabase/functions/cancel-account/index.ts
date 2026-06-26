@@ -267,7 +267,7 @@ serve(async (req) => {
 
     const subsQuery = supabase
       .from("billing_subscriptions")
-      .select("id, status, paypal_subscription_id, customer_id, plan_name")
+      .select("id, status, paypal_subscription_id, customer_id, plan_name, plan_price, cycle_start_date, cycle_end_date")
       .in("status", cancellableStatuses);
     const { data: subs } = billingCustomerIds.length > 0
       ? await subsQuery.in("customer_id", billingCustomerIds)
@@ -367,6 +367,55 @@ serve(async (req) => {
         });
       }
     }
+
+    // ────────────────────────────────────────────────────────────────
+    // STEP 1.5 — Prorata CREDIT for unused days on PAID renewal cycles.
+    // Prepaid model: client already paid for days they will not consume.
+    // We compute credit = plan_price * (daysRemaining / cycleTotalDays)
+    // for each active subscription with a current cycle still running,
+    // and write it as an account_adjustments(type='credit') row that
+    // automatically reduces the next renewal (or stays unused if account
+    // is closed in full scope).
+    // ────────────────────────────────────────────────────────────────
+    let prorataCreditTotal = 0;
+    const todayDate = new Date();
+    for (const sub of subs ?? []) {
+      try {
+        if (!sub.cycle_end_date || !sub.cycle_start_date) continue;
+        const cycleEnd = new Date(sub.cycle_end_date);
+        const cycleStart = new Date(sub.cycle_start_date);
+        if (cycleEnd <= todayDate) continue; // cycle already over — nothing prepaid to refund
+        const planPrice = Number((sub as any).plan_price || 0);
+        if (planPrice <= 0) continue;
+        const daysRemaining = Math.max(0, Math.ceil((cycleEnd.getTime() - todayDate.getTime()) / 86_400_000));
+        const cycleTotalDays = Math.max(28, Math.round((cycleEnd.getTime() - cycleStart.getTime()) / 86_400_000));
+        if (daysRemaining === 0) continue;
+        const creditAmount = Math.round(planPrice * (daysRemaining / cycleTotalDays) * 100) / 100;
+        if (creditAmount < 0.01) continue;
+
+        const { error: credErr } = await supabase.from("account_adjustments").insert({
+          account_id: account.id,
+          type: "credit",
+          amount: creditAmount,
+          description: `Crédit prorata annulation — ${(sub as any).plan_name || "Forfait"} (${daysRemaining}/${cycleTotalDays} jours non utilisés) — run ${runId}`,
+          months_total: 1,
+          months_remaining: 1,
+          applied_count: 0,
+          status: "active",
+          is_permanent: false,
+          applies_to: "next_invoice",
+        });
+        if (credErr) {
+          recordStep(`prorata_credit_${sub.id}`, false, { error: credErr.message });
+        } else {
+          prorataCreditTotal = Math.round((prorataCreditTotal + creditAmount) * 100) / 100;
+          recordStep(`prorata_credit_${sub.id}`, true, { credit: creditAmount, days_remaining: daysRemaining, cycle_total: cycleTotalDays });
+        }
+      } catch (e) {
+        recordStep(`prorata_credit_${sub.id}`, false, { error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    recordStep("prorata_credits_total", true, { total: prorataCreditTotal });
 
     // ────────────────────────────────────────────────────────────────
     // STEP 2 — Void pending / partially-paid invoices for this account.
