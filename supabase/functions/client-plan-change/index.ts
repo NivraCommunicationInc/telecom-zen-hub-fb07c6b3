@@ -127,28 +127,31 @@ serve(async (req) => {
   let prorationTotal: number | null = null;
   let prorationAddedTo: "adjustment_invoice" | "current_invoice" | "next_renewal" | null = null;
 
-  // ── Upgrade: apply immediately + queue proration on next renewal invoice ──────────
-  if (changeType === "upgrade") {
+  // ── Immediate-effect: upgrade OR add_service — apply now + prorata invoice ──────────
+  if (isImmediate) {
     const prevPrice = Number(previous_monthly_price ?? 0);
     const newPrice = Number(new_monthly_price);
-    const priceDiff = newPrice - prevPrice;
+    // upgrade => bill only the delta; add_service => bill the full new service
+    const proratableAmount = changeType === "add_service" ? newPrice : (newPrice - prevPrice);
 
-    // Update subscription record immediately (both tables)
-    if (subscription_id) {
+    // Update subscription record immediately (upgrade only — add_service does not replace plan)
+    if (changeType === "upgrade") {
+      if (subscription_id) {
+        await admin
+          .from("subscriptions")
+          .update({ plan_name: new_plan_name, monthly_price: newPrice, amount: newPrice })
+          .eq("id", subscription_id);
+      }
+      // billing_subscriptions drives renewal invoices — must stay in sync
       await admin
-        .from("subscriptions")
-        .update({ plan_name: new_plan_name, monthly_price: newPrice, amount: newPrice })
-        .eq("id", subscription_id);
+        .from("billing_subscriptions")
+        .update({ plan_name: new_plan_name, plan_price: newPrice })
+        .eq("customer_id", bc.id)
+        .eq("status", "active");
     }
-    // billing_subscriptions drives renewal invoices — must stay in sync
-    await admin
-      .from("billing_subscriptions")
-      .update({ plan_name: new_plan_name, plan_price: newPrice })
-      .eq("customer_id", bc.id)
-      .eq("status", "active");
 
-    // Prorated charge (only if price actually increased)
-    if (priceDiff > 0 && prevPrice > 0) {
+    // Prorated charge (only if there's something positive to bill)
+    if (proratableAmount > 0) {
       try {
         const { data: bSub } = await admin
           .from("billing_subscriptions")
@@ -170,7 +173,7 @@ serve(async (req) => {
           const cycleTotalDays = Math.max(28, Math.round(
             (cycleEndDate.getTime() - cycleStartDate.getTime()) / 86_400_000
           ));
-          const prorationSubtotal = Math.round(priceDiff * (daysRemaining / cycleTotalDays) * 100) / 100;
+          const prorationSubtotal = Math.round(proratableAmount * (daysRemaining / cycleTotalDays) * 100) / 100;
 
           if (prorationSubtotal >= 0.01) {
             const lineDesc = `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`;
