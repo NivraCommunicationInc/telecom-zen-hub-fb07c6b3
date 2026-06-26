@@ -264,7 +264,7 @@ export default function RefundPolicy() {
                     <ul style={{ paddingLeft: "1.5rem" }}>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade:</strong> a <strong style={{ color: "#e2e8f0" }}>separate adjustment invoice</strong> is issued immediately for the prorated amount (price difference × days remaining ÷ actual cycle days, 28–31 days), with GST + QST included. A notification email is sent with a payment link to your client portal.</li>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Downgrade:</strong> the new rate takes effect at the next renewal. <strong style={{ color: "#e2e8f0" }}>No prorated credit or cash refund</strong> is issued for the current billing period.</li>
-                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>The current cycle is not refundable</strong> if service is cancelled mid-cycle, except as required by law or confirmed billing error.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Mid-cycle cancellation:</strong> a credit proportional to the unused days is <strong style={{ color: "#e2e8f0" }}>automatically applied</strong> as an account credit (prepaid model — no direct refund to the original payment method).</li>
                     </ul>
                   </div>
                 </div>
