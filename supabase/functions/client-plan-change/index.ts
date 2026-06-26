@@ -176,7 +176,9 @@ serve(async (req) => {
           const prorationSubtotal = Math.round(proratableAmount * (daysRemaining / cycleTotalDays) * 100) / 100;
 
           if (prorationSubtotal >= 0.01) {
-            const lineDesc = `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`;
+            const lineDesc = changeType === "add_service"
+              ? `Ajout de service proratisé — ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`
+              : `Ajustement proratisé — ${previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/${cycleTotalDays} jours restants)`;
             const { tps: proTps, tvq: proTvq, total: proTotal } = computeTaxes(prorationSubtotal);
 
             // Snapshot account_number at invoice creation time (avoids extra DB lookup in pdfFromDb)
