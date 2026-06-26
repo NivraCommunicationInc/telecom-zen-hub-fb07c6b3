@@ -12,6 +12,7 @@
 // rate limit 3 demandes/heure/email, expiration 10 min, max 5 tentatives.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,45 +44,23 @@ async function sha256Hex(s: string): Promise<string> {
 }
 
 function buildEmailHtml(code: string, email: string, counts: any): string {
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="utf-8"/><title>Vérification de votre adresse</title></head>
-<body style="margin:0;padding:0;background:#F8FAFB;font-family:Arial,Helvetica,sans-serif;color:#1A1A1A;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8FAFB;padding:40px 16px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-        <tr><td style="background:${BRAND_BLUE};padding:24px 32px;color:#ffffff;">
-          <h1 style="margin:0;font-size:22px;font-weight:600;">Nivra Telecom</h1>
-        </td></tr>
-        <tr><td style="padding:32px;">
-          <h2 style="margin:0 0 16px;font-size:20px;color:#1A1A1A;">Vérifiez votre adresse courriel</h2>
-          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4A4A4A;">
-            Bonjour,<br/><br/>
-            Nous avons détecté que l'adresse <strong>${email}</strong> est associée à
-            ${counts.orders > 0 ? `<strong>${counts.orders} commande(s)</strong>` : ""}${counts.orders > 0 && (counts.quotes > 0 || counts.auto_docs > 0) ? ", " : ""}${counts.quotes > 0 ? `<strong>${counts.quotes} soumission(s)</strong>` : ""}${counts.quotes > 0 && counts.auto_docs > 0 ? " et " : ""}${counts.auto_docs > 0 ? `<strong>${counts.auto_docs} document(s)</strong>` : ""}
-            que vous pouvez rattacher à votre compte Nivra.
-          </p>
-          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4A4A4A;">
-            Pour confirmer que cette adresse vous appartient, entrez le code ci-dessous dans votre portail&nbsp;:
-          </p>
-          <div style="text-align:center;padding:24px;background:#E6F0FA;border-radius:8px;margin:0 0 24px;">
-            <div style="font-size:36px;font-weight:700;letter-spacing:12px;color:${BRAND_BLUE};font-family:'Courier New',monospace;">
-              ${code}
-            </div>
-          </div>
-          <p style="margin:0 0 8px;font-size:13px;color:#6B7280;">⏱️ Ce code expire dans <strong>10 minutes</strong>.</p>
-          <p style="margin:0 0 24px;font-size:13px;color:#6B7280;">🔒 Si vous n'êtes pas à l'origine de cette demande, ignorez ce courriel.</p>
-          <hr style="border:none;border-top:1px solid #E5E7EB;margin:24px 0;"/>
-          <p style="margin:0;font-size:12px;color:#6B7280;text-align:center;">
-            Nivra Telecom — Télécommunications prépayées au Québec<br/>
-            Support&nbsp;: <a href="mailto:support@nivra-telecom.ca" style="color:${BRAND_BLUE};text-decoration:none;">support@nivra-telecom.ca</a>
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+  const parts: string[] = [];
+  if (counts.orders > 0) parts.push(`<strong>${counts.orders} commande(s)</strong>`);
+  if (counts.quotes > 0) parts.push(`<strong>${counts.quotes} soumission(s)</strong>`);
+  if (counts.auto_docs > 0) parts.push(`<strong>${counts.auto_docs} document(s)</strong>`);
+  const recordList = parts.length > 0 ? parts.join(", ") : "des enregistrements";
+
+  return violetShell({
+    badge: "VÉRIFICATION DE COMPTE",
+    heroTitle: "Vérifiez votre adresse courriel",
+    bodyHtml: `Nous avons détecté que l'adresse <strong>${email}</strong> est associée à ${recordList} que vous pouvez rattacher à votre compte Nivra. Pour confirmer que cette adresse vous appartient, entrez le code ci-dessous dans votre portail :`,
+    extraBodyHtml: `
+      <div style="text-align:center;padding:24px;background:#E6F0FA;border-radius:8px;margin:0 0 20px;">
+        <div style="font-size:36px;font-weight:700;letter-spacing:12px;color:#0066CC;font-family:'Courier New',monospace;">${code}</div>
+      </div>`,
+    helpHtml: `⏱️ Ce code expire dans <strong>10 minutes</strong>.<br/>🔒 Si vous n'êtes pas à l'origine de cette demande, ignorez ce courriel.`,
+    helpVariant: "warning",
+  });
 }
 
 Deno.serve(async (req) => {

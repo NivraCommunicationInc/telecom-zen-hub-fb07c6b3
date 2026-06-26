@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,30 +38,23 @@ function buildAlertHtml(opts: {
   failures: number;
   windowMin: number;
   portal: string | null;
-}) {
+}): string {
   const when = new Date().toLocaleString("fr-CA", { timeZone: "America/Toronto" });
-  return `<!DOCTYPE html>
-<html><body style="font-family:Arial,sans-serif;background:#f4f4f7;margin:0;padding:24px;">
-  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-    <div style="background:#dc2626;color:#ffffff;padding:20px 24px;">
-      <h1 style="margin:0;font-size:18px;">🚨 Tentatives de connexion suspectes — Nivra Hub</h1>
-    </div>
-    <div style="padding:24px;color:#111111;font-size:14px;line-height:1.6;">
-      <p><strong>${opts.failures}</strong> échecs de connexion en moins de <strong>${opts.windowMin} minutes</strong> sur le portail interne.</p>
-      <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:13px;">
-        <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Email tenté</td><td style="padding:8px 0;"><strong>${opts.email}</strong></td></tr>
-        <tr><td style="padding:8px 0;color:#6b7280;">Adresse IP</td><td style="padding:8px 0;">${opts.ip || "inconnue"}</td></tr>
-        <tr><td style="padding:8px 0;color:#6b7280;">Portail visé</td><td style="padding:8px 0;">${opts.portal || "hub"}</td></tr>
-        <tr><td style="padding:8px 0;color:#6b7280;">User-Agent</td><td style="padding:8px 0;font-size:11px;word-break:break-all;">${opts.userAgent || "inconnu"}</td></tr>
-        <tr><td style="padding:8px 0;color:#6b7280;">Détecté</td><td style="padding:8px 0;">${when} (HAE)</td></tr>
-      </table>
-      <div style="margin-top:20px;padding:12px 16px;background:#fef2f2;border-left:4px solid #dc2626;border-radius:4px;">
-        <strong>Action recommandée :</strong> Si ce n'est pas un employé, bloquez l'IP dans Cloudflare et avisez l'utilisateur ciblé.
-      </div>
-      <p style="margin-top:24px;font-size:12px;color:#6b7280;">Alerte automatique du système de sécurité Nivra. Vous ne pouvez pas vous désinscrire de ces alertes critiques.</p>
-    </div>
-  </div>
-</body></html>`;
+  return violetShell({
+    badge: "ALERTE SÉCURITÉ",
+    heroTitle: `${opts.failures} échecs de connexion détectés`,
+    bodyHtml: `L'adresse <strong>${opts.email}</strong> a subi <strong>${opts.failures} tentatives échouées</strong> en moins de ${opts.windowMin} minutes sur le portail interne.`,
+    cardTitle: "Détails de l'alerte",
+    cardRows: [
+      ["Email tenté", opts.email],
+      ["Adresse IP", opts.ip || "inconnue"],
+      ["Portail visé", opts.portal || "hub interne"],
+      ["User-Agent", opts.userAgent || "inconnu"],
+      ["Détecté", `${when} (HAE)`],
+    ],
+    helpHtml: `<strong>Action recommandée :</strong> Si ce n'est pas un employé, bloquez l'IP dans Cloudflare et avisez l'utilisateur ciblé.`,
+    helpVariant: "warning",
+  });
 }
 
 serve(async (req) => {

@@ -1,14 +1,24 @@
 /**
- * RÈGLE ABSOLUE — TEMPLATES EMAIL
- *
- * 1. Utiliser shell() Violet Bold pour TOUS les emails
- * 2. JAMAIS de HTML inline
- * 3. JAMAIS afficher "---", undefined, null ou vide
- * 4. TOUJOURS utiliser formatMoney() pour les montants
- * 5. TOUJOURS utiliser fmtDate() pour les dates
- * 6. TOUJOURS avoir un fallback significatif
- * 7. Cette règle s'applique à TOUS les emails
- *    présents et futurs sans exception
+ * ╔══════════════════════════════════════════════════════════════════════╗
+ * ║  RÈGLE ABSOLUE — TEMPLATE EMAIL OFFICIEL NIVRA TELECOM              ║
+ * ║                                                                      ║
+ * ║  Design officiel : BLEU #0066CC (style ISP professionnel)           ║
+ * ║  Chaîne de rendu : shell() → violetShell() → baseStyles.ts         ║
+ * ║                    (violetEmailShell.ts → emailTemplates/)           ║
+ * ║                                                                      ║
+ * ║  RÈGLES :                                                            ║
+ * ║  1. Tout email client ou personnel = nouveau case ici + shell()     ║
+ * ║  2. JAMAIS de HTML brut ou de <html> inline hors de ce fichier     ║
+ * ║  3. JAMAIS de template alternatif (wrapEmail, Resend slugs, etc.)  ║
+ * ║  4. JAMAIS afficher "---", undefined, null ou vide                  ║
+ * ║  5. TOUJOURS formatMoney() pour montants, fmtDate() pour dates     ║
+ * ║  6. TOUJOURS un fallback significatif sur chaque variable           ║
+ * ║                                                                      ║
+ * ║  NOTA : Le nom "violetEmailShell" est un vestige historique.        ║
+ * ║  L'ancien design violet (#7c3aed) a été migré vers le bleu         ║
+ * ║  corporate #0066CC en juin 2026. La référence visuelle acceptée    ║
+ * ║  est l'email "1 mois avec Nivra" (onboarding_day30).               ║
+ * ╚══════════════════════════════════════════════════════════════════════╝
  */
 
 /**
@@ -18,9 +28,6 @@
  * The custom queue processor (`email-queue-drain`) calls `renderQueueTemplate`
  * to produce the final HTML + subject, then forwards the email through
  * `enqueueEmail` (ResendProxy → pgmq → process-email-queue → Lovable Email).
- *
- * Design = Nivra "Violet Brand" template (#7c3aed) — table-based for
- * email-client compatibility (Gmail, Outlook, Apple Mail).
  */
 
 const APP_URL = "https://nivra-telecom.ca";

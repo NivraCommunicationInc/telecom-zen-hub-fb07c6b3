@@ -63,7 +63,10 @@ export const joinUrl = (baseUrl: string, path: string): string => {
   return result;
 };
 
-// Professional email wrapper with header and footer
+// @deprecated — DO NOT USE. All Nivra emails must go through violetShell() in violetEmailShell.ts,
+// which renders the official corporate template (blue #0066CC, shell() → violetShell() → baseStyles.ts).
+// To send a new email: add a case in customQueueTemplates.ts using shell({...}).
+// This function exists only for backward-compat with send-document-validation — migrate it to violetShell().
 export const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string) => {
   const email = supportEmail || "Support@nivra-telecom.ca";
   

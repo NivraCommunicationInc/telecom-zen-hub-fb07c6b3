@@ -283,14 +283,14 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
         ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(Number(f.amount) || 0)} $`)).join('')}
         ${finRowHtml('Sous-total équipement', `${fmtPrice(equipTotal)} $`)}
         ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0066CC">
           <tr>
             <td style="padding:12px 16px;font-size:13px;color:#555">TVQ (9,975%)</td>
             <td style="padding:12px 16px;font-size:13px;color:#555;text-align:right;white-space:nowrap">${fmtPrice(equipTvq)} $</td>
           </tr>
         </table>
       ` : ''}
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0057B8">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0066CC">
         <tr>
           <td style="padding:16px">
             <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
@@ -320,14 +320,14 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
         ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(Number(f.amount) || 0)} $`)).join('')}
         ${finRowHtml('Sous-total équipement', `${fmtPrice(equipTotal)} $`)}
         ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0066CC">
           <tr>
             <td style="padding:12px 16px;font-size:13px;color:#555">TVQ (9,975%)</td>
             <td style="padding:12px 16px;font-size:13px;color:#555;text-align:right;white-space:nowrap">${fmtPrice(equipTvq)} $</td>
           </tr>
         </table>
       ` : ''}
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0057B8">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0066CC">
         <tr>
           <td style="padding:16px">
             <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
@@ -388,7 +388,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
       <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">🛠 Installation par technicien</div>
       <div style="background:#f0f7ff;border-radius:8px;overflow:hidden;border:1px solid #c4dcf0">
         <!-- Date & Time highlight -->
-        <div style="background:#0057B8;padding:20px 20px">
+        <div style="background:#0066CC;padding:20px 20px">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
             <td style="vertical-align:middle">
               <div style="font-size:10px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Date du rendez-vous</div>
@@ -473,7 +473,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
         ${hasScheduled ? `
           <div style="margin-bottom:14px;padding-top:${hasAltShip ? '12px;border-top:1px solid #eee' : '0'}">
             <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">📅 Date d'activation demandée</div>
-            <div style="font-size:14px;font-weight:600;color:#0057B8">${escapeHtml(formatDate(requestedActivationDate!))}</div>
+            <div style="font-size:14px;font-weight:600;color:#0066CC">${escapeHtml(formatDate(requestedActivationDate!))}</div>
             <div style="font-size:11px;color:#888;margin-top:2px">L'activation effective dépend de la réception et de l'installation de l'équipement.</div>
           </div>
         ` : ''}
@@ -503,7 +503,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
 <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e0e0e0">
 
 <!-- HEADER -->
-<div style="background:#0057B8;padding:28px 32px">
+<div style="background:#0066CC;padding:28px 32px">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
     <td style="vertical-align:middle">
       <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px">Nivra Telecom</div>
@@ -551,7 +551,7 @@ ${firstMonthBanner}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9ff;border-radius:8px;border:1px solid #e8ecff"><tr>
     <td style="padding:14px 16px;vertical-align:middle">
       <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-        <td style="width:40px;height:40px;background:#0057B8;border-radius:8px;text-align:center;vertical-align:middle">
+        <td style="width:40px;height:40px;background:#0066CC;border-radius:8px;text-align:center;vertical-align:middle">
           <span style="color:#fff;font-size:16px">📡</span>
         </td>
         <td style="padding-left:12px">
@@ -561,7 +561,7 @@ ${firstMonthBanner}
       </tr></table>
     </td>
     <td style="padding:14px 16px;text-align:right;vertical-align:middle">
-      <div style="font-size:18px;font-weight:700;color:#0057B8">${fmtPrice(servicePrice)}$</div>
+      <div style="font-size:18px;font-weight:700;color:#0066CC">${fmtPrice(servicePrice)}$</div>
       <div style="font-size:11px;color:#999">/mois</div>
     </td>
   </tr></table>
@@ -604,7 +604,7 @@ ${phaseTwoSection}
 
 <!-- CTA -->
 <div style="padding:0 32px 32px;text-align:center">
-  <a href="${portalLink}" style="display:inline-block;background:#0057B8;color:#fff;font-size:15px;font-weight:700;padding:14px 36px;border-radius:50px;text-decoration:none;letter-spacing:0.3px">Accéder à mon espace client →</a>
+  <a href="${portalLink}" style="display:inline-block;background:#0066CC;color:#fff;font-size:15px;font-weight:700;padding:14px 36px;border-radius:50px;text-decoration:none;letter-spacing:0.3px">Accéder à mon espace client →</a>
 </div>
 
 <!-- SUPPORT -->

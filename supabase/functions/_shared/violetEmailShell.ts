@@ -2,7 +2,19 @@
  * Shared Nivra email shell — single source of truth for all transactional
  * Nivra emails sent through the custom queue.
  *
- * IMPORTANT: This file used to render its own "Violet Bold" design.
+ * TEMPLATE EMAIL OFFICIEL NIVRA — SOURCE UNIQUE DE VÉRITÉ
+ *
+ * Design : BLEU #0066CC (style ISP professionnel, like Bell/Vidéotron)
+ * Couleurs réelles : voir emailTemplates/baseStyles.ts (colors.primary)
+ *
+ * Ce fichier s'appelait "Violet Bold" (#7c3aed) — le design a été migré
+ * vers le bleu corporate #0066CC en juin 2026. Le nom du fichier est un
+ * vestige historique ; les couleurs réelles sont dans baseStyles.ts.
+ *
+ * RÈGLE : Tout email Nivra (client ou personnel) DOIT passer par
+ * violetShell() de ce fichier, ou par shell() dans customQueueTemplates.ts.
+ * JAMAIS de <html> brut dans une edge function.
+ *
  * Per the corporate email standard, ALL outbound emails (client, employee,
  * internal) MUST use the official corporate template defined in
  * `emailTemplates/components.ts` (blue #0066CC, professional ISP look).
