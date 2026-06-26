@@ -151,7 +151,7 @@ export default function RefundPolicy() {
                     <ul style={{ paddingLeft: "1.5rem" }}>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Upgrade :</strong> une <strong style={{ color: "#e2e8f0" }}>facture d'ajustement séparée</strong> est émise immédiatement pour le montant proratisé (différence de prix × jours restants ÷ jours réels du cycle, 28–31 jours), avec TPS + TVQ incluses. Un courriel de notification est envoyé avec lien de paiement vers le portail client.</li>
                       <li style={lis}><strong style={{ color: "#e2e8f0" }}>Downgrade :</strong> le nouveau tarif prend effet au prochain renouvellement. <strong style={{ color: "#e2e8f0" }}>Aucun crédit prorata ni remboursement en espèces</strong> n'est accordé pour la période en cours.</li>
-                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Le cycle en cours n'est pas remboursable</strong> si l'annulation du service se fait en cours de cycle, sauf obligation légale ou erreur de facturation.</li>
+                      <li style={lis}><strong style={{ color: "#e2e8f0" }}>Annulation en cours de cycle :</strong> un crédit proportionnel aux jours non utilisés est <strong style={{ color: "#e2e8f0" }}>automatiquement appliqué</strong> sous forme de crédit-compte (modèle prépayé — aucun remboursement direct au mode de paiement).</li>
                     </ul>
                   </div>
                 </div>
