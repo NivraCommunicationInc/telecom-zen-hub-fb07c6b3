@@ -45,7 +45,7 @@ export async function reactivateIfSuspended(
     // ── 1. Fetch subscription ────────────────────────────────────────
     const { data: sub, error: subErr } = await supabase
       .from("billing_subscriptions")
-      .select("id, status, customer_id, plan_name, order_id, paypal_subscription_id")
+      .select("id, status, customer_id, plan_name, order_id, paypal_subscription_id, suspension_date, cycle_start_date, cycle_end_date, plan_price")
       .eq("id", subscriptionId)
       .maybeSingle();
 
@@ -56,7 +56,8 @@ export async function reactivateIfSuspended(
 
     base.previousStatus = sub.status;
 
-    if (sub.status !== "suspended") {
+    const wasInterrupted = sub.status === "suspended" || sub.status === "paused";
+    if (!wasInterrupted) {
       return base; // Nothing to do
     }
 
