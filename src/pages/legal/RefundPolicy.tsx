@@ -212,8 +212,8 @@ export default function RefundPolicy() {
                   <h2 style={h2s}>3. Monthly Subscriptions</h2>
                   <ul style={{ paddingLeft: "1.5rem" }}>
                     <li style={lis}>You can cancel at any time through your account or by contacting support.</li>
-                    <li style={lis}>Cancellation takes effect at the end of the current billing period, unless otherwise stated in your offer.</li>
-                    <li style={lis}>No partial refund is granted for a period already started, except as provided in section 2.</li>
+                    <li style={lis}>When you cancel mid-cycle, a credit proportional to the unused days is automatically applied as an account credit (prepaid model — no direct refund to the original payment method).</li>
+                    <li style={lis}>The account credit is automatically consumed by the next invoice, or remains on file if no active service is left.</li>
                   </ul>
                 </div>
 
