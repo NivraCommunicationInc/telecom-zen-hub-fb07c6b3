@@ -54,7 +54,7 @@ serve(async (req) => {
     new_monthly_price?: number;
     previous_plan_name?: string;
     previous_monthly_price?: number;
-    change_type?: "upgrade" | "downgrade";
+    change_type?: "upgrade" | "downgrade" | "add_service" | "remove_service";
   };
   try { body = await req.json(); }
   catch { return json(400, { error: "Corps JSON invalide" }); }
@@ -70,6 +70,10 @@ serve(async (req) => {
 
   const changeType = change_type || "upgrade";
   const effectiveDate = new Date().toISOString().slice(0, 10);
+
+  // Immediate-effect changes: upgrade and add_service apply now and bill prorata.
+  // Deferred-effect changes: downgrade and remove_service apply at next renewal.
+  const isImmediate = changeType === "upgrade" || changeType === "add_service";
 
   // Get billing customer — ownership proof
   const { data: bc } = await admin
@@ -91,6 +95,12 @@ serve(async (req) => {
   const accountNumber = profile?.account_number || "";
 
   // Insert service_change_request for audit trail
+  const noteMap: Record<string, string> = {
+    upgrade: "Changement immédiat. Prorata facturé immédiatement.",
+    add_service: "Ajout de service immédiat. Prorata facturé immédiatement.",
+    downgrade: "Demande client — effectif au prochain renouvellement.",
+    remove_service: "Retrait demandé — effectif au prochain renouvellement.",
+  };
   const { data: scr, error: scrErr } = await admin
     .from("service_change_requests")
     .insert({
@@ -98,16 +108,16 @@ serve(async (req) => {
       client_id: user.id,
       subscription_id: subscription_id ?? null,
       current_plan_name: previous_plan_name ?? null,
+      current_plan_price: previous_monthly_price != null ? Number(previous_monthly_price) : null,
       requested_plan_id: new_plan_id ?? null,
       requested_plan_name: new_plan_name,
       requested_plan_price: Number(new_monthly_price),
       change_type: changeType,
-      status: changeType === "upgrade" ? "approved" : "pending",
+      status: isImmediate ? "approved" : "pending",
       requested_by: user.id,
-      effective_date: changeType === "upgrade" ? effectiveDate : null,
-      notes: changeType === "upgrade"
-        ? `Changement immédiat. Prorata ajouté à la prochaine facture mensuelle.`
-        : `Demande client — effectif au prochain renouvellement.`,
+      effective_date: isImmediate ? effectiveDate : null,
+      applied_at: isImmediate ? new Date().toISOString() : null,
+      notes: noteMap[changeType] || noteMap.upgrade,
     })
     .select("id")
     .single();
