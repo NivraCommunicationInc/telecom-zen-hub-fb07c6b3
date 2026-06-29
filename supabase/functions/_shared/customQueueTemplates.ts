@@ -8562,6 +8562,25 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    case "nova_alert_critical": {
+      const alertTitle = esc(v.title || "Alerte critique");
+      const alertMessage = esc(v.message || "");
+      const alertCategory = esc(v.category || "système");
+      return {
+        subject: `🚨 ALERTE CRITIQUE — ${alertTitle}`,
+        html: shell({
+          badge: "ALERTE CRITIQUE NOVA",
+          heroTitle: alertTitle,
+          heroSub: `Catégorie : ${alertCategory}`,
+          bodyText: alertMessage,
+          helpHtml: "⚠️ Cette alerte est générée automatiquement par NOVA Watchdog. Intervenir immédiatement.",
+          helpVariant: "warning",
+          ctaPrimaryUrl: `${portalUrl}/hub`,
+          ctaPrimaryLabel: "Accéder au Hub",
+        }),
+      };
+    }
+
     default:
       return null;
     }
