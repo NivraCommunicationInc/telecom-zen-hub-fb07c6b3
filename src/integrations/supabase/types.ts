@@ -25485,6 +25485,126 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_requests: {
+        Row: {
+          created_at: string
+          driver_id: string | null
+          dropoff_address: string | null
+          dropoff_lat: number | null
+          dropoff_lng: number | null
+          estimated_fare: number | null
+          id: string
+          pickup_address: string | null
+          pickup_lat: number | null
+          pickup_lng: number | null
+          rider_id: string | null
+          scheduled_for: string | null
+          status: string
+          type: string
+          updated_at: string
+          vehicle_type: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id?: string | null
+          dropoff_address?: string | null
+          dropoff_lat?: number | null
+          dropoff_lng?: number | null
+          estimated_fare?: number | null
+          id?: string
+          pickup_address?: string | null
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          rider_id?: string | null
+          scheduled_for?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          vehicle_type?: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string | null
+          dropoff_address?: string | null
+          dropoff_lat?: number | null
+          dropoff_lng?: number | null
+          estimated_fare?: number | null
+          id?: string
+          pickup_address?: string | null
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          rider_id?: string | null
+          scheduled_for?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          vehicle_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_requests_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "trip_requests_rider_id_fkey"
+            columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          created_at: string
+          driver_id: string | null
+          fare: number | null
+          id: string
+          request_id: string | null
+          rider_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id?: string | null
+          fare?: number | null
+          id?: string
+          request_id?: string | null
+          rider_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string | null
+          fare?: number | null
+          id?: string
+          request_id?: string | null
+          rider_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "trips_rider_id_fkey"
+            columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       tv_addon_subscriptions: {
         Row: {
           account_id: string | null
@@ -26117,7 +26237,7 @@ export type Database = {
           {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "employee_financial_summary"
             referencedColumns: ["user_id"]
           },
@@ -26713,7 +26833,7 @@ export type Database = {
           {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "employee_financial_summary"
             referencedColumns: ["user_id"]
           },
@@ -29140,6 +29260,9 @@ export type Database = {
         | "techops"
         | "support"
         | "supervisor"
+        | "driver"
+        | "rider"
+        | "ops"
       billing_customer_status: "active" | "suspended" | "closed"
       billing_invoice_status:
         | "draft"
@@ -29616,6 +29739,9 @@ export const Constants = {
         "techops",
         "support",
         "supervisor",
+        "driver",
+        "rider",
+        "ops",
       ],
       billing_customer_status: ["active", "suspended", "closed"],
       billing_invoice_status: [
