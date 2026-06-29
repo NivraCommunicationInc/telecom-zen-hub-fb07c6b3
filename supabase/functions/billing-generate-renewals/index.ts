@@ -626,23 +626,50 @@ serve(async (req) => {
         }
 
         // ═══ RECURRING CHARGE TRIGGER ═══
-        // PayPal handles all autopay/recurring billing. Stripe was decommissioned 2026-05-18.
-        if (hasPayPalSubscription) {
-          console.log(`[billing-generate-renewals] Triggering PayPal auto-charge for ${sub.id}`);
+        // Square is primary processor. PayPal is fallback (account under review).
+        // Stripe was decommissioned 2026-05-18.
+
+        // 1. Try Square first (card on file)
+        const { data: bcForSquare } = await supabase
+          .from("billing_customers")
+          .select("square_customer_id, square_card_id")
+          .eq("id", sub.customer_id)
+          .maybeSingle();
+
+        const hasSquareCard = !!(bcForSquare?.square_customer_id && bcForSquare?.square_card_id);
+
+        if (hasSquareCard) {
+          console.log(`[billing-generate-renewals] Triggering Square charge for ${sub.id}`);
+          const { data: squareResult, error: squareErr } = await supabase.functions.invoke(
+            "square-charge-subscription",
+            { body: { subscription_id: sub.id, invoice_id: invoice.id, amount: finalTotal } }
+          );
+
+          if (!squareErr && squareResult?.ok) {
+            console.log(`[billing-generate-renewals] ✅ Square charged ${finalTotal} for ${invoiceNumber}`);
+          } else {
+            const reason = squareErr?.message ?? squareResult?.error ?? "unknown";
+            console.error(`[billing-generate-renewals] Square charge failed for ${invoiceNumber}: ${reason}`);
+            await supabase.from("billing_system_alerts").insert({
+              alert_type: "square_charge_failed_on_renewal",
+              entity_type: "billing_invoice",
+              entity_id: invoice.id,
+              severity: "warning",
+              details: { message: `Square charge échoué pour ${invoiceNumber}: ${reason}`, subscription_id: sub.id, amount: finalTotal, reason },
+            }).catch(() => {});
+          }
+        } else if (hasPayPalSubscription) {
+          // 2. Fallback: PayPal (account under review — may fail)
+          console.log(`[billing-generate-renewals] No Square card — falling back to PayPal for ${sub.id}`);
           const { data: chargeResult, error: chargeInvokeErr } = await supabase.functions.invoke(
             "paypal-charge-subscription",
             { body: { subscription_id: sub.id, invoice_id: invoice.id, amount: finalTotal } }
           );
 
-          // success:true + no capture_id = PayPal handles billing on its own schedule → keep pending
-          // success:false OR invoke error = real failure → mark failed so billing-paypal-retry-failed picks it up
           const chargeOk = !chargeInvokeErr && chargeResult?.success !== false;
-
           if (!chargeOk) {
             const reason = chargeInvokeErr?.message ?? chargeResult?.error ?? chargeResult?.message ?? "unknown";
-            console.error(`[billing-generate-renewals] PayPal charge failed for invoice ${invoice.id}: ${reason}`);
-
-            // Mark the pending payment as failed so the retry cron can act
+            console.error(`[billing-generate-renewals] PayPal fallback also failed for ${invoiceNumber}: ${reason}`);
             await supabase
               .from("billing_payments")
               .update({ status: "failed", metadata: { failure_reason: reason, failed_at: new Date().toISOString() } })
@@ -655,7 +682,7 @@ serve(async (req) => {
               entity_type: "billing_invoice",
               entity_id: invoice.id,
               severity: "warning",
-              details: { message: `PayPal auto-charge échoué pour ${invoiceNumber}: ${reason}`, subscription_id: sub.id, customer_id: sub.customer_id, amount: finalTotal, reason },
+              details: { message: `PayPal fallback échoué pour ${invoiceNumber}: ${reason}`, subscription_id: sub.id, customer_id: sub.customer_id, amount: finalTotal, reason },
             }).catch(() => {});
           }
         }
