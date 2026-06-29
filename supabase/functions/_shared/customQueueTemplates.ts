@@ -584,28 +584,84 @@ export function renderQueueTemplate(
       const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || t("En cours", "In progress", lang));
       const total = money(v.total ?? v.amount ?? v.AMOUNT);
       const dueDate = fmtDate(v.due_date || v.DUE_DATE);
+      const planName = esc(v.plan_name || v.PLAN_NAME || "");
+      const interacEmail = esc(v.interac_email || "support@nivra-telecom.ca");
+      const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "");
+      const interacMessage = accountNum
+        ? `Facture ${invoiceNum} — Compte ${accountNum}`
+        : `Facture ${invoiceNum}`;
+      const interacBlock = `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+          style="background:#EFF6FF;border:2px solid #0066CC;border-radius:10px;margin:20px 0 0;">
+          <tr><td style="padding:20px 24px;">
+            <div style="font-size:11px;font-weight:700;color:#0050A0;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:12px;">
+              💳 ${t("Paiement par virement Interac e-Transfer", "Payment by Interac e-Transfer", lang)}
+            </div>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="padding:6px 0;font-size:13px;color:#6B7280;width:40%;">${t("Envoyez à", "Send to", lang)}</td>
+                <td style="padding:6px 0;font-size:14px;font-weight:700;color:#111827;">${interacEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;font-size:13px;color:#6B7280;">${t("Montant", "Amount", lang)}</td>
+                <td style="padding:6px 0;font-size:18px;font-weight:700;color:#0066CC;">${total}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;font-size:13px;color:#6B7280;">${t("Message", "Message", lang)}</td>
+                <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111827;font-family:monospace;">${interacMessage}</td>
+              </tr>
+            </table>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid #BFDBFE;font-size:12px;color:#374151;">
+              ${t(
+                "✅ Dépôt automatique activé — aucun mot de passe requis. Une fois le virement envoyé, répondez à cet email ou écrivez à <strong>support@nivra-telecom.ca</strong> pour confirmer.",
+                "✅ Auto-deposit enabled — no password required. Once the transfer is sent, reply to this email or write to <strong>support@nivra-telecom.ca</strong> to confirm.",
+                lang,
+              )}
+            </div>
+          </td></tr>
+        </table>`;
       return {
-        subject: t(`Nouvelle facture — ${invoiceNum}`, `New invoice — ${invoiceNum}`, lang),
+        subject: t(
+          `⚠️ Facture ${invoiceNum} — ${total} à payer dans 24h`,
+          `⚠️ Invoice ${invoiceNum} — ${total} due within 24h`,
+          lang,
+        ),
         html: shell({
-          preheader: t(`Facture ${invoiceNum} de ${total}.`, `Invoice ${invoiceNum} for ${total}.`, lang),
-          badge: t("NOUVELLE FACTURE", "NEW INVOICE", lang),
-          heroTitle: t("Nouvelle facture disponible", "New invoice available", lang),
+          preheader: t(
+            `Votre facture de ${total} est prête — paiement requis dans 24h pour maintenir votre service.`,
+            `Your invoice of ${total} is ready — payment required within 24h to keep your service active.`,
+            lang,
+          ),
+          badge: t("FACTURE — PAIEMENT REQUIS", "INVOICE — PAYMENT REQUIRED", lang),
+          heroTitle: t(`Facture de ${total} prête`, `Invoice of ${total} ready`, lang),
+          heroSub: t(
+            "Paiement requis dans les 24 prochaines heures",
+            "Payment required within the next 24 hours",
+            lang,
+          ),
           icon: "doc",
           greeting,
           bodyText: t(
-            "Votre nouvelle facture est disponible dans votre espace client.",
-            "Your new invoice is available in your client portal.",
+            `Votre service${planName ? ` <strong>${planName}</strong>` : ""} est <strong>prépayé à l'utilisation</strong>. Pour maintenir votre service actif, le paiement doit être complété dans les <strong>24 heures</strong>. Passé ce délai, votre service sera automatiquement suspendu.`,
+            `Your${planName ? ` <strong>${planName}</strong>` : ""} service is <strong>prepaid per use</strong>. To keep your service active, payment must be completed within <strong>24 hours</strong>. After this delay, your service will be automatically suspended.`,
             lang,
           ),
           cardTitle: t("Détails de la facture", "Invoice details", lang),
           cardRows: [
             [t("Numéro de facture", "Invoice number", lang), String(invoiceNum)],
             [t("Date d'échéance", "Due date", lang), dueDate],
-            [t("Cycle", "Cycle", lang), `${fmtDate(v.cycle_start)} → ${fmtDate(v.cycle_end)}`],
-            [t("Montant", "Amount", lang), total],
+            [t("Cycle de service", "Service cycle", lang), `${fmtDate(v.cycle_start)} → ${fmtDate(v.cycle_end)}`],
+            [t("Montant à payer", "Amount due", lang), total],
           ],
+          extraBodyHtml: interacBlock,
           ctaPrimaryUrl: `${portalUrl}/facturation`,
-          ctaPrimaryLabel: t("Payer maintenant", "Pay now", lang),
+          ctaPrimaryLabel: t("Voir ma facture", "View my invoice", lang),
+          helpHtml: t(
+            `⚠️ <strong>Nos services sont prépayés.</strong> Toute facture non payée dans les 24h entraîne une <strong>suspension automatique</strong> du service. Pour toute question : <a href="mailto:support@nivra-telecom.ca" style="color:#0066CC;">support@nivra-telecom.ca</a>`,
+            `⚠️ <strong>Our services are prepaid.</strong> Any invoice not paid within 24h results in <strong>automatic service suspension</strong>. Questions: <a href="mailto:support@nivra-telecom.ca" style="color:#0066CC;">support@nivra-telecom.ca</a>`,
+            lang,
+          ),
+          helpVariant: "warning",
         }),
       };
     }

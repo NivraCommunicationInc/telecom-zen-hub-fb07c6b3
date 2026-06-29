@@ -35,10 +35,13 @@ serve(async (req) => {
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
     const today = new Date();
-    // Window J+1 → J+3: catches today's normal run (J+3) AND up to 2 missed cron days.
-    // Idempotency is guaranteed by the existingInvoice check below.
+    // Window J-60 → J+3:
+    //   - J+1 → J+3 : génération normale 3 jours à l'avance
+    //   - J-60 → J  : rattrapage de tout cycle manqué (cron mort, redéploiement, etc.)
+    // Idempotency garantie par le check existingInvoice (cycle_start_date + subscription_id).
+    // Sans ce rattrapage, un cron mort ≥ 3 jours laisse des clients sans facture indéfiniment.
     const windowStart = new Date(today);
-    windowStart.setDate(today.getDate() + 1);
+    windowStart.setDate(today.getDate() - 60);
     const windowEnd = new Date(today);
     windowEnd.setDate(today.getDate() + 3);
     const windowStartStr = windowStart.toISOString().split('T')[0];
@@ -383,14 +386,16 @@ serve(async (req) => {
         // ═══ APPLY ACCOUNT ADJUSTMENTS ═══
         // billing-lifecycle at 8h finds RENEWAL_ALREADY_EXISTS and skips, so
         // adjustments MUST be applied here (midnight) when the invoice is created.
+        let accountNumber: string | null = null;
         try {
           const { data: bc } = await supabase
             .from("billing_customers").select("user_id").eq("id", sub.customer_id).maybeSingle();
           const userId = bc?.user_id;
           if (userId) {
             const { data: acct } = await supabase
-              .from("accounts").select("id").eq("client_id", userId).maybeSingle();
+              .from("accounts").select("id, account_number").eq("client_id", userId).maybeSingle();
             const accountId = acct?.id;
+            accountNumber = acct?.account_number ?? null;
             if (accountId) {
               const { data: adjustments } = await supabase
                 .from("account_adjustments")
@@ -684,6 +689,9 @@ serve(async (req) => {
               amount: finalTotal.toFixed(2),
               due_date: dueDate,
               days_remaining: daysRemaining,
+              cycle_start: newCycleStart.toISOString().split('T')[0],
+              cycle_end: newCycleEnd.toISOString().split('T')[0],
+              account_number: accountNumber ?? "",
               // Autopay-specific vars (ignored by invoice_created template)
               debit_amount: finalTotal.toFixed(2),
               debit_date: dueDate,
