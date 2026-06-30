@@ -148,7 +148,8 @@ const ClientInvoices = () => {
           console.warn(`[ClientInvoices] Data mismatch on invoice ${inv.id} — displaying breakdown data`);
         }
 
-        result.push(bd);
+        // Always use the canonical billing_invoices.id, not whatever the RPC returns
+        result.push({ ...bd, invoice_id: inv.id });
       }
 
       return result;
@@ -567,6 +568,7 @@ const ClientInvoices = () => {
           total: payingInvoice.total,
           balance_due: payingInvoice.balance_due,
           status: payingInvoice.status,
+          due_date: payingInvoice.due_date,
         } : null}
         totalDue={payingInvoice?.balance_due || 0}
         profile={profile}

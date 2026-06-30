@@ -170,7 +170,7 @@ const ClientBillingHub = () => {
 
   const handlePrimaryPayNow = () => {
     if (!unpaidInvoices?.length) { handleTabChange("pay-invoice"); return; }
-    setShowInteracDialog(true);
+    handlePayInvoice(unpaidInvoices[0]);
   };
 
   const handlePaymentSuccess = () => {

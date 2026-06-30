@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
   const { user } = useClientAuth();
   const writeGuard = useWriteGuard();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
 
   // Read order lines from canonical snapshot
   const { data: canonical, isLoading: loadingLines } = useCanonicalClientData(user?.id);
@@ -73,9 +75,17 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
   // The client portal does NOT fabricate invoices or payments.
   // ============================================================
 
+  // Find the invoice linked to this order
+  const orderInvoice = (canonical?.invoices || []).find(
+    (i: any) => i.order_id === order.id && Number(i.balance_due) > 0
+  ) || null;
+
   const handlePayNow = writeGuard(() => {
-    // Redirect client to the canonical portal payment page
-    toast.info("Veuillez utiliser la section Facturation de votre portail pour effectuer le paiement.", { duration: 5000 });
+    if (orderInvoice) {
+      setPayDialogOpen(true);
+    } else {
+      toast.info("Aucune facture impayée trouvée pour cette commande. Vérifiez la section Facturation.", { duration: 5000 });
+    }
   });
 
   const copyToClipboard = (text: string, label: string) => {
@@ -320,6 +330,19 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
       <div className="text-center text-sm text-muted-foreground pb-2">
         Commande passée le {format(new Date(order.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
       </div>
+
+      <PayInvoiceDialog
+        open={payDialogOpen}
+        onOpenChange={setPayDialogOpen}
+        invoice={orderInvoice}
+        totalDue={orderInvoice ? Number(orderInvoice.balance_due) : 0}
+        profile={canonical?.profile ?? null}
+        onPaymentSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["canonical-client-data"] });
+          queryClient.invalidateQueries({ queryKey: ["billing-hub-unpaid"] });
+          setPayDialogOpen(false);
+        }}
+      />
     </div>
   );
 }
