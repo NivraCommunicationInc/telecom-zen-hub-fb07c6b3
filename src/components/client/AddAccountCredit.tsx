@@ -1,67 +1,52 @@
-/**
- * AddAccountCredit — Custom amount payment via PayPal.
- *
- * Rules:
- * - If balance_due > 0, payment applies to balance first
- * - Any excess becomes account credit
- * - If balance_due = 0, full amount becomes credit
- */
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { toast } from "sonner";
 import {
   Plus,
   DollarSign,
-  CreditCard,
   Info,
   CheckCircle,
   ArrowRight,
   Wallet,
-  Wrench,
+  Copy,
+  Send,
+  Lock,
 } from "lucide-react";
-import { PayPalButton } from "@/components/payment/PayPalButton";
 
 interface AddAccountCreditProps {
   userId: string;
   userEmail?: string;
-  currentBalance: number; // positive = owes, negative = has credit
+  currentBalance: number;
   onPaymentSuccess?: () => void;
 }
 
 const PRESET_AMOUNTS = [25, 50, 100, 200];
 const MIN_AMOUNT = 5;
 const MAX_AMOUNT = 1000;
+const INTERAC_EMAIL = "support@nivra-telecom.ca";
 
 export const AddAccountCredit = ({
   userId,
-  userEmail,
   currentBalance,
-  onPaymentSuccess,
 }: AddAccountCreditProps) => {
-  const queryClient = useQueryClient();
   const [customAmount, setCustomAmount] = useState("");
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [showPayment, setShowPayment] = useState(false);
-  const [paymentComplete, setPaymentComplete] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
+  const [accountNumber, setAccountNumber] = useState<string>("—");
 
-  // Load profile address so PayPalButton can pre-fill billing info — fixes
-  // "Adresse de service manquante" prompt when paying credit top-ups.
   useEffect(() => {
     if (!userId) return;
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("first_name, last_name, email, phone, service_address, service_city, service_province, service_postal_code")
+        .select("account_number")
         .eq("user_id", userId)
         .maybeSingle();
-      if (data) setProfile(data);
+      if (data?.account_number) setAccountNumber(data.account_number);
     })();
   }, [userId]);
 
@@ -71,106 +56,24 @@ export const AddAccountCredit = ({
   const amount = selectedAmount || parseFloat(customAmount) || 0;
   const isValid = amount >= MIN_AMOUNT && amount <= MAX_AMOUNT;
 
-  // Calculate application breakdown
   const appliedToBalance = Math.min(amount, balanceDue);
   const appliedToCredit = Math.max(0, amount - balanceDue);
+
+  const copy = (text: string, label: string) =>
+    navigator.clipboard.writeText(text).then(() => toast.success(`${label} copié !`));
 
   const handleSelectPreset = (preset: number) => {
     setSelectedAmount(preset);
     setCustomAmount("");
     setShowPayment(false);
-    setPaymentComplete(false);
   };
 
   const handleCustomChange = (value: string) => {
-    // Only allow numbers and decimals
     const sanitized = value.replace(/[^0-9.]/g, "");
     setCustomAmount(sanitized);
     setSelectedAmount(null);
     setShowPayment(false);
-    setPaymentComplete(false);
   };
-
-  const handleProceedToPayment = () => {
-    if (!isValid) return;
-    setShowPayment(true);
-  };
-
-  const handlePayPalSuccess = useCallback(
-    async (captureId: string) => {
-      try {
-        // Call edge function to record the credit payment via PayPal
-        const { data, error } = await supabase.functions.invoke("portal-add-credit", {
-          body: {
-            user_id: userId,
-            amount,
-            paypal_capture_id: captureId,
-          },
-        });
-
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-
-        setPaymentComplete(true);
-        setShowPayment(false);
-
-        toast.success(
-          appliedToCredit > 0
-            ? `Paiement de ${amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} effectué! Crédit ajouté: ${appliedToCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
-            : `Paiement de ${amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} appliqué à votre solde!`
-        );
-
-        // Invalidate all relevant queries
-        queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
-        queryClient.invalidateQueries({ queryKey: ["billing-hub-unpaid"] });
-        queryClient.invalidateQueries({ queryKey: ["billing-hub-all-invoices"] });
-        queryClient.invalidateQueries({ queryKey: ["client-invoice-breakdowns"] });
-        queryClient.invalidateQueries({ queryKey: ["pending-invoices-canonical"] });
-        queryClient.invalidateQueries({ queryKey: ["client-subscriptions"] });
-
-        onPaymentSuccess?.();
-      } catch (err) {
-        console.error("[AddAccountCredit] Error recording credit:", err);
-        toast.error("Le paiement a été effectué mais l'enregistrement a échoué. Contactez le support.");
-      }
-    },
-    [userId, amount, appliedToCredit, queryClient, onPaymentSuccess]
-  );
-
-  if (paymentComplete) {
-    return (
-      <Card className="border-emerald-200 bg-emerald-50/30">
-        <CardContent className="p-8 text-center">
-          <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-foreground mb-2">Paiement confirmé!</h3>
-          <p className="text-muted-foreground mb-4">
-            {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} traité avec succès.
-          </p>
-          {appliedToBalance > 0 && (
-            <p className="text-sm text-foreground mb-1">
-              → {appliedToBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} appliqué au solde
-            </p>
-          )}
-          {appliedToCredit > 0 && (
-            <p className="text-sm text-primary font-medium mb-1">
-              → {appliedToCredit.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} ajouté en crédit au compte
-            </p>
-          )}
-          <Button
-            variant="outline"
-            className="mt-6"
-            onClick={() => {
-              setPaymentComplete(false);
-              setSelectedAmount(null);
-              setCustomAmount("");
-            }}
-          >
-            Faire un autre paiement
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -214,7 +117,6 @@ export const AddAccountCredit = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Preset amounts */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {PRESET_AMOUNTS.map((preset) => (
               <button
@@ -231,7 +133,6 @@ export const AddAccountCredit = ({
             ))}
           </div>
 
-          {/* Custom amount */}
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
@@ -240,7 +141,7 @@ export const AddAccountCredit = ({
               placeholder="Montant personnalisé"
               value={customAmount}
               onChange={(e) => handleCustomChange(e.target.value)}
-              className={`pl-10 h-12 text-lg ${selectedAmount === null && customAmount ? 'border-primary' : ''}`}
+              className={`pl-10 h-12 text-lg ${selectedAmount === null && customAmount ? "border-primary" : ""}`}
             />
           </div>
 
@@ -288,51 +189,78 @@ export const AddAccountCredit = ({
                 </div>
               )}
             </div>
-            <Button onClick={handleProceedToPayment} className="w-full mt-2" size="lg">
+            <Button onClick={() => setShowPayment(true)} className="w-full mt-2" size="lg">
               <Wallet className="w-5 h-5 mr-2" />
-              Procéder au paiement via PayPal
+              Voir les instructions de paiement
             </Button>
-
           </CardContent>
         </Card>
       )}
 
-      {/* PayPal Payment */}
+      {/* Interac Instructions */}
       {showPayment && isValid && (
         <Card className="border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Wallet className="w-5 h-5 text-primary" />
-              Paiement PayPal — {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+              <Send className="w-5 h-5 text-primary" />
+              Paiement par virement Interac — {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Payez de façon sécurisée avec votre compte PayPal ou carte via PayPal.
-            </p>
-            <PayPalButton
-              amount={amount}
-              creditTopup={true}
-              description="Crédit au compte — Nivra Telecom"
-              customer={{
-                email: profile?.email || userEmail || undefined,
-                first_name: profile?.first_name || undefined,
-                last_name: profile?.last_name || undefined,
-                phone: profile?.phone || undefined,
-                address: profile?.service_address ? {
-                  address_line_1: profile.service_address,
-                  admin_area_2: profile.service_city || undefined,
-                  admin_area_1: profile.service_province || "QC",
-                  postal_code: profile.service_postal_code || undefined,
-                  country_code: "CA",
-                } : undefined,
-              }}
-              onSuccess={(captureId) => handlePayPalSuccess(captureId)}
-              onError={(msg) => toast.error(msg)}
-            />
+            <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-primary bg-primary/5">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Send className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">Virement Interac</p>
+                <p className="text-xs text-muted-foreground">Traitement automatique — aucune intervention requise</p>
+              </div>
+              <Badge className="ml-auto bg-primary/10 text-primary border-0 text-xs">Sécurisé</Badge>
+            </div>
+
+            <div className="rounded-xl border border-border bg-muted/30 divide-y divide-border">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Adresse courriel</p>
+                  <p className="text-sm font-semibold text-foreground">{INTERAC_EMAIL}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => copy(INTERAC_EMAIL, "Courriel")}>
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Montant</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => copy(amount.toFixed(2), "Montant")}>
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Réponse à la question de sécurité</p>
+                  <p className="text-sm font-bold text-foreground">{accountNumber}</p>
+                  <p className="text-xs text-amber-600 mt-0.5">⚠️ Utilisez exactement ce numéro</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => copy(accountNumber, "Numéro de compte")}>
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <Lock className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Les virements Interac sont traités automatiquement. Votre paiement sera appliqué à votre compte dès réception.
+              </p>
+            </div>
+
             <Button
               variant="ghost"
-              className="w-full mt-1 text-muted-foreground"
+              className="w-full text-muted-foreground"
               onClick={() => setShowPayment(false)}
             >
               ← Modifier le montant

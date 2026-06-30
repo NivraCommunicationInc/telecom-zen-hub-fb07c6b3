@@ -40,7 +40,15 @@ import {
   Eye,
   Download,
   Lock,
+  Copy,
+  Send,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useClientPDF } from "@/hooks/useClientPDF";
@@ -154,6 +162,11 @@ const ClientBillingHub = () => {
   };
 
   const [payingBalance, setPayingBalance] = useState(false);
+  const [showInteracDialog, setShowInteracDialog] = useState(false);
+  const interacAccountNumber =
+    (canonicalData?.profile as any)?.account_number ||
+    (canonicalData?.account as any)?.account_number ||
+    "—";
 
   // Card payment form state
   const [cardForm, setCardForm] = useState({
@@ -211,27 +224,9 @@ const ClientBillingHub = () => {
     }
   };
 
-  const handlePrimaryPayNow = async () => {
-    // Pay the FULL ACCOUNT BALANCE via PayPal (not a single invoice)
-    if (!unpaidInvoices?.length) {
-      handleTabChange("pay-invoice");
-      return;
-    }
-    setPayingBalance(true);
-    try {
-      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
-        "paypal-balance-pay-create"
-      );
-      if (invokeErr || result?.error) {
-        throw new Error(result?.error || invokeErr?.message || "Erreur PayPal");
-      }
-      const approveLink = result?.links?.find((l: any) => l.rel === "approve")?.href;
-      if (!approveLink) throw new Error("Lien PayPal introuvable");
-      window.location.href = approveLink;
-    } catch (e: any) {
-      toast.error(e.message || "Erreur lors de la création du paiement PayPal");
-      setPayingBalance(false);
-    }
+  const handlePrimaryPayNow = () => {
+    if (!unpaidInvoices?.length) { handleTabChange("pay-invoice"); return; }
+    setShowInteracDialog(true);
   };
 
   const handlePaymentSuccess = () => {
@@ -300,7 +295,7 @@ const ClientBillingHub = () => {
                     className="bg-primary hover:bg-primary/90"
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
-                    {payingBalance ? "Redirection vers PayPal…" : `Payer le solde (${displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})`}
+                    {`Payer le solde (${displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})`}
                   </Button>
                 )}
                 <Button
@@ -637,7 +632,7 @@ const ClientBillingHub = () => {
                     </Button>
                     <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      Paiement chiffré SSL — traité via PayPal
+                      Paiement chiffré SSL — Square PCI-DSS
                     </p>
                   </>
                 )}
@@ -655,6 +650,56 @@ const ClientBillingHub = () => {
           profile={profile}
           onPaymentSuccess={handlePaymentSuccess}
         />
+
+        {/* Interac balance payment dialog */}
+        <Dialog open={showInteracDialog} onOpenChange={setShowInteracDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Send className="w-5 h-5 text-primary" />
+                Payer par virement Interac
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-center py-2">
+                <p className="text-sm text-muted-foreground">Solde total à payer</p>
+                <p className="text-2xl font-bold text-amber-600">
+                  {displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 divide-y divide-border">
+                {[
+                  { label: "Adresse courriel", value: "support@nivra-telecom.ca" },
+                  { label: "Montant", value: displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }) },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="text-sm font-semibold">{value}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(value); toast.success(`${label} copié !`); }}>
+                      <Copy className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Réponse à la question de sécurité</p>
+                    <p className="text-sm font-bold">{interacAccountNumber}</p>
+                    <p className="text-xs text-amber-600 mt-0.5">⚠️ Utilisez exactement ce numéro</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(String(interacAccountNumber)); toast.success("Numéro copié !"); }}>
+                    <Copy className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+                <Lock className="w-3 h-3" />
+                Traitement automatique — votre paiement sera appliqué à votre compte une fois reçu.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </ClientLayout>
   );

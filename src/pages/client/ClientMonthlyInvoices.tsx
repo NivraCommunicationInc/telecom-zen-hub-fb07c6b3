@@ -13,7 +13,6 @@ import { useClientPDF } from "@/hooks/useClientPDF";
 import { useToast } from "@/hooks/use-toast";
 import { formatBillingCycleDescription, BILLING_CONSTANTS } from "@/lib/billingCycleUtils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PayPalButton } from "@/components/payment/PayPalButton";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 import { ETRANSFER_CONFIG } from "@/config/company";
@@ -46,9 +45,6 @@ const ClientMonthlyInvoices = () => {
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  // B3: Interac removed from client portal — PayPal only (cards work via PayPal guest)
-  const [paymentMethod, setPaymentMethod] = useState<"paypal">("paypal");
-
   // Derived from canonical snapshot (single source of truth)
   const isLoading = !canonicalData && !!user?.id;
   const invoices = (canonicalData?.invoices || [])
@@ -336,40 +332,36 @@ const ClientMonthlyInvoices = () => {
                   </div>
                 </div>
 
-                {/* B3: Interac removed from client portal — PayPal only.
-                    PayPal accepts credit/debit cards without requiring an account. */}
-
-                {/* PayPal Button */}
-                {paymentMethod === "paypal" && (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit.
-                      </p>
-                      <PayPalButton
-                        amount={Number(selectedInvoice.total)}
-                        invoiceId={selectedInvoice.id}
-                        description={`Facture ${selectedInvoice.invoice_number}`}
-                        onSuccess={() => {
-                          toast({ title: "Paiement réussi!", description: "Votre facture a été payée." });
-                          setPaymentDialogOpen(false);
-                          setSelectedInvoice(null);
-                          // Invalidate all billing-related caches for instant UI updates
-                          queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
-                          queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
-                          queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
-                          queryClient.invalidateQueries({ queryKey: ["client-balance"] });
-                          queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
-                        }}
-                        onError={(error) => {
-                          toast({ title: "Erreur PayPal", description: error, variant: "destructive" });
-                        }}
-                      />
+                {/* Interac instructions */}
+                <div className="rounded-xl border border-border bg-muted/30 divide-y divide-border">
+                  {[
+                    { label: "Adresse courriel", value: "support@nivra-telecom.ca" },
+                    { label: "Montant", value: Number(selectedInvoice.total).toLocaleString("fr-CA", { style: "currency", currency: "CAD" }) },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex items-center justify-between px-4 py-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">{label}</p>
+                        <p className="text-sm font-semibold">{value}</p>
+                      </div>
+                      <button className="p-2 rounded hover:bg-muted" onClick={() => { navigator.clipboard.writeText(value); }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
                     </div>
+                  ))}
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Réponse à la question de sécurité</p>
+                      <p className="text-sm font-bold">{account?.account_number || "—"}</p>
+                      <p className="text-xs text-amber-600 mt-0.5">⚠️ Utilisez exactement ce numéro</p>
+                    </div>
+                    <button className="p-2 rounded hover:bg-muted" onClick={() => { navigator.clipboard.writeText(String(account?.account_number || "")); }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
                   </div>
-                )}
-
-                {/* B3: Interac instructions removed — PayPal handles cards directly */}
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Traitement automatique — votre paiement sera appliqué à votre compte une fois reçu.
+                </p>
               </div>
             )}
           </DialogContent>
