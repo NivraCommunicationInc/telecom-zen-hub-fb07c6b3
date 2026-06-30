@@ -8562,6 +8562,77 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       };
     }
 
+    // ===================================================================
+    // INTERAC MIGRATION — notification à tous les clients actifs
+    // ===================================================================
+    case "interac_migration_notice": {
+      const firstName = esc(v.first_name || v.client_name || "Client");
+      const acctNum = esc(v.account_number || "");
+      const balanceDue = Number(v.balance_due || 0);
+      const hasBalance = balanceDue > 0;
+      const dueDateStr = v.due_date ? fmtDate(v.due_date) : null;
+      const invoiceCount = Number(v.invoice_count || 0);
+
+      const subject = hasBalance
+        ? `⚠️ Action requise — Paiement par virement Interac | Compte ${acctNum}`
+        : `Information importante — Nouveau mode de paiement | Nivra Telecom`;
+
+      const cardRows: [string, string][] = [["Numéro de compte", acctNum]];
+      if (hasBalance) {
+        cardRows.push(["Solde total dû", money(balanceDue)]);
+        if (dueDateStr) cardRows.push(["Date d'échéance", dueDateStr]);
+        if (invoiceCount > 1) cardRows.push(["Factures impayées", `${invoiceCount} factures`]);
+      }
+
+      const bodyText = hasBalance
+        ? `En raison d'un problème technique temporaire avec notre système de paiement, les paiements par <strong>virement Interac</strong> sont maintenant la méthode officielle acceptée par Nivra Telecom.<br><br>Votre compte présente un solde de <strong>${money(balanceDue)}</strong> à régulariser. Veuillez suivre les instructions ci-dessous pour effectuer votre paiement.`
+        : `En raison d'un problème technique temporaire avec notre système de paiement, les paiements par <strong>virement Interac</strong> sont maintenant la méthode officielle acceptée par Nivra Telecom jusqu'à nouvel ordre.<br><br>Votre compte est à jour. Aucune action n'est requise pour le moment. Ce courriel vous est envoyé pour vous informer des nouvelles modalités de paiement qui s'appliqueront lors de votre prochain renouvellement.`;
+
+      const interacHtml = hasBalance
+        ? `<strong>Comment effectuer votre virement Interac :</strong><br><br>
+1. Connectez-vous à votre institution financière (app ou en ligne)<br>
+2. Choisissez <em>Virement Interac</em> ou <em>Envoyer de l'argent</em><br>
+3. Adresse courriel du destinataire : <strong>support@nivra-telecom.ca</strong><br>
+4. Montant : <strong>${money(balanceDue)}</strong><br>
+5. Question de sécurité — réponse : <strong>${acctNum}</strong><br><br>
+✅ Les virements Interac sont maintenant traités <strong>automatiquement</strong>. Une fois reçu et validé, le paiement sera appliqué à votre compte sans intervention supplémentaire de votre part.`
+        : `Pour vos <strong>futurs paiements</strong>, utilisez le virement Interac :<br><br>
+Adresse courriel : <strong>support@nivra-telecom.ca</strong><br>
+Réponse à la question de sécurité : <strong>${acctNum}</strong><br><br>
+✅ Les virements Interac sont traités <strong>automatiquement</strong>. Votre paiement sera appliqué à votre compte sans intervention supplémentaire.`;
+
+      const faqHtml = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+  <tr><td style="background:#f5f3ff;border-radius:8px;padding:20px;">
+    <p style="margin:0 0 14px 0;font-size:15px;font-weight:700;color:#1e1b4b;">Questions fréquentes</p>
+    <p style="margin:0 0 4px 0;font-size:14px;font-weight:600;color:#374151;">Quel est mon numéro de compte ?</p>
+    <p style="margin:0 0 16px 0;font-size:14px;color:#4b5563;">Votre numéro de compte est <strong>${acctNum}</strong>, indiqué dans ce courriel et dans votre carte de compte. Vous devez utiliser <strong>exactement ce numéro</strong> comme réponse à la question de sécurité. Un numéro incorrect entraîne le refus automatique du paiement par notre système.</p>
+    <p style="margin:0 0 4px 0;font-size:14px;font-weight:600;color:#374151;">Quand mon paiement sera-t-il confirmé ?</p>
+    <p style="margin:0 0 16px 0;font-size:14px;color:#4b5563;">Les virements Interac sont généralement traités en quelques minutes à quelques heures selon votre institution financière. Vous recevrez une confirmation par courriel dès que le paiement est appliqué à votre compte.</p>
+    <p style="margin:0 0 4px 0;font-size:14px;font-weight:600;color:#374151;">Dois-je contacter le service client après mon virement ?</p>
+    <p style="margin:0;font-size:14px;color:#4b5563;">Non. Le traitement est entièrement automatique. Si votre paiement n'est pas confirmé dans les 24 heures, contactez-nous à <strong>support@nivra-telecom.ca</strong>.</p>
+  </td></tr>
+</table>`;
+
+      return {
+        subject,
+        html: shell({
+          badge: "INFORMATION IMPORTANTE",
+          heroTitle: hasBalance ? "Paiement requis — Virement Interac" : "Nouveau mode de paiement",
+          heroSub: "Problème technique temporaire avec notre système de paiement",
+          greeting: `Bonjour ${firstName},`,
+          bodyText,
+          cardTitle: "VOTRE COMPTE",
+          cardRows,
+          cardEmphasizeLast: true,
+          helpHtml: interacHtml,
+          helpVariant: hasBalance ? "warning" : "info",
+          ctaPrimaryUrl: PORTAL_URL,
+          ctaPrimaryLabel: "Accéder à mon portail",
+          extraBodyHtml: faqHtml,
+        }),
+      };
+    }
+
     case "nova_alert_critical": {
       const alertTitle = esc(v.title || "Alerte critique");
       const alertMessage = esc(v.message || "");
