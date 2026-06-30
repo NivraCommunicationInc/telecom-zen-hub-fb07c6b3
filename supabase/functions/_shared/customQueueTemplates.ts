@@ -8652,6 +8652,45 @@ Réponse à la question de sécurité : <strong>${acctNum}</strong><br><br>
       };
     }
 
+    case "paypal_migration_to_square": {
+      // Migration invitation for existing PayPal autopay clients.
+      // Sent once to clients who have paypal_subscription_id but no square_card_id.
+      // Variables: client_name, plan_name, monthly_amount, setup_url
+      const planName = esc(String(v.plan_name || "votre forfait actuel"));
+      const monthlyAmount = String(v.monthly_amount || "");
+      const setupUrl = String(v.setup_url || "https://nivra-telecom.ca/portal/billing");
+
+      return {
+        subject: "Nouveau mode de paiement sécurisé disponible — Nivra Telecom",
+        html: shell({
+          preheader: "Configurez votre carte de crédit pour continuer à profiter du rabais autopay.",
+          badge: "MISE À JOUR PAIEMENT",
+          heroTitle: "Nouveau système de paiement",
+          heroSub: "Square — paiement par carte encore plus sécurisé",
+          icon: "card",
+          greeting,
+          bodyText:
+            "Bonne nouvelle : Nivra Telecom passe à Square pour les prélèvements automatiques mensuels. " +
+            "Square est un processeur de paiement certifié PCI-DSS de niveau 1 — le plus haut standard de sécurité. " +
+            "Pour continuer à bénéficier du rabais de 5 $/mois sur le prélèvement automatique, " +
+            "enregistrez simplement votre carte de crédit dans votre portail client.",
+          cardTitle: "Votre abonnement actuel",
+          cardRows: [
+            ["Forfait", planName],
+            ...(monthlyAmount ? [["Montant mensuel", `${esc(monthlyAmount)} $`] as [string, string]] : []),
+            ["Rabais autopay", "−5,00 $ / mois (maintenu avec Square)"],
+            ["Votre PayPal", "Toujours actif en attendant votre carte"],
+          ],
+          ctaPrimaryUrl: setupUrl,
+          ctaPrimaryLabel: "Configurer ma carte",
+          helpHtml:
+            "Votre service ne sera <strong>pas interrompu</strong> pendant la transition. " +
+            "PayPal continue de fonctionner jusqu'à ce que vous enregistriez votre nouvelle carte.",
+          helpVariant: "info",
+        }),
+      };
+    }
+
     default:
       return null;
     }

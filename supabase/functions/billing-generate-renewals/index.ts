@@ -287,20 +287,21 @@ serve(async (req) => {
 
         const { data: customerData } = await supabase
           .from("billing_customers")
-          .select("autopay_enabled, autopay_discount_active")
+          .select("autopay_enabled, autopay_discount_active, square_card_id")
           .eq("id", sub.customer_id)
           .single();
 
         const hasPayPalAutopay = !!sub.paypal_subscription_id;
+        const hasSquareAutopay = !!customerData?.square_card_id;
 
-        const isAutopayEligible = !!customerData?.autopay_enabled &&
-                                   !!customerData?.autopay_discount_active &&
-                                   hasPayPalAutopay;
+        // Autopay discount: $5/mo for any active card-on-file (Square or PayPal)
+        const isAutopayEligible = hasPayPalAutopay || hasSquareAutopay;
 
         if (isAutopayEligible) {
           autopayDiscount = 5;
-          autopayNote = " (Rabais paiement pré-autorisé PayPal -5$)";
-          console.log(`[billing-generate-renewals] Autopay discount: -5$ for customer ${sub.customer_id} (provider: paypal)`);
+          const provider = hasSquareAutopay ? "square" : "paypal";
+          autopayNote = ` (Rabais paiement automatique -5$)`;
+          console.log(`[billing-generate-renewals] Autopay discount: -5$ for customer ${sub.customer_id} (provider: ${provider})`);
         }
 
         // Calculate amounts via canonical tax module
@@ -316,7 +317,7 @@ serve(async (req) => {
         
         // Determine payment method based on subscription/autopay
         const hasPayPalSubscription = !!sub.paypal_subscription_id;
-        const paymentMethod = hasPayPalSubscription ? 'paypal' : 'interac';
+        const paymentMethod = hasSquareAutopay ? 'square' : hasPayPalSubscription ? 'paypal' : 'interac';
 
         // Create renewal invoice
         const { data: invoice, error: invoiceError } = await supabase
@@ -629,17 +630,9 @@ serve(async (req) => {
         // Square is primary processor. PayPal is fallback (account under review).
         // Stripe was decommissioned 2026-05-18.
 
-        // 1. Try Square first (card on file)
-        const { data: bcForSquare } = await supabase
-          .from("billing_customers")
-          .select("square_customer_id, square_card_id")
-          .eq("id", sub.customer_id)
-          .maybeSingle();
-
-        const hasSquareCard = !!(bcForSquare?.square_customer_id && bcForSquare?.square_card_id);
-
-        if (hasSquareCard) {
-          console.log(`[billing-generate-renewals] Triggering Square charge for ${sub.id}`);
+        // 1. Try Square first (card on file — checked earlier via customerData)
+        if (hasSquareAutopay) {
+          console.log(`[billing-generate-renewals] Triggering Square COF charge for ${sub.id}`);
           const { data: squareResult, error: squareErr } = await supabase.functions.invoke(
             "square-charge-subscription",
             { body: { subscription_id: sub.id, invoice_id: invoice.id, amount: finalTotal } }
