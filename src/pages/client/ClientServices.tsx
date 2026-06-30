@@ -285,12 +285,6 @@ const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: st
               </div>
             </div>
 
-            {subscription?.paypal_subscription_id && (
-              <div className="p-3 rounded-md text-sm" style={{ background: D.error, border: "1px solid rgba(239,68,68,0.3)", color: D.errorTx }}>
-                Votre abonnement PayPal continuera d'être débité pendant la suspension.
-                Contactez-nous à support@nivra-telecom.ca pour suspendre votre paiement PayPal.
-              </div>
-            )}
 
             <div className="p-3 rounded-md text-sm" style={{ background: D.info, border: `1px solid ${D.infoBd}`, color: D.infoTx }}>
               Votre service sera suspendu après approbation. La facturation est mise en pause pendant la
