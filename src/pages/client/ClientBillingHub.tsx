@@ -119,6 +119,9 @@ const ClientBillingHub = () => {
 
   // Profile for payment dialog (derived from canonical snapshot)
   const profile = canonicalData?.profile ?? null;
+  const billingCustomer = canonicalData?.billingCustomer as any;
+  const customerId = billingCustomer?.id ?? null;
+  const squareCardId = billingCustomer?.square_card_id ?? null;
 
   // Unpaid invoices for "Pay Invoice" tab (needs async breakdown fetch)
   const { data: unpaidInvoices, isLoading: unpaidLoading } = useQuery({
@@ -648,6 +651,8 @@ const ClientBillingHub = () => {
           invoice={payingInvoice}
           totalDue={payingInvoice?.balance_due || 0}
           profile={profile}
+          customerId={customerId}
+          squareCardId={squareCardId}
           onPaymentSuccess={handlePaymentSuccess}
         />
 

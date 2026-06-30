@@ -117,6 +117,9 @@ const ClientInvoices = () => {
   const { data: canonicalData, isLoading: canonicalLoading } = useCanonicalClientData(user?.id);
 
   const profile = canonicalData?.profile;
+  const billingCustomer = canonicalData?.billingCustomer as any;
+  const customerId = billingCustomer?.id ?? null;
+  const squareCardId = billingCustomer?.square_card_id ?? null;
 
   // ── Fetch V2 invoice IDs (with order_id fallback), then get breakdowns from RPC ──
   const { data: breakdowns, isLoading } = useQuery({
@@ -570,6 +573,8 @@ const ClientInvoices = () => {
         } : null}
         totalDue={payingInvoice?.balance_due || 0}
         profile={profile}
+        customerId={customerId}
+        squareCardId={squareCardId}
         onPaymentSuccess={handlePaymentSuccess}
       />
     </ClientLayout>
