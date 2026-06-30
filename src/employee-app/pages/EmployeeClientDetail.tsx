@@ -22,7 +22,7 @@ import { CreateTicketDialog } from "@/employee-app/components/CreateTicketDialog
 import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
-import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+import { EmployeeSquarePaymentDialog } from "@/employee-app/components/EmployeeSquarePaymentDialog";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
@@ -227,14 +227,12 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         />
       )}
       {paymentInvoice && (
-        <RecordPaymentDialog
+        <EmployeeSquarePaymentDialog
           open={!!paymentInvoice}
           onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
-          invoiceId={paymentInvoice.id}
-          customerId={paymentInvoice.customer_id ?? billingCustomer?.id ?? ""}
-          invoiceNumber={paymentInvoice.invoice_number}
-          balanceDue={paymentInvoice.balance_due ?? paymentInvoice.total}
-          portal="employee"
+          invoice={{ ...paymentInvoice, customer_id: paymentInvoice.customer_id ?? billingCustomer?.id ?? "" }}
+          clientEmail={profile.email ?? undefined}
+          clientName={profile.full_name ?? undefined}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ["shared-client-profile", clientId] })}
         />
       )}

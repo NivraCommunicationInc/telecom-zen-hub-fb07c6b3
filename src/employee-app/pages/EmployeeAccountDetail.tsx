@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
-import { EmployeePayPalPaymentDialog } from "@/employee-app/components/EmployeePayPalPaymentDialog";
+import { EmployeeSquarePaymentDialog } from "@/employee-app/components/EmployeeSquarePaymentDialog";
 import { EmployeeAccountManagement } from "@/employee-app/components/EmployeeAccountManagement";
 import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import EmployeeCancellationRequestDialog from "@/employee-app/components/EmployeeCancellationRequestDialog";
@@ -544,11 +544,10 @@ export default function EmployeeAccountDetail() {
       )}
 
       {paymentInvoice?.customer_id && (
-        <EmployeePayPalPaymentDialog
+        <EmployeeSquarePaymentDialog
           open={!!paymentInvoice}
           onOpenChange={(open) => { if (!open) setPaymentInvoice(null); }}
           invoice={paymentInvoice}
-          invoices={unpaidInvoices}
           clientEmail={profile?.email}
           clientName={profile?.full_name}
           onSuccess={() => refetch()}

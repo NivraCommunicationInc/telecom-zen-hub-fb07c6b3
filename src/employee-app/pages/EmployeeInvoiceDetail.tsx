@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useInvoiceDetail } from "@/shared-ops/hooks/useInvoiceDetail";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
-import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+import { EmployeeSquarePaymentDialog } from "@/employee-app/components/EmployeeSquarePaymentDialog";
 
 export default function EmployeeInvoiceDetail() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
@@ -193,14 +193,12 @@ export default function EmployeeInvoiceDetail() {
 
       {/* Payment dialog */}
       {showPayment && customer && (
-        <RecordPaymentDialog
+        <EmployeeSquarePaymentDialog
           open={showPayment}
           onOpenChange={setShowPayment}
-          invoiceId={inv.id}
-          customerId={customer.id}
-          invoiceNumber={inv.invoice_number}
-          balanceDue={inv.balance_due ?? inv.total}
-          portal="employee"
+          invoice={{ id: inv.id, invoice_number: inv.invoice_number, total: inv.total, balance_due: inv.balance_due, customer_id: customer.id }}
+          clientEmail={customer.email}
+          clientName={`${customer.first_name} ${customer.last_name}`}
           onSuccess={() => refetch()}
         />
       )}
