@@ -42,6 +42,7 @@ import {
   Lock,
   Copy,
   Send,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -558,8 +559,8 @@ const ClientBillingHub = () => {
             <Card className="max-w-md mx-auto">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-primary" />
-                  Paiement sécurisé par carte
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  Paiement par carte — Square
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -568,76 +569,28 @@ const ClientBillingHub = () => {
                     <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
                     <p className="text-muted-foreground">Aucun solde à payer.</p>
                   </div>
+                ) : squareCardId ? (
+                  <SquarePayNowButton
+                    customerId={customerId!}
+                    unpaidInvoices={unpaidInvoices || []}
+                    displayBalance={displayBalance}
+                    onSuccess={handlePaymentSuccess}
+                  />
                 ) : (
-                  <>
+                  <div className="space-y-4">
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                       Solde à payer: <strong>{displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="card_name">Nom sur la carte</Label>
-                      <Input
-                        id="card_name"
-                        placeholder="Jean Tremblay"
-                        value={cardForm.card_name}
-                        onChange={e => setCardForm(f => ({ ...f, card_name: e.target.value }))}
-                        autoComplete="cc-name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="card_number">Numéro de carte</Label>
-                      <Input
-                        id="card_number"
-                        placeholder="XXXX XXXX XXXX XXXX"
-                        value={cardForm.card_number}
-                        onChange={e => setCardForm(f => ({ ...f, card_number: formatCardNumber(e.target.value) }))}
-                        maxLength={19}
-                        inputMode="numeric"
-                        autoComplete="cc-number"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="card_expiry">Expiration (MM/AA)</Label>
-                        <Input
-                          id="card_expiry"
-                          placeholder="MM/AA"
-                          value={cardForm.card_expiry}
-                          onChange={e => setCardForm(f => ({ ...f, card_expiry: formatExpiry(e.target.value) }))}
-                          maxLength={5}
-                          inputMode="numeric"
-                          autoComplete="cc-exp"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cvv">CVV</Label>
-                        <Input
-                          id="cvv"
-                          placeholder="123"
-                          value={cardForm.cvv}
-                          onChange={e => setCardForm(f => ({ ...f, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
-                          maxLength={4}
-                          inputMode="numeric"
-                          autoComplete="cc-csc"
-                          type="password"
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      className="w-full bg-primary hover:bg-primary/90"
-                      onClick={writeGuard(handleCardPayment)}
-                      disabled={writeGuard.isReadOnly || cardPaymentLoading}
-                      title={writeGuard.disabledReason}
-                    >
-                      <Lock className="w-4 h-4 mr-2" />
-                      {cardPaymentLoading
-                        ? "Traitement en cours…"
-                        : `Payer ${displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} par carte`}
-                    </Button>
-                    <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      Paiement chiffré SSL — Square PCI-DSS
+                    <p className="text-sm text-muted-foreground">
+                      Enregistrez une carte de crédit pour payer instantanément et économiser 5 $/mois.
                     </p>
-                  </>
+                    <Button className="w-full" asChild>
+                      <a href="/portal/paiement">
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Enregistrer une carte →
+                      </a>
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -709,5 +662,66 @@ const ClientBillingHub = () => {
     </ClientLayout>
   );
 };
+
+// ─── Inline Square Pay Now button for billing hub card-payment tab ───
+const BACKEND_URL = "https://lacxnbjvcyvhrttprkxr.supabase.co";
+const BACKEND_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhY3huYmp2Y3l2aHJ0dHBya3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjI2NjMsImV4cCI6MjA5NTk5ODY2M30.Jcc89WC7CofMuMc9IRpxzsDsEb-_C7AVgLEbNzdLa2g";
+
+function SquarePayNowButton({ customerId, unpaidInvoices, displayBalance, onSuccess }: {
+  customerId: string;
+  unpaidInvoices: any[];
+  displayBalance: number;
+  onSuccess: () => void;
+}) {
+  const [paying, setPaying] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handlePay = async () => {
+    setPaying(true);
+    try {
+      let anyFailed = false;
+      for (const inv of unpaidInvoices) {
+        const res = await fetch(`${BACKEND_URL}/functions/v1/square-pay-invoice`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${BACKEND_ANON_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ invoice_id: inv.id, customer_id: customerId }),
+        });
+        const d = await res.json();
+        if (!d?.ok) { anyFailed = true; toast.error(`Facture ${inv.invoice_number || inv.id}: ${d?.error || "Erreur"}`); }
+      }
+      if (!anyFailed) { setDone(true); toast.success("Toutes les factures payées !"); onSuccess(); }
+    } catch (e: any) {
+      toast.error("Erreur : " + (e?.message || String(e)));
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="text-center py-6">
+        <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+        <p className="text-emerald-700 font-semibold">Paiement réussi !</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm">
+        Solde total: <strong>{displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong>
+      </div>
+      <Button className="w-full" onClick={handlePay} disabled={paying}>
+        {paying
+          ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Traitement...</>
+          : <><CreditCard className="w-4 h-4 mr-2" />Payer {displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} par carte</>}
+      </Button>
+      <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+        <ShieldCheck className="w-3.5 h-3.5" />
+        Paiement sécurisé via Square
+      </p>
+    </div>
+  );
+}
 
 export default ClientBillingHub;

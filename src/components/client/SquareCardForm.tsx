@@ -5,8 +5,6 @@ import { toast } from "sonner";
 
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
 const SQUARE_LOCATION_ID = "LQW27N70DQ2N8";
-
-// Must call functions on the production project, not the Lovable project
 const BACKEND_URL = "https://lacxnbjvcyvhrttprkxr.supabase.co";
 const BACKEND_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhY3huYmp2Y3l2aHJ0dHBya3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjI2NjMsImV4cCI6MjA5NTk5ODY2M30.Jcc89WC7CofMuMc9IRpxzsDsEb-_C7AVgLEbNzdLa2g";
 
@@ -16,60 +14,64 @@ interface Props {
 }
 
 export function SquareCardForm({ customerId, onSaved }: Props) {
-  const [sdkReady, setSdkReady] = useState(false);
-  const [cardReady, setCardReady] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<any>(null);
 
-  // Load Square.js once
   useEffect(() => {
-    if ((window as any).Square) { setSdkReady(true); return; }
-    if (document.querySelector('script[src*="web.squarecdn.com"]')) {
-      // Script already injected but not yet loaded — wait for it
-      const poll = setInterval(() => {
-        if ((window as any).Square) { clearInterval(poll); setSdkReady(true); }
-      }, 100);
-      return () => clearInterval(poll);
-    }
-    const script = document.createElement("script");
-    script.src = "https://web.squarecdn.com/v1/square.js";
-    script.onload = () => setSdkReady(true);
-    script.onerror = () => toast.error("Impossible de charger Square — rechargez la page.");
-    document.head.appendChild(script);
-  }, []);
+    let destroyed = false;
 
-  // Attach card widget once SDK is ready and container is mounted
-  useEffect(() => {
-    if (!sdkReady || !containerRef.current) return;
-    let active = true;
-
-    (async () => {
+    const init = async () => {
       try {
+        // Load Square.js if not already loaded
+        if (!(window as any).Square) {
+          await new Promise<void>((resolve, reject) => {
+            if (document.querySelector('script[src*="web.squarecdn.com"]')) {
+              // Already injected — poll until available
+              const poll = setInterval(() => {
+                if ((window as any).Square) { clearInterval(poll); resolve(); }
+              }, 100);
+              return;
+            }
+            const s = document.createElement("script");
+            s.src = "https://web.squarecdn.com/v1/square.js";
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error("Impossible de charger Square"));
+            document.head.appendChild(s);
+          });
+        }
+
+        if (destroyed) return;
+
         const payments = (window as any).Square.payments(SQUARE_APP_ID, SQUARE_LOCATION_ID);
-        const c = await payments.card();
-        await c.attach(containerRef.current!);
-        if (!active) { c.destroy(); return; }
-        cardRef.current = c;
-        setCardReady(true);
+        const card = await payments.card();
+        await card.attach(containerRef.current!);
+
+        if (destroyed) { card.destroy(); return; }
+
+        cardRef.current = card;
+        setLoading(false);
       } catch (e: any) {
-        if (active) toast.error("Erreur Square : " + (e?.message || String(e)));
+        if (!destroyed) {
+          toast.error("Erreur Square : " + (e?.message || String(e)));
+          setLoading(false);
+        }
       }
-    })();
+    };
+
+    init();
 
     return () => {
-      active = false;
-      if (cardRef.current) {
-        cardRef.current.destroy?.();
-        cardRef.current = null;
-      }
-      setCardReady(false);
+      destroyed = true;
+      cardRef.current?.destroy?.();
+      cardRef.current = null;
     };
-  }, [sdkReady]);
+  }, []);
 
   const handleSave = async () => {
     if (!cardRef.current) {
-      toast.error("Formulaire non prêt — rechargez la page.");
+      toast.error("Formulaire non initialisé — rechargez la page.");
       return;
     }
     setSaving(true);
@@ -77,7 +79,7 @@ export function SquareCardForm({ customerId, onSaved }: Props) {
       const result = await cardRef.current.tokenize();
       if (result.status !== "OK") {
         const msg = result.errors?.[0]?.message || "Informations de carte invalides";
-        toast.error("Erreur : " + msg);
+        toast.error(msg);
         return;
       }
 
@@ -92,7 +94,7 @@ export function SquareCardForm({ customerId, onSaved }: Props) {
 
       const data = await res.json();
       if (!data?.ok) {
-        toast.error(data?.error || "Erreur lors de l'enregistrement de la carte");
+        toast.error(data?.error || "Erreur lors de l'enregistrement");
         return;
       }
 
@@ -107,38 +109,21 @@ export function SquareCardForm({ customerId, onSaved }: Props) {
 
   return (
     <div className="space-y-4">
-      {!sdkReady && (
-        <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">Chargement du formulaire de paiement...</span>
-        </div>
-      )}
+      {/* Square injects card widget here */}
+      <div ref={containerRef} id="sq-card-container" className="min-h-[90px]" />
 
-      {/* Square injects the card widget into this div */}
-      <div
-        ref={containerRef}
-        id="sq-card-container"
-        className={`min-h-[90px] ${!sdkReady ? "hidden" : ""}`}
-      />
-
-      {sdkReady && !cardReady && (
+      {loading && (
         <div className="flex items-center justify-center py-3 gap-2 text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">Initialisation...</span>
+          <span className="text-sm">Chargement du formulaire...</span>
         </div>
       )}
 
-      {sdkReady && (
-        <Button
-          onClick={handleSave}
-          disabled={saving || !cardReady}
-          className="w-full"
-        >
-          {saving
-            ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Enregistrement...</>
-            : <><CreditCard className="w-4 h-4 mr-2" />Enregistrer ma carte</>}
-        </Button>
-      )}
+      <Button onClick={handleSave} disabled={saving || loading} className="w-full">
+        {saving
+          ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Enregistrement...</>
+          : <><CreditCard className="w-4 h-4 mr-2" />Enregistrer ma carte</>}
+      </Button>
     </div>
   );
 }
