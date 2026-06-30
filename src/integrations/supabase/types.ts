@@ -2468,6 +2468,8 @@ export type Database = {
           id: string
           last_name: string
           phone: string
+          square_card_id: string | null
+          square_customer_id: string | null
           status: Database["public"]["Enums"]["billing_customer_status"] | null
           stripe_customer_id: string | null
           updated_at: string | null
@@ -2484,6 +2486,8 @@ export type Database = {
           id?: string
           last_name: string
           phone: string
+          square_card_id?: string | null
+          square_customer_id?: string | null
           status?: Database["public"]["Enums"]["billing_customer_status"] | null
           stripe_customer_id?: string | null
           updated_at?: string | null
@@ -2500,6 +2504,8 @@ export type Database = {
           id?: string
           last_name?: string
           phone?: string
+          square_card_id?: string | null
+          square_customer_id?: string | null
           status?: Database["public"]["Enums"]["billing_customer_status"] | null
           stripe_customer_id?: string | null
           updated_at?: string | null
@@ -2740,6 +2746,8 @@ export type Database = {
           received_at: string | null
           reference: string | null
           source: string | null
+          square_payment_id: string | null
+          square_receipt_url: string | null
           status: Database["public"]["Enums"]["billing_payment_status"] | null
           stripe_payment_intent_id: string | null
         }
@@ -2768,6 +2776,8 @@ export type Database = {
           received_at?: string | null
           reference?: string | null
           source?: string | null
+          square_payment_id?: string | null
+          square_receipt_url?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
           stripe_payment_intent_id?: string | null
         }
@@ -2796,6 +2806,8 @@ export type Database = {
           received_at?: string | null
           reference?: string | null
           source?: string | null
+          square_payment_id?: string | null
+          square_receipt_url?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
           stripe_payment_intent_id?: string | null
         }
