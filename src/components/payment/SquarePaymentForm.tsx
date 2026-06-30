@@ -6,8 +6,7 @@ import { toast } from "sonner";
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
 const SQUARE_LOCATION_ID = "LQW27N70DQ2N8";
 const BACKEND_URL = "https://lacxnbjvcyvhrttprkxr.supabase.co";
-const BACKEND_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhY3huYmp2Y3l2aHJ0dHBya3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjI2NjMsImV4cCI6MjA5NTk5ODY2M30.Jcc89WC7CofMuMc9IRpxzsDsEb-_C7AVgLEbNzdLa2g";
+const BACKEND_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhY3huYmp2Y3l2aHJ0dHBya3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjI2NjMsImV4cCI6MjA5NTk5ODY2M30.Jcc89WC7CofMuMc9IRpxzsDsEb-_C7AVgLEbNzdLa2g";
 
 export interface SquarePaymentFormProps {
   /** ID de la facture à payer (billing_invoices.id) */

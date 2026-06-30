@@ -45,6 +45,7 @@ serve(async (req) => {
     let invoiceData: any = null;
 
     if (invoice_id) {
+      console.log("[square-charge-invoice] Looking up invoice_id:", invoice_id);
       const { data: inv, error: invErr } = await supabase
         .from("billing_invoices")
         .select(
@@ -54,6 +55,7 @@ serve(async (req) => {
         .eq("id", invoice_id)
         .single();
 
+      console.log("[square-charge-invoice] DB result:", { found: !!inv, err: invErr?.message, inv_num: inv?.invoice_number });
       if (invErr || !inv) return json({ ok: false, error: "Facture introuvable" }, 404);
 
       const balance = Number(inv.balance_due);

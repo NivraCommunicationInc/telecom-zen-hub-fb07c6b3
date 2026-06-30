@@ -9,8 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient } from "@/integrations/backend";
 
 const BACKEND_URL = "https://lacxnbjvcyvhrttprkxr.supabase.co";
-const BACKEND_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhY3huYmp2Y3l2aHJ0dHBya3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjI2NjMsImV4cCI6MjA5NTk5ODY2M30.Jcc89WC7CofMuMc9IRpxzsDsEb-_C7AVgLEbNzdLa2g";
+const BACKEND_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhY3huYmp2Y3l2aHJ0dHBya3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjI2NjMsImV4cCI6MjA5NTk5ODY2M30.Jcc89WC7CofMuMc9IRpxzsDsEb-_C7AVgLEbNzdLa2g";
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
 const SQUARE_LOCATION_ID = "LQW27N70DQ2N8";
 
@@ -29,7 +28,7 @@ export const ClientPaymentMethodCard = () => {
       if (!user?.id) return null;
       const { data } = await portalClient
         .from("billing_customers")
-        .select("square_card_id, square_card_last4, square_card_brand, square_card_exp_month, square_card_exp_year")
+        .select("id, square_card_id, square_card_last4, square_card_brand, square_card_exp_month, square_card_exp_year")
         .eq("user_id", user.id)
         .maybeSingle();
       return data;
@@ -39,13 +38,16 @@ export const ClientPaymentMethodCard = () => {
 
   const hasCard = !!cardData?.square_card_id;
 
-  // Initialize Square card widget when form is visible
+  // Initialize Square card widget when the form div is rendered.
+  // For users WITH a card: form only shows when showForm=true (Modifier la carte).
+  // For users WITHOUT a card: form is always visible, so init immediately (showForm stays false).
   useEffect(() => {
-    if (!showForm) {
+    if (hasCard && !showForm) {
       cardRef.current?.destroy?.();
       cardRef.current = null;
       return;
     }
+    if (!containerRef.current) return; // form div not in DOM yet (still loading)
     let destroyed = false;
     setSqLoading(true);
 
@@ -84,10 +86,14 @@ export const ClientPaymentMethodCard = () => {
       cardRef.current?.destroy?.();
       cardRef.current = null;
     };
-  }, [showForm]);
+  }, [showForm, hasCard]);
 
   const handleSaveCard = async () => {
     if (!cardRef.current || !user?.id) return;
+    if (!cardData?.id) {
+      toast.error("Client introuvable — rechargez la page");
+      return;
+    }
     setSaving(true);
     try {
       const result = await cardRef.current.tokenize();
@@ -102,7 +108,7 @@ export const ClientPaymentMethodCard = () => {
           Authorization: `Bearer ${BACKEND_ANON_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ source_id: result.token, user_id: user.id }),
+        body: JSON.stringify({ source_id: result.token, customer_id: cardData.id }),
       });
       const data = await res.json();
       if (!data?.ok) { toast.error(data?.error || "Erreur lors de l'enregistrement"); return; }
