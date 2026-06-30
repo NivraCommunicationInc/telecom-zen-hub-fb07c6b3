@@ -1,147 +1,107 @@
-/**
- * ClientPayBalanceCard
- * Displays the customer's TOTAL unpaid balance and a single PayPal button
- * that pays everything at once. After capture, all unpaid invoices are
- * marked paid FIFO via apply_balance_payment RPC.
- */
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
-import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
-import { CreditCard, AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Copy, Send } from "lucide-react";
 import { toast } from "sonner";
+
+const INTERAC_EMAIL = "support@nivra-telecom.ca";
 
 export const ClientPayBalanceCard = () => {
   const { user } = useClientAuth();
-  const { data: canonicalData } = useCanonicalClientData(user?.id);
-  const [paying, setPaying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: canonicalData, isLoading } = useCanonicalClientData(user?.id);
 
-  const { data, isLoading, refetch } = useQuery({
+  const accountNumber =
+    (canonicalData?.profile as any)?.account_number ||
+    (canonicalData?.account as any)?.account_number ||
+    "—";
+
+  const { data } = useQuery({
     queryKey: ["client-balance-summary", user?.id],
     enabled: !!user?.id,
-    queryFn: async () => {
+    queryFn: () => {
       const invoices = canonicalData?.invoices || [];
-      const payments = canonicalData?.payments || [];
-
       const CLOSED = ["void", "cancelled", "refunded", "paid", "paid_by_promo"];
       const total = Math.round(
-        (invoices || [])
+        invoices
           .filter((i: any) => !CLOSED.includes(String(i.status || "")))
-          .reduce((s: number, i: any) => s + (Number(i.balance_due) || 0), 0)
-        * 100) / 100;
-
-      const unpaidCount = (invoices || []).filter(
-        (i: any) => !CLOSED.includes(String(i.status || "")) && (Number(i.balance_due) || 0) > 0
+          .reduce((s: number, i: any) => s + (Number(i.balance_due) || 0), 0) * 100
+      ) / 100;
+      const unpaidCount = invoices.filter(
+        (i: any) => !CLOSED.includes(String(i.status || "")) && Number(i.balance_due) > 0
       ).length;
-
       return { totalBalance: total, invoiceCount: unpaidCount };
     },
     staleTime: 30_000,
   });
 
-  // Handle return from PayPal
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    const captured = sessionStorage.getItem("balance_pay_captured");
-    if (token && !captured && window.location.pathname.includes("balance-payment-success")) {
-      sessionStorage.setItem("balance_pay_captured", "1");
-      capturePayment(token);
-    }
-  }, []);
+  const copy = (text: string, label: string) =>
+    navigator.clipboard.writeText(text).then(() => toast.success(`${label} copié !`));
 
-  const capturePayment = async (paypalOrderId: string) => {
-    setPaying(true);
-    try {
-      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
-        "paypal-balance-pay-capture",
-        { body: { paypal_order_id: paypalOrderId } }
-      );
-      if (invokeErr || result?.error) throw new Error(result?.error || invokeErr?.message);
-      toast.success(`Paiement de ${result.captured_amount}$ appliqué à ${result.apply_result?.invoices_paid_count || 0} facture(s)`);
-      sessionStorage.removeItem("balance_pay_captured");
-      window.history.replaceState({}, "", "/portal/billing");
-      await refetch();
-    } catch (e: any) {
-      setError(e.message || "Erreur lors du paiement");
-      toast.error(e.message || "Erreur lors du paiement");
-    } finally {
-      setPaying(false);
-    }
-  };
-
-  const handlePayBalance = async () => {
-    setError(null);
-    setPaying(true);
-    try {
-      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
-        "paypal-balance-pay-create"
-      );
-      if (invokeErr || result?.error) throw new Error(result?.error || invokeErr?.message);
-
-      const approveLink = result.links?.find((l: any) => l.rel === "approve")?.href;
-      if (!approveLink) throw new Error("Lien PayPal introuvable");
-      window.location.href = approveLink;
-    } catch (e: any) {
-      setError(e.message || "Erreur PayPal");
-      toast.error(e.message || "Erreur PayPal");
-      setPaying(false);
-    }
-  };
-
-  if (isLoading) {
-    return <Skeleton className="h-40 w-full" />;
-  }
-
-  if (!data || data.totalBalance <= 0) {
-    return null;
-  }
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  if (!data || data.totalBalance <= 0) return null;
 
   return (
-    <Card className="border-warning/30 bg-warning/5">
+    <Card className="border-amber-300/50 bg-amber-50/30">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-warning" />
+        <CardTitle className="flex items-center gap-2 text-amber-700">
+          <AlertCircle className="w-5 h-5" />
           Solde total à payer
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="text-center py-3">
+        <div className="text-center py-2">
           <p className="text-sm text-muted-foreground mb-1">
             {data.invoiceCount} facture{data.invoiceCount > 1 ? "s" : ""} impayée{data.invoiceCount > 1 ? "s" : ""}
           </p>
-          <p className="text-3xl font-bold text-warning">
+          <p className="text-3xl font-bold text-amber-700">
             {data.totalBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
           </p>
         </div>
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {/* Interac instructions */}
+        <div className="flex items-center gap-2 mb-1">
+          <Send className="w-4 h-4 text-primary" />
+          <p className="text-sm font-semibold text-foreground">Payer par virement Interac</p>
+        </div>
 
-        <Button
-          onClick={handlePayBalance}
-          disabled={paying}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-          size="lg"
-        >
-          {paying ? (
-            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Redirection vers PayPal…</>
-          ) : (
-            <><CreditCard className="w-4 h-4 mr-2" /> Payer toute la balance avec PayPal</>
-          )}
-        </Button>
+        <div className="rounded-xl border border-border bg-background divide-y divide-border">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Adresse courriel</p>
+              <p className="text-sm font-semibold">{INTERAC_EMAIL}</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => copy(INTERAC_EMAIL, "Courriel")}>
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center justify-between px-4 py-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Montant</p>
+              <p className="text-sm font-semibold">
+                {data.totalBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => copy(data.totalBalance.toFixed(2), "Montant")}>
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center justify-between px-4 py-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Réponse à la question de sécurité</p>
+              <p className="text-sm font-bold">{accountNumber}</p>
+              <p className="text-xs text-amber-600 mt-0.5">⚠️ Utilisez exactement ce numéro</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => copy(String(accountNumber), "Numéro de compte")}>
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Un seul paiement règle automatiquement toutes vos factures impayées (de la plus ancienne à la plus récente).
+          Traitement automatique — votre paiement sera appliqué à toutes vos factures impayées une fois reçu.
         </p>
       </CardContent>
     </Card>
