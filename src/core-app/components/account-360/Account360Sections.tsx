@@ -18,7 +18,7 @@ import { SubscriptionActionMenu } from "@/core-app/components/account-actions/Su
 import { EquipmentActionMenu } from "@/core-app/components/account-actions/EquipmentActions";
 import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
 import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
-import { CorePayPalManualChargeDialog } from "@/core-app/components/account-360/CorePayPalManualChargeDialog";
+import { CoreSquarePaymentDialog } from "@/core-app/components/account-360/CoreSquarePaymentDialog";
 import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
 import { AdminDocumentsPanel } from "@/components/admin/AdminDocumentsPanel";
 import { EquipmentDetailDialog, KycDetailDialog } from "./Account360DetailDialogs";
@@ -124,35 +124,36 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
       <PanelHeader icon={Wallet} title="Mode de paiement" />
       <div className="p-3 space-y-2">
         {isPreAuth ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-medium text-emerald-400 border border-emerald-500/30">
-                <CheckCircle2 className="h-3 w-3" /> Pré-autorisé PayPal ✓
-              </span>
-              <span className="text-[10px] text-emerald-400/80 font-medium">Rabais 5$/mois actif</span>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-medium text-emerald-400 border border-emerald-500/30">
+              <CheckCircle2 className="h-3 w-3" /> Autopay PayPal actif
+            </span>
             <p className="text-[10px] text-core-text-label font-mono">
-              PayPal Sub: …{String(paypalSub.paypal_subscription_id).slice(-8)}
+              Sub: …{String(paypalSub.paypal_subscription_id).slice(-8)}
             </p>
+          </div>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-md bg-[hsl(220,15%,18%)] px-2 py-1 text-[11px] font-medium text-core-text-label border border-[hsl(220,15%,22%)]">
+            Paiement manuel / Interac
+          </span>
+        )}
+        {unpaidInvoices.length > 0 && (
+          <>
             <button
               onClick={() => setChargeOpen(true)}
               className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-500 transition-colors"
             >
-              <CreditCard className="h-3 w-3" /> Charger manuellement
+              <CreditCard className="h-3 w-3" /> Charger par carte (Square)
             </button>
-            <CorePayPalManualChargeDialog
+            <CoreSquarePaymentDialog
               open={chargeOpen}
               onOpenChange={setChargeOpen}
-              paypalSubscriptionId={paypalSub.paypal_subscription_id}
-              billingSubscriptionId={paypalSub.id}
               unpaidInvoices={unpaidInvoices}
               accountId={acct.id}
+              customerName={data.profile ? `${data.profile.first_name || ""} ${data.profile.last_name || ""}`.trim() || null : null}
+              customerEmail={data.profile?.email ?? null}
             />
-          </div>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-md bg-[hsl(220,15%,18%)] px-2 py-1 text-[11px] font-medium text-core-text-label border border-[hsl(220,15%,22%)]">
-            Paiement manuel
-          </span>
+          </>
         )}
       </div>
     </Panel>
