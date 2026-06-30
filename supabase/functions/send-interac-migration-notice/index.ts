@@ -29,10 +29,10 @@ Deno.serve(async (req) => {
 
     const customerIds = [...new Set(activeSubs.map((s) => s.customer_id))];
 
-    // Get customer info
+    // Get customer info + account_number from profiles
     const { data: customers, error: custErr } = await supabase
       .from("billing_customers")
-      .select("id, email, first_name, last_name, account_number")
+      .select("id, email, first_name, last_name, user_id, profiles(account_number)")
       .in("id", customerIds);
 
     if (custErr) throw custErr;
@@ -63,6 +63,8 @@ Deno.serve(async (req) => {
         .sort((a, b) => new Date(b.due_date!).getTime() - new Date(a.due_date!).getTime())[0]
         ?.due_date || null;
 
+      const accountNumber = (bc as any).profiles?.account_number || "";
+
       emailRows.push({
         event_key: `interac-migration-2026-06-${bc.id}`,
         to_email: bc.email,
@@ -70,7 +72,7 @@ Deno.serve(async (req) => {
         template_vars: {
           first_name: bc.first_name || "Client",
           last_name: bc.last_name || "",
-          account_number: bc.account_number || "",
+          account_number: accountNumber,
           balance_due: totalBalance,
           has_balance: totalBalance > 0,
           due_date: latestDueDate,
