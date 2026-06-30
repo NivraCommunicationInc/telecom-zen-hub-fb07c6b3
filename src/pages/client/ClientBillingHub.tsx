@@ -120,10 +120,6 @@ const ClientBillingHub = () => {
 
   // Profile for payment dialog (derived from canonical snapshot)
   const profile = canonicalData?.profile ?? null;
-  const billingCustomer = canonicalData?.billingCustomer as any;
-  const customerId = billingCustomer?.id ?? null;
-  const squareCardId = billingCustomer?.square_card_id ?? null;
-
   // Unpaid invoices for "Pay Invoice" tab (needs async breakdown fetch)
   const { data: unpaidInvoices, isLoading: unpaidLoading } = useQuery({
     queryKey: ["billing-hub-unpaid", user?.id, (canonicalData?.invoices || []).length],
@@ -171,62 +167,6 @@ const ClientBillingHub = () => {
     (canonicalData?.profile as any)?.account_number ||
     (canonicalData?.account as any)?.account_number ||
     "—";
-
-  // Card payment form state
-  const [cardForm, setCardForm] = useState({
-    card_number: "",
-    card_expiry: "",
-    cvv: "",
-    card_name: "",
-  });
-  const [cardPaymentLoading, setCardPaymentLoading] = useState(false);
-
-  const formatCardNumber = (val: string) => {
-    const digits = val.replace(/\D/g, "").slice(0, 16);
-    return digits.replace(/(.{4})/g, "$1 ").trim();
-  };
-
-  const formatExpiry = (val: string) => {
-    const digits = val.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 3) return digits.slice(0, 2) + "/" + digits.slice(2);
-    return digits;
-  };
-
-  const handleCardPayment = async () => {
-    if (!user?.id) return;
-    if (!cardForm.card_name.trim()) { toast.error("Entrez le nom sur la carte"); return; }
-    const rawCard = cardForm.card_number.replace(/\s/g, "");
-    if (rawCard.length < 13) { toast.error("Numéro de carte invalide"); return; }
-    if (!/^\d{2}\/\d{2}$/.test(cardForm.card_expiry)) { toast.error("Date d'expiration invalide (MM/AA)"); return; }
-    if (!/^\d{3,4}$/.test(cardForm.cvv)) { toast.error("CVV invalide"); return; }
-    if (balance <= 0) { toast.error("Aucun solde à payer"); return; }
-
-    setCardPaymentLoading(true);
-    try {
-      const { data: result, error: invokeErr } = await portalSupabase.functions.invoke(
-        "portal-card-payment",
-        {
-          body: {
-            card_number: rawCard,
-            card_expiry: cardForm.card_expiry,
-            cvv: cardForm.cvv,
-            card_name: cardForm.card_name,
-            amount: displayBalance,
-          },
-        }
-      );
-      if (invokeErr || result?.error) {
-        throw new Error(result?.error || invokeErr?.message || "Erreur de paiement");
-      }
-      toast.success(`Paiement de ${displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} accepté!`);
-      setCardForm({ card_number: "", card_expiry: "", cvv: "", card_name: "" });
-      handlePaymentSuccess();
-    } catch (e: any) {
-      toast.error(e.message || "Erreur lors du paiement par carte");
-    } finally {
-      setCardPaymentLoading(false);
-    }
-  };
 
   const handlePrimaryPayNow = () => {
     if (!unpaidInvoices?.length) { handleTabChange("pay-invoice"); return; }
@@ -345,11 +285,6 @@ const ClientBillingHub = () => {
             <TabsTrigger value="history" className="gap-2 text-xs sm:text-sm py-2.5">
               <Receipt className="w-4 h-4" />
               Historique
-            </TabsTrigger>
-            <TabsTrigger value="card-payment" className="gap-2 text-xs sm:text-sm py-2.5">
-              <CreditCard className="w-4 h-4" />
-              <span className="hidden sm:inline">Payer par carte</span>
-              <span className="sm:hidden">Carte</span>
             </TabsTrigger>
           </TabsList>
 
@@ -554,47 +489,6 @@ const ClientBillingHub = () => {
             {user?.id && <PaymentHistoryV2 userId={user.id} />}
           </TabsContent>
 
-          {/* ─── CARD PAYMENT TAB ─── */}
-          <TabsContent value="card-payment" className="mt-6">
-            <Card className="max-w-md mx-auto">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-primary" />
-                  Paiement par carte — Square
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {balance <= 0 ? (
-                  <div className="text-center py-6">
-                    <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-                    <p className="text-muted-foreground">Aucun solde à payer.</p>
-                  </div>
-                ) : squareCardId ? (
-                  <SquarePayNowButton
-                    customerId={customerId!}
-                    unpaidInvoices={unpaidInvoices || []}
-                    displayBalance={displayBalance}
-                    onSuccess={handlePaymentSuccess}
-                  />
-                ) : (
-                  <div className="space-y-4">
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                      Solde à payer: <strong>{displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Enregistrez une carte de crédit pour payer instantanément et économiser 5 $/mois.
-                    </p>
-                    <Button className="w-full" asChild>
-                      <a href="/portal/paiement">
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Enregistrer une carte →
-                      </a>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         {/* Pay Invoice Dialog */}
@@ -604,8 +498,6 @@ const ClientBillingHub = () => {
           invoice={payingInvoice}
           totalDue={payingInvoice?.balance_due || 0}
           profile={profile}
-          customerId={customerId}
-          squareCardId={squareCardId}
           onPaymentSuccess={handlePaymentSuccess}
         />
 
@@ -662,66 +554,5 @@ const ClientBillingHub = () => {
     </ClientLayout>
   );
 };
-
-// ─── Inline Square Pay Now button for billing hub card-payment tab ───
-const BACKEND_URL = "https://lacxnbjvcyvhrttprkxr.supabase.co";
-const BACKEND_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhY3huYmp2Y3l2aHJ0dHBya3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjI2NjMsImV4cCI6MjA5NTk5ODY2M30.Jcc89WC7CofMuMc9IRpxzsDsEb-_C7AVgLEbNzdLa2g";
-
-function SquarePayNowButton({ customerId, unpaidInvoices, displayBalance, onSuccess }: {
-  customerId: string;
-  unpaidInvoices: any[];
-  displayBalance: number;
-  onSuccess: () => void;
-}) {
-  const [paying, setPaying] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const handlePay = async () => {
-    setPaying(true);
-    try {
-      let anyFailed = false;
-      for (const inv of unpaidInvoices) {
-        const res = await fetch(`${BACKEND_URL}/functions/v1/square-pay-invoice`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${BACKEND_ANON_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ invoice_id: inv.id, customer_id: customerId }),
-        });
-        const d = await res.json();
-        if (!d?.ok) { anyFailed = true; toast.error(`Facture ${inv.invoice_number || inv.id}: ${d?.error || "Erreur"}`); }
-      }
-      if (!anyFailed) { setDone(true); toast.success("Toutes les factures payées !"); onSuccess(); }
-    } catch (e: any) {
-      toast.error("Erreur : " + (e?.message || String(e)));
-    } finally {
-      setPaying(false);
-    }
-  };
-
-  if (done) {
-    return (
-      <div className="text-center py-6">
-        <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-        <p className="text-emerald-700 font-semibold">Paiement réussi !</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm">
-        Solde total: <strong>{displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong>
-      </div>
-      <Button className="w-full" onClick={handlePay} disabled={paying}>
-        {paying
-          ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Traitement...</>
-          : <><CreditCard className="w-4 h-4 mr-2" />Payer {displayBalance.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} par carte</>}
-      </Button>
-      <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
-        <ShieldCheck className="w-3.5 h-3.5" />
-        Paiement sécurisé via Square
-      </p>
-    </div>
-  );
-}
 
 export default ClientBillingHub;

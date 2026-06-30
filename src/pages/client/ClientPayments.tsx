@@ -3,20 +3,15 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
-import { CreditCard, Banknote, Mail, Copy, Check, Info, ExternalLink, ShieldCheck } from "lucide-react";
+import { Banknote, Mail, Copy, Check, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
-import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
 const ClientPayments = () => {
   const { user } = useClientAuth();
   const [copied, setCopied] = useState(false);
-  const { data: canonicalData } = useCanonicalClientData(user?.id);
-
-  const squareCardId = (canonicalData?.billingCustomer as any)?.square_card_id;
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(ETRANSFER_CONFIG.email);
@@ -78,51 +73,6 @@ const ClientPayments = () => {
                 Les paiements sont traités automatiquement dès réception. Un courriel de confirmation vous sera envoyé.
               </p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Square Card (Auto-Pay) */}
-        <Card className={`bg-card border-2 ${squareCardId ? "border-primary/50" : "border-border"}`}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-primary" />
-                Carte de crédit — Paiement automatique
-              </CardTitle>
-              <Badge className={squareCardId ? "bg-primary/20 text-primary border-0" : "bg-muted text-muted-foreground border-0"}>
-                {squareCardId ? "Enregistrée" : "Non configurée"}
-              </Badge>
-            </div>
-            <CardDescription>
-              Enregistrez votre carte pour les renouvellements automatiques et économisez 5 $/mois.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {squareCardId ? (
-              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Carte enregistrée</p>
-                  <p className="text-xs text-muted-foreground">Vos renouvellements sont débités automatiquement.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-muted/50 border border-border rounded-lg">
-                <p className="text-sm text-muted-foreground mb-3">
-                  Aucune carte enregistrée. Ajoutez votre carte pour activer le paiement automatique.
-                </p>
-              </div>
-            )}
-            <Button asChild className="w-full" variant={squareCardId ? "outline" : "default"}>
-              <Link to="/portal/paiement">
-                <CreditCard className="w-4 h-4 mr-2" />
-                {squareCardId ? "Gérer ma carte" : "Enregistrer ma carte"}
-              </Link>
-            </Button>
-            <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3 h-3" />
-              Paiement sécurisé via Square — PCI-DSS compliant
-            </p>
           </CardContent>
         </Card>
 
