@@ -319,12 +319,13 @@ Deno.serve(async (req) => {
     bytes[i] = binaryStr.charCodeAt(i);
   }
 
+  const finalFilename = attachment.filename || filename;
   return new Response(bytes.buffer, {
     status: 200,
     headers: {
       ...cors,
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(finalFilename)}"`,
       "Content-Length": bytes.length.toString(),
       "Cache-Control": "private, no-store",
     },
