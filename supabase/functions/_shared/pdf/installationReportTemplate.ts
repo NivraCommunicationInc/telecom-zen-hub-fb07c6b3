@@ -1,9 +1,13 @@
-﻿/**
- * Technician Installation Report - Rapport d'installation par technicien.
+/**
+ * Technician Installation Report - Corporate blue Lot1 layout.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, GREEN, GREY_BG } from "./_baseTemplate.ts";
+import {
+  drawHeaderV2, drawFooterV2, drawMetaGrid, drawSectionTitle,
+  drawZebraTable, drawInfoBox, drawSignatureBlock, fmtDate,
+  BLUE, BLUE_LIGHT, GREEN, AMBER, RED,
+} from "./_baseTemplate.ts";
 
 export interface InstallationReportData {
   report_number: string;
@@ -26,86 +30,75 @@ export interface InstallationReportData {
   outcome: "success" | "partial" | "failed";
   notes?: string;
   client_signature_required?: boolean;
+  tests?: Array<{ name: string; target?: string; measured?: string; passed: boolean }>;
 }
-
-const outcomeLabel = (o: string): { text: string; color: [number, number, number] } => {
-  switch (o) {
-    case "success": return { text: "INSTALLATION REUSSIE", color: [22, 163, 74] };
-    case "partial": return { text: "INSTALLATION PARTIELLE - Suivi requis", color: [217, 119, 6] };
-    case "failed": return { text: "INSTALLATION ECHOUEE", color: [220, 50, 50] };
-    default: return { text: "-", color: [100, 100, 100] };
-  }
-};
 
 export function generateInstallationReportPDF(data: InstallationReportData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawHeader(doc, "RAPPORT D'INSTALLATION", data.report_number);
-
-    let y = 50;
-    y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, phone: data.client_phone,
-      address: data.service_address, city: data.service_city, province: data.service_province, postal: data.service_postal,
-      account_number: data.account_number,
+    let y = drawHeaderV2(doc, {
+      title: "Installation",
+      subtitle: "Rapport d'installation technicien",
+      docNumber: data.report_number,
+      docDate: fmtDate(data.issue_date),
     });
 
-    doc.setFontSize(9);
-    doc.text(`Date d'intervention: ${fmtDate(data.appointment_date)}`, 15, y);
-    if (data.start_time && data.end_time) {
-      doc.text(`Heures: ${data.start_time} - ${data.end_time}`, 110, y);
-    }
-    y += 10;
+    const addr = [data.service_address, data.service_city, data.service_province].filter(Boolean).join(", ");
+    y = drawMetaGrid(doc, y, [
+      ["Client", data.client_name || "--"],
+      ["N° de compte", data.account_number || "--"],
+      ["Adresse", addr || "--"],
+      ["Technicien", `${data.technician_name}${data.technician_id ? ` (${data.technician_id})` : ""}`],
+      ["Début intervention", `${fmtDate(data.appointment_date)}${data.start_time ? ` - ${data.start_time}` : ""}`],
+      ["Fin intervention", `${fmtDate(data.appointment_date)}${data.end_time ? ` - ${data.end_time}` : ""}`],
+    ]);
 
-    // Outcome banner
-    const out = outcomeLabel(data.outcome);
-    doc.setFillColor(out.color[0], out.color[1], out.color[2]);
-    doc.rect(15, y, 170, 12, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(255, 255, 255);
-    doc.text(out.text, 105, y + 8, { align: "center" });
-    doc.setTextColor(0, 0, 0);
-    y += 18;
+    y = drawSectionTitle(doc, "Équipements installés", y);
+    const eqRows = (data.equipment_installed || []).map(e => [
+      e.description, e.serial_number || "-", "-", "Neuf",
+    ]);
+    if (eqRows.length === 0) eqRows.push(["Service installé: " + data.service_installed, "-", "-", "OK"]);
+    y = drawZebraTable(doc, y,
+      ["Équipement", "N° de série", "Emplacement", "État"],
+      eqRows,
+      [65, 45, 45, 25],
+    );
 
-    y = drawSectionTitle(doc, "Technicien", y);
-    y = drawKeyValue(doc, "Nom", data.technician_name, y);
-    if (data.technician_id) y = drawKeyValue(doc, "ID", data.technician_id, y);
-    y += 4;
-
-    y = drawSectionTitle(doc, "Service installe", y);
-    y = drawBoxedText(doc, data.service_installed, y, { fillColor: GREY_BG });
-
-    y = drawSectionTitle(doc, "Equipement installe", y);
-    if (data.equipment_installed.length === 0) {
-      y = drawBoxedText(doc, "Aucun equipement installe.", y);
-    } else {
-      const list = data.equipment_installed.map((e, i) =>
-        `${i + 1}. ${e.description}${e.serial_number ? ` (S/N: ${e.serial_number})` : ""}`
-      ).join("\n");
-      y = drawBoxedText(doc, list, y);
+    if (data.tests && data.tests.length > 0) {
+      y = drawSectionTitle(doc, "Tests de conformité", y);
+      const testRows = data.tests.map(t => [
+        t.name, t.target || "-", t.measured || "-", t.passed ? "PASS" : "FAIL",
+      ]);
+      y = drawZebraTable(doc, y,
+        ["Test", "Valeur cible", "Mesuré", "Résultat"],
+        testRows,
+        [70, 40, 40, 30],
+      );
     }
 
-    if (data.notes) {
-      y = drawSectionTitle(doc, "Notes du technicien", y);
-      y = drawBoxedText(doc, data.notes, y);
+    const outcomeColor = data.outcome === "success" ? GREEN : data.outcome === "partial" ? AMBER : RED;
+    const outcomeText = data.outcome === "success"
+      ? "Installation réussie - tous les tests ont passé."
+      : data.outcome === "partial"
+      ? "Installation partielle - un suivi est requis."
+      : "Installation échouée - une nouvelle intervention est nécessaire.";
+    y = drawInfoBox(doc, y, {
+      title: "Résultat de l'intervention",
+      body: outcomeText + (data.notes ? "\n\nNotes: " + data.notes : ""),
+      bg: BLUE_LIGHT, border: outcomeColor, accent: outcomeColor,
+    });
+
+    if (data.client_signature_required !== false) {
+      y = drawSignatureBlock(doc, y + 4, {
+        leftLabel: "Signature du client",
+        rightLabel: "Signature du technicien",
+      });
     }
 
-    if (data.client_signature_required) {
-      y += 4;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.text("Signature du client (acceptation de l'installation) :", 15, y);
-      y += 6;
-      doc.setDrawColor(150, 150, 150);
-      doc.line(15, y + 8, 110, y + 8);
-      doc.text("Date :", 120, y + 8);
-      doc.line(135, y + 8, 185, y + 8);
-    }
-
-    drawFooter(doc);
-    return { success: true, blob: doc.output("blob"), filename: `Rapport_Installation_${data.report_number}_Nivra.pdf` };
+    drawFooterV2(doc, 1, 1);
+    return { success: true, blob: doc.output("blob"), filename: `Rapport_Installation_${(data.client_name || "").replace(/\s+/g,"-")}_${data.report_number}.pdf` };
   } catch (e) {
-    return { success: false, error: e?.message || "Erreur de generation" };
+    return { success: false, error: (e as Error)?.message || "Erreur de génération" };
   }
 }
 

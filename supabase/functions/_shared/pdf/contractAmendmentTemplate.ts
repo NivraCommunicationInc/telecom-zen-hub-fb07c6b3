@@ -1,9 +1,13 @@
-﻿/**
- * Contract Amendment - Avenant au contrat de service.
+/**
+ * Contract Amendment - Corporate blue Lot1 layout.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, NAVY } from "./_baseTemplate.ts";
+import {
+  drawHeaderV2, drawFooterV2, drawMetaGrid, drawSectionTitle,
+  drawZebraTable, drawInfoBox, drawSignatureBlock, fmtDate, fmtCAD,
+  BLUE, BLUE_LIGHT,
+} from "./_baseTemplate.ts";
 
 export interface ContractAmendmentData {
   amendment_number: string;
@@ -22,94 +26,79 @@ export interface ContractAmendmentData {
   changes: Array<{ field: string; old_value: string; new_value: string; }>;
   reason?: string;
   new_monthly_amount?: number;
+  amendment_type?: string;
+  proration_lines?: Array<{ description: string; calc?: string; amount: number }>;
+  proration_total?: number;
   notes?: string;
 }
 
 export function generateContractAmendmentPDF(data: ContractAmendmentData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawHeader(doc, "AVENANT AU CONTRAT", data.amendment_number);
-
-    let y = 50;
-    y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, phone: data.client_phone,
-      address: data.client_address, city: data.client_city, province: data.client_province, postal: data.client_postal,
-      account_number: data.account_number,
+    let y = drawHeaderV2(doc, {
+      title: "Avenant",
+      subtitle: "Avenant au contrat de service",
+      docNumber: data.amendment_number,
+      docDate: fmtDate(data.issue_date),
     });
 
-    doc.setFontSize(9);
-    doc.text(`Date d'emission: ${fmtDate(data.issue_date)}`, 15, y);
-    doc.text(`Date d'effet: ${fmtDate(data.effective_date)}`, 110, y);
-    y += 10;
+    y = drawMetaGrid(doc, y, [
+      ["Client", data.client_name || "--"],
+      ["N° de compte", data.account_number || "--"],
+      ["Contrat original", data.original_contract_number || "--"],
+      ["Type de modification", data.amendment_type || data.reason || "Modification"],
+      ["Date effective", fmtDate(data.effective_date)],
+      ["Contrat original signé", fmtDate(data.original_contract_date)],
+    ]);
 
-    y = drawBoxedText(
-      doc,
-      `Le present avenant modifie le contrat de service No ${data.original_contract_number} signe le ${fmtDate(data.original_contract_date)}. Toutes les autres dispositions du contrat original demeurent en vigueur.`,
-      y,
-      { fillColor: [240, 248, 255], borderColor: NAVY, textColor: NAVY }
+    y = drawSectionTitle(doc, "Modifications apportées", y);
+    const changeRows = (data.changes || []).map(c => [c.field, c.old_value, c.new_value, "-"]);
+    y = drawZebraTable(doc, y,
+      ["Élément", "Avant", "Après", "Impact"],
+      changeRows.length ? changeRows : [["Voir contrat", "-", "-", "-"]],
+      [55, 45, 45, 35],
     );
 
-    if (data.reason) {
-      y = drawSectionTitle(doc, "Motif de la modification", y);
-      y = drawBoxedText(doc, data.reason, y);
+    if (data.proration_lines && data.proration_lines.length > 0) {
+      y = drawSectionTitle(doc, "Ajustement de prorata (cycle en cours)", y);
+      const proRows = data.proration_lines.map(p => [
+        p.description, p.calc || "", fmtCAD(p.amount),
+      ]);
+      if (data.proration_total !== undefined) {
+        proRows.push(["Total prorata facturé aujourd'hui", "", fmtCAD(data.proration_total)]);
+      }
+      y = drawZebraTable(doc, y,
+        ["Description", "Calcul", "Montant"],
+        proRows,
+        [95, 50, 35],
+      );
     }
-
-    // Changes table
-    y = drawSectionTitle(doc, "Modifications apportees", y);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setFillColor(240, 240, 240);
-    doc.rect(15, y, 170, 7, "F");
-    doc.setTextColor(0, 0, 0);
-    doc.text("Element", 17, y + 5);
-    doc.text("Avant", 80, y + 5);
-    doc.text("Apres", 135, y + 5);
-    y += 8;
-
-    doc.setFont("helvetica", "normal");
-    for (const c of data.changes) {
-      const fieldLines = doc.splitTextToSize(c.field, 60) as string[];
-      const oldLines = doc.splitTextToSize(c.old_value, 50) as string[];
-      const newLines = doc.splitTextToSize(c.new_value, 50) as string[];
-      const maxLines = Math.max(fieldLines.length, oldLines.length, newLines.length);
-      const h = Math.max(7, maxLines * 4.5 + 2);
-      let dy = y + 4;
-      for (const l of fieldLines) { doc.text(l, 17, dy); dy += 4.5; }
-      dy = y + 4;
-      doc.setTextColor(180, 50, 50);
-      for (const l of oldLines) { doc.text(l, 80, dy); dy += 4.5; }
-      dy = y + 4;
-      doc.setTextColor(22, 163, 74);
-      for (const l of newLines) { doc.text(l, 135, dy); dy += 4.5; }
-      doc.setTextColor(0, 0, 0);
-      doc.setDrawColor(230, 230, 230);
-      doc.line(15, y + h, 185, y + h);
-      y += h;
-    }
-    y += 6;
 
     if (data.new_monthly_amount !== undefined) {
-      y = drawSectionTitle(doc, "Nouveau montant mensuel", y);
-      y = drawKeyValue(doc, "A compter du", `${fmtDate(data.effective_date)} : ${fmtCAD(data.new_monthly_amount)}`, y);
-      y += 4;
+      y = drawInfoBox(doc, y, {
+        title: "Nouveau montant mensuel",
+        body: `À compter du ${fmtDate(data.effective_date)}: ${fmtCAD(data.new_monthly_amount)} par mois (taxes en sus).`,
+        bg: BLUE_LIGHT, border: BLUE, accent: BLUE,
+      });
     }
 
-    if (data.notes) y = drawBoxedText(doc, data.notes, y);
+    y = drawInfoBox(doc, y, {
+      title: "Conditions",
+      body: `Cet avenant fait partie intégrante du contrat ${data.original_contract_number}. Toutes les clauses du contrat original demeurent en vigueur, à l'exception des modifications précisées ci-dessus. Le prorata, s'il y a lieu, est facturé immédiatement sur votre méthode de paiement enregistrée.`,
+      bg: BLUE_LIGHT, border: BLUE, accent: BLUE,
+    });
 
-    // Signature
-    y = Math.max(y, 240);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text("Signature du client :", 15, y);
-    doc.setDrawColor(150, 150, 150);
-    doc.line(60, y, 120, y);
-    doc.text("Date :", 130, y);
-    doc.line(145, y, 185, y);
+    y = drawSignatureBlock(doc, y + 2, {
+      leftLabel: "Nivra Communications Inc. - Signé automatiquement",
+      rightLabel: "Signature du client",
+      autoSignName: "Nivra Telecom",
+      autoSignDate: `Signé le ${fmtDate(data.issue_date)}`,
+    });
 
-    drawFooter(doc);
-    return { success: true, blob: doc.output("blob"), filename: `Avenant_Contrat_${data.amendment_number}_Nivra.pdf` };
+    drawFooterV2(doc, 1, 1);
+    return { success: true, blob: doc.output("blob"), filename: `Avenant_Contrat_${(data.client_name || "").replace(/\s+/g,"-")}_${data.amendment_number}.pdf` };
   } catch (e) {
-    return { success: false, error: e?.message || "Erreur de generation" };
+    return { success: false, error: (e as Error)?.message || "Erreur de génération" };
   }
 }
 
