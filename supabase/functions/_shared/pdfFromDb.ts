@@ -118,12 +118,12 @@ async function resolveClientAddress(
     }
   }
 
-  // 3) profiles.service_*
+  // 3) profiles.service_*  (FIX: profiles keys off user_id, not id)
   if (opts.userId && (!service.line1 || !billing.line1)) {
     const { data: prof } = await supabase
       .from("profiles")
       .select("service_address, service_city, service_province, service_postal_code")
-      .eq("id", opts.userId)
+      .eq("user_id", opts.userId)
       .maybeSingle();
     if (prof?.service_address) {
       const profAddr = {
@@ -136,6 +136,12 @@ async function resolveClientAddress(
       if (!billing.line1) billing = profAddr;
     }
   }
+
+  // 4) Cross-fill: if one address is set and the other isn't, mirror it.
+  //    A billing address is required for a legal invoice; if we only have a
+  //    service address, use it as the billing address (and vice versa).
+  if (!billing.line1 && service.line1) billing = { ...service };
+  if (!service.line1 && billing.line1) service = { ...billing };
 
   return { billing, service };
 }
