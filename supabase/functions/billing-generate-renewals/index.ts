@@ -319,6 +319,33 @@ serve(async (req) => {
         const hasPayPalSubscription = !!sub.paypal_subscription_id;
         const paymentMethod = hasSquareAutopay ? 'square' : hasPayPalSubscription ? 'paypal' : 'interac';
 
+        // ═══ Freeze address snapshot from live data so the PDF always
+        //     shows the client's real address, even if profile changes later.
+        let addressSnapshot: Record<string, unknown> | null = null;
+        try {
+          const { data: bcLink } = await supabase
+            .from("billing_customers").select("user_id, phone").eq("id", sub.customer_id).maybeSingle();
+          if (bcLink?.user_id) {
+            const { data: acctAddr } = await supabase
+              .from("accounts")
+              .select("billing_address, billing_city, billing_province, billing_postal_code, primary_service_address, primary_service_city, primary_service_province, primary_service_postal_code")
+              .eq("client_id", bcLink.user_id).maybeSingle();
+            const line = acctAddr?.billing_address || acctAddr?.primary_service_address || null;
+            if (line) {
+              addressSnapshot = {
+                address: line,
+                city: acctAddr?.billing_city || acctAddr?.primary_service_city || "",
+                province: acctAddr?.billing_province || acctAddr?.primary_service_province || "QC",
+                postal_code: acctAddr?.billing_postal_code || acctAddr?.primary_service_postal_code || "",
+                phone: bcLink?.phone || null,
+                frozen_at: new Date().toISOString(),
+              };
+            }
+          }
+        } catch (snapErr) {
+          console.warn(`[billing-generate-renewals] address_snapshot build failed for sub ${sub.id}:`, snapErr);
+        }
+
         // Create renewal invoice
         const { data: invoice, error: invoiceError } = await supabase
           .from("billing_invoices")
@@ -337,6 +364,7 @@ serve(async (req) => {
             cycle_start_date: newCycleStart.toISOString().split('T')[0],
             cycle_end_date: newCycleEnd.toISOString().split('T')[0],
             due_date: dueDate,
+            address_snapshot: addressSnapshot,
             notes: [promoNote, autopayNote].filter(Boolean).join("") || null
           })
           .select()
