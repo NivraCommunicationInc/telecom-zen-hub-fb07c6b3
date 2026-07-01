@@ -175,7 +175,8 @@ export function drawMetaGrid(
   const pw = doc.internal.pageSize.getWidth();
   const marginX = 15;
   const colW = (pw - 2 * marginX) / 2;
-  const rowH = 12;
+  const rowH = 15;                  // taller cells so labels + values never touch
+  const innerW = colW - 6;          // usable text width inside the cell
 
   for (let i = 0; i < rows.length; i++) {
     const col = i % 2;
@@ -191,12 +192,26 @@ export function drawMetaGrid(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-    doc.text(rows[i][0].toUpperCase(), x + 2.5, yy + 4);
+    doc.text(rows[i][0].toUpperCase(), x + 3, yy + 5);
 
+    // Auto-fit value: shrink from 9pt down to 7pt to keep it inside the cell
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
     doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-    doc.text(rows[i][1] || "--", x + 2.5, yy + 8.5);
+    const value = rows[i][1] || "--";
+    let fs = 9;
+    doc.setFontSize(fs);
+    while (doc.getTextWidth(value) > innerW && fs > 7) {
+      fs -= 0.5;
+      doc.setFontSize(fs);
+    }
+    let printed = value;
+    if (doc.getTextWidth(printed) > innerW) {
+      while (printed.length > 4 && doc.getTextWidth(printed + "…") > innerW) {
+        printed = printed.slice(0, -1);
+      }
+      printed = printed + "…";
+    }
+    doc.text(printed, x + 3, yy + 11);
   }
   doc.setTextColor(0, 0, 0);
   const totalRows = Math.ceil(rows.length / 2);
