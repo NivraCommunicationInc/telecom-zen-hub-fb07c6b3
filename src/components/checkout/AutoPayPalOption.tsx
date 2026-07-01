@@ -48,13 +48,13 @@ export const AutoPayPalOption = ({
         { icon: Gift, text: `${discountAmount}$ de rabais chaque mois` },
         { icon: Calendar, text: "Paiement automatique à chaque cycle" },
         { icon: Shield, text: "Aucun risque d'interruption de service" },
-        { icon: CreditCard, text: "PayPal débite votre carte automatiquement" },
+        { icon: CreditCard, text: "Square débite votre carte automatiquement" },
       ]
     : [
         { icon: Gift, text: `$${discountAmount} off every month` },
         { icon: Calendar, text: "Automatic payment each billing cycle" },
         { icon: Shield, text: "No risk of service interruption" },
-        { icon: CreditCard, text: "PayPal automatically charges your card" },
+        { icon: CreditCard, text: "Square automatically charges your card" },
       ];
 
   return (
@@ -71,7 +71,7 @@ export const AutoPayPalOption = ({
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
           <Checkbox
-            id="auto-paypal-billing"
+            id="auto-square-billing"
             checked={isEnabled}
             onCheckedChange={(checked) => !disabled && onEnabledChange(checked === true)}
             disabled={disabled}
@@ -82,7 +82,7 @@ export const AutoPayPalOption = ({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <Label
-                  htmlFor="auto-paypal-billing"
+                  htmlFor="auto-square-billing"
                   className="text-base font-semibold cursor-pointer"
                 >
                   {isFrench ? "Activer le paiement automatique" : "Enable automatic payments"}
@@ -97,8 +97,8 @@ export const AutoPayPalOption = ({
             {/* Description */}
             <p className="text-sm text-muted-foreground">
               {isFrench
-                ? `Acceptez que PayPal débite automatiquement votre carte à chaque cycle de facturation et profitez d'un rabais de ${discountAmount}$ sur chaque facture.`
-                : `Allow PayPal to automatically charge your card each billing cycle and enjoy $${discountAmount} off every invoice.`}
+                ? `Acceptez que Square débite automatiquement votre carte à chaque cycle de facturation et profitez d'un rabais de ${discountAmount}$ sur chaque facture.`
+                : `Allow Square to automatically charge your card each billing cycle and enjoy $${discountAmount} off every invoice.`}
             </p>
 
             {/* Benefits */}

@@ -19,7 +19,7 @@
  * IMPORTANT: this flow goes through the existing PayPal one-time button —
  * it does NOT touch billing-generate-renewals or paypal-webhook.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -33,7 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Smartphone, ShieldCheck, Truck, AlertTriangle, Loader2, Phone as PhoneIcon } from "lucide-react";
-import { PayPalButton, type PayPalPayerAddress } from "@/components/payment/PayPalButton";
+import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -109,16 +109,9 @@ export default function PhoneCheckout() {
 
   const [acceptKyc, setAcceptKyc] = useState(false);
 
-  // Draft order created BEFORE opening PayPal so paypal-create-order
-  // receives a valid order_id (rejected otherwise — see hardening 2026-04-17).
   const [draftOrderId, setDraftOrderId] = useState<string | null>(null);
   const [creatingDraft, setCreatingDraft] = useState(false);
-  const [preparedOrder, setPreparedOrder] = useState<{
-    order_id: string;
-    user_id: string;
-    account_id: string;
-    amount: number;
-  } | null>(null);
+  const resolvedOrderIdRef = useRef<string | null>(null);
 
   // -------- Load phone + user + plans --------
   useEffect(() => {
@@ -255,12 +248,7 @@ export default function PhoneCheckout() {
         toast.error(isFr ? "Impossible de préparer la commande." : "Could not prepare order.");
         return null;
       }
-      setPreparedOrder({
-        order_id: data.order_id,
-        user_id: data.user_id,
-        account_id: data.account_id,
-        amount: Number(data.amount),
-      });
+      resolvedOrderIdRef.current = data.order_id;
       setDraftOrderId(data.order_id);
       return data.order_id;
     } finally {
@@ -268,33 +256,6 @@ export default function PhoneCheckout() {
     }
   };
 
-  // -------- Payment success --------
-  const handlePaymentSuccess = async (captureId: string, payerAddress?: PayPalPayerAddress | null) => {
-    if (!phone || !draftOrderId || !preparedOrder) return;
-    setSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("phone-checkout-finalize", {
-        body: {
-          order_id: draftOrderId,
-          phone_id: phone.id,
-          capture_id: captureId,
-          selected_color: selectedColor,
-          selected_storage: selectedStorage,
-          payer_address: payerAddress ?? null,
-        },
-      });
-
-      if (error || !data?.success) throw error ?? new Error(data?.error || "order finalize failed");
-
-      toast.success(isFr ? "Commande confirmée!" : "Order confirmed!");
-      navigate(`/track-order?id=${draftOrderId}`);
-    } catch (e: any) {
-      console.error("[phone-checkout]", e);
-      toast.error(isFr ? "Erreur lors de la création de la commande." : "Order creation failed.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   // -------- Render --------
   if (loading) {
@@ -439,8 +400,8 @@ export default function PhoneCheckout() {
                 <ShieldCheck className="h-4 w-4 text-primary" />
                 <AlertDescription className="text-xs">
                   {isFr
-                    ? "L'adresse de livraison est aussi votre adresse de facturation PayPal. Assurez-vous qu'elles correspondent — sinon votre commande pourra être marquée pour vérification supplémentaire."
-                    : "Your shipping address is also used as your PayPal billing address. Make sure they match — otherwise your order may be flagged for additional review."}
+                    ? "Assurez-vous que votre adresse de livraison est exacte — toute divergence peut entraîner une vérification supplémentaire."
+                    : "Make sure your shipping address is accurate — any discrepancy may trigger additional review."}
                 </AlertDescription>
               </Alert>
               {provinceError && (
@@ -499,50 +460,59 @@ export default function PhoneCheckout() {
               )}
               {submitting ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> {isFr ? "Finalisation de la commande..." : "Finalizing order..."}</div>
-              ) : !draftOrderId ? (
-                <Button
-                  className="w-full h-12 text-base font-semibold"
-                  size="lg"
-                  disabled={!formValid || creatingDraft}
-                  onClick={ensureDraftOrder}
-                >
-                  {creatingDraft ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {isFr ? "Préparation..." : "Preparing..."}</>
-                  ) : (
-                    isFr ? "Continuer vers le paiement" : "Continue to payment"
-                  )}
-                </Button>
+              ) : formValid ? (
+                <SquarePaymentForm
+                  amount={total}
+                  customerEmail={email.trim()}
+                  customerName={`${firstName.trim()} ${lastName.trim()}`}
+                  onBeforeCharge={async () => {
+                    const orderId = await ensureDraftOrder();
+                    if (!orderId) throw new Error(isFr ? "Impossible de préparer la commande." : "Could not prepare order.");
+                    const { data, error } = await supabase
+                      .from("field_payment_intents" as any)
+                      .insert({
+                        amount: total,
+                        currency: "CAD",
+                        status: "pending",
+                        payment_method: "square_checkout",
+                        customer_email: email.trim() || null,
+                        customer_name: `${firstName.trim()} ${lastName.trim()}`.trim() || null,
+                      })
+                      .select("id")
+                      .single();
+                    if (error || !data) throw error ?? new Error("Erreur initialisation paiement");
+                    return { intent_id: (data as any).id };
+                  }}
+                  onSuccess={async (_receiptUrl, paymentId) => {
+                    const orderId = resolvedOrderIdRef.current;
+                    if (!phone || !orderId) return;
+                    setSubmitting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("phone-checkout-finalize", {
+                        body: {
+                          order_id: orderId,
+                          phone_id: phone.id,
+                          capture_id: paymentId,
+                          selected_color: selectedColor,
+                          selected_storage: selectedStorage,
+                          payer_address: null,
+                        },
+                      });
+                      if (error || !data?.success) throw error ?? new Error(data?.error || "order finalize failed");
+                      toast.success(isFr ? "Commande confirmée!" : "Order confirmed!");
+                      navigate(`/track-order?id=${orderId}`);
+                    } catch (e: any) {
+                      console.error("[phone-checkout]", e);
+                      toast.error(isFr ? "Erreur lors de la création de la commande." : "Order creation failed.");
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                />
               ) : (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    {isFr
-                      ? "Commande préparée. Cliquez sur PayPal ci-dessous pour payer."
-                      : "Order prepared. Click PayPal below to pay."}
-                  </p>
-                  <PayPalButton
-                    amount={total}
-                    orderId={draftOrderId}
-                    description={`${phone.brand} ${phone.model} – ${phone.storage}`}
-                    customer={{
-                      first_name: firstName.trim(),
-                      last_name: lastName.trim(),
-                      email: email.trim(),
-                      phone: phoneNumber.trim(),
-                      address: {
-                        address_line_1: address.trim(),
-                        admin_area_2: city.trim(),
-                        admin_area_1: province,
-                        postal_code: postalCode.trim(),
-                        country_code: "CA",
-                      },
-                    }}
-                    onSuccess={handlePaymentSuccess}
-                    onError={(err) => {
-                      console.error("[paypal]", err);
-                      toast.error(isFr ? "Paiement échoué. Réessayez." : "Payment failed.");
-                    }}
-                  />
-                </div>
+                <p className="text-sm text-center text-muted-foreground">
+                  {isFr ? "Complétez le formulaire pour accéder au paiement." : "Complete the form to access payment."}
+                </p>
               )}
             </CardContent>
           </Card>

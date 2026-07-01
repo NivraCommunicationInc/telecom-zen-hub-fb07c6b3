@@ -24,7 +24,7 @@ import { backendClient } from "@/integrations/backend/client";
 import { validateDob, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 import { validateCanadianPostalCode, formatPostalCode } from "@/components/checkout/CheckoutServiceAddress";
-import PayPalButton from "@/components/payment/PayPalButton";
+import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 import { toast } from "sonner";
 import {
@@ -55,7 +55,7 @@ interface FormData {
   city: string;
   province: string;
   postalCode: string;
-  paymentMethod: "interac" | "paypal";
+  paymentMethod: "interac" | "square";
   acceptTerms: boolean;
   acceptPrivacy: boolean;
 }
@@ -91,7 +91,7 @@ export default function QuoteCheckout() {
     city: "",
     province: "QC",
     postalCode: "",
-    paymentMethod: "paypal",
+    paymentMethod: "square",
     acceptTerms: false,
     acceptPrivacy: false,
   });
@@ -234,13 +234,13 @@ export default function QuoteCheckout() {
         postal_code: formatPostalCode(form.postalCode),
       };
 
-      if (form.paymentMethod === "paypal") {
-        // PHASE 1: Create order + invoice via edge function, then show PayPal
+      if (form.paymentMethod === "square") {
+        // PHASE 1: Create order + invoice via edge function, then show Square widget
         const { data, error: fnErr } = await supabase.functions.invoke("quote-checkout-finalize", {
           body: {
             quote_id: quote.id,
             checkout_data: checkoutData,
-            payment_method: "paypal",
+            payment_method: "square",
           },
         });
 
@@ -257,13 +257,13 @@ export default function QuoteCheckout() {
           }
         } catch { /* non-blocking */ }
 
-        // Transition to Phase 2: show PayPal button
+        // Transition to Phase 2: show Square card widget
         setInvoiceId(data.invoice_id);
         setOrderId(data.order_id);
         setOrderNumber(data.order_number);
         setTotalAmount(data.total);
         setAwaitingPayment(true);
-        toast.success("Commande créée ! Procédez au paiement PayPal.");
+        toast.success("Commande créée ! Complétez le paiement par carte.");
       } else {
         // INTERAC: Save data only, staff handles manually
         await supabase
@@ -309,22 +309,19 @@ export default function QuoteCheckout() {
     }
   };
 
-  const handlePayPalSuccess = (captureId: string) => {
-    console.log("[QuoteCheckout] PayPal capture success:", captureId);
-    // Update quote status
+  const handleSquareSuccess = (_receiptUrl?: string | null, paymentId?: string) => {
     if (quote?.id) {
       supabase
         .from("quotes" as any)
         .update({ status: "converted" })
         .eq("id", quote.id)
         .then(() => {
-          // Update order payment status
           if (orderId) {
             supabase
               .from("orders")
               .update({
                 payment_status: "paid",
-                payment_reference: captureId,
+                payment_reference: paymentId ?? null,
                 status: "confirmed",
               })
               .eq("id", orderId);
@@ -363,10 +360,10 @@ export default function QuoteCheckout() {
           <CardContent className="pt-8 text-center space-y-4">
             <CheckCircle className="h-16 w-16 text-emerald-600 mx-auto" />
             <h2 className="text-2xl font-bold text-emerald-600">
-              {form.paymentMethod === "paypal" ? "Paiement confirmé !" : "Informations reçues !"}
+              {form.paymentMethod === "square" ? "Paiement confirmé !" : "Informations reçues !"}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {form.paymentMethod === "paypal"
+              {form.paymentMethod === "square"
                 ? "Votre paiement a été traité avec succès. Votre commande est confirmée et notre équipe procédera à l'activation de vos services."
                 : "Vos informations ont été enregistrées avec succès. Notre équipe traitera votre dossier et créera votre commande dans les plus brefs délais."
               }
@@ -421,7 +418,7 @@ export default function QuoteCheckout() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <CreditCard className="h-4 w-4" /> Paiement PayPal
+                <CreditCard className="h-4 w-4" /> Paiement par carte
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -430,31 +427,13 @@ export default function QuoteCheckout() {
                 <span className="text-xl font-bold">{totalAmount.toFixed(2)} $</span>
               </div>
               <Separator />
-              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Payez de façon sécurisée avec votre compte PayPal.
-                </p>
-                <PayPalButton
-                  invoiceId={invoiceId}
-                  amount={totalAmount}
-                  description={`Commande ${orderNumber} — ${NIVRA.tradeName}`}
-                  customer={{
-                    first_name: form.firstName,
-                    last_name: form.lastName,
-                    email: form.email,
-                    phone: formatCanadianPhone(form.phone),
-                    address: {
-                      address_line_1: form.address,
-                      admin_area_2: form.city,
-                      admin_area_1: form.province,
-                      postal_code: formatPostalCode(form.postalCode),
-                      country_code: "CA",
-                    },
-                  }}
-                  onSuccess={handlePayPalSuccess}
-                  onError={(msg) => toast.error(msg)}
-                />
-              </div>
+              <SquarePaymentForm
+                invoiceId={invoiceId!}
+                amount={totalAmount}
+                customerName={`${form.firstName} ${form.lastName}`.trim()}
+                customerEmail={form.email}
+                onSuccess={handleSquareSuccess}
+              />
             </CardContent>
           </Card>
 
@@ -630,16 +609,16 @@ export default function QuoteCheckout() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => updateField("paymentMethod", "paypal")}
+                onClick={() => updateField("paymentMethod", "square")}
                 className={`p-4 rounded-lg border-2 text-center transition-all ${
-                  form.paymentMethod === "paypal"
+                  form.paymentMethod === "square"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/30"
                 }`}
               >
-                <p className="font-medium text-sm">PayPal</p>
-                <p className="text-[10px] text-muted-foreground">Paiement en ligne</p>
-                {form.paymentMethod === "paypal" && (
+                <p className="font-medium text-sm">Carte de crédit</p>
+                <p className="text-[10px] text-muted-foreground">Visa / Mastercard</p>
+                {form.paymentMethod === "square" && (
                   <Badge variant="secondary" className="mt-1 text-[9px]">Recommandé</Badge>
                 )}
               </button>
@@ -657,10 +636,10 @@ export default function QuoteCheckout() {
               </button>
             </div>
 
-            {form.paymentMethod === "paypal" && (
+            {form.paymentMethod === "square" && (
               <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
                 <p className="text-xs text-muted-foreground">
-                  Après validation de vos informations, vous serez invité à compléter votre paiement via PayPal.
+                  Après validation de vos informations, vous serez invité à entrer vos informations de carte (Square).
                 </p>
               </div>
             )}
@@ -729,15 +708,15 @@ export default function QuoteCheckout() {
             >
               {submitting ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Traitement en cours...</>
-              ) : form.paymentMethod === "paypal" ? (
-                <><ArrowRight className="h-4 w-4" /> Continuer vers le paiement PayPal</>
+              ) : form.paymentMethod === "square" ? (
+                <><ArrowRight className="h-4 w-4" /> Continuer vers le paiement</>
               ) : (
                 <><CheckCircle className="h-4 w-4" /> Confirmer ma commande</>
               )}
             </Button>
             <p className="text-[10px] text-center text-muted-foreground">
-              {form.paymentMethod === "paypal"
-                ? "Vous serez redirigé vers PayPal pour compléter le paiement."
+              {form.paymentMethod === "square"
+                ? "Votre carte sera débitée de façon sécurisée via Square."
                 : "En confirmant, vous acceptez que votre commande soit traitée selon les termes de votre soumission."
               }
             </p>
