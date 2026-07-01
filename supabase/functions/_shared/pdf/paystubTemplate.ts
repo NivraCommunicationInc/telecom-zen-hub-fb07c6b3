@@ -85,9 +85,12 @@ export function buildPaystubPdf(data: PaystubData): Uint8Array {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
 
-  // ───────── Header (navy band) ─────────
+  // ───────── Header (navy band + gold trim) ─────────
   doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
   doc.rect(0, 0, pw, 42, "F");
+  // Gold trim
+  doc.setFillColor(176, 141, 87); // #B08D57
+  doc.rect(0, 42, pw, 1.2, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
