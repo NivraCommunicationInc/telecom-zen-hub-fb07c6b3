@@ -1177,8 +1177,9 @@ export async function buildSummaryPdfAttachment(
       return null;
     }
     const base64 = await blobToBase64(result.blob);
+    const safeName = clientName.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "Client";
     return {
-      filename: result.filename || `${filenamePrefix}_${(o as any).order_number || orderId.slice(0, 8)}_Nivra.pdf`,
+      filename: result.filename || `${filenamePrefix}_${safeName}_${(o as any).order_number || orderId.slice(0, 8)}.pdf`,
       content: base64,
       contentType: "application/pdf",
     };
