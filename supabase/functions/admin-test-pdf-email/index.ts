@@ -223,47 +223,55 @@ Deno.serve(async (req) => {
   }
 
   /* â”€â”€ 3. Contrat â”€â”€ */
-  try {
-    const att = await buildContractPdfAttachment(orderId, { filenamePrefix: "Contrat" });
-    if (att) {
-      await sendWithPdf({
-        to,
-        subject: `Nivra Telecom â€” Contrat de service #${orderNum}`,
-        badge: "CONTRAT DE SERVICE",
-        heroTitle: "Votre contrat de service",
-        heroSub: "Votre contrat est disponible en pièce jointe.",
-        cardRows: [["Commande", orderNum]],
-        filename: att.filename,
-        pdfBase64: att.content,
-      });
-      results.push({ type: "contrat", status: "ok" });
-    } else {
-      results.push({ type: "contrat", status: "error", detail: "PDF null â€” données manquantes" });
+  if (orderId) {
+    try {
+      const att = await buildContractPdfAttachment(orderId, { filenamePrefix: "Contrat" });
+      if (att) {
+        await sendWithPdf({
+          to,
+          subject: `Nivra Telecom â€” Contrat de service #${orderNum}`,
+          badge: "CONTRAT DE SERVICE",
+          heroTitle: "Votre contrat de service",
+          heroSub: "Votre contrat est disponible en pièce jointe.",
+          cardRows: [["Commande", orderNum]],
+          filename: att.filename,
+          pdfBase64: att.content,
+        });
+        results.push({ type: "contrat", status: "ok" });
+      } else {
+        results.push({ type: "contrat", status: "error", detail: "PDF null â€” données manquantes" });
+      }
+    } catch (e) {
+      results.push({ type: "contrat", status: "error", detail: e.message });
     }
-  } catch (e) {
-    results.push({ type: "contrat", status: "error", detail: e.message });
+  } else {
+    results.push({ type: "contrat", status: "skipped", detail: "Aucune commande disponible" });
   }
 
   /* â”€â”€ 4. Sommaire de commande â”€â”€ */
-  try {
-    const att = await buildSummaryPdfAttachment(orderId, "Sommaire");
-    if (att) {
-      await sendWithPdf({
-        to,
-        subject: `Nivra Telecom â€” Sommaire de commande #${orderNum}`,
-        badge: "SOMMAIRE DE COMMANDE",
-        heroTitle: `Commande #${orderNum}`,
-        heroSub: "Votre sommaire de commande est disponible en pièce jointe.",
-        cardRows: [["Commande", orderNum]],
-        filename: att.filename,
-        pdfBase64: att.content,
-      });
-      results.push({ type: "sommaire", status: "ok" });
-    } else {
-      results.push({ type: "sommaire", status: "error", detail: "PDF null â€” données manquantes" });
+  if (orderId) {
+    try {
+      const att = await buildSummaryPdfAttachment(orderId, "Sommaire");
+      if (att) {
+        await sendWithPdf({
+          to,
+          subject: `Nivra Telecom â€” Sommaire de commande #${orderNum}`,
+          badge: "SOMMAIRE DE COMMANDE",
+          heroTitle: `Commande #${orderNum}`,
+          heroSub: "Votre sommaire de commande est disponible en pièce jointe.",
+          cardRows: [["Commande", orderNum]],
+          filename: att.filename,
+          pdfBase64: att.content,
+        });
+        results.push({ type: "sommaire", status: "ok" });
+      } else {
+        results.push({ type: "sommaire", status: "error", detail: "PDF null â€” données manquantes" });
+      }
+    } catch (e) {
+      results.push({ type: "sommaire", status: "error", detail: e.message });
     }
-  } catch (e) {
-    results.push({ type: "sommaire", status: "error", detail: e.message });
+  } else {
+    results.push({ type: "sommaire", status: "skipped", detail: "Aucune commande disponible" });
   }
 
   const ok = results.filter(r => r.status === "ok").length;
