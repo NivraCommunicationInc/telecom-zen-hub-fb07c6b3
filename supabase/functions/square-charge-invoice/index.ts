@@ -171,22 +171,63 @@ serve(async (req) => {
         },
       );
 
+      let alreadyProcessed = false;
+
       if (rpcError) {
-        // Money taken but DB failed — alert for manual recovery
-        console.error("[square-charge-invoice] RPC error:", rpcError);
-        await supabase.from("billing_system_alerts").insert({
-          alert_type: "square_charge_db_apply_failed",
+        console.error("[square-charge-invoice] RPC apply_payment_to_invoice failed:", rpcError.message);
+
+        // Fallback: direct DB update — ensures invoice is marked paid regardless of RPC availability
+        const now = new Date().toISOString();
+        const [invUp, payIns] = await Promise.all([
+          supabase
+            .from("billing_invoices")
+            .update({ status: "paid", balance_due: 0, paid_at: now })
+            .eq("id", invoiceData.id),
+          supabase.from("billing_payments").insert({
+            invoice_id: invoiceData.id,
+            customer_id: customerId,
+            method: "square",
+            amount: amountPaid,
+            status: "confirmed",
+            provider: "square",
+            provider_payment_id: paymentId,
+            square_payment_id: paymentId,
+            square_receipt_url: receiptUrl,
+            source: "portal",
+            created_by_name: "Square Payment",
+            created_by_role: "system",
+            received_at: now,
+          }),
+        ]);
+
+        // Alert for ops investigation (RPC failed but fallback ran)
+        supabase.from("billing_system_alerts").insert({
+          alert_type: "square_charge_rpc_fallback",
           entity_type: "billing_invoice",
-          entity_id: invoice_id,
+          entity_id: invoiceData.id,
           entity_reference: paymentId,
-          details: { error: rpcError.message, payment_id: paymentId, amount: amountPaid },
-        });
-        // Return ok=true (money taken), system alert handles recovery
-        return json({ ok: true, payment_id: paymentId, receipt_url: receiptUrl });
+          details: {
+            rpc_error: rpcError.message,
+            payment_id: paymentId,
+            amount: amountPaid,
+            fallback_invoice_error: invUp.error?.message ?? null,
+            fallback_payment_error: payIns.error?.message ?? null,
+          },
+        }).catch(() => {});
+
+        if (invUp.error || payIns.error) {
+          console.error("[square-charge-invoice] Fallback also failed:", invUp.error?.message, payIns.error?.message);
+          // Money was taken — return ok:true so client knows charge succeeded; ops alert handles recovery
+          return json({ ok: true, payment_id: paymentId, receipt_url: receiptUrl });
+        }
+
+        console.log("[square-charge-invoice] Fallback direct update succeeded for invoice:", invoiceData.id);
+      } else {
+        alreadyProcessed = rpcResult?.already_processed ?? false;
       }
 
       // Queue confirmation email (non-blocking) — PDF is optional; email goes out regardless
-      if (customerEmail && !rpcResult?.already_processed) {
+      if (customerEmail && !alreadyProcessed) {
         let pdf: any = null;
         try {
           const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
@@ -221,7 +262,7 @@ serve(async (req) => {
           console.warn("[square-charge-invoice] Email queue insert failed:", emailErr);
         }
       } else {
-        console.warn("[square-charge-invoice] Email skipped — customerEmail:", customerEmail, "already_processed:", rpcResult?.already_processed);
+        console.warn("[square-charge-invoice] Email skipped — customerEmail:", customerEmail, "already_processed:", alreadyProcessed);
       }
     }
 
