@@ -613,6 +613,38 @@ export async function buildReceiptPdfAttachment(
     const isCardManualPending = !hasConfirmedPayment && orderPaymentMethod === "card_manual";
     const paymentStatus: "paid" | "pending" = isCardManualPending ? "pending" : "paid";
 
+    // Previous payments (last 3, excluding the current one)
+    let previousPayments: Array<{ date: string; method: string; amount: number }> = [];
+    if (customer.user_id) {
+      const { data: histRaw } = await supabase
+        .from("billing_payments")
+        .select("amount, method, received_at, captured_at, created_at, invoice_id, billing_customer_id")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      const hist = (histRaw || [])
+        .filter((p: any) => p.invoice_id !== invoiceId && Number(p.amount || 0) > 0)
+        .slice(0, 3);
+      previousPayments = hist.map((p: any) => ({
+        date: p.received_at || p.captured_at || p.created_at || "",
+        method: p.method || "",
+        amount: Number(p.amount || 0),
+      }));
+    }
+
+    // Next renewal date (best-effort from subscriptions)
+    let nextRenewalDate: string | undefined;
+    if (customer.user_id) {
+      const { data: sub } = await supabase
+        .from("billing_subscriptions")
+        .select("current_period_end, next_billing_date")
+        .eq("user_id", customer.user_id)
+        .in("status", ["active", "trialing"])
+        .order("current_period_end", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      nextRenewalDate = (sub as any)?.next_billing_date || (sub as any)?.current_period_end || undefined;
+    }
+
     const data: ReceiptData = {
       receipt_number: payment?.payment_number || `REC-${invoiceId.slice(0, 8)}`,
       payment_date: payment?.received_at || payment?.captured_at || (invoice as any).paid_at || undefined,
@@ -646,6 +678,10 @@ export async function buildReceiptPdfAttachment(
       tvq_amount: Number((invoice as any).tvq_amount || 0),
       payment_status: paymentStatus,
       total_due: Number((invoice as any).total || 0),
+      processed_by: (payment as any)?.provider_payment_id ? "Passerelle de paiement" : "Systeme automatique",
+      next_renewal_date: nextRenewalDate,
+      account_status: "A jour",
+      previous_payments: previousPayments,
     };
 
     // ADD-ONLY: attach field-sales agent attribution
