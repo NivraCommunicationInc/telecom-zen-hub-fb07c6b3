@@ -28185,6 +28185,7 @@ export type Database = {
           validation_errors: Json
         }[]
       }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       encrypt_wifi_password: { Args: { p_password: string }; Returns: string }
       end_impersonation: { Args: { _token: string }; Returns: boolean }
       end_staff_impersonation: { Args: { _token: string }; Returns: boolean }
