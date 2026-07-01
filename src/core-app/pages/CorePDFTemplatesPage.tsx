@@ -55,14 +55,20 @@ export default function CorePDFTemplatesPage() {
   const handlePreview = async (type: DocType, mode: "open" | "download") => {
     setPreviewLoading(type);
     try {
+      const body = type === "invoice" || type === "receipt"
+        ? {
+            type,
+            ...(currentInvoiceId ? { invoiceId: currentInvoiceId } : {}),
+            ...(currentOrderId ? { orderId: currentOrderId } : {}),
+          }
+        : {
+            type,
+            ...(currentOrderId ? { orderId: currentOrderId } : {}),
+          };
       const { data, error } = await supabase.functions.invoke("admin-preview-pdf", {
-        body: {
-          type,
-          ...(currentInvoiceId ? { invoiceId: currentInvoiceId } : {}),
-          ...(currentOrderId ? { orderId: currentOrderId } : {}),
-        },
+        body,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error((data as any)?.error || error.message);
       if (!data?.base64) throw new Error(data?.error || "PDF vide");
 
       const blob = base64ToBlob(data.base64);
@@ -94,7 +100,11 @@ export default function CorePDFTemplatesPage() {
 
     try {
       const { data: json, error: fnError } = await supabase.functions.invoke("admin-test-pdf-email", {
-        body: { to: dest, ...(currentOrderId ? { orderId: currentOrderId } : {}) },
+        body: {
+          to: dest,
+          ...(currentInvoiceId ? { invoiceId: currentInvoiceId } : {}),
+          ...(currentOrderId ? { orderId: currentOrderId } : {}),
+        },
       });
 
       if (fnError) {
