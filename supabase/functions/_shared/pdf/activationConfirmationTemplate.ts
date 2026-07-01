@@ -61,7 +61,7 @@ export function generateActivationConfirmationPDF(data: ActivationConfirmationDa
       bg: GREEN,
     });
 
-    y = drawSectionTitle(doc, "Services activés");
+    y = drawSectionTitle(doc, "Services activés", y);
     const rows: Array<Array<string>> = [
       [data.service_name || "Service principal", data.phone_number || data.sim_iccid || data.static_ip || "--", data.internet_speed || "--", "OK"],
     ];
