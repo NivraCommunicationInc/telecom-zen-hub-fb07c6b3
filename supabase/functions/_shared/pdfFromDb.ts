@@ -948,8 +948,9 @@ export async function buildContractPdfAttachment(
       computePdfHash(result.blob),
     ]);
     const prefix = opts.filenamePrefix || "Contrat";
+    const safeName = clientName.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "Client";
     return {
-      filename: result.filename || `${prefix}_${o.order_number || orderId.slice(0, 8)}_Nivra.pdf`,
+      filename: result.filename || `${prefix}_${safeName}_${o.order_number || orderId.slice(0, 8)}.pdf`,
       content: base64,
       contentType: "application/pdf",
       hash_sha256,
