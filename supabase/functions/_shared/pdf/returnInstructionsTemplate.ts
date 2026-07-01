@@ -1,9 +1,13 @@
-﻿/**
- * Return Instructions - Instructions de retour d'equipement.
+/**
+ * Return Instructions - v2 layout (accent ORANGE/AMBER).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, ORANGE, NAVY } from "./_baseTemplate.ts";
+import {
+  drawHeaderV2, drawFooterV2, drawMetaGrid, drawSectionTitle,
+  drawHeroBox, drawInfoBox, drawZebraTable,
+  fmtDate, fmtCAD, AMBER, AMBER_BG, NAVY, BLUE_LIGHT, BLUE,
+} from "./_baseTemplate.ts";
 
 export interface ReturnInstructionsData {
   instruction_number: string;
@@ -22,66 +26,75 @@ export interface ReturnInstructionsData {
   return_province: string;
   return_postal: string;
   items: Array<{ description: string; serial_number?: string; }>;
-  non_return_fee: number;         // ex: 60$ par borne, 50$ par terminal, 30$ SIM
-  return_method?: string;         // "Postes Canada - etiquette prepayee fournie"
+  non_return_fee: number;
+  return_method?: string;
   rma_number?: string;
 }
 
 export function generateReturnInstructionsPDF(data: ReturnInstructionsData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawHeader(doc, "INSTRUCTIONS DE RETOUR", data.instruction_number);
-
-    let y = 50;
-    y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, phone: data.client_phone,
-      address: data.client_address, city: data.client_city, province: data.client_province, postal: data.client_postal,
-      account_number: data.account_number,
+    let y = drawHeaderV2(doc, {
+      title: "INSTRUCTIONS DE RETOUR",
+      subtitle: "Retour de l'équipement Nivra Telecom",
+      docNumber: data.instruction_number,
+      docDate: fmtDate(data.issue_date),
+      accent: AMBER,
     });
 
-    doc.setFontSize(9);
-    doc.text(`Date d'emission: ${fmtDate(data.issue_date)}`, 15, y);
-    doc.text(`Date limite de retour: ${fmtDate(data.return_deadline)}`, 110, y);
-    y += 10;
+    y = drawMetaGrid(doc, y, [
+      ["Client", data.client_name],
+      ["N° de compte", data.account_number],
+      ["N° RMA", data.rma_number || "--"],
+      ["Date limite de retour", fmtDate(data.return_deadline)],
+      ["Mode de retour", data.return_method || "Postes Canada avec suivi"],
+      ["Frais / article non retourné", fmtCAD(data.non_return_fee)],
+    ]);
 
-    if (data.rma_number) {
-      y = drawKeyValue(doc, "Numero RMA", data.rma_number, y);
-      y += 2;
-    }
+    y = drawHeroBox(doc, y, {
+      label: "Date limite de retour",
+      value: fmtDate(data.return_deadline),
+      sublabel: `Passé cette date : ${fmtCAD(data.non_return_fee)} facturé par article non retourné`,
+      bg: AMBER,
+    });
 
-    y = drawSectionTitle(doc, "Equipement a retourner", y);
-    const list = data.items.map((it, i) =>
-      `${i + 1}. ${it.description}${it.serial_number ? ` (S/N: ${it.serial_number})` : ""}`
-    ).join("\n");
-    y = drawBoxedText(doc, list, y);
+    y = drawSectionTitle(doc, "Équipement à retourner", y, AMBER);
+    const rows = data.items.map((it, i) => [
+      String(i + 1),
+      it.description,
+      it.serial_number || "--",
+    ]);
+    y = drawZebraTable(doc, y, ["#", "Description", "Numéro de série"], rows, [12, 108, 60], AMBER);
 
-    y = drawSectionTitle(doc, "Adresse de retour", y);
-    const addr = `${data.return_address}\n${data.return_city}, ${data.return_province} ${data.return_postal}`;
-    y = drawBoxedText(doc, addr, y, { fillColor: [240, 248, 255], borderColor: NAVY });
+    y = drawSectionTitle(doc, "Adresse de retour", y, NAVY);
+    y = drawInfoBox(doc, y, {
+      title: "Expédier à",
+      body: `Nivra Telecom - Service Retours\n${data.return_address}\n${data.return_city}, ${data.return_province} ${data.return_postal}`,
+      bg: BLUE_LIGHT, border: NAVY, accent: NAVY,
+    });
 
-    if (data.return_method) {
-      y = drawSectionTitle(doc, "Mode de retour", y);
-      y = drawBoxedText(doc, data.return_method, y);
-    }
+    y = drawSectionTitle(doc, "Procédure à suivre", y, AMBER);
+    y = drawInfoBox(doc, y, {
+      title: "5 étapes",
+      body:
+        "1. Emballez l'équipement dans son emballage d'origine ou un carton résistant.\n" +
+        "2. Insérez tous les accessoires : câbles, alimentation, support, télécommande.\n" +
+        "3. Joignez ce document à l'intérieur du colis (visible dès l'ouverture).\n" +
+        "4. Expédiez avec un service qui offre un numéro de suivi et conservez la preuve d'envoi.\n" +
+        "5. Confirmez l'expédition par courriel à Support@nivra-telecom.ca avec le numéro de suivi.",
+      bg: BLUE_LIGHT, border: BLUE, accent: BLUE,
+    });
 
-    y = drawSectionTitle(doc, "Procedure", y);
-    y = drawBoxedText(
-      doc,
-      "1. Emballez l'equipement dans son emballage d'origine ou un carton resistant.\n2. Inserez tous les accessoires (cables, alimentation, support).\n3. Joignez ce document a l'interieur du colis.\n4. Expediez avec un suivi : conservez la preuve d'envoi.\n5. Confirmez l'expedition par courriel a Support@nivra-telecom.ca.",
-      y
-    );
+    y = drawSectionTitle(doc, "Frais en cas de non-retour", y, AMBER);
+    y = drawInfoBox(doc, y, {
+      title: `${fmtCAD(data.non_return_fee)} par article manquant ou endommagé`,
+      body: `Tout équipement non retourné ou retourné endommagé avant le ${fmtDate(data.return_deadline)} sera facturé au montant indiqué par article. Les frais sont automatiquement prélevés sur le mode de paiement enregistré au dossier.`,
+      bg: AMBER_BG, border: AMBER, accent: AMBER,
+    });
 
-    y = drawSectionTitle(doc, "Frais en cas de non-retour", y);
-    y = drawBoxedText(
-      doc,
-      `Tout equipement non retourne ou retourne endommage avant le ${fmtDate(data.return_deadline)} sera facture au montant de ${fmtCAD(data.non_return_fee)} par article. Les frais sont automatiquement preleves sur votre mode de paiement enregistre.`,
-      y,
-      { fillColor: [255, 251, 235], borderColor: ORANGE }
-    );
-
-    drawFooter(doc);
+    drawFooterV2(doc);
     return { success: true, blob: doc.output("blob"), filename: `Instructions_Retour_${data.instruction_number}_Nivra.pdf` };
-  } catch (e) {
+  } catch (e: any) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }
