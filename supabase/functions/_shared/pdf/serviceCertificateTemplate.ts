@@ -1,9 +1,13 @@
-﻿/**
- * Service Certificate - Attestation de service actif (souvent demandée pour preuves d'adresse).
+/**
+ * Service Certificate - Corporate blue Lot1 layout with official stamp.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, fmtCAD, NAVY } from "./_baseTemplate.ts";
+import {
+  drawHeaderV2, drawFooterV2, drawMetaGrid, drawSectionTitle,
+  drawZebraTable, wrapText, fmtDate, fmtCAD,
+  NAVY, BLUE, MUTED,
+} from "./_baseTemplate.ts";
 
 export interface ServiceCertificateData {
   certificate_number: string;
@@ -18,58 +22,77 @@ export interface ServiceCertificateData {
   service_postal?: string;
   service_name: string;
   activation_date: string;
-  status: string;             // "Actif"
+  status: string;
   monthly_amount: number;
-  purpose?: string;           // optional reason ex: "Preuve d'adresse"
+  purpose?: string;
 }
 
 export function generateServiceCertificatePDF(data: ServiceCertificateData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawHeader(doc, "ATTESTATION DE SERVICE ACTIF", data.certificate_number);
-
-    let y = 50;
-    y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, phone: data.client_phone,
-      address: data.service_address, city: data.service_city, province: data.service_province, postal: data.service_postal,
-      account_number: data.account_number,
+    const pw = doc.internal.pageSize.getWidth();
+    let y = drawHeaderV2(doc, {
+      title: "Certificat",
+      subtitle: "Attestation de service actif",
+      docNumber: data.certificate_number,
+      docDate: fmtDate(data.issue_date),
     });
 
-    doc.setFontSize(9);
-    doc.text(`Date d'emission: ${fmtDate(data.issue_date)}`, 15, y);
-    y += 10;
+    const addr = [data.service_address, data.service_city, data.service_province, data.service_postal].filter(Boolean).join(", ");
+    y = drawMetaGrid(doc, y, [
+      ["Émis à", data.client_name || "--"],
+      ["N° de compte", data.account_number || "--"],
+      ["Adresse du service", addr || "--"],
+      ["Date d'émission", fmtDate(data.issue_date)],
+    ]);
 
-    // Statement
-    y = drawBoxedText(
-      doc,
-      `Nivra Telecom (Nivra Communications Inc.) atteste par la presente que ${data.client_name} est actuellement client actif a l'adresse de service indiquee ci-dessus.`,
-      y,
-      { fillColor: [240, 248, 255], borderColor: NAVY, textColor: NAVY }
-    );
-
-    // Details
-    y = drawSectionTitle(doc, "Details du service", y);
-    y = drawKeyValue(doc, "Service", data.service_name, y);
-    y = drawKeyValue(doc, "Statut", data.status, y);
-    y = drawKeyValue(doc, "Date d'activation", fmtDate(data.activation_date), y);
-    y = drawKeyValue(doc, "Numero de compte", data.account_number, y);
-    y = drawKeyValue(doc, "Frais mensuels", fmtCAD(data.monthly_amount), y);
-    if (data.purpose) y = drawKeyValue(doc, "Objet de l'attestation", data.purpose, y);
-    y += 6;
-
-    // Signature placeholder
-    y = drawSectionTitle(doc, "Authentification", y);
+    y = drawSectionTitle(doc, "Attestation", y);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    doc.text("Document genere electroniquement et certifie conforme.", 15, y); y += 5;
-    doc.text("Service a la clientele - Nivra Telecom", 15, y); y += 5;
-    doc.text(`Reference: ${data.certificate_number}`, 15, y);
+    doc.setTextColor(40, 40, 40);
+    const txt = `Nivra Communications Inc., fournisseur de services de télécommunications enregistré au Québec, atteste par la présente que ${data.client_name} détient un compte client actif (N° ${data.account_number}) et bénéficie des services listés ci-dessous à l'adresse indiquée.\n\nCette attestation est délivrée à la demande du client aux fins qu'il jugera utiles${data.purpose ? ` (${data.purpose})` : " (location, hypothèque, permis de travail, aide sociale, etc.)"}.`;
+    const lines = wrapText(doc, txt, 180);
+    for (const l of lines) { doc.text(l, 15, y); y += 4.5; }
+    y += 3;
 
-    drawFooter(doc);
-    return { success: true, blob: doc.output("blob"), filename: `Attestation_Service_${data.certificate_number}_Nivra.pdf` };
+    y = drawSectionTitle(doc, "Services actifs à ce jour", y);
+    y = drawZebraTable(doc, y,
+      ["Service", "Actif depuis", "Statut", "Facturation mensuelle"],
+      [[data.service_name, fmtDate(data.activation_date), data.status || "Actif", fmtCAD(data.monthly_amount)]],
+      [65, 40, 30, 45],
+    );
+
+    // Stamp (right) + signature (left)
+    y += 10;
+    const stampX = pw - 30;
+    doc.setDrawColor(BLUE[0], BLUE[1], BLUE[2]);
+    doc.setLineWidth(0.6);
+    doc.circle(stampX, y + 12, 15, "S");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(BLUE[0], BLUE[1], BLUE[2]);
+    doc.text("NIVRA", stampX, y + 8, { align: "center" });
+    doc.setFontSize(6.5);
+    doc.text("TELECOM INC.", stampX, y + 11, { align: "center" });
+    doc.text("OFFICIEL", stampX, y + 15, { align: "center" });
+    doc.text(String(new Date().getFullYear()), stampX, y + 18, { align: "center" });
+
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(15);
+    doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+    doc.text("Nivra Telecom", 15, y + 10);
+    doc.setDrawColor(NAVY[0], NAVY[1], NAVY[2]);
+    doc.line(15, y + 14, 15 + 70, y + 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    doc.text("Signature autorisée - Service à la clientèle", 15, y + 18);
+    doc.text(`Émis le ${fmtDate(data.issue_date)}`, 15, y + 22);
+
+    drawFooterV2(doc, 1, 1);
+    return { success: true, blob: doc.output("blob"), filename: `Certificat_${(data.client_name || "").replace(/\s+/g,"-")}_${data.certificate_number}.pdf` };
   } catch (e) {
-    return { success: false, error: e?.message || "Erreur de generation" };
+    return { success: false, error: (e as Error)?.message || "Erreur de génération" };
   }
 }
 

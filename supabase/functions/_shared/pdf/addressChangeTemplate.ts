@@ -1,9 +1,13 @@
-﻿/**
- * Address Change Notice - Confirmation de changement d'adresse de service.
+/**
+ * Address Change Notice - Corporate blue Lot1 layout.
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, GREY_BG, NAVY } from "./_baseTemplate.ts";
+import {
+  drawHeaderV2, drawFooterV2, drawMetaGrid, drawSectionTitle,
+  drawZebraTable, drawInfoBox, fmtDate,
+  BLUE, BLUE_LIGHT,
+} from "./_baseTemplate.ts";
 
 export interface AddressChangeData {
   notice_number: string;
@@ -27,13 +31,15 @@ export interface AddressChangeData {
   effective_date: string;
   service_continuity: "no_interruption" | "scheduled_interruption" | "reinstall_required";
   notes?: string;
+  request_date?: string;
+  appointment_window?: string;
 }
 
-const continuityLabel = (t: string): string => {
+const continuityText = (t: string): string => {
   switch (t) {
-    case "no_interruption": return "Aucune interruption de service prevue";
-    case "scheduled_interruption": return "Interruption planifiee - voir notes";
-    case "reinstall_required": return "Reinstallation requise par technicien";
+    case "no_interruption": return "Aucune interruption prévue pendant le transfert.";
+    case "scheduled_interruption": return "Interruption planifiée pendant le transfert - voir notes.";
+    case "reinstall_required": return "Réinstallation par technicien requise à la nouvelle adresse.";
     default: return "-";
   }
 };
@@ -41,43 +47,52 @@ const continuityLabel = (t: string): string => {
 export function generateAddressChangePDF(data: AddressChangeData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-    drawHeader(doc, "CHANGEMENT D'ADRESSE", data.notice_number);
-    let y = 50;
-    y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, phone: data.client_phone,
-      address: data.client_address, city: data.client_city, province: data.client_province, postal: data.client_postal,
-      account_number: data.account_number,
+    let y = drawHeaderV2(doc, {
+      title: "Changement",
+      subtitle: "Confirmation de changement d'adresse",
+      docNumber: data.notice_number,
+      docDate: fmtDate(data.issue_date),
     });
 
-    doc.setFontSize(9);
-    doc.text(`Date de la demande: ${fmtDate(data.issue_date)}`, 15, y);
-    doc.text(`Date d'effet: ${fmtDate(data.effective_date)}`, 110, y);
-    y += 10;
+    y = drawMetaGrid(doc, y, [
+      ["Client", data.client_name || "--"],
+      ["N° de compte", data.account_number || "--"],
+      ["Date de la demande", fmtDate(data.request_date || data.issue_date)],
+      ["Date effective", fmtDate(data.effective_date)],
+    ]);
 
-    // Old address
-    y = drawSectionTitle(doc, "Ancienne adresse de service", y);
-    const oldFull = `${data.old_address}\n${data.old_city || ""}, ${data.old_province || "QC"} ${data.old_postal || ""}`;
-    y = drawBoxedText(doc, oldFull, y, { fillColor: [254, 242, 242], borderColor: [220, 80, 80] });
+    y = drawSectionTitle(doc, "Détails du transfert", y);
+    y = drawZebraTable(doc, y,
+      ["", "Ancienne adresse", "Nouvelle adresse"],
+      [
+        ["Rue", data.old_address || "--", data.new_address || "--"],
+        ["Ville", `${data.old_city || ""} ${data.old_province || ""}`.trim() || "--", `${data.new_city || ""} ${data.new_province || ""}`.trim() || "--"],
+        ["Code postal", data.old_postal || "--", data.new_postal || "--"],
+      ],
+      [35, 72, 73],
+    );
 
-    // New address
-    y = drawSectionTitle(doc, "Nouvelle adresse de service", y);
-    const newFull = `${data.new_address}\n${data.new_city || ""}, ${data.new_province || "QC"} ${data.new_postal || ""}`;
-    y = drawBoxedText(doc, newFull, y, { fillColor: [240, 253, 244], borderColor: [22, 163, 74] });
+    y = drawSectionTitle(doc, "Impact sur vos services", y);
+    y = drawZebraTable(doc, y,
+      ["Élément", "Détail", "Statut"],
+      [
+        ["Continuité de service", continuityText(data.service_continuity), "Planifié"],
+        ["Rendez-vous technicien", data.appointment_window || "À planifier", "Confirmé"],
+        ["Frais de transfert", "0.00 $ (offert)", "OK"],
+      ],
+      [55, 80, 45],
+    );
 
-    // Continuity
-    y = drawSectionTitle(doc, "Continuite du service", y);
-    y = drawBoxedText(doc, continuityLabel(data.service_continuity), y, { fillColor: GREY_BG, borderColor: NAVY });
+    y = drawInfoBox(doc, y, {
+      title: "À faire avant le déménagement",
+      body: "1. Débranchez et laissez tout équipement propriété Nivra en place. 2. Emportez uniquement les équipements que vous avez achetés. 3. Soyez présent(e) à la fenêtre de rendez-vous. 4. Aucune interruption facturée n'est appliquée durant le transfert." + (data.notes ? "\n\nNotes: " + data.notes : ""),
+      bg: BLUE_LIGHT, border: BLUE, accent: BLUE,
+    });
 
-    if (data.notes) {
-      y = drawSectionTitle(doc, "Notes", y);
-      y = drawBoxedText(doc, data.notes, y);
-    }
-
-    drawFooter(doc);
-    return { success: true, blob: doc.output("blob"), filename: `Changement_Adresse_${data.notice_number}_Nivra.pdf` };
+    drawFooterV2(doc, 1, 1);
+    return { success: true, blob: doc.output("blob"), filename: `Changement_Adresse_${(data.client_name || "").replace(/\s+/g,"-")}_${data.notice_number}.pdf` };
   } catch (e) {
-    return { success: false, error: e?.message || "Erreur de generation" };
+    return { success: false, error: (e as Error)?.message || "Erreur de génération" };
   }
 }
 
