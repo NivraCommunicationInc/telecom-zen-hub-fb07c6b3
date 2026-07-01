@@ -17,6 +17,7 @@ import {
   buildContractPdfAttachment,
   buildSummaryPdfAttachment,
 } from "../_shared/pdfFromDb.ts";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,11 +84,9 @@ Deno.serve(async (req) => {
     });
   }
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-  const { data: roleRow } = await admin
-    .from("user_roles").select("role")
-    .eq("user_id", user.id).in("role", ["admin", "super_admin"]).maybeSingle();
-  if (!roleRow) {
-    return new Response(JSON.stringify({ error: "Admins seulement" }), {
+  const { isStaff, callerRole } = await checkStaffAuth(admin, user.id);
+  if (!isStaff) {
+    return new Response(JSON.stringify({ error: "Accès personnel Nivra requis" }), {
       status: 403, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -245,6 +244,7 @@ Deno.serve(async (req) => {
     order_id: orderId,
     invoice_id: invoiceId,
     order_number: orderNum,
+    role: callerRole,
     results,
   }, null, 2), {
     status: 200,

@@ -4,8 +4,8 @@
  */
 
 const STAFF_ROLES = new Set([
-  "admin", "employee", "supervisor", "support",
-  "billing_admin", "sales", "manager", "hr", "field_agent",
+  "admin", "super_admin", "employee", "supervisor", "support",
+  "billing_admin", "sales", "manager", "hr", "field_agent", "field_sales",
 ]);
 
 export interface StaffAuthResult {
