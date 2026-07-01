@@ -1,9 +1,13 @@
-﻿/**
- * Chargeback Notice - Avis de retrofacturation (chargeback).
+/**
+ * Chargeback Notice - v2 layout (accent RED).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, RED, ORANGE } from "./_baseTemplate.ts";
+import {
+  drawHeaderV2, drawFooterV2, drawMetaGrid, drawSectionTitle,
+  drawHeroBox, drawInfoBox, drawZebraTable,
+  fmtDate, fmtCAD, RED, RED_LIGHT, AMBER, AMBER_BG,
+} from "./_baseTemplate.ts";
 
 export interface ChargebackNoticeData {
   notice_number: string;
@@ -23,68 +27,66 @@ export interface ChargebackNoticeData {
   chargeback_date: string;
   bank_reference?: string;
   reason_code?: string;
-  reactivation_fee: number;       // typically $25
-  total_due: number;              // chargeback_amount + reactivation_fee + interest
+  reactivation_fee: number;
+  total_due: number;
   response_deadline: string;
 }
 
 export function generateChargebackNoticePDF(data: ChargebackNoticeData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawHeader(doc, "AVIS DE RETROFACTURATION", data.notice_number);
-
-    let y = 50;
-    y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, phone: data.client_phone,
-      address: data.client_address, city: data.client_city, province: data.client_province, postal: data.client_postal,
-      account_number: data.account_number,
+    let y = drawHeaderV2(doc, {
+      title: "AVIS DE RÉTROFACTURATION",
+      subtitle: "Paiement contesté par l'institution financière",
+      docNumber: data.notice_number,
+      docDate: fmtDate(data.issue_date),
+      accent: RED,
     });
 
-    doc.setFontSize(9);
-    doc.text(`Date d'emission: ${fmtDate(data.issue_date)}`, 15, y);
-    doc.text(`Date du chargeback: ${fmtDate(data.chargeback_date)}`, 110, y);
-    y += 10;
+    y = drawMetaGrid(doc, y, [
+      ["Client", data.client_name],
+      ["N° de compte", data.account_number],
+      ["Facture liée", data.invoice_number],
+      ["Date de la facture", fmtDate(data.invoice_date)],
+      ["Date du chargeback", fmtDate(data.chargeback_date)],
+      ["Échéance de réponse", fmtDate(data.response_deadline)],
+    ]);
 
-    y = drawBoxedText(
-      doc,
-      "Nous avons recu un avis de retrofacturation (chargeback) de votre institution financiere concernant le paiement ci-dessous. Cette procedure entraine la suspension immediate de votre compte et l'application de frais.",
-      y,
-      { fillColor: [254, 242, 242], borderColor: RED, textColor: RED }
-    );
+    y = drawHeroBox(doc, y, {
+      label: "Total dû immédiatement",
+      value: fmtCAD(data.total_due),
+      sublabel: `À régulariser avant le ${fmtDate(data.response_deadline)} - compte suspendu`,
+      bg: RED,
+    });
 
-    y = drawSectionTitle(doc, "Paiement conteste", y);
-    y = drawKeyValue(doc, "Facture liee", `${data.invoice_number} (${fmtDate(data.invoice_date)})`, y);
-    y = drawKeyValue(doc, "Montant initial", fmtCAD(data.invoice_amount), y);
-    y = drawKeyValue(doc, "Montant retrofacture", fmtCAD(data.chargeback_amount), y);
-    if (data.bank_reference) y = drawKeyValue(doc, "Reference bancaire", data.bank_reference, y);
-    if (data.reason_code) y = drawKeyValue(doc, "Code de motif", data.reason_code, y);
-    y += 4;
+    y = drawSectionTitle(doc, "Paiement contesté", y, RED);
+    const rows: Array<Array<string>> = [
+      ["Montant initial de la facture", "", fmtCAD(data.invoice_amount)],
+      ["Montant rétrofacturé", "", fmtCAD(data.chargeback_amount)],
+      ["Frais de réactivation", "", fmtCAD(data.reactivation_fee)],
+    ];
+    if (data.bank_reference) rows.splice(2, 0, ["Référence bancaire", data.bank_reference, ""]);
+    if (data.reason_code) rows.splice(3, 0, ["Code de motif", data.reason_code, ""]);
+    y = drawZebraTable(doc, y, ["Élément", "Référence", "Montant"], rows, [80, 55, 45], RED);
 
-    y = drawSectionTitle(doc, "Montants exigibles", y);
-    y = drawKeyValue(doc, "Montant retrofacture", fmtCAD(data.chargeback_amount), y);
-    y = drawKeyValue(doc, "Frais de reactivation", fmtCAD(data.reactivation_fee), y);
-    y += 2;
-    doc.setDrawColor(150, 150, 150);
-    doc.line(15, y, 185, y); y += 5;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(RED[0], RED[1], RED[2]);
-    doc.text("TOTAL DU", 15, y);
-    doc.text(fmtCAD(data.total_due), 180, y, { align: "right" });
-    doc.setTextColor(0, 0, 0);
-    y += 10;
+    y = drawSectionTitle(doc, "Action requise", y, RED);
+    y = drawInfoBox(doc, y, {
+      title: "Contester ou régulariser",
+      body:
+        `Si cette rétrofacturation est une erreur, transmettez immédiatement une preuve de paiement (relevé bancaire ou courriel de confirmation) à Support@nivra-telecom.ca avant le ${fmtDate(data.response_deadline)}. ` +
+        "Sans réponse ni règlement dans le délai, le dossier sera transféré à une agence de recouvrement externe et pourra être signalé aux bureaux de crédit.",
+      bg: AMBER_BG, border: AMBER, accent: AMBER,
+    });
 
-    y = drawSectionTitle(doc, "Action requise", y);
-    y = drawBoxedText(
-      doc,
-      `Vous devez regulariser ce solde avant le ${fmtDate(data.response_deadline)}. Si vous croyez que cette retrofacturation est une erreur, contactez immediatement notre equipe par courriel avec une preuve de paiement (releve bancaire, courriel de confirmation). Sans reponse, le dossier sera transfere en recouvrement.`,
-      y,
-      { fillColor: [255, 251, 235], borderColor: ORANGE }
-    );
+    y = drawInfoBox(doc, y, {
+      title: "Suspension immédiate",
+      body: "Votre compte est suspendu depuis la réception de l'avis bancaire. Aucune nouvelle utilisation du service n'est possible jusqu'au règlement complet.",
+      bg: RED_LIGHT, border: RED, accent: RED,
+    });
 
-    drawFooter(doc);
+    drawFooterV2(doc);
     return { success: true, blob: doc.output("blob"), filename: `Avis_Chargeback_${data.notice_number}_Nivra.pdf` };
-  } catch (e) {
+  } catch (e: any) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }

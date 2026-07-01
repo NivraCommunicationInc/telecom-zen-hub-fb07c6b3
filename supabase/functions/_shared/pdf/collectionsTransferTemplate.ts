@@ -1,9 +1,13 @@
-﻿/**
- * Collections Transfer Notice - Avis de transfert au recouvrement externe.
+/**
+ * Collections Transfer Notice - v2 layout (accent RED).
  */
 import { jsPDF } from "npm:jspdf@2.5.2";
 import type { PDFGenerationResult } from "./types.ts";
-import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawBoxedText, drawKeyValue, fmtDate, fmtCAD, RED, ORANGE } from "./_baseTemplate.ts";
+import {
+  drawHeaderV2, drawFooterV2, drawMetaGrid, drawSectionTitle,
+  drawHeroBox, drawInfoBox, drawZebraTable,
+  fmtDate, fmtCAD, RED, AMBER, AMBER_BG, BLUE_LIGHT, BLUE,
+} from "./_baseTemplate.ts";
 
 export interface CollectionsTransferData {
   notice_number: string;
@@ -28,61 +32,54 @@ export interface CollectionsTransferData {
 export function generateCollectionsTransferPDF(data: CollectionsTransferData): PDFGenerationResult {
   try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawHeader(doc, "TRANSFERT AU RECOUVREMENT", data.notice_number);
-
-    let y = 50;
-    y = drawClientBlock(doc, y, {
-      name: data.client_name, email: data.client_email, phone: data.client_phone,
-      address: data.client_address, city: data.client_city, province: data.client_province, postal: data.client_postal,
-      account_number: data.account_number,
+    let y = drawHeaderV2(doc, {
+      title: "TRANSFERT AU RECOUVREMENT",
+      subtitle: "Dossier transmis à une agence externe",
+      docNumber: data.notice_number,
+      docDate: fmtDate(data.issue_date),
+      accent: RED,
     });
 
-    doc.setFontSize(9);
-    doc.text(`Date d'emission: ${fmtDate(data.issue_date)}`, 15, y);
-    doc.text(`Date d'effet: ${fmtDate(data.transfer_effective_date)}`, 110, y);
-    y += 10;
+    y = drawMetaGrid(doc, y, [
+      ["Client", data.client_name],
+      ["N° de compte", data.account_number],
+      ["Courriel", data.client_email || "--"],
+      ["Date d'effet du transfert", fmtDate(data.transfer_effective_date)],
+    ]);
 
-    y = drawBoxedText(
-      doc,
-      `Faute de paiement, votre dossier a ete transfere a une agence de recouvrement externe a compter du ${fmtDate(data.transfer_effective_date)}. Toute communication concernant ce solde doit desormais etre adressee directement a l'agence indiquee ci-dessous.`,
-      y,
-      { fillColor: [254, 242, 242], borderColor: RED, textColor: RED }
-    );
+    y = drawHeroBox(doc, y, {
+      label: "Montant transféré au recouvrement",
+      value: fmtCAD(data.total_transferred),
+      sublabel: "Nivra Telecom n'accepte plus de paiement direct pour ce solde",
+      bg: RED,
+    });
 
-    y = drawSectionTitle(doc, "Montant transfere", y);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(RED[0], RED[1], RED[2]);
-    doc.text(fmtCAD(data.total_transferred), 105, y + 6, { align: "center" });
-    doc.setTextColor(0, 0, 0);
-    y += 14;
-
-    y = drawSectionTitle(doc, "Coordonnees de l'agence de recouvrement", y);
-    y = drawKeyValue(doc, "Agence", data.collection_agency_name, y);
-    if (data.collection_agency_phone) y = drawKeyValue(doc, "Telephone", data.collection_agency_phone, y);
-    if (data.collection_agency_email) y = drawKeyValue(doc, "Courriel", data.collection_agency_email, y);
-    if (data.collection_agency_reference) y = drawKeyValue(doc, "Reference dossier", data.collection_agency_reference, y);
-    y += 4;
+    y = drawSectionTitle(doc, "Agence de recouvrement", y, RED);
+    const rows: Array<Array<string>> = [
+      ["Nom de l'agence", data.collection_agency_name],
+    ];
+    if (data.collection_agency_phone) rows.push(["Téléphone", data.collection_agency_phone]);
+    if (data.collection_agency_email) rows.push(["Courriel", data.collection_agency_email]);
+    if (data.collection_agency_reference) rows.push(["Référence du dossier", data.collection_agency_reference]);
+    y = drawZebraTable(doc, y, ["Coordonnée", "Valeur"], rows, [70, 110], RED);
 
     if (data.credit_bureau_reported) {
-      y = drawBoxedText(
-        doc,
-        "Ce dossier a egalement ete signale aux bureaux de credit Equifax et TransUnion. Cela peut affecter votre cote de credit pour une duree maximale de 6 ans selon la legislation en vigueur.",
-        y,
-        { fillColor: [255, 251, 235], borderColor: ORANGE }
-      );
+      y = drawInfoBox(doc, y, {
+        title: "Signalement aux bureaux de crédit",
+        body: "Ce dossier a été signalé à Equifax et TransUnion. Cette inscription peut affecter votre cote de crédit pour une durée maximale de 6 ans selon la législation en vigueur.",
+        bg: AMBER_BG, border: AMBER, accent: AMBER,
+      });
     }
 
-    y = drawBoxedText(
-      doc,
-      "Une fois le solde regle aupres de l'agence, votre dossier sera ferme et vous recevrez une confirmation de paiement officielle. Nivra Telecom n'accepte plus de paiements directs pour ce solde.",
-      y,
-      { fillColor: [248, 250, 252], borderColor: [200, 200, 200] }
-    );
+    y = drawInfoBox(doc, y, {
+      title: "Prochaines étapes",
+      body: "Contactez directement l'agence indiquée ci-dessus pour convenir d'un règlement. Une fois le solde payé, votre dossier sera fermé et vous recevrez une confirmation officielle. Toute communication à Nivra Telecom concernant ce solde sera redirigée vers l'agence.",
+      bg: BLUE_LIGHT, border: BLUE, accent: BLUE,
+    });
 
-    drawFooter(doc);
+    drawFooterV2(doc);
     return { success: true, blob: doc.output("blob"), filename: `Transfert_Recouvrement_${data.notice_number}_Nivra.pdf` };
-  } catch (e) {
+  } catch (e: any) {
     return { success: false, error: e?.message || "Erreur de generation" };
   }
 }
