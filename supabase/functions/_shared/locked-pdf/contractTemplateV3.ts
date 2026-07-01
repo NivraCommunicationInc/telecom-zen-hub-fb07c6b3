@@ -520,7 +520,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.line(15, y + 1.5, 190, y + 1.5);
     y += 12;
 
-    // Client signature
+    // Column headers
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
@@ -528,18 +528,46 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.text("NIVRA TELECOM INC.", 110, y);
     y += 18;
 
+    // --- Nivra Telecom signature graphic (auto-signed by system) ---
+    // Script-style signature rendered above the right line
+    const sigBaseY = y - 2;
+    doc.setTextColor(20, 40, 90);
+    doc.setFont("times", "italic");
+    doc.setFontSize(20);
+    doc.text("Nivra Telecom", 112, sigBaseY);
+    // Flourish underline (bezier curl) under the signature
+    doc.setDrawColor(20, 40, 90);
+    doc.setLineWidth(0.5);
+    // Small swoosh from the "N" to past the "m"
+    (doc as any).lines(
+      [
+        [30, 2],
+        [15, -3],
+        [10, 1],
+      ],
+      112,
+      sigBaseY + 1.2,
+      [1, 1],
+      "S",
+      false,
+    );
+    doc.setLineWidth(0.2);
+
+    // Signature lines
     doc.setDrawColor(0, 0, 0);
     doc.line(15, y, 95, y);
     doc.line(110, y, 190, y);
     y += 5;
 
+    // Names under the lines
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
     doc.text(data.client_name || "—", 15, y);
-    doc.text(data.admin_signature_name || "Representant autorise", 110, y);
+    doc.text(data.admin_signature_name || "Representant autorise Nivra Telecom", 110, y);
     y += 5;
 
+    // Dates
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     if (data.is_signed) {
@@ -548,9 +576,10 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
         doc.text(`IP: ${data.signature_ip}`, 15, y + 4);
       }
     } else {
-      doc.text("Date: En attente de signature", 15, y);
+      doc.text("Date: En attente de signature du client", 15, y);
     }
-    doc.text(`Date: ${fmtDate(data.contract_date)}`, 110, y);
+    // Nivra side is always auto-signed at the contract generation date
+    doc.text(`Signe electroniquement le: ${fmtDate(data.contract_date)}`, 110, y);
     y += 15;
 
     // Legal notice box
