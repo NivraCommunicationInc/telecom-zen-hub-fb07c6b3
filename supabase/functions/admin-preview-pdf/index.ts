@@ -12,6 +12,7 @@ import {
   buildContractPdfAttachment,
   buildSummaryPdfAttachment,
 } from "../_shared/pdfFromDb.ts";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,11 +42,9 @@ Deno.serve(async (req) => {
       });
     }
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-    const { data: roleRow } = await admin
-      .from("user_roles").select("role")
-      .eq("user_id", user.id).in("role", ["admin", "super_admin"]).maybeSingle();
-    if (!roleRow) {
-      return new Response(JSON.stringify({ error: "Admins seulement" }), {
+    const { isStaff, callerRole } = await checkStaffAuth(admin, user.id);
+    if (!isStaff) {
+      return new Response(JSON.stringify({ error: "Accès personnel Nivra requis" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -55,19 +54,58 @@ Deno.serve(async (req) => {
     let orderId: string | null = body.orderId ?? null;
     let invoiceId: string | null = body.invoiceId ?? null;
 
-    // Fallback: last order / last invoice
-    if (!orderId && !invoiceId) {
-      const { data: lastOrder } = await admin
-        .from("orders").select("id")
-        .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      orderId = lastOrder?.id ?? null;
+    if (!["invoice", "receipt", "contract", "summary"].includes(type)) {
+      return new Response(JSON.stringify({ error: `type invalide: ${type}` }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-    if (!invoiceId && orderId && (type === "invoice" || type === "receipt")) {
-      const { data: inv } = await admin
-        .from("billing_invoices").select("id")
-        .eq("order_id", orderId).order("created_at", { ascending: false })
-        .limit(1).maybeSingle();
-      invoiceId = inv?.id ?? null;
+
+    // Invoice/receipt preview must fall back to the latest invoice, not the
+    // latest order. Many renewal invoices are not linked to an order_id.
+    if (type === "invoice" || type === "receipt") {
+      if (!invoiceId && orderId) {
+        const { data: inv } = await admin
+          .from("billing_invoices")
+          .select("id, order_id")
+          .eq("order_id", orderId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        invoiceId = inv?.id ?? null;
+      }
+      if (!invoiceId) {
+        const { data: inv } = await admin
+          .from("billing_invoices")
+          .select("id, order_id")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        invoiceId = inv?.id ?? null;
+        orderId = orderId ?? inv?.order_id ?? null;
+      }
+    }
+
+    // Contract/summary need an order. If the selected invoice has no order_id,
+    // use the latest order so the action still produces a real PDF instead of
+    // failing with a non-2xx response.
+    if (type === "contract" || type === "summary") {
+      if (!orderId && invoiceId) {
+        const { data: inv } = await admin
+          .from("billing_invoices")
+          .select("order_id")
+          .eq("id", invoiceId)
+          .maybeSingle();
+        orderId = inv?.order_id ?? null;
+      }
+      if (!orderId) {
+        const { data: lastOrder } = await admin
+          .from("orders")
+          .select("id")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        orderId = lastOrder?.id ?? null;
+      }
     }
 
     let att: { filename: string; content: string } | null = null;
@@ -88,10 +126,6 @@ Deno.serve(async (req) => {
         if (!orderId) throw new Error("Aucune commande disponible");
         att = await buildSummaryPdfAttachment(orderId, "Sommaire");
         break;
-      default:
-        return new Response(JSON.stringify({ error: `type invalide: ${type}` }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
     }
 
     if (!att) throw new Error("PDF vide — données manquantes");
@@ -101,6 +135,7 @@ Deno.serve(async (req) => {
       base64: att.content,
       order_id: orderId,
       invoice_id: invoiceId,
+      role: callerRole,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("[admin-preview-pdf] error:", e);

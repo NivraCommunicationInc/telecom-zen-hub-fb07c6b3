@@ -17,6 +17,7 @@ import {
   buildContractPdfAttachment,
   buildSummaryPdfAttachment,
 } from "../_shared/pdfFromDb.ts";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,11 +84,9 @@ Deno.serve(async (req) => {
     });
   }
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-  const { data: roleRow } = await admin
-    .from("user_roles").select("role")
-    .eq("user_id", user.id).in("role", ["admin", "super_admin"]).maybeSingle();
-  if (!roleRow) {
-    return new Response(JSON.stringify({ error: "Admins seulement" }), {
+  const { isStaff, callerRole } = await checkStaffAuth(admin, user.id);
+  if (!isStaff) {
+    return new Response(JSON.stringify({ error: "Accès personnel Nivra requis" }), {
       status: 403, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -95,8 +94,46 @@ Deno.serve(async (req) => {
   const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
   const to: string = body.to || "support@nivra-telecom.ca";
 
-  /* â”€â”€ Find last order â”€â”€ */
-  let orderId: string = body.orderId;
+  let orderId: string | null = body.orderId ?? null;
+  let invoiceId: string | null = body.invoiceId ?? null;
+  let lastInvoice: any = null;
+
+  // Prefer the selected invoice; otherwise use the latest invoice globally.
+  // Renewal invoices often have no order_id, so looking up by latest order was
+  // causing false "no invoice" failures.
+  if (invoiceId) {
+    const { data } = await admin
+      .from("billing_invoices")
+      .select("id, invoice_number, status, order_id")
+      .eq("id", invoiceId)
+      .maybeSingle();
+    lastInvoice = data;
+    orderId = orderId ?? data?.order_id ?? null;
+  }
+  if (!lastInvoice && orderId) {
+    const { data } = await admin
+      .from("billing_invoices")
+      .select("id, invoice_number, status, order_id")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    lastInvoice = data;
+  }
+  if (!lastInvoice) {
+    const { data } = await admin
+      .from("billing_invoices")
+      .select("id, invoice_number, status, order_id")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    lastInvoice = data;
+    orderId = orderId ?? data?.order_id ?? null;
+  }
+  invoiceId = lastInvoice?.id ?? null;
+
+  // Contract + summary still need an order; if the invoice is a renewal without
+  // order_id, use the latest order for those two documents instead of failing.
   if (!orderId) {
     const { data: lastOrder } = await admin
       .from("orders")
@@ -104,32 +141,24 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!lastOrder) {
-      return new Response(JSON.stringify({ error: "Aucune commande trouvée" }), {
-        status: 404, headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
-    orderId = lastOrder.id;
+    orderId = lastOrder?.id ?? null;
   }
 
-  /* â”€â”€ Find last invoice for that order â”€â”€ */
-  const { data: lastInvoice } = await admin
-    .from("billing_invoices")
-    .select("id, invoice_number, status")
-    .eq("order_id", orderId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const invoiceId: string | null = lastInvoice?.id ?? null;
+  if (!orderId && !invoiceId) {
+    return new Response(JSON.stringify({ error: "Aucune commande ou facture trouvée" }), {
+      status: 404, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
 
   /* â”€â”€ Get order info for labels â”€â”€ */
-  const { data: orderInfo } = await admin
-    .from("orders")
-    .select("order_number, created_at")
-    .eq("id", orderId)
-    .maybeSingle();
-  const orderNum = (orderInfo as any)?.order_number ?? orderId.slice(0, 8).toUpperCase();
+  const { data: orderInfo } = orderId
+    ? await admin
+        .from("orders")
+        .select("order_number, created_at")
+        .eq("id", orderId)
+        .maybeSingle()
+    : { data: null } as any;
+  const orderNum = (orderInfo as any)?.order_number ?? orderId?.slice(0, 8).toUpperCase() ?? "N/A";
   const invoiceNum = (lastInvoice as any)?.invoice_number ?? invoiceId?.slice(0, 8).toUpperCase() ?? "N/A";
 
   const results: Array<{ type: string; status: "ok" | "skipped" | "error"; detail?: string }> = [];
@@ -194,47 +223,55 @@ Deno.serve(async (req) => {
   }
 
   /* â”€â”€ 3. Contrat â”€â”€ */
-  try {
-    const att = await buildContractPdfAttachment(orderId, { filenamePrefix: "Contrat" });
-    if (att) {
-      await sendWithPdf({
-        to,
-        subject: `Nivra Telecom â€” Contrat de service #${orderNum}`,
-        badge: "CONTRAT DE SERVICE",
-        heroTitle: "Votre contrat de service",
-        heroSub: "Votre contrat est disponible en pièce jointe.",
-        cardRows: [["Commande", orderNum]],
-        filename: att.filename,
-        pdfBase64: att.content,
-      });
-      results.push({ type: "contrat", status: "ok" });
-    } else {
-      results.push({ type: "contrat", status: "error", detail: "PDF null â€” données manquantes" });
+  if (orderId) {
+    try {
+      const att = await buildContractPdfAttachment(orderId, { filenamePrefix: "Contrat" });
+      if (att) {
+        await sendWithPdf({
+          to,
+          subject: `Nivra Telecom â€” Contrat de service #${orderNum}`,
+          badge: "CONTRAT DE SERVICE",
+          heroTitle: "Votre contrat de service",
+          heroSub: "Votre contrat est disponible en pièce jointe.",
+          cardRows: [["Commande", orderNum]],
+          filename: att.filename,
+          pdfBase64: att.content,
+        });
+        results.push({ type: "contrat", status: "ok" });
+      } else {
+        results.push({ type: "contrat", status: "error", detail: "PDF null â€” données manquantes" });
+      }
+    } catch (e) {
+      results.push({ type: "contrat", status: "error", detail: e.message });
     }
-  } catch (e) {
-    results.push({ type: "contrat", status: "error", detail: e.message });
+  } else {
+    results.push({ type: "contrat", status: "skipped", detail: "Aucune commande disponible" });
   }
 
   /* â”€â”€ 4. Sommaire de commande â”€â”€ */
-  try {
-    const att = await buildSummaryPdfAttachment(orderId, "Sommaire");
-    if (att) {
-      await sendWithPdf({
-        to,
-        subject: `Nivra Telecom â€” Sommaire de commande #${orderNum}`,
-        badge: "SOMMAIRE DE COMMANDE",
-        heroTitle: `Commande #${orderNum}`,
-        heroSub: "Votre sommaire de commande est disponible en pièce jointe.",
-        cardRows: [["Commande", orderNum]],
-        filename: att.filename,
-        pdfBase64: att.content,
-      });
-      results.push({ type: "sommaire", status: "ok" });
-    } else {
-      results.push({ type: "sommaire", status: "error", detail: "PDF null â€” données manquantes" });
+  if (orderId) {
+    try {
+      const att = await buildSummaryPdfAttachment(orderId, "Sommaire");
+      if (att) {
+        await sendWithPdf({
+          to,
+          subject: `Nivra Telecom â€” Sommaire de commande #${orderNum}`,
+          badge: "SOMMAIRE DE COMMANDE",
+          heroTitle: `Commande #${orderNum}`,
+          heroSub: "Votre sommaire de commande est disponible en pièce jointe.",
+          cardRows: [["Commande", orderNum]],
+          filename: att.filename,
+          pdfBase64: att.content,
+        });
+        results.push({ type: "sommaire", status: "ok" });
+      } else {
+        results.push({ type: "sommaire", status: "error", detail: "PDF null â€” données manquantes" });
+      }
+    } catch (e) {
+      results.push({ type: "sommaire", status: "error", detail: e.message });
     }
-  } catch (e) {
-    results.push({ type: "sommaire", status: "error", detail: e.message });
+  } else {
+    results.push({ type: "sommaire", status: "skipped", detail: "Aucune commande disponible" });
   }
 
   const ok = results.filter(r => r.status === "ok").length;
@@ -245,6 +282,7 @@ Deno.serve(async (req) => {
     order_id: orderId,
     invoice_id: invoiceId,
     order_number: orderNum,
+    role: callerRole,
     results,
   }, null, 2), {
     status: 200,
