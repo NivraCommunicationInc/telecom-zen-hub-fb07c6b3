@@ -46,6 +46,13 @@ const fmtDate = (d: string | undefined | null): string => {
   return `${dt.getDate()} ${dt.toLocaleString("fr-CA", { month: "long" })} ${dt.getFullYear()}`;
 };
 
+const fmtDateShort = (d: string | undefined | null): string => {
+  if (!d) return "—";
+  const m = String(d).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "—";
+  return `${m[3]}/${m[2]}/${m[1]}`;
+};
+
 const typeLabel = (cat: string): string => {
   const k = (cat || "").toLowerCase();
   if (["internet", "mobile", "tv", "security", "service", "recurring", "streaming"].includes(k)) return "Service";
@@ -172,7 +179,7 @@ function drawPage1(doc: jsPDF, data: InvoiceDataV2 & { order_number?: string }) 
     ["DATE D'ÉMISSION", fmtDate(data.invoice_date)],
     ["DATE D'ÉCHÉANCE", fmtDate(data.due_date)],
     ["PÉRIODE", data.billing_period_start && data.billing_period_end
-      ? `${fmtDate(data.billing_period_start).replace(/ \d{4}$/, "")} → ${fmtDate(data.billing_period_end)}`
+      ? `${fmtDateShort(data.billing_period_start)} au ${fmtDateShort(data.billing_period_end)}`
       : (data as any).order_number ? `Cmde ${(data as any).order_number}` : "—"],
   ];
   metas.forEach(([label, value], i) => {

@@ -495,8 +495,13 @@ export async function buildInvoicePdfAttachment(
       computePdfHash(result.blob),
     ]);
     const invNum = (invoice as any).invoice_number || invoiceId.slice(0, 8);
+    const safeName = clientName.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "Client";
+    const period = (invoice as any).cycle_start_date
+      ? String((invoice as any).cycle_start_date).slice(0, 7)
+      : String((invoice as any).created_at || "").slice(0, 7);
+    const periodPart = period ? `_${period}` : "";
     return {
-      filename: result.filename || `${filenamePrefix}_${invNum}_Nivra.pdf`,
+      filename: result.filename || `${filenamePrefix}_${safeName}_${invNum}${periodPart}.pdf`,
       content: base64,
       contentType: "application/pdf",
       hash_sha256,
@@ -657,8 +662,11 @@ export async function buildReceiptPdfAttachment(
       computePdfHash(result.blob),
     ]);
     const num = payment?.payment_number || (invoice as any).invoice_number || invoiceId.slice(0, 8);
+    const safeName = clientName.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "Client";
+    const period = String((invoice as any).cycle_start_date || (invoice as any).created_at || "").slice(0, 7);
+    const periodPart = period ? `_${period}` : "";
     return {
-      filename: result.filename || `${filenamePrefix}_${num}_Nivra.pdf`,
+      filename: result.filename || `${filenamePrefix}_${safeName}_${num}${periodPart}.pdf`,
       content: base64,
       contentType: "application/pdf",
       hash_sha256,
@@ -940,8 +948,9 @@ export async function buildContractPdfAttachment(
       computePdfHash(result.blob),
     ]);
     const prefix = opts.filenamePrefix || "Contrat";
+    const safeName = clientName.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "Client";
     return {
-      filename: result.filename || `${prefix}_${o.order_number || orderId.slice(0, 8)}_Nivra.pdf`,
+      filename: result.filename || `${prefix}_${safeName}_${o.order_number || orderId.slice(0, 8)}.pdf`,
       content: base64,
       contentType: "application/pdf",
       hash_sha256,
@@ -1168,8 +1177,9 @@ export async function buildSummaryPdfAttachment(
       return null;
     }
     const base64 = await blobToBase64(result.blob);
+    const safeName = clientName.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "Client";
     return {
-      filename: result.filename || `${filenamePrefix}_${(o as any).order_number || orderId.slice(0, 8)}_Nivra.pdf`,
+      filename: result.filename || `${filenamePrefix}_${safeName}_${(o as any).order_number || orderId.slice(0, 8)}.pdf`,
       content: base64,
       contentType: "application/pdf",
     };
