@@ -128,7 +128,7 @@ export const CoreSquarePaymentDialog = ({
       const res = await fetch(`${BACKEND_URL}/functions/v1/square-charge-invoice`, {
         method: "POST",
         headers: { Authorization: `Bearer ${BACKEND_ANON_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ source_id: result.token, invoice_id: selectedInvoiceId }),
+        body: JSON.stringify({ source_id: result.token, invoice_id: selectedInvoiceId, customer_email: customerEmail }),
       });
       const data = await res.json();
       if (!data?.ok) { toast.error(data?.error || "Paiement refusé"); return; }

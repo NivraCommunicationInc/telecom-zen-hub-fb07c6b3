@@ -9,8 +9,10 @@ const BACKEND_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const BACKEND_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 export interface SquarePaymentFormProps {
-  /** ID de la facture à payer (billing_invoices.id) */
-  invoiceId: string;
+  /** ID de la facture à payer (billing_invoices.id) — ou utiliser onBeforeCharge */
+  invoiceId?: string;
+  /** Appelé avant la charge si pas d'invoiceId — doit retourner invoice_id ou intent_id */
+  onBeforeCharge?: () => Promise<{ invoice_id?: string; intent_id?: string }>;
   /** Montant affiché sur le bouton */
   amount: number;
   /** Numéro de facture lisible — pour la note Square */
@@ -19,11 +21,12 @@ export interface SquarePaymentFormProps {
   customerName?: string;
   customerEmail?: string;
   /** Appelé si le paiement réussit */
-  onSuccess: (receiptUrl?: string | null) => void;
+  onSuccess: (receiptUrl?: string | null, paymentId?: string) => void;
 }
 
 export function SquarePaymentForm({
   invoiceId,
+  onBeforeCharge,
   amount,
   invoiceNumber,
   customerName,
@@ -97,16 +100,23 @@ export function SquarePaymentForm({
         return;
       }
 
+      let chargeBody: Record<string, any> = { source_id: result.token, customer_email: customerEmail };
+      if (onBeforeCharge) {
+        const ids = await onBeforeCharge();
+        if (ids.intent_id) chargeBody.intent_id = ids.intent_id;
+        else if (ids.invoice_id) chargeBody.invoice_id = ids.invoice_id;
+        else throw new Error("onBeforeCharge n'a retourné aucun identifiant valide");
+      } else {
+        chargeBody.invoice_id = invoiceId;
+      }
+
       const res = await fetch(`${BACKEND_URL}/functions/v1/square-charge-invoice`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${BACKEND_ANON_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          source_id: result.token,
-          invoice_id: invoiceId,
-        }),
+        body: JSON.stringify(chargeBody),
       });
 
       const data = await res.json();
@@ -117,7 +127,7 @@ export function SquarePaymentForm({
 
       setDone(true);
       toast.success("Paiement accepté !");
-      onSuccess(data.receipt_url ?? null);
+      onSuccess(data.receipt_url ?? null, data.payment_id);
     } catch (e: any) {
       toast.error("Erreur : " + (e?.message || String(e)));
     } finally {

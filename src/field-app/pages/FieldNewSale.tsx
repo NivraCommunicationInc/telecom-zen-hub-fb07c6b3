@@ -222,10 +222,10 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
           equipment: ((quote as any).equipment as any[]) || [],
           discount: ((quote as any).discount as any) || null,
           payment: {
-            method: "paypal_email",
+            method: "square_email",
             status: (intent as any)?.status === "completed" ? "completed" : "sent",
-            paypalApprovalUrl: (intent as any)?.paypal_approval_url ?? null,
-            paypalOrderId: (intent as any)?.paypal_order_id ?? null,
+            paypalApprovalUrl: `https://nivra-telecom.ca/payer/${(intent as any)?.id || resumeIntentId}`,
+            paypalOrderId: null,
             fieldOrderId: (intent as any)?.id ?? null,
             invoiceId: null,
             coreOrderId: null,
@@ -328,8 +328,8 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
   const total = Math.round((subtotal + tps + tvq) * 100) / 100;
 
-  // ── Submit inline (paypal_inline): create quote + intent only, no PayPal API call ──
-  const handlePaypalInlineInit = async () => {
+  // ── Submit inline (square_inline): create quote + intent, then Square widget charges ──
+  const handleSquareInlineInit = async () => {
     if (!user?.id || isSubmitting) return;
     setIsSubmitting(true);
     setSubmitMessage("Préparation du paiement…");
@@ -345,7 +345,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
           amount: total,
           currency: "CAD",
           status: "pending",
-          payment_method: "paypal_inline",
+          payment_method: "square_inline",
           customer_email: draft.customer.email || null,
           customer_name: customerName || null,
         })
@@ -365,10 +365,87 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     }
   };
 
+  // ── Square inline success: create order + sync after immediate charge ──
+  const handleSquareInlineSuccess = async (paymentId: string) => {
+    if (!user?.id) return;
+    setIsSubmitting(true);
+    setSubmitMessage("Création de la commande…");
+    try {
+      const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
+      const intentId = draft.payment.fieldOrderId || paymentId;
+      const orderNumber = `SUB-${String(intentId).slice(0, 8).toUpperCase()}`;
+      const commissionAmount = Math.max(0, Number((monthlyBeforeDiscount * 0.30 + equipmentTotal * 0.05).toFixed(2)));
+
+      try {
+        await supabase.from("field_commissions").insert({
+          agent_id: user.id, order_id: null, amount: commissionAmount,
+          status: "pending", commission_type: "forfait",
+          description: `Square direct — ${paymentId}`,
+        } as any);
+      } catch (commErr: any) { logger.warn("commission insert failed", commErr); }
+
+      let coreOrderNumber = orderNumber;
+      try {
+        const { data: fsRow, error: fsErr } = await supabase
+          .from("field_sales_orders")
+          .insert({
+            salesperson_id: user.id,
+            customer_name: customerName,
+            customer_email: draft.customer.email || null,
+            customer_phone: draft.customer.phone || "",
+            customer_address: (draft.customer.address || "") + (draft.customer.apartment ? `, App. ${draft.customer.apartment}` : ""),
+            customer_city: draft.customer.city || null,
+            customer_postal_code: draft.customer.postal_code || null,
+            customer_date_of_birth: draft.customer.date_of_birth || null,
+            services: [
+              ...draft.services.map((s) => ({ ...s, quantity: 1, price_monthly: s.monthlyPrice, monthly_price: s.monthlyPrice, price_setup: 0 })),
+              ...draft.equipment.map((e) => ({ ...e, quantity: e.quantity, price_monthly: 0, monthly_price: 0, price_setup: e.price })),
+            ] as any,
+            total_amount: total,
+            payment_method: "square",
+            payment_reference: paymentId,
+            payment_status: "paid",
+            sync_status: "pending",
+            discount_data: draft.discount ? {
+              name: (draft.discount as any).name || "Rabais",
+              type: (draft.discount as any).type || null,
+              amount: Number((draft.discount as any).value ?? monthlyDiscountAmount ?? 0),
+              applies_to: (draft.discount as any).applies_to || null,
+              duration_months: Number((draft.discount as any).duration_months ?? 0),
+              monthly_amount: Number(monthlyDiscountAmount || 0),
+              monthly_price: Number(monthlyBeforeDiscount || 0),
+            } : null,
+            internal_notes: `Square paiement immédiat — ${paymentId}\nCommission: ${commissionAmount.toFixed(2)}$`,
+          } as any)
+          .select("id")
+          .single();
+        if (fsErr) throw fsErr;
+        const saleId = (fsRow as any)?.id;
+        if (saleId) {
+          const { data: syncData } = await supabase.functions.invoke("field-sales-sync", { body: { action: "sync_single", sale_id: saleId } });
+          if (syncData?.order_number) coreOrderNumber = syncData.order_number;
+        }
+      } catch (syncErr: any) {
+        logger.warn("[square-inline] order creation failed (non-blocking)", syncErr);
+      }
+
+      setCardSuccess({ intentId, orderNumber: coreOrderNumber, last4: paymentId.slice(-4), amount: total, commission: commissionAmount });
+      setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep, "payment" as FieldSaleStep])]);
+      clearDraft();
+      toast.success(`Paiement Square confirmé — ${coreOrderNumber}`);
+    } catch (err: any) {
+      logger.warn("Square inline order creation failed", err);
+      toast.error(err?.message || "Erreur lors de la création de la commande");
+    } finally {
+      setIsSubmitting(false);
+      setSubmitMessage("");
+    }
+  };
+
   // ── Submit (FIX 1: payment-first — NO order created until webhook confirms) ──
   const handleSubmit = async () => {
     if (!user?.id || isSubmitting) return;
-    if (draft.payment.method === "paypal_email" && !draft.customer.email) {
+    if (draft.payment.method === "square_email" && !draft.customer.email) {
       toast.error("Le courriel du client est requis pour envoyer le lien.");
       return;
     }
@@ -384,23 +461,29 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
         subtotal, tps, tvq, total, agentGps,
       });
 
-      // 2) Ask backend to generate a PayPal link tied to a payment intent
-      setSubmitMessage("Génération du lien PayPal…");
-      const { data, error } = await supabase.functions.invoke("field-payment-initiate", {
-        body: {
+      // 2) Create Square payment intent directly (no external API call needed)
+      setSubmitMessage("Génération du lien de paiement…");
+      const intentCustomerName = `${draft.customer.first_name} ${draft.customer.last_name}`.trim();
+      const { data: _intentRow, error: _intentErr } = await supabase
+        .from("field_payment_intents" as any)
+        .insert({
           quote_id: quote.id,
+          agent_id: user.id,
           amount: total,
-          customer_email: draft.customer.email,
-          customer_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim(),
-          description: `Nivra Telecom — Vente terrain (${draft.customer.first_name || ""})`.trim(),
-        },
-      });
-      if (error) throw error;
-      const approvalUrl: string | null = data?.approval_url || null;
-      if (!approvalUrl) throw new Error("PayPal n'a pas retourné de lien d'approbation.");
+          currency: "CAD",
+          status: "pending",
+          payment_method: draft.payment.method === "square_email" ? "square_email" : "square_onsite",
+          customer_email: draft.customer.email || null,
+          customer_name: intentCustomerName || null,
+        })
+        .select("id")
+        .single();
+      if (_intentErr || !_intentRow) throw _intentErr ?? new Error("Erreur création du lien de paiement");
+      const data = { intent_id: (_intentRow as any).id };
+      const approvalUrl: string = `https://nivra-telecom.ca/payer/${(_intentRow as any).id}`;
 
       // 3) Email mode — enqueue Violet Bold "payment_link_employee" template (with retry)
-      if (draft.payment.method === "paypal_email") {
+      if (draft.payment.method === "square_email") {
         setSubmitMessage("Envoi du lien au client…");
         const servicesList = buildServicesList(draft);
         const equipmentList = buildEquipmentList(draft);
@@ -454,22 +537,22 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
           ...d,
           payment: {
             ...d.payment, status: "sent", linkSentTo: draft.customer.email,
-            paypalApprovalUrl: approvalUrl, paypalOrderId: data.paypal_order_id ?? null,
+            paypalApprovalUrl: approvalUrl, paypalOrderId: null,
             fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
         }));
-        toast.success("Lien PayPal envoyé au client.");
+        toast.success("Lien Square envoyé au client.");
         clearDraft();
       } else {
         setDraft((d) => ({
           ...d,
           payment: {
             ...d.payment, status: "pending",
-            paypalApprovalUrl: approvalUrl, paypalOrderId: data.paypal_order_id ?? null,
+            paypalApprovalUrl: approvalUrl, paypalOrderId: null,
             fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
         }));
-        toast.success("Lien PayPal prêt — montrez le QR au client.");
+        toast.success("Lien Square prêt — montrez le QR au client.");
       }
 
       setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep])]);
@@ -682,7 +765,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
 
       if (data.status === "paid" || Number(data.balance_due ?? 0) <= 0 || Number(data.amount_paid ?? 0) > 0) {
         setDraft((d) => ({ ...d, payment: { ...d.payment, status: "completed" } }));
-        toast.success("Paiement PayPal confirmé !");
+        toast.success("Paiement Square confirmé !");
       }
     };
 
@@ -696,7 +779,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
         (payload: any) => {
           if (payload.new?.status === "paid") {
             setDraft((d) => ({ ...d, payment: { ...d.payment, status: "completed" } }));
-            toast.success("Paiement PayPal confirmé !");
+            toast.success("Paiement Square confirmé !");
           }
         }
       )
@@ -828,13 +911,8 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               totalAmount={total}
               onChange={(payment) => setDraft((d) => ({ ...d, payment }))}
               onSubmit={handleSubmit}
-              onPaypalInlineInit={handlePaypalInlineInit}
-              onPaypalInlineSuccess={(captureId) => {
-                setDraft((d) => ({ ...d, payment: { ...d.payment, status: "completed" } }));
-                clearDraft();
-                toast.success(`Paiement confirmé (${captureId.slice(0, 8)}) — commande créée automatiquement.`);
-              }}
-              onSubmitCard={handleCardSubmit}
+              onSquareInlineInit={handleSquareInlineInit}
+              onSquareInlineSuccess={handleSquareInlineSuccess}
               onBack={() => goBack("payment")}
               isSubmitting={isSubmitting}
               submitMessage={submitMessage}

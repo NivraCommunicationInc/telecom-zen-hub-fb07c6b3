@@ -35,8 +35,7 @@ import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } 
 import { ConfirmationSuccess } from "@/components/checkout/ConfirmationSuccess";
 
 import { PhotoBg } from "@/components/PhotoBg";
-import { PayPalButton } from "@/components/payment/PayPalButton";
-import { AutoPayPalOption } from "@/components/checkout/AutoPayPalOption";
+import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1857,7 +1856,7 @@ const GuestCheckout = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {/* ── Card-only payment (processed by PayPal, no account required) ── */}
+                    {/* ── Card payment via Square ── */}
                     <div>
                       <div className="text-[10px] tracking-[2px] uppercase text-muted-foreground mb-3">
                         Méthode de paiement
@@ -1900,41 +1899,41 @@ const GuestCheckout = () => {
                         <div className="text-xl shrink-0">💳</div>
                         <div>
                           <div className="text-sm font-bold mb-1" style={{ color: '#1E40AF' }}>
-                            Payez par carte de crédit ou débit — aucun compte PayPal requis
+                            Payez par carte de crédit ou débit
                           </div>
                           <div className="text-[13px] leading-relaxed" style={{ color: '#3B82F6' }}>
                             Notre système de paiement sécurisé accepte Visa et Mastercard directement.
-                            Vous n'avez pas besoin d'un compte PayPal pour compléter votre achat.
                           </div>
                         </div>
                       </div>
 
-                      {/* Payment buttons */}
+                      {/* Square payment widget */}
                       {!paypalCaptureId && (
-                        <PayPalButton
+                        <SquarePaymentForm
                           amount={todayTotal}
-                          orderId={clientCartIdRef.current}
-                          description={`Nivra — ${selectedServices.map(s => s.name).join(", ")}`}
-                          customer={{
-                            first_name: firstName,
-                            last_name: lastName,
-                            email,
-                            phone,
-                            address: {
-                              address_line_1: addressStreet,
-                              admin_area_2: addressCity,
-                              admin_area_1: addressProvince,
-                              postal_code: addressPostalCode.replace(/\s/g, ""),
-                              country_code: "CA",
-                            },
+                          customerEmail={email}
+                          customerName={`${firstName} ${lastName}`.trim()}
+                          onBeforeCharge={async () => {
+                            const { data, error } = await supabase
+                              .from("field_payment_intents" as any)
+                              .insert({
+                                amount: todayTotal,
+                                currency: "CAD",
+                                status: "pending",
+                                payment_method: "square_checkout",
+                                customer_email: email || null,
+                                customer_name: `${firstName} ${lastName}`.trim() || null,
+                              })
+                              .select("id")
+                              .single();
+                            if (error || !data) throw error ?? new Error("Erreur initialisation paiement");
+                            return { intent_id: (data as any).id };
                           }}
-                          onSuccess={(captureId) => {
-                            setPaypalCaptureId(captureId);
+                          onSuccess={(_receiptUrl, paymentId) => {
+                            setPaypalCaptureId(paymentId || "");
                             setPaymentComplete(true);
                             toast.success("Paiement confirmé !");
                           }}
-                          onError={(err) => console.error("[PayPal]", err)}
-                          disabled={todayTotal <= 0}
                         />
                       )}
 
@@ -1949,22 +1948,9 @@ const GuestCheckout = () => {
                       )}
 
                       <div className="text-center text-xs text-muted-foreground mt-3">
-                        🔒 Paiement traité de façon sécurisée par PayPal · Vos informations bancaires ne sont jamais partagées
+                        🔒 Paiement traité de façon sécurisée par Square · Vos informations bancaires ne sont jamais partagées
                       </div>
                     </div>
-
-                    <Separator />
-
-                    {/* ── PayPal Pre-Authorized Auto-Billing Option (Step 1+2) ── */}
-                    {paymentMethod === "paypal" && monthlyTotalWithTax > AUTOPAY_DISCOUNT && (
-                      <AutoPayPalOption
-                        isFrench
-                        isEnabled={enableAutoBilling}
-                        onEnabledChange={setEnableAutoBilling}
-                        monthlyAmount={monthlyTotalWithTax}
-                        discountAmount={AUTOPAY_DISCOUNT}
-                      />
-                    )}
 
                     <Separator />
 

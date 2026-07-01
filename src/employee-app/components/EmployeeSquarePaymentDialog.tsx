@@ -121,7 +121,7 @@ export function EmployeeSquarePaymentDialog({
       const res = await fetch(`${BACKEND_URL}/functions/v1/square-charge-invoice`, {
         method: "POST",
         headers: { Authorization: `Bearer ${BACKEND_ANON_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ source_id: result.token, invoice_id: invoice.id }),
+        body: JSON.stringify({ source_id: result.token, invoice_id: invoice.id, customer_email: clientEmail }),
       });
       const data = await res.json();
       if (!data?.ok) { toast.error(data?.error || "Paiement refusé"); return; }

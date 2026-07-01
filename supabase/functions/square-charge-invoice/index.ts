@@ -27,7 +27,7 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    const { source_id, invoice_id, intent_id } = body;
+    const { source_id, invoice_id, intent_id, customer_email: bodyEmail } = body;
 
     if (!source_id) return json({ ok: false, error: "source_id requis" }, 400);
     if (!invoice_id && !intent_id) return json({ ok: false, error: "invoice_id ou intent_id requis" }, 400);
@@ -64,7 +64,7 @@ serve(async (req) => {
       amountCents = Math.round(balance * 100);
       invoiceNumber = inv.invoice_number || "";
       customerId = inv.customer_id;
-      customerEmail = (inv.customer as any)?.email || null;
+      customerEmail = (inv.customer as any)?.email || bodyEmail || null;
       customerName = `${(inv.customer as any)?.first_name || ""} ${(inv.customer as any)?.last_name || ""}`.trim();
       invoiceData = inv;
 
@@ -185,12 +185,17 @@ serve(async (req) => {
         return json({ ok: true, payment_id: paymentId, receipt_url: receiptUrl });
       }
 
-      // Queue confirmation email (non-blocking)
+      // Queue confirmation email (non-blocking) — PDF is optional; email goes out regardless
       if (customerEmail && !rpcResult?.already_processed) {
+        let pdf: any = null;
         try {
           const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
-          const pdf = await buildReceiptPdfAttachment(invoiceData.id, "recu-paiement");
+          pdf = await buildReceiptPdfAttachment(invoiceData.id, "recu-paiement");
+        } catch (pdfErr) {
+          console.warn("[square-charge-invoice] PDF generation skipped:", pdfErr);
+        }
 
+        try {
           await supabase.from("email_queue").insert({
             event_key: `square_payment_${paymentId}`,
             to_email: customerEmail,
@@ -211,9 +216,12 @@ serve(async (req) => {
             attempts: 0,
             max_attempts: 5,
           });
-        } catch (e) {
-          console.warn("[square-charge-invoice] Email queue failed (non-fatal):", e);
+          console.log("[square-charge-invoice] Email queued for:", customerEmail);
+        } catch (emailErr) {
+          console.warn("[square-charge-invoice] Email queue insert failed:", emailErr);
         }
+      } else {
+        console.warn("[square-charge-invoice] Email skipped — customerEmail:", customerEmail, "already_processed:", rpcResult?.already_processed);
       }
     }
 
