@@ -172,7 +172,7 @@ function drawPage1(doc: jsPDF, data: InvoiceDataV2 & { order_number?: string }) 
     ["DATE D'ÉMISSION", fmtDate(data.invoice_date)],
     ["DATE D'ÉCHÉANCE", fmtDate(data.due_date)],
     ["PÉRIODE", data.billing_period_start && data.billing_period_end
-      ? `${fmtDate(data.billing_period_start).replace(/ \d{4}$/, "")} → ${fmtDate(data.billing_period_end)}`
+      ? `${fmtDateShort(data.billing_period_start)} au ${fmtDateShort(data.billing_period_end)}`
       : (data as any).order_number ? `Cmde ${(data as any).order_number}` : "—"],
   ];
   metas.forEach(([label, value], i) => {
