@@ -46,6 +46,13 @@ const fmtDate = (d: string | undefined | null): string => {
   return `${dt.getDate()} ${dt.toLocaleString("fr-CA", { month: "long" })} ${dt.getFullYear()}`;
 };
 
+const fmtDateShort = (d: string | undefined | null): string => {
+  if (!d) return "—";
+  const m = String(d).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "—";
+  return `${m[3]}/${m[2]}/${m[1]}`;
+};
+
 const typeLabel = (cat: string): string => {
   const k = (cat || "").toLowerCase();
   if (["internet", "mobile", "tv", "security", "service", "recurring", "streaming"].includes(k)) return "Service";
