@@ -662,8 +662,11 @@ export async function buildReceiptPdfAttachment(
       computePdfHash(result.blob),
     ]);
     const num = payment?.payment_number || (invoice as any).invoice_number || invoiceId.slice(0, 8);
+    const safeName = clientName.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "Client";
+    const period = String((invoice as any).cycle_start_date || (invoice as any).created_at || "").slice(0, 7);
+    const periodPart = period ? `_${period}` : "";
     return {
-      filename: result.filename || `${filenamePrefix}_${num}_Nivra.pdf`,
+      filename: result.filename || `${filenamePrefix}_${safeName}_${num}${periodPart}.pdf`,
       content: base64,
       contentType: "application/pdf",
       hash_sha256,
