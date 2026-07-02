@@ -828,15 +828,15 @@ export function renderQueueTemplate(
       const interacEmail = esc(v.interac_email || "support@nivra-telecom.ca");
       const portalBilling = `${portalUrl}/billing`;
       return {
-        subject: `Action urgente — Votre service PayPal ne peut être débité`,
+        subject: `Action urgente — Votre paiement automatique ne peut être débité`,
         html: shell({
-          preheader: `3 tentatives PayPal ont échoué. Passez à Interac pour maintenir votre service.`,
+          preheader: `3 tentatives de paiement ont échoué. Passez à Interac pour maintenir votre service.`,
           badge: "ACTION URGENTE",
-          heroTitle: "Impossible de traiter votre paiement PayPal",
+          heroTitle: "Impossible de traiter votre paiement automatique",
           heroSub: "Après 3 tentatives sans succès, nous vous proposons une alternative.",
           icon: "alert",
           greeting,
-          bodyText: `Après <strong>3 tentatives infructueuses</strong>, votre paiement mensuel pour <strong>${planName}</strong>${amount ? ` (${amount})` : ""} n'a pas pu être traité via PayPal. Pour maintenir votre service actif, vous pouvez régler par <strong>virement Interac e-Transfer</strong>.`,
+          bodyText: `Après <strong>3 tentatives infructueuses</strong>, votre paiement mensuel pour <strong>${planName}</strong>${amount ? ` (${amount})` : ""} n'a pas pu être traité. Pour maintenir votre service actif, vous pouvez régler par <strong>virement Interac e-Transfer</strong>.`,
           cardTitle: "Payer par Interac maintenant",
           cardRows: [
             ["Envoyez à", interacEmail],
