@@ -5253,7 +5253,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
         ? "Interac e-Transfer"
         : methodRaw === "gift_card"
         ? (isEn ? "Visa/Mastercard gift card" : "Carte-cadeau Visa/Mastercard")
-        : "PayPal";
+        : "Virement électronique";
       return {
         subject: isEn ? `Your referral reward has been issued` : `Votre récompense de parrainage est émise`,
         html: shell({
