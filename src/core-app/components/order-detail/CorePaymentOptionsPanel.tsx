@@ -1,21 +1,20 @@
 /**
- * CorePaymentOptionsPanel — Trio d'options de paiement pour une commande
- * non encore payée, accessible depuis CoreOrderDetail.
+ * CorePaymentOptionsPanel — Options de paiement pour une commande non payée,
+ * accessible depuis CoreOrderDetail. 100% Square, aucun lien PayPal.
  *
- *   1. 📧 Envoyer lien de paiement par courriel (PayPal)
- *   2. 🔗 Générer un lien PayPal immédiat (ouvre nouvel onglet)
+ *   1. 📧 Envoyer lien de paiement (Square) par courriel
+ *   2. 🔗 Ouvrir la page de paiement Square (nouvel onglet)
  *   3. ✅ Confirmer paiement reçu manuellement
  *
  * Backend:
- *   - Edge function `core-paypal-order-link` pour OPTION 1 et 2
+ *   - email_queue (template `payment_link`) pour OPTION 1
+ *   - PayerCommande (/pay/:id) — utilise SquarePaymentForm côté client
  *   - RPC `admin_promote_order_to_confirmed` pour OPTION 3
- *   - Webhook `paypal-webhook` finalise automatiquement sur capture
  */
 import { useState } from "react";
-import { Loader2, Mail, ExternalLink, CheckCircle2, CreditCard, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Mail, ExternalLink, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { PayPalButton } from "@/components/payment/PayPalButton";
 
 interface Props {
   orderId: string;
@@ -37,9 +36,7 @@ export function CorePaymentOptionsPanel({
   onChanged,
 }: Props) {
   const [busy, setBusy] = useState<null | "email" | "direct" | "manual">(null);
-  const [showInline, setShowInline] = useState(false);
 
-  // Hide once already paid
   if (paymentStatus === "paid" || orderStatus === "cancelled") {
     return null;
   }
@@ -48,6 +45,8 @@ export function CorePaymentOptionsPanel({
     ? `${Number(totalAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
     : "—";
 
+  const paymentUrl = `${window.location.origin}/pay/${orderId}`;
+
   async function sendByEmail() {
     if (!clientEmail) {
       toast.error("Aucun courriel client sur cette commande.");
@@ -55,7 +54,6 @@ export function CorePaymentOptionsPanel({
     }
     setBusy("email");
     try {
-      // Queue payment reminder email through email_queue (no edge function needed)
       const { error } = await (supabase as any).from("email_queue").insert({
         template_key: "payment_link",
         to_email: clientEmail,
@@ -64,12 +62,12 @@ export function CorePaymentOptionsPanel({
         variables: {
           order_number: orderNumber,
           amount: totalAmount,
-          payment_url: `https://app.nivra-telecom.ca/pay/${orderId}`,
+          payment_url: paymentUrl,
         },
         priority: 1,
       });
       if (error) throw error;
-      toast.success(`Lien de paiement envoyé à ${clientEmail}`);
+      toast.success(`Lien de paiement Square envoyé à ${clientEmail}`);
       onChanged?.();
     } catch (e: any) {
       toast.error(e?.message || "Échec de l'envoi du lien");
@@ -78,18 +76,11 @@ export function CorePaymentOptionsPanel({
     }
   }
 
-  async function openDirect() {
+  function openDirect() {
     setBusy("direct");
     try {
-      // PayPal order creation requires the core-paypal-order-link function (déploiement Pro — 14 juin)
-      // For now, open PayPal.me as a workaround
-      const amountStr = totalAmount != null ? totalAmount.toFixed(2) : "";
-      const paypalMeUrl = `https://www.paypal.com/paypalme/nivratelecom/${amountStr}CAD`;
-      window.open(paypalMeUrl, "_blank", "noopener,noreferrer");
-      toast.info("Lien PayPal.me ouvert — création automatique disponible après mise à niveau Pro (14 juin)");
-      onChanged?.();
-    } catch (e: any) {
-      toast.error(e?.message || "Échec de la génération du lien");
+      window.open(paymentUrl, "_blank", "noopener,noreferrer");
+      toast.info("Page de paiement Square ouverte dans un nouvel onglet");
     } finally {
       setBusy(null);
     }
@@ -132,38 +123,24 @@ export function CorePaymentOptionsPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         <button
           onClick={sendByEmail}
           disabled={busy !== null || !clientEmail}
           className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#1565c0] hover:bg-[#1976d2] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
           title={!clientEmail ? "Courriel client manquant" : `Envoyer à ${clientEmail}`}
         >
-          {busy === "email"
-            ? <Loader2 className="h-4 w-4 animate-spin" />
-            : <Mail className="h-4 w-4" />}
-          📧 Envoyer lien de paiement
+          {busy === "email" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+          📧 Envoyer lien Square
         </button>
 
         <button
           onClick={openDirect}
           disabled={busy !== null}
-          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#0070ba] hover:bg-[#005ea6] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
+          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#7C3AED] hover:bg-[#6d28d9] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
         >
-          {busy === "direct"
-            ? <Loader2 className="h-4 w-4 animate-spin" />
-            : <ExternalLink className="h-4 w-4" />}
-          🔗 Lien PayPal immédiat
-        </button>
-
-        <button
-          onClick={() => setShowInline(!showInline)}
-          disabled={busy !== null}
-          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#6a1b9a] hover:bg-[#7b1fa2] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
-        >
-          <CreditCard className="h-4 w-4" />
-          💳 Payer en ligne — Carte / PayPal
-          {showInline ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
+          <ExternalLink className="h-4 w-4" />
+          🔗 Ouvrir la page de paiement
         </button>
 
         <button
@@ -171,36 +148,13 @@ export function CorePaymentOptionsPanel({
           disabled={busy !== null}
           className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#2e7d32] hover:bg-[#388e3c] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
         >
-          {busy === "manual"
-            ? <Loader2 className="h-4 w-4 animate-spin" />
-            : <CheckCircle2 className="h-4 w-4" />}
+          {busy === "manual" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
           ✅ Confirmer paiement reçu
         </button>
       </div>
 
-      {showInline && totalAmount != null && totalAmount > 0 && (
-        <div className="mt-3 rounded-lg border border-[#3a2060] bg-[#130f20] p-4">
-          <p className="text-[11px] text-[#b39ddb] mb-3 font-medium">
-            Paiement en ligne — le client entre sa carte directement ou paie via PayPal.
-          </p>
-          <PayPalButton
-            amount={totalAmount}
-            orderId={orderId}
-            description={`Commande ${orderNumber} — Nivra Telecom`}
-            customer={clientEmail ? { email: clientEmail } : undefined}
-            onSuccess={() => {
-              toast.success(`Paiement confirmé pour ${orderNumber}`);
-              setShowInline(false);
-              onChanged?.();
-            }}
-            onError={(e) => toast.error(`Paiement échoué: ${e}`)}
-          />
-        </div>
-      )}
-
       <p className="text-[10px] text-[#6b7a90] mt-2">
-        Options 1 et 2 : lien PayPal sécurisé (valide 48 h), confirmé automatiquement via webhook.
-        Option 3 : paiement immédiat par carte ou compte PayPal.
+        Le client paie par carte de crédit ou Interac via Square depuis la page de paiement. Confirmation manuelle réservée aux paiements hors ligne (comptant, virement).
       </p>
     </div>
   );
