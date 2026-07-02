@@ -768,10 +768,18 @@ const getTemplates = () => [
 
 // Handler
 const handler = async (req: Request): Promise<Response> => {
-  console.log("ðŸ“§ Send Email Previews - Request received");
-  
-  if (req.method === "OPTIONS") {
+  console.log(“Send Email Previews - Request received”);
+
+  if (req.method === “OPTIONS”) {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Auth check (verify_jwt=true enforces JWT at infra level; validate here as defense-in-depth)
+  const authHeader = req.headers.get(“Authorization”);
+  if (!authHeader) {
+    return new Response(JSON.stringify({ success: false, error: “Authentification requise” }), {
+      status: 401, headers: { “Content-Type”: “application/json”, ...corsHeaders },
+    });
   }
 
   try {

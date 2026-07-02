@@ -165,10 +165,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-email-previews]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-improve-message]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notify-client-update]
 verify_jwt = false
@@ -210,7 +210,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.contracts-backfill-missing]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-pdf-templates-email]
 verify_jwt = false
@@ -255,7 +255,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.audit-generate-pdfs]
-verify_jwt = false
+verify_jwt = true
 
 [functions.support-email-inbound]
 verify_jwt = false

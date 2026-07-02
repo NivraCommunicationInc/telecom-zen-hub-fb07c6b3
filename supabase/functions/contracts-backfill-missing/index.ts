@@ -28,30 +28,45 @@ Deno.serve(async (req) => {
   if (preflightResponse) return preflightResponse;
 
   try {
-    // Optional: Verify admin authorization if token provided
-    // But allow execution for cron jobs without auth
+    // Auth: require either a valid JWT (admin/employee) or the service role key (cron jobs)
     const authHeader = req.headers.get("Authorization");
-    let isAdminRequest = false;
-    
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data: { user } } = await db.auth.getUser(token);
-      
-      if (user) {
-        const { data: roleRows } = await db
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("status", "active");
-        isAdminRequest = (roleRows || []).some((r: any) =>
-          ["admin", "supervisor", "employee"].includes(r.role)
-        );
-        console.log("[ContractsBackfill] Admin request from:", user.email);
-      }
+    if (!authHeader) {
+      return new Response(JSON.stringify({ success: false, error: "Authentification requise" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Allow both admin requests and cron/system requests (no auth = cron job)
-    console.log("[ContractsBackfill] Starting backfill (admin:", isAdminRequest, ")");
+    const token = authHeader.replace("Bearer ", "");
+    let isAdminRequest = false;
+
+    // Service role key bypass (for cron jobs)
+    const isServiceRole = token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!isServiceRole) {
+      const { data: { user } } = await db.auth.getUser(token);
+      if (!user) {
+        return new Response(JSON.stringify({ success: false, error: "Session invalide" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: roleRows } = await db
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("status", "active");
+      isAdminRequest = (roleRows || []).some((r: any) =>
+        ["admin", "supervisor", "employee"].includes(r.role)
+      );
+      if (!isAdminRequest) {
+        return new Response(JSON.stringify({ success: false, error: "Accès refusé — rôle insuffisant" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log("[ContractsBackfill] Admin request from:", user.email);
+    } else {
+      isAdminRequest = false; // cron via service role
+    }
+
+    console.log("[ContractsBackfill] Starting backfill (admin:", isAdminRequest, "service_role:", isServiceRole, ")");
 
     const result: BackfillResult = {
       created: 0,
