@@ -201,7 +201,7 @@ serve(async (req) => {
         ]);
 
         // Alert for ops investigation (RPC failed but fallback ran)
-        supabase.from("billing_system_alerts").insert({
+        void supabase.from("billing_system_alerts").insert({
           alert_type: "square_charge_rpc_fallback",
           entity_type: "billing_invoice",
           entity_id: invoiceData.id,
@@ -213,12 +213,16 @@ serve(async (req) => {
             fallback_invoice_error: invUp.error?.message ?? null,
             fallback_payment_error: payIns.error?.message ?? null,
           },
-        }).catch(() => {});
+        }).then(undefined, () => {});
 
         if (invUp.error || payIns.error) {
           console.error("[square-charge-invoice] Fallback also failed:", invUp.error?.message, payIns.error?.message);
-          // Money was taken — return ok:true so client knows charge succeeded; ops alert handles recovery
-          return json({ ok: true, payment_id: paymentId, receipt_url: receiptUrl });
+          return json({
+            ok: false,
+            error: "Paiement débité mais mise à jour de la base de données échouée. Conservez ce numéro de confirmation Square.",
+            square_payment_id: paymentId,
+            receipt_url: receiptUrl,
+          });
         }
 
         console.log("[square-charge-invoice] Fallback direct update succeeded for invoice:", invoiceData.id);
@@ -264,6 +268,47 @@ serve(async (req) => {
       } else {
         console.warn("[square-charge-invoice] Email skipped — customerEmail:", customerEmail, "already_processed:", alreadyProcessed);
       }
+
+      // Auto-note: payment received (Correction 4)
+      if (customerId && !alreadyProcessed) {
+        try {
+          await supabase.from("client_internal_notes").insert({
+            client_id: customerId,
+            note_type: "payment",
+            body: `Paiement Square reçu: ${amountPaid.toFixed(2)} CAD | Facture: ${invoiceNumber} | Square #${paymentId}`,
+            created_by_user_id: "00000000-0000-0000-0000-000000000000",
+            created_by_role: "system",
+            created_by_name: "Système",
+          });
+        } catch (noteErr) {
+          console.warn("[square-charge-invoice] Auto-note insert failed:", noteErr);
+        }
+      }
+    }
+
+    // Email for intent_id-only flow (no invoiceData) — Correction 2
+    if (!invoiceData && customerEmail && intent_id) {
+      try {
+        await supabase.from("email_queue").insert({
+          event_key: `square_payment_${paymentId}`,
+          to_email: customerEmail,
+          template_key: "payment_receipt",
+          template_vars: {
+            client_name: customerName || "Client",
+            amount: amountPaid.toFixed(2),
+            amount_paid_today: amountPaid.toFixed(2),
+            invoice_number: invoiceNumber || `CMD-${intent_id.slice(0, 8).toUpperCase()}`,
+            payment_method: "Carte de crédit (Square)",
+            reference: paymentId,
+          },
+          attachments: null,
+          status: "queued",
+          attempts: 0,
+          max_attempts: 5,
+        });
+      } catch (emailErr) {
+        console.warn("[square-charge-invoice] Intent email queue insert failed:", emailErr);
+      }
     }
 
     // ── Field intent: mark completed ─────────────────────────────────────
@@ -274,7 +319,7 @@ serve(async (req) => {
         .eq("id", intent_id);
     }
 
-    return json({ ok: true, payment_id: paymentId, receipt_url: receiptUrl });
+    return json({ ok: true, payment_id: paymentId, square_payment_id: paymentId, receipt_url: receiptUrl });
   } catch (err: any) {
     console.error("[square-charge-invoice] Fatal:", err);
     return json({ ok: false, error: err?.message || String(err) }, 500);

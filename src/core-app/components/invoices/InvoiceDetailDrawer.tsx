@@ -10,6 +10,7 @@ import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBad
 import { INVOICE_STATUSES, INVOICE_TYPES, fmtCAD } from "./InvoiceConstants";
 import type { AdminInvoice } from "@/core-app/hooks/useAdminInvoices";
 import { supabase } from "@/integrations/supabase/client";
+import { CoreSquarePaymentDialog } from "@/core-app/components/account-360/CoreSquarePaymentDialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -65,6 +66,7 @@ function BreakdownRow({ label, value, bold, negative }: { label: string; value: 
 export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
   const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [squareOpen, setSquareOpen] = useState(false);
 
   if (!invoice) return null;
   const inv = invoice;
@@ -309,6 +311,9 @@ export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
               {hasBalance && !isVoid && (
                 <ActionBtn icon={CreditCard} label="Enregistrer paiement" color="emerald" onClick={handleMarkPaid} loading={actionLoading === "markPaid"} />
               )}
+              {hasBalance && !isVoid && (
+                <ActionBtn icon={CreditCard} label="Charger par carte" color="violet" onClick={() => setSquareOpen(true)} />
+              )}
               {!isPaid && !isVoid && (
                 <>
                   <ActionBtn icon={Send} label="Renvoyer facture" color="sky" onClick={handleSendInvoice} loading={actionLoading === "send"} />
@@ -332,6 +337,16 @@ export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
           </div>
         </div>
       </div>
+
+      <CoreSquarePaymentDialog
+        open={squareOpen}
+        onOpenChange={setSquareOpen}
+        unpaidInvoices={hasBalance && !isVoid ? [{ id: inv.id, invoice_number: inv.invoice_number, balance_due: inv.balance_due, total: inv.total }] : []}
+        accountId={inv.customer_id}
+        customerName={inv.customer_name}
+        customerEmail={inv.customer_email}
+        onSuccess={() => { refreshAll(); setSquareOpen(false); onClose(); }}
+      />
     </div>
   );
 }
