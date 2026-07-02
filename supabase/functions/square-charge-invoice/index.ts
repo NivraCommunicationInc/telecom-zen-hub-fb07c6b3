@@ -9,12 +9,129 @@ const corsHeaders = {
 const SQUARE_API = "https://connect.squareup.com/v2/payments";
 const SQUARE_VERSION = "2024-06-04";
 
+type JsonResponse = (body: object, status?: number) => Response;
+
+async function applySquarePaymentDirectly(params: {
+  supabase: ReturnType<typeof createClient>;
+  invoiceData: any;
+  customerId: string | null;
+  amountPaid: number;
+  paymentId: string;
+  receiptUrl: string | null;
+}) {
+  const { supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl } = params;
+  const now = new Date().toISOString();
+
+  const { data: existingPayment, error: existingErr } = await supabase
+    .from("billing_payments")
+    .select("id, amount, status, provider_payment_id, square_payment_id")
+    .or(`provider_payment_id.eq.${paymentId},square_payment_id.eq.${paymentId}`)
+    .maybeSingle();
+
+  if (existingErr) {
+    throw new Error(`Vérification paiement existant échouée: ${existingErr.message}`);
+  }
+
+  let paymentRowId = existingPayment?.id ?? null;
+  let alreadyProcessed = !!existingPayment;
+
+  if (!existingPayment) {
+    const { data: insertedPayment, error: paymentErr } = await supabase
+      .from("billing_payments")
+      .insert({
+        invoice_id: invoiceData.id,
+        customer_id: customerId || invoiceData.customer_id,
+        method: "card",
+        amount: amountPaid,
+        status: "confirmed",
+        provider: "square",
+        provider_payment_id: paymentId,
+        square_payment_id: paymentId,
+        square_receipt_url: receiptUrl,
+        source: "portal",
+        created_by_name: "Square Payment",
+        created_by_role: "system",
+        received_at: now,
+      })
+      .select("id")
+      .single();
+
+    if (paymentErr || !insertedPayment?.id) {
+      throw new Error(`Insertion paiement échouée: ${paymentErr?.message || "aucune ligne créée"}`);
+    }
+    paymentRowId = insertedPayment.id;
+  }
+
+  const { data: totals, error: totalErr } = await supabase
+    .from("billing_payments")
+    .select("amount")
+    .eq("invoice_id", invoiceData.id)
+    .eq("status", "confirmed");
+
+  if (totalErr) throw new Error(`Lecture total paiements échouée: ${totalErr.message}`);
+
+  const confirmedPaid = (totals || []).reduce((sum: number, row: any) => sum + (Number(row.amount) || 0), 0);
+  const invoiceTotal = Number(invoiceData.total) || 0;
+  const newAmountPaid = Math.round(confirmedPaid * 100) / 100;
+  const newBalanceDue = Math.max(0, Math.round((invoiceTotal - newAmountPaid) * 100) / 100);
+  const newStatus = newBalanceDue <= 0 ? "paid" : newAmountPaid > 0 ? "partially_paid" : invoiceData.status;
+
+  const { data: updatedInvoice, error: updateErr } = await supabase
+    .from("billing_invoices")
+    .update({
+      amount_paid: newAmountPaid,
+      balance_due: newBalanceDue,
+      status: newStatus,
+      paid_at: newStatus === "paid" ? now : invoiceData.paid_at || null,
+      payment_method: "card",
+      billing_snapshot_payment: newStatus === "paid"
+        ? {
+            method: "card",
+            provider: "square",
+            provider_payment_id: paymentId,
+            square_payment_id: paymentId,
+            paid_at: now,
+            amount: amountPaid,
+          }
+        : invoiceData.billing_snapshot_payment || null,
+    })
+    .eq("id", invoiceData.id)
+    .select("id, status, amount_paid, balance_due, paid_at")
+    .single();
+
+  if (updateErr || !updatedInvoice?.id) {
+    throw new Error(`Mise à jour facture échouée: ${updateErr?.message || "aucune ligne mise à jour"}`);
+  }
+
+  const verifiedAmountPaid = Number(updatedInvoice.amount_paid) || 0;
+  const verifiedBalanceDue = Number(updatedInvoice.balance_due) || 0;
+  const expectedPaid = newStatus === "paid";
+  const invoiceMatches =
+    Math.abs(verifiedAmountPaid - newAmountPaid) < 0.01 &&
+    Math.abs(verifiedBalanceDue - newBalanceDue) < 0.01 &&
+    (!expectedPaid || updatedInvoice.status === "paid");
+
+  if (!invoiceMatches) {
+    throw new Error(
+      `Vérification facture échouée: status=${updatedInvoice.status}, amount_paid=${updatedInvoice.amount_paid}, balance_due=${updatedInvoice.balance_due}`,
+    );
+  }
+
+  return {
+    alreadyProcessed,
+    paymentRowId,
+    amountPaid: newAmountPaid,
+    balanceDue: newBalanceDue,
+    invoiceStatus: updatedInvoice.status,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const json = (body: object, status = 200) =>
+  const json: JsonResponse = (body: object, status = 200) =>
     new Response(JSON.stringify(body), {
       status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -49,7 +166,7 @@ serve(async (req) => {
       const { data: inv, error: invErr } = await supabase
         .from("billing_invoices")
         .select(
-          "id, invoice_number, balance_due, total, customer_id, order_id, " +
+          "id, invoice_number, balance_due, total, customer_id, order_id, status, paid_at, billing_snapshot_payment, " +
           "customer:billing_customers(email, first_name, last_name)",
         )
         .eq("id", invoice_id)
@@ -88,7 +205,7 @@ serve(async (req) => {
         const { data: inv } = await supabase
           .from("billing_invoices")
           .select(
-            "id, invoice_number, balance_due, total, customer_id, order_id, " +
+            "id, invoice_number, balance_due, total, customer_id, order_id, status, paid_at, billing_snapshot_payment, " +
             "customer:billing_customers(email, first_name, last_name)",
           )
           .eq("id", intent.converted_invoice_id)
@@ -165,82 +282,40 @@ serve(async (req) => {
 
     console.log("[square-charge-invoice] Charged:", paymentId, "CAD", amountPaid);
 
-    // ── Apply to invoice via RPC ─────────────────────────────────────────
+    // ── Apply to invoice directly, no RPC ─────────────────────────────────
     if (invoiceData) {
-      const { data: rpcResult, error: rpcError } = await supabase.rpc(
-        "apply_payment_to_invoice",
-        {
-          p_invoice_id: invoiceData.id,
-          p_amount: amountPaid,
-          p_method: "square",
-          p_provider: "square",
-          p_provider_payment_id: paymentId,
-          p_provider_order_id: paymentId,
-          p_source: "portal",
-          p_created_by_name: "Square Payment",
-          p_created_by_role: "system",
-          p_customer_id: customerId,
-        },
-      );
-
-      let alreadyProcessed = false;
-
-      if (rpcError) {
-        console.error("[square-charge-invoice] RPC apply_payment_to_invoice failed:", rpcError.message);
-
-        // Fallback: direct DB update — ensures invoice is marked paid regardless of RPC availability
-        const now = new Date().toISOString();
-        const [invUp, payIns] = await Promise.all([
-          supabase
-            .from("billing_invoices")
-            .update({ status: "paid", balance_due: 0, paid_at: now })
-            .eq("id", invoiceData.id),
-          supabase.from("billing_payments").insert({
-            invoice_id: invoiceData.id,
-            customer_id: customerId,
-            method: "square",
-            amount: amountPaid,
-            status: "confirmed",
-            provider: "square",
-            provider_payment_id: paymentId,
-            square_payment_id: paymentId,
-            square_receipt_url: receiptUrl,
-            source: "portal",
-            created_by_name: "Square Payment",
-            created_by_role: "system",
-            received_at: now,
-          }),
-        ]);
-
-        // Alert for ops investigation (RPC failed but fallback ran)
+      let applied;
+      try {
+        applied = await applySquarePaymentDirectly({ supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl });
+      } catch (dbErr: any) {
+        console.error("[square-charge-invoice] Direct DB payment application failed:", dbErr?.message || dbErr);
         void supabase.from("billing_system_alerts").insert({
-          alert_type: "square_charge_rpc_fallback",
+          alert_type: "square_charge_db_update_failed",
           entity_type: "billing_invoice",
           entity_id: invoiceData.id,
           entity_reference: paymentId,
           details: {
-            rpc_error: rpcError.message,
+            error: dbErr?.message || String(dbErr),
             payment_id: paymentId,
             amount: amountPaid,
-            fallback_invoice_error: invUp.error?.message ?? null,
-            fallback_payment_error: payIns.error?.message ?? null,
           },
         }).then(undefined, () => {});
 
-        if (invUp.error || payIns.error) {
-          console.error("[square-charge-invoice] Fallback also failed:", invUp.error?.message, payIns.error?.message);
-          return json({
-            ok: false,
-            error: "Paiement débité mais mise à jour de la base de données échouée. Conservez ce numéro de confirmation Square.",
-            square_payment_id: paymentId,
-            receipt_url: receiptUrl,
-          });
-        }
-
-        console.log("[square-charge-invoice] Fallback direct update succeeded for invoice:", invoiceData.id);
-      } else {
-        alreadyProcessed = rpcResult?.already_processed ?? false;
+        return json({
+          ok: false,
+          error: "Paiement débité mais mise à jour de la base de données échouée. Conservez ce numéro de confirmation Square.",
+          square_payment_id: paymentId,
+          receipt_url: receiptUrl,
+        }, 500);
       }
+
+      const alreadyProcessed = applied.alreadyProcessed;
+      console.log("[square-charge-invoice] Direct DB update verified:", {
+        invoice_id: invoiceData.id,
+        payment_row_id: applied.paymentRowId,
+        invoice_status: applied.invoiceStatus,
+        balance_due: applied.balanceDue,
+      });
 
       // Queue confirmation email (non-blocking) — PDF is optional; email goes out regardless
       if (customerEmail && !alreadyProcessed) {
