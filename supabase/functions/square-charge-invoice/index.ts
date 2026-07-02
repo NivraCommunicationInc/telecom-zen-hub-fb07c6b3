@@ -291,7 +291,7 @@ serve(async (req) => {
     if (invoiceData) {
       let applied;
       try {
-        applied = await applySquarePaymentDirectly({ supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl });
+        applied = await applySquarePaymentDirectly({ supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl, source: paymentSource, payerIp: paymentSource === "public_pay" ? payerIp : null });
       } catch (dbErr: any) {
         console.error("[square-charge-invoice] Direct DB payment application failed:", dbErr?.message || dbErr);
         void supabase.from("billing_system_alerts").insert({
