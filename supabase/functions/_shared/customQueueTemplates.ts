@@ -7441,7 +7441,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           greeting,
           bodyText:
             "Ceci est un avis amical de 3 jours avant votre prélèvement automatique mensuel. " +
-            "Aucune action n'est requise — le débit se fera tout seul via PayPal. " +
+            "Aucune action n'est requise — le débit se fera automatiquement. " +
             "Si vous voulez modifier votre méthode de paiement ou annuler le prélèvement automatique, " +
             "vous pouvez le faire dans votre portail client avant la date.",
           cardTitle: `Détails — Facture ${invoiceNumber}`,
