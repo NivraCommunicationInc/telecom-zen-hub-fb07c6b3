@@ -1993,17 +1993,19 @@ const GuestCheckout = () => {
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
-                    className="flex-1 h-14 text-base font-bold rounded-xl"
+                    className="flex-1 h-14 text-base font-bold rounded-xl text-white"
                     disabled={!isPaymentDone || !isLegalComplete || isSubmitting}
                     onClick={handleSubmit}
-                    style={(!isPaymentDone || !isLegalComplete || isSubmitting) ? {} : { background: '#00A651', boxShadow: '0 4px 24px rgba(16,185,129,0.35)' }}
+                    style={(!isPaymentDone || !isLegalComplete || isSubmitting) ? {} : { background: '#0066CC', boxShadow: '0 4px 20px rgba(0,102,204,0.30)' }}
+                    onMouseEnter={(e) => { if (isPaymentDone && isLegalComplete && !isSubmitting) e.currentTarget.style.background = '#0052A3'; }}
+                    onMouseLeave={(e) => { if (isPaymentDone && isLegalComplete && !isSubmitting) e.currentTarget.style.background = '#0066CC'; }}
                   >
                     {isSubmitting ? (
                       <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Traitement en cours...</>
                     ) : enableAutoBilling ? (
-                      <><CheckCircle2 className="w-5 h-5 mr-2" /> Activer le paiement automatique</>
+                      <><Lock className="w-5 h-5 mr-2" /> Activer le paiement automatique</>
                     ) : (
-                      <><CheckCircle2 className="w-5 h-5 mr-2" /> Confirmer la commande</>
+                      <><Lock className="w-5 h-5 mr-2" /> Confirmer et payer {fmt(todayTotal)}</>
                     )}
                   </Button>
                 </div>
