@@ -1,36 +1,25 @@
 /**
- * PaymentMethodPicker — Headless, presentational picker for the 3
- * canonical Nivra payment methods, mirroring Field's Step 5 sale flow
- * (src/field-app/components/sale/StepPaymentPaypal.tsx).
+ * PaymentMethodPicker — Presentational picker for the 3 canonical Nivra
+ * payment methods (all Square-processed). Mirrors Field's Step 5 sale flow.
  *
- * Identifiers MUST stay in sync with FieldPaymentMethod
- * (src/field-app/lib/fieldSaleTypes.ts) so the same backend / edge
- * functions handle both Field and any portal that consumes this picker
- * (OneView CS, Core manual order, etc.).
+ * All three flows are processed by Square:
+ *   - square_onsite  → client pays on the agent's device (inline widget)
+ *   - square_email   → payment link sent by email (PayerCommande / Square)
+ *   - card_manual    → secured intake, processed by a Nivra Core administrator
  *
- * This component is intentionally presentation-only:
- *   - No data fetching
- *   - No edge function calls
- *   - No mutation of order / invoice / intent state
- * The parent owns all side effects (link generation, card capture,
- * email send, polling). This keeps Field's existing flow untouched
- * while giving Core / OneView a consistent UI primitive.
+ * Parent owns all side effects (link generation, card capture, email send,
+ * polling). No PayPal.
  */
 import { CreditCard, Mail, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type SharedPaymentMethod = "paypal_onsite" | "paypal_email" | "card_manual";
+export type SharedPaymentMethod = "square_onsite" | "square_email" | "card_manual";
 
 export interface PaymentMethodPickerProps {
-  /** Currently selected method (controlled). */
   value: SharedPaymentMethod | null;
-  /** Called when the user picks a method. */
   onChange: (method: SharedPaymentMethod) => void;
-  /** Recipient email shown in the "Envoyer par courriel" description. */
   recipientEmail?: string | null;
-  /** Disables every option (e.g. while submitting). */
   disabled?: boolean;
-  /** Optional className for the outer grid. */
   className?: string;
 }
 
@@ -43,23 +32,23 @@ interface OptionDef {
 
 const OPTIONS: OptionDef[] = [
   {
-    id: "paypal_onsite",
+    id: "square_onsite",
     icon: CreditCard,
     title: "Payer sur place",
-    desc: () => "Génère un lien + QR. Le client paie sur votre appareil.",
+    desc: () => "Génère un lien + QR. Le client paie sur votre appareil (Square).",
   },
   {
-    id: "paypal_email",
+    id: "square_email",
     icon: Mail,
     title: "Envoyer par courriel",
-    desc: (email) => `Envoie un lien PayPal à ${email || "—"}`,
+    desc: (email) => `Envoie un lien de paiement Square à ${email || "—"}`,
   },
   {
     id: "card_manual",
     icon: Lock,
     title: "Prise en charge manuelle — Carte de crédit",
     desc: () =>
-      "Saisie sécurisée. Traitement par un administrateur Nivra Core.",
+      "Saisie sécurisée. Traitement par un administrateur Nivra Core (Square).",
   },
 ];
 
@@ -75,7 +64,7 @@ export function PaymentMethodPicker({
       {OPTIONS.map((opt) => {
         const Icon = opt.icon;
         const selected = value === opt.id;
-        const emailMissing = opt.id === "paypal_email" && !recipientEmail;
+        const emailMissing = opt.id === "square_email" && !recipientEmail;
         const itemDisabled = disabled || emailMissing;
         return (
           <button

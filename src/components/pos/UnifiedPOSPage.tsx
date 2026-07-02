@@ -1,7 +1,7 @@
 /**
  * UnifiedPOSPage - Unified Point of Sale interface for all portals
  * Used by: Admin, Employee, Technician
- * Admin portal gets enhanced features (client search, PIN, PayPal)
+ * Admin portal gets enhanced features (client search, PIN, inline Square card charge)
  */
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -232,15 +232,6 @@ export default function UnifiedPOSPage({
   const handleConfirmOrder = async () => {
     if (!customerData || !paymentData || pos.isEmpty) return;
 
-    const isCardPayment = paymentData.payment_method === "card";
-
-    // ── CARD PAYMENT: DISABLED — use PayPal or Interac ──
-    if (isCardPayment) {
-      toast.error("Les paiements par carte directe ne sont pas disponibles. Utilisez PayPal (recommandé) ou Interac.");
-      return;
-    }
-
-    // ── NON-CARD PAYMENT: Original flow ──
     setIsSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -289,7 +280,7 @@ export default function UnifiedPOSPage({
       const payload = pos.getOrderPayload();
       const paymentMethod = paymentData.payment_method;
       const paymentReference = 'payment_reference' in paymentData ? paymentData.payment_reference : undefined;
-      const paypalTransactionId = 'paypal_transaction_id' in paymentData ? paymentData.paypal_transaction_id : undefined;
+      const squarePaymentId = 'square_payment_id' in paymentData ? (paymentData as AdminPaymentData).square_payment_id : undefined;
 
       const { data: newOrder, error } = await supabase
         .from("orders")
@@ -317,17 +308,14 @@ export default function UnifiedPOSPage({
               accept_sms_notifications: (customerData as AdminCustomerData).accept_sms_notifications,
               pin: (customerData as AdminCustomerData).pin || null,
             }),
-            ...(paypalTransactionId && {
-              paypal_transaction_id: paypalTransactionId,
-              paypal_payer_email: (paymentData as AdminPaymentData).paypal_payer_email,
-            }),
+            ...(squarePaymentId && { square_payment_id: squarePaymentId }),
           })),
           subtotal: payload.totals.monthly_subtotal + payload.totals.equipment_total + payload.totals.adjustments_total,
           tps_amount: payload.totals.tps,
           tvq_amount: payload.totals.tvq,
           total_amount: payload.totals.first_month_total,
-          payment_status: paymentMethod === "deferred" ? "pending" : "confirmed",
-          payment_reference: paypalTransactionId || paymentReference || null,
+          payment_status: paymentMethod === "deferred" ? "pending" : (squarePaymentId ? "paid" : "confirmed"),
+          payment_reference: squarePaymentId || paymentReference || null,
           internal_notes: `[POS ${portalType.toUpperCase()}] ${paymentData.notes || ""}`,
           status: "pending",
         }])
@@ -648,29 +636,19 @@ export default function UnifiedPOSPage({
                   </div>
                 )}
 
-                {/* Card payment — redirect to PayPal */}
-                {paymentData.payment_method === "card" && (
-                  <div className="p-4 rounded-xl bg-primary/10 border border-primary/30">
-                    <p className="text-primary text-sm flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      Pour payer par carte, sélectionnez PayPal (recommandé) — vous pouvez payer par carte directement via PayPal.
-                    </p>
-                  </div>
-                )}
-                {paymentData.payment_method !== "card" && (
-                  <Button
-                    onClick={handleConfirmOrder}
-                    disabled={isSubmitting}
-                    className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-lg shadow-lg"
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    ) : (
-                      <Check className="h-5 w-5 mr-2" />
-                    )}
-                    Confirmer et enregistrer
-                  </Button>
-                )}
+                {/* Confirmation — bouton simple, le paiement Square (si applicable) a déjà été pris à l'étape précédente */}
+                <Button
+                  onClick={handleConfirmOrder}
+                  disabled={isSubmitting}
+                  className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-lg shadow-lg"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  ) : (
+                    <Check className="h-5 w-5 mr-2" />
+                  )}
+                  Confirmer et enregistrer
+                </Button>
               </div>
             </div>
           )}

@@ -175,7 +175,7 @@ function PendingFieldPaymentConsole({ intentId }: { intentId: string }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <InfoTile icon={<User className="h-4 w-4" />} label="Client" value={clientName} sub={clientEmail} />
               <InfoTile icon={<Mail className="h-4 w-4" />} label="Agent" value={quote?.agent_name || pending.data.agent?.full_name || "—"} sub={pending.data.agent?.email || ""} />
-              <InfoTile icon={<CreditCard className="h-4 w-4" />} label="Paiement" value={intent.payment_method || "PayPal"} sub={intent.paypal_order_id || "En attente"} />
+              <InfoTile icon={<CreditCard className="h-4 w-4" />} label="Paiement" value={intent.payment_method === "square" ? "Square (carte)" : (intent.payment_method || "Square")} sub={intent.paypal_order_id || "En attente"} />
             </div>
 
             <DetailSection title="Services">
@@ -191,11 +191,7 @@ function PendingFieldPaymentConsole({ intentId }: { intentId: string }) {
             <a href={paymentUrl} target="_blank" rel="noreferrer" className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#7C3AED] hover:bg-[#6d28d9] px-4 py-2.5 text-xs font-bold text-white transition-colors">
               <ExternalLink className="h-4 w-4" /> Ouvrir lien client
             </a>
-            {intent.paypal_approval_url && (
-              <a href={intent.paypal_approval_url} target="_blank" rel="noreferrer" className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-[#7C3AED]/50 bg-[#7C3AED]/10 hover:bg-[#7C3AED]/20 px-4 py-2.5 text-xs font-bold text-[#c4b5fd] transition-colors">
-                <ExternalLink className="h-4 w-4" /> Ouvrir PayPal
-              </a>
-            )}
+            {/* Lien processeur externe supprimé — le client paie via SquarePaymentForm sur /payer/:id */}
             <button onClick={() => pending.refetch()} className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-[#263247] bg-[#101827] hover:bg-[#162036] px-4 py-2.5 text-xs font-bold text-[#c0c9d8] transition-colors">
               <RefreshCw className="h-4 w-4" /> Vérifier statut
             </button>
@@ -298,7 +294,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
         <CoreCardManualPanel orderId={order.id} orderReference={null} />
       )}
 
-      {/* Payment options — link by email / direct PayPal / manual confirm */}
+      {/* Payment options — Square email link / Square page / manual confirm */}
       <CorePaymentOptionsPanel
         orderId={order.id}
         orderNumber={orderNumber}

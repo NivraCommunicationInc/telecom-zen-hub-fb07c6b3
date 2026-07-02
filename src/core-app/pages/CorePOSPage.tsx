@@ -73,11 +73,11 @@ interface NewClientForm {
   internal_notes: string;
 }
 
-type PaymentMethod = "paypal" | "interac" | "cash" | "card" | "debit" | "bank_transfer" | "deferred";
+type PaymentMethod = "square" | "interac" | "cash" | "card" | "debit" | "bank_transfer" | "deferred";
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ElementType; disabled?: boolean }[] = [
-  { value: "card", label: "Carte de crédit", icon: CreditCard },
-  { value: "paypal", label: "PayPal", icon: CreditCard },
+  { value: "card", label: "Carte de crédit (Square)", icon: CreditCard },
+  { value: "square", label: "Square — lien de paiement", icon: CreditCard },
   { value: "interac", label: "Interac e-Transfer", icon: Banknote },
   { value: "cash", label: "Argent comptant", icon: Banknote },
   { value: "debit", label: "Débit", icon: CreditCard },
@@ -105,7 +105,7 @@ function genId() {
 
 function mapPaymentMethodForDB(method: PaymentMethod): string {
   if (method === "interac") return "interac";
-  if (method === "paypal") return "paypal";
+  if (method === "square") return "square";
   if (method === "card") return "card";
   return "manual";
 }
