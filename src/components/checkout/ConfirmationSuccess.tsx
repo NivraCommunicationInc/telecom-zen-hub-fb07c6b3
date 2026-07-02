@@ -95,31 +95,30 @@ export const ConfirmationSuccess = ({
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       {/* Success Header */}
-      <Card className="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-primary/5 border-emerald-500/30 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-radial from-emerald-500/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <CardContent className="py-10 relative">
+      <Card className="bg-white border-[#00A651]/30 overflow-hidden shadow-sm">
+        <CardContent className="py-10">
           <div className="text-center space-y-4">
-            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
-              <CheckCircle2 className="w-10 h-10 text-white" />
+            <div className="w-20 h-20 bg-[#00A651] rounded-full flex items-center justify-center mx-auto shadow-lg shadow-[#00A651]/30 animate-scale-in">
+              <CheckCircle2 className="w-10 h-10 text-white" strokeWidth={2.5} />
             </div>
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                {isFrench ? "Commande confirmée!" : "Order Confirmed!"}
+              <h2 className="text-2xl md:text-3xl font-bold text-[#1A1A2E] mb-2">
+                {isFrench ? "Commande confirmée !" : "Order Confirmed!"}
               </h2>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                {isFrench 
+              <p className="text-[#6B7280] max-w-md mx-auto">
+                {isFrench
                   ? "Merci pour votre confiance. Votre commande a été reçue et est en cours de traitement."
                   : "Thank you for your trust. Your order has been received and is being processed."}
               </p>
             </div>
             <div className="flex flex-col items-center gap-2 pt-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs uppercase tracking-wide font-semibold text-[#6B7280]">
                 {isFrench ? "Numéro de référence" : "Reference number"}
               </p>
-              <Badge className="bg-foreground text-background text-lg px-6 py-2 font-mono">
-                {orderNumber}
-              </Badge>
-              <Badge variant="outline" className="mt-2 text-emerald-600 border-emerald-500/30">
+              <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#0066CC]/10 border border-[#0066CC]/20">
+                <span className="text-lg font-mono font-bold text-[#0066CC]">{orderNumber}</span>
+              </div>
+              <Badge className="mt-2 bg-[#00A651]/15 text-[#00A651] border-[#00A651]/30 hover:bg-[#00A651]/15">
                 {isFrench ? "En traitement" : "Processing"}
               </Badge>
             </div>

@@ -65,24 +65,25 @@ export const OrderSummaryCard = ({
   }, 0);
 
   return (
-    <div className={cn("bg-white border border-slate-200 rounded-lg", className)}>
-      {/* Header - Rogers style */}
+    <div className={cn("bg-white border border-[#E5E7EB] rounded-xl shadow-sm", className)}>
+      {/* Header */}
       <button
-        className="w-full flex items-center justify-between px-6 py-4 text-left"
+        className="w-full flex items-center justify-between px-5 sm:px-6 py-4 text-left border-b border-[#E5E7EB]"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">
-          <ShoppingCart className="w-5 h-5 text-slate-700" />
-          <h3 className="text-lg font-bold text-slate-900">
+          <ShoppingCart className="w-5 h-5 text-[#0066CC]" />
+          <h3 className="text-base sm:text-lg font-semibold text-[#1A1A2E]">
             {isFrench ? "Sommaire du panier" : "Cart summary"}
           </h3>
         </div>
         {expanded ? (
-          <ChevronUp className="w-5 h-5 text-slate-500" />
+          <ChevronUp className="w-5 h-5 text-[#6B7280]" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-slate-500" />
+          <ChevronDown className="w-5 h-5 text-[#6B7280]" />
         )}
       </button>
+
 
       {expanded && (
         <div className="px-6 pb-6">
@@ -128,19 +129,19 @@ export const OrderSummaryCard = ({
                 <span className="text-slate-700">{(tvqAmount || 0).toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
               </div>
 
-              {/* Monthly total after taxes - Rogers big number style */}
-              <div className="flex justify-between items-baseline mt-4">
-                <span className="text-sm font-bold text-slate-900">
+              {/* Monthly total after taxes */}
+              <div className="flex justify-between items-baseline mt-4 pt-3 border-t border-[#E5E7EB]">
+                <span className="text-sm font-semibold text-[#1A1A2E]">
                   {isFrench ? "Frais mensuels totaux après taxes" : "Total monthly after taxes"}
                 </span>
                 <div className="text-right">
-                  <span className="text-3xl font-bold text-slate-900">
+                  <span className="text-3xl font-bold text-[#0066CC]">
                     {Math.floor(monthlyTotalAfterTax).toLocaleString("fr-CA")}
                   </span>
-                  <span className="text-sm font-bold text-slate-900 align-top">
+                  <span className="text-sm font-bold text-[#0066CC] align-top">
                     ,{((monthlyTotalAfterTax % 1) * 100).toFixed(0).padStart(2, "0")} $
                   </span>
-                  <span className="text-sm text-slate-500 ml-0.5">
+                  <span className="text-sm text-[#6B7280] ml-0.5">
                     /{isFrench ? "mois" : "mo"}
                   </span>
                 </div>
@@ -189,16 +190,16 @@ export const OrderSummaryCard = ({
                 <span className="text-slate-900">{Math.max(0, oneTimeSubtotal).toFixed(2)} $</span>
               </div>
 
-              {/* One-time total - Rogers big number */}
-              <div className="flex justify-between items-baseline mt-4">
-                <span className="text-sm font-bold text-slate-900">
+              {/* One-time total */}
+              <div className="flex justify-between items-baseline mt-4 pt-3 border-t border-[#E5E7EB]">
+                <span className="text-sm font-semibold text-[#1A1A2E]">
                   {isFrench ? "Total des frais uniques après taxes" : "Total one-time after taxes"}
                 </span>
                 <div className="text-right">
-                  <span className="text-3xl font-bold text-slate-900">
+                  <span className="text-3xl font-bold text-[#0066CC]">
                     {Math.floor(totalDueNow || 0).toLocaleString("fr-CA")}
                   </span>
-                  <span className="text-sm font-bold text-slate-900 align-top">
+                  <span className="text-sm font-bold text-[#0066CC] align-top">
                     ,{(((totalDueNow || 0) % 1) * 100).toFixed(0).padStart(2, "0")} $
                   </span>
                 </div>
@@ -224,23 +225,23 @@ export const OrderSummaryCard = ({
           )}
 
           {/* ── Satisfaction guarantee ── */}
-          <div className="mt-5 bg-emerald-50 rounded-lg p-3 border border-emerald-100">
-            <p className="text-xs font-semibold text-emerald-700">✓ Satisfaction 30 jours</p>
-            <p className="text-[11px] text-emerald-600 mt-0.5">
+          <div className="mt-5 bg-[#00A651]/[0.08] rounded-lg p-3 border border-[#00A651]/20">
+            <p className="text-xs font-semibold text-[#00A651]">✓ Satisfaction 30 jours</p>
+            <p className="text-[11px] text-[#00A651]/80 mt-0.5">
               {isFrench ? "Remboursement complet si insatisfait" : "Full refund if unsatisfied"}
             </p>
           </div>
 
           {/* ── Return policy ── */}
           {showTrustBadges && (
-            <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5">
-              <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+            <div className="mt-3 pt-3 border-t border-[#E5E7EB] space-y-1.5">
+              <p className="text-[11px] text-[#6B7280] flex items-center gap-1.5">
                 🔒 {isFrench ? "Paiement sécurisé — chiffrement 256 bits" : "Secure payment — 256-bit encryption"}
               </p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-[#6B7280]">
                 ✓ {isFrench ? "Sans contrat — annulez à tout moment" : "No contract — cancel anytime"}
               </p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-[#6B7280]">
                 🇨🇦 {isFrench ? "Entreprise québécoise" : "Quebec-based company"}
               </p>
             </div>
