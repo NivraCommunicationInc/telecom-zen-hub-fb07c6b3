@@ -66,6 +66,7 @@ export const CoreSquarePaymentDialog = ({
     if (!open) {
       setSelectedInvoiceId("");
       setDone(false);
+      setSquareRef(null);
       setSqLoading(true);
       cardRef.current?.destroy?.();
       cardRef.current = null;
