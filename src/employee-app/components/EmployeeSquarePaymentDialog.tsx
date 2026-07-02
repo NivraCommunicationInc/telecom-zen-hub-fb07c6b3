@@ -42,6 +42,7 @@ export function EmployeeSquarePaymentDialog({
 }: Props) {
   const [mode, setMode] = useState<Mode>("choose");
   const [paid, setPaid] = useState(false);
+  const [squareRef, setSquareRef] = useState<string | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [linkSent, setLinkSent] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
