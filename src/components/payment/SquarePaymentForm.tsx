@@ -23,6 +23,8 @@ export interface SquarePaymentFormProps {
   /** Pour la note Square (visible dans le dashboard Square) */
   customerName?: string;
   customerEmail?: string;
+  /** Source du paiement — transmis à square-charge-invoice (portal | public_pay | core_pos …) */
+  paymentSource?: string;
   /** Appelé si le paiement réussit */
   onSuccess: (receiptUrl?: string | null, paymentId?: string) => void;
 }
@@ -34,6 +36,7 @@ export function SquarePaymentForm({
   invoiceNumber,
   customerName,
   customerEmail,
+  paymentSource,
   onSuccess,
 }: SquarePaymentFormProps) {
   const qc = useQueryClient();
@@ -107,6 +110,7 @@ export function SquarePaymentForm({
       }
 
       let chargeBody: Record<string, any> = { source_id: result.token, customer_email: customerEmail };
+      if (paymentSource) chargeBody.source = paymentSource;
       if (onBeforeCharge) {
         const ids = await onBeforeCharge();
         if (ids.intent_id) chargeBody.intent_id = ids.intent_id;

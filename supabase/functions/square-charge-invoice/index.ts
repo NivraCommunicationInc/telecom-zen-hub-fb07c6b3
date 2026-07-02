@@ -18,8 +18,10 @@ async function applySquarePaymentDirectly(params: {
   amountPaid: number;
   paymentId: string;
   receiptUrl: string | null;
+  source?: string;
+  payerIp?: string | null;
 }) {
-  const { supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl } = params;
+  const { supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl, source, payerIp } = params;
   const now = new Date().toISOString();
 
   const { data: existingPayment, error: existingErr } = await supabase
@@ -48,7 +50,8 @@ async function applySquarePaymentDirectly(params: {
         provider_payment_id: paymentId,
         square_payment_id: paymentId,
         square_receipt_url: receiptUrl,
-        source: "portal",
+        source: source || "portal",
+        payer_ip: payerIp || null,
         created_by_name: "Square Payment",
         created_by_role: "system",
         received_at: now,
@@ -144,7 +147,9 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    const { source_id, invoice_id, intent_id, customer_email: bodyEmail } = body;
+    const { source_id, invoice_id, intent_id, customer_email: bodyEmail, source: bodySource } = body;
+    const payerIp = req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+    const paymentSource = bodySource === "public_pay" ? "public_pay" : "portal";
 
     if (!source_id) return json({ ok: false, error: "source_id requis" }, 400);
     if (!invoice_id && !intent_id) return json({ ok: false, error: "invoice_id ou intent_id requis" }, 400);
@@ -286,7 +291,7 @@ serve(async (req) => {
     if (invoiceData) {
       let applied;
       try {
-        applied = await applySquarePaymentDirectly({ supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl });
+        applied = await applySquarePaymentDirectly({ supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl, source: paymentSource, payerIp: paymentSource === "public_pay" ? payerIp : null });
       } catch (dbErr: any) {
         console.error("[square-charge-invoice] Direct DB payment application failed:", dbErr?.message || dbErr);
         void supabase.from("billing_system_alerts").insert({

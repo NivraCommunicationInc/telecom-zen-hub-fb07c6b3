@@ -307,6 +307,7 @@ const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
 const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
 const Unsubscribe = lazy(() => import("@/pages/Unsubscribe"));
 const PayerCommande = lazy(() => import("@/pages/PayerCommande"));
+const PayerPublic = lazy(() => import("@/pages/public/PayerPublic"));
 const SignContract = lazy(() => import("@/pages/SignContract"));
 const APropos = lazy(() => import("@/pages/APropos"));
 const Aide = lazy(() => import("@/pages/Aide"));
@@ -643,6 +644,8 @@ const AppRoutes = () => {
       <Route path="/unsubscribe" element={<Unsubscribe />} />
       {/* Public Field-sale payment landing page — no auth required */}
       <Route path="/payer/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerCommande /></Suspense>} />
+      <Route path="/payer" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerPublic /></Suspense>} />
+      <Route path="/pay" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerPublic /></Suspense>} />
       <Route path="/garantie" element={<MaintenanceGuard><PublicLayout><Garantie30Jours /></PublicLayout></MaintenanceGuard>} />
       <Route path="/guarantee" element={<MaintenanceGuard><PublicLayout><Garantie30Jours /></PublicLayout></MaintenanceGuard>} />
       <Route path="/accessibilite" element={<MaintenanceGuard><PublicLayout><PolitiqueAccessibilite /></PublicLayout></MaintenanceGuard>} />

@@ -44,6 +44,7 @@ const CoreBillingPage = lazy(() => import("./pages/CoreBillingPage"));
 const InvoicesPage = lazy(() => import("./pages/InvoicesPage"));
 const CoreInvoiceDetail = lazy(() => import("./pages/CoreInvoiceDetail"));
 const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
+const CorePublicPaymentsPage = lazy(() => import("./pages/CorePublicPaymentsPage"));
 const CoreTransactionsPage = lazy(() => import("./pages/CoreTransactionsPage"));
 const SubscriptionsPage = lazy(() => import("./pages/SubscriptionsPage"));
 const SubscriptionDetailPage = lazy(() => import("./pages/SubscriptionDetailPage"));
@@ -185,6 +186,7 @@ const CoreApp = () => {
                 <Route path="invoices" element={<S><InvoicesPage /></S>} />
                 <Route path="invoices/:invoiceId" element={<S><CoreInvoiceDetail /></S>} />
                 <Route path="payments" element={<S><PaymentsPage /></S>} />
+                <Route path="public-payments" element={<S><CorePublicPaymentsPage /></S>} />
                 <Route path="transactions" element={<S><CoreTransactionsPage /></S>} />
                 <Route path="subscriptions" element={<S><SubscriptionsPage /></S>} />
                 <Route path="subscriptions/:id" element={<S><SubscriptionDetailPage /></S>} />
