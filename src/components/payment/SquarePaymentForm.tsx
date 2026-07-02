@@ -134,6 +134,7 @@ export function SquarePaymentForm({
       setSquareRef(sqRef);
       setDone(true);
       toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
+      invalidateAfterPayment(qc);
       onSuccess(data.receipt_url ?? null, sqRef ?? undefined);
     } catch (e: any) {
       toast.error("Erreur : " + (e?.message || String(e)));
