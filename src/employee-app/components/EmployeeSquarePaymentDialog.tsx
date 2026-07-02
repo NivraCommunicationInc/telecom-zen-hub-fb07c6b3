@@ -14,6 +14,7 @@ import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateAfterPayment } from "@/lib/queryInvalidation";
+import { SquarePaymentSuccessCard } from "@/components/payment/SquarePaymentSuccessCard";
 
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
 const SQUARE_LOCATION_ID = "LQW27N70DQ2N8";
@@ -145,7 +146,7 @@ export function EmployeeSquarePaymentDialog({
         targetId: invoice.id,
         details: { payment_id: sqRef, amount: balanceDue },
       });
-      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`, { duration: 10000 });
       setPaid(true);
       invalidateAfterPayment(qc);
       onSuccess?.();
@@ -218,18 +219,12 @@ export function EmployeeSquarePaymentDialog({
         </DialogHeader>
 
         {paid ? (
-          <div className="py-8 text-center space-y-3">
-            <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
-            <p className="text-sm font-medium">Paiement approuvé par Square</p>
-            {squareRef && (
-              <p className="text-xs text-muted-foreground">
-                Référence Square :{" "}
-                <span className="font-mono font-semibold text-foreground">{squareRef}</span>
-              </p>
-            )}
-            {clientEmail && <p className="text-xs text-muted-foreground">Reçu envoyé à {clientEmail}.</p>}
-            <Button onClick={() => onOpenChange(false)} className="mt-2">Fermer</Button>
-          </div>
+          <SquarePaymentSuccessCard
+            amountLabel={`${balanceDue.toFixed(2)} $ débité — facture marquée payée.`}
+            squareRefs={squareRef ? [squareRef] : []}
+            extraNote={clientEmail ? `Reçu envoyé à ${clientEmail}.` : undefined}
+            onClose={() => onOpenChange(false)}
+          />
         ) : mode === "choose" ? (
           <div className="space-y-2 py-2">
             <Button

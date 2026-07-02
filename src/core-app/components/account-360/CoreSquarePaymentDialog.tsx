@@ -10,11 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, CheckCircle2 } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invalidateAfterPayment } from "@/lib/queryInvalidation";
+import { SquarePaymentSuccessCard } from "@/components/payment/SquarePaymentSuccessCard";
 
 const BACKEND_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const BACKEND_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -157,7 +158,7 @@ export const CoreSquarePaymentDialog = ({
       } catch {}
 
       invalidateAfterPayment(qc);
-      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`, { duration: 10000 });
       setDone(true);
       onSuccess?.();
     } catch (e: any) {
@@ -182,20 +183,11 @@ export const CoreSquarePaymentDialog = ({
         </DialogHeader>
 
         {done ? (
-          <div className="py-8 text-center space-y-3">
-            <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
-            <p className="font-semibold">Paiement approuvé par Square</p>
-            <p className="text-sm text-muted-foreground">
-              {balanceDue.toFixed(2)} $ débité — facture marquée payée.
-            </p>
-            {squareRef && (
-              <p className="text-xs text-muted-foreground">
-                Référence Square :{" "}
-                <span className="font-mono font-semibold text-foreground">{squareRef}</span>
-              </p>
-            )}
-            <Button onClick={() => onOpenChange(false)} className="mt-2">Fermer</Button>
-          </div>
+          <SquarePaymentSuccessCard
+            amountLabel={`${balanceDue.toFixed(2)} $ débité — facture marquée payée.`}
+            squareRefs={squareRef ? [squareRef] : []}
+            onClose={() => onOpenChange(false)}
+          />
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, CheckCircle2 } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateAfterPayment } from "@/lib/queryInvalidation";
+import { SquarePaymentSuccessCard } from "@/components/payment/SquarePaymentSuccessCard";
 
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
 const SQUARE_LOCATION_ID = "LQW27N70DQ2N8";
@@ -39,6 +40,7 @@ export function SquarePaymentForm({
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [squareRef, setSquareRef] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<any>(null);
@@ -133,7 +135,7 @@ export function SquarePaymentForm({
       const sqRef = data.square_payment_id || data.payment_id || null;
       setSquareRef(sqRef);
       setDone(true);
-      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`, { duration: 10000 });
       invalidateAfterPayment(qc);
       onSuccess(data.receipt_url ?? null, sqRef ?? undefined);
     } catch (e: any) {
@@ -143,20 +145,17 @@ export function SquarePaymentForm({
     }
   };
 
+  if (done && dismissed) {
+    return null;
+  }
+
   if (done) {
     return (
-      <div className="flex flex-col items-center py-6 gap-3 text-center">
-        <CheckCircle2 className="w-12 h-12 text-emerald-500" />
-        <p className="font-semibold text-foreground">Paiement approuvé par Square</p>
-        <p className="text-sm text-muted-foreground">
-          {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} débité sur votre carte.
-        </p>
-        {squareRef && (
-          <p className="text-xs text-muted-foreground">
-            Référence Square : <span className="font-mono font-semibold text-foreground">{squareRef}</span>
-          </p>
-        )}
-      </div>
+      <SquarePaymentSuccessCard
+        amountLabel={`${amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} débité sur votre carte.`}
+        squareRefs={squareRef ? [squareRef] : []}
+        onClose={() => setDismissed(true)}
+      />
     );
   }
 
