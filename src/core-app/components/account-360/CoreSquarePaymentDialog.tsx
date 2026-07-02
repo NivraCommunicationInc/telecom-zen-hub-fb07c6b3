@@ -183,20 +183,11 @@ export const CoreSquarePaymentDialog = ({
         </DialogHeader>
 
         {done ? (
-          <div className="py-8 text-center space-y-3">
-            <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
-            <p className="font-semibold">Paiement approuvé par Square</p>
-            <p className="text-sm text-muted-foreground">
-              {balanceDue.toFixed(2)} $ débité — facture marquée payée.
-            </p>
-            {squareRef && (
-              <p className="text-xs text-muted-foreground">
-                Référence Square :{" "}
-                <span className="font-mono font-semibold text-foreground">{squareRef}</span>
-              </p>
-            )}
-            <Button onClick={() => onOpenChange(false)} className="mt-2">Fermer</Button>
-          </div>
+          <SquarePaymentSuccessCard
+            amountLabel={`${balanceDue.toFixed(2)} $ débité — facture marquée payée.`}
+            squareRefs={squareRef ? [squareRef] : []}
+            onClose={() => onOpenChange(false)}
+          />
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
