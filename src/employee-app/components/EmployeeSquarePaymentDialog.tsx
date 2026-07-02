@@ -14,6 +14,7 @@ import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateAfterPayment } from "@/lib/queryInvalidation";
+import { SquarePaymentSuccessCard } from "@/components/payment/SquarePaymentSuccessCard";
 
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
 const SQUARE_LOCATION_ID = "LQW27N70DQ2N8";
