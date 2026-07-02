@@ -267,6 +267,8 @@ serve(async (req) => {
               invoice_number: invoiceNumber,
               payment_method: "Carte de crédit (Square)",
               reference: paymentId,
+              square_payment_id: paymentId,
+              square_reference: paymentId,
             },
             attachments: pdf ? [pdf] : null,
             status: "queued",
