@@ -1136,7 +1136,7 @@ const GuestCheckout = () => {
   const fmt = (v: number) => v.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
 
   return (
-    <div style={{ background: '#020209' }} className="relative min-h-screen overflow-hidden">
+    <div style={{ background: '#F5F7FA' }} className="relative min-h-screen overflow-hidden">
       <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1920&q=80" opacity={0.08} filter="saturate(0.6) brightness(0.65)" />
       <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
       <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
@@ -1145,9 +1145,9 @@ const GuestCheckout = () => {
       <div className="relative container mx-auto px-4 sm:px-6 max-w-[1200px] py-8 lg:py-12">
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-3 mb-1.5">
-            <h1 className="text-3xl lg:text-4xl font-bold text-foreground">Commander</h1>
+            <h1 className="text-3xl lg:text-4xl font-bold text-[#1A1A2E]">Commander</h1>
             {step < 6 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0" style={{ background: 'linear-gradient(135deg, #059669, #10B981)', color: '#fff' }}>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0" style={{ background: '#00A651', color: '#fff' }}>
                 <Gift className="w-3 h-3" /> 1er mois GRATUIT
               </span>
             )}
@@ -1158,12 +1158,12 @@ const GuestCheckout = () => {
         {/* Mobile only: horizontal stepper + gradient bar */}
         <div className="lg:hidden">
           <CheckoutProgress currentStep={step} steps={CHECKOUT_STEPS} isFrench onStepClick={(s) => s < step && step < 6 && setStep(s)} />
-          <div className="h-[3px] w-full rounded-full overflow-hidden -mt-6 mb-8" style={{ background: 'rgba(255,255,255,0.07)' }}>
+          <div className="h-[3px] w-full rounded-full overflow-hidden -mt-6 mb-8" style={{ background: '#E5E7EB' }}>
             <div
               className="h-full rounded-full transition-all duration-700 ease-out"
               style={{
                 width: `${step >= 6 ? 100 : Math.round(((step - 1) / (CHECKOUT_STEPS.length - 1)) * 100)}%`,
-                background: 'linear-gradient(90deg, #7C3AED 0%, #06B6D4 100%)',
+                background: '#0066CC',
               }}
             />
           </div>
@@ -1189,7 +1189,7 @@ const GuestCheckout = () => {
                             isCompleted
                               ? { background: '#10B981', borderColor: '#10B981', color: '#fff' }
                               : isCurrent
-                                ? { background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', borderColor: '#7C3AED', color: '#fff', boxShadow: '0 0 0 3px rgba(124,58,237,0.25), 0 4px 12px rgba(124,58,237,0.4)' }
+                                ? { background: '#0066CC', borderColor: '#7C3AED', color: '#fff', boxShadow: '0 0 0 3px rgba(124,58,237,0.25), 0 4px 12px rgba(124,58,237,0.4)' }
                                 : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.28)' }
                           }
                         >
@@ -1200,17 +1200,17 @@ const GuestCheckout = () => {
                             className="w-0.5 rounded-full my-1 transition-all duration-500"
                             style={{
                               height: '2.5rem',
-                              background: isCompleted ? 'linear-gradient(180deg, #10B981, #059669)' : 'rgba(255,255,255,0.07)',
+                              background: isCompleted ? '#00A651' : '#E5E7EB',
                             }}
                           />
                         )}
                       </div>
                       <div className="pt-0.5 pb-9">
-                        <p className={`text-sm font-semibold leading-tight transition-colors ${isCompleted ? 'text-emerald-400' : isCurrent ? 'text-white' : 'text-white/28'}`}>
+                        <p className={`text-sm font-semibold leading-tight transition-colors ${isCompleted ? 'text-[#00A651]' : isCurrent ? 'text-[#1A1A2E]' : 'text-slate-400'}`}>
                           {s.labelFr}
                         </p>
                         {isCurrent && (
-                          <p className="text-[10px] text-violet-400/70 mt-0.5 font-medium">En cours</p>
+                          <p className="text-[10px] text-[#0066CC] mt-0.5 font-medium">En cours</p>
                         )}
                       </div>
                     </div>
@@ -1226,13 +1226,13 @@ const GuestCheckout = () => {
             {/* ═══ STEP 1: FORFAIT ═══ */}
             {step === 1 && (
               <div className="space-y-6">
-                <Card className="overflow-hidden border-white/10">
-                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
+                  <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                     <CardTitle className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                         <ShoppingCart className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-lg font-bold text-foreground">Choisissez votre forfait</span>
+                      <span className="text-lg font-bold text-[#0066CC]">Choisissez votre forfait</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1269,7 +1269,7 @@ const GuestCheckout = () => {
                                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{service.description}</p>
                                         </div>
                                         <div className="flex flex-col items-end ml-3">
-                                          <span className="text-lg font-bold text-foreground">{service.price.toFixed(0)}$</span>
+                                          <span className="text-lg font-bold text-[#0066CC]">{service.price.toFixed(0)}$</span>
                                           <span className="text-xs text-muted-foreground">/mois</span>
                                         </div>
                                       </div>
@@ -1294,7 +1294,7 @@ const GuestCheckout = () => {
                   className="w-full h-14 text-base font-bold rounded-xl"
                   disabled={selectedServices.length === 0}
                   onClick={() => setStep(isStreamingOnlyOrder ? 3 : 2)}
-                  style={{ background: selectedServices.length > 0 ? 'linear-gradient(135deg, #7C3AED, #5B21B6)' : undefined, boxShadow: selectedServices.length > 0 ? '0 4px 20px rgba(124,58,237,0.35)' : undefined }}
+                  style={{ background: selectedServices.length > 0 ? '#0066CC' : undefined, boxShadow: selectedServices.length > 0 ? '0 4px 20px rgba(0,102,204,0.30)' : undefined }}
                 >
                   Continuer <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
@@ -1304,13 +1304,13 @@ const GuestCheckout = () => {
             {/* ═══ STEP 2: ADRESSE ═══ */}
             {step === 2 && (
               <div className="space-y-6">
-                <Card className="overflow-hidden border-white/10">
-                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
+                  <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                     <CardTitle className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #0E7490, #06B6D4)' }}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                         <MapPin className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-lg font-bold text-foreground">Adresse de service</span>
+                      <span className="text-lg font-bold text-[#0066CC]">Adresse de service</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4 pt-5">
@@ -1374,7 +1374,7 @@ const GuestCheckout = () => {
                     className="flex-1 h-12 font-bold rounded-xl"
                     disabled={!isAddressValid}
                     onClick={() => setStep(3)}
-                    style={{ background: isAddressValid ? 'linear-gradient(135deg, #7C3AED, #5B21B6)' : undefined }}
+                    style={{ background: isAddressValid ? '#0066CC' : undefined }}
                   >
                     Continuer <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -1385,13 +1385,13 @@ const GuestCheckout = () => {
             {/* ═══ STEP 3: INFORMATIONS CLIENT ═══ */}
             {step === 3 && (
               <div className="space-y-6">
-                <Card className="overflow-hidden border-white/10">
-                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
+                  <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                     <CardTitle className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)' }}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                         <User className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-lg font-bold text-foreground">Vos informations</span>
+                      <span className="text-lg font-bold text-[#0066CC]">Vos informations</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4 pt-5">
@@ -1446,7 +1446,7 @@ const GuestCheckout = () => {
                       await tryAutoApplyFirstMonthFree();
                       setStep(4);
                     }}
-                    style={{ background: isClientInfoValid ? 'linear-gradient(135deg, #7C3AED, #5B21B6)' : undefined }}
+                    style={{ background: isClientInfoValid ? '#0066CC' : undefined }}
                   >
                     Continuer <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -1472,10 +1472,10 @@ const GuestCheckout = () => {
 
                 {/* Equipment constraints */}
                 {(hasInternetService || hasTVService) && (
-                  <Card className="overflow-hidden border-white/10">
-                    <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                  <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
+                    <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                       <CardTitle className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #5B21B6, #7C3AED)' }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Package className="w-5 h-5 text-white" />
                         </div>
                         <span className="text-base font-bold text-foreground">Équipement</span>
@@ -1533,10 +1533,10 @@ const GuestCheckout = () => {
 
                 {/* SIM type selector — shown whenever a Mobile plan is in the cart */}
                 {hasMobileService && (
-                  <Card className="overflow-hidden border-white/10">
-                    <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                  <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
+                    <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                       <CardTitle className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #0E7490, #06B6D4)' }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Smartphone className="w-5 h-5 text-white" />
                         </div>
                         <span className="text-base font-bold text-foreground">Type de SIM</span>
@@ -1603,10 +1603,10 @@ const GuestCheckout = () => {
 
                 {/* ── Port-in : conservation du numéro ── */}
                 {hasMobileService && (
-                  <Card className="overflow-hidden border-white/10">
-                    <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                  <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
+                    <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                       <CardTitle className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)' }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Phone className="w-5 h-5 text-white" />
                         </div>
                         <span className="text-base font-bold text-foreground">Conserver votre numéro ?</span>
@@ -1760,10 +1760,10 @@ const GuestCheckout = () => {
                 />
 
                 {/* Promo / Referral */}
-                <Card className="overflow-hidden border-white/10">
-                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(6,182,212,0.06))' }}>
+                <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
+                  <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#EAF7EF' }}>
                     <CardTitle className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#00A651' }}>
                         <Gift className="w-5 h-5 text-white" />
                       </div>
                       <span className="text-base font-bold text-foreground">Promotions</span>
@@ -1830,7 +1830,7 @@ const GuestCheckout = () => {
                       if (actErr) { toast.error(actErr); return; }
                       setStep(5);
                     }}
-                    style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', boxShadow: '0 4px 20px rgba(124,58,237,0.3)' }}
+                    style={{ background: '#0066CC', boxShadow: '0 4px 20px rgba(0,102,204,0.30)' }}
                   >
                     Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -1841,14 +1841,14 @@ const GuestCheckout = () => {
             {/* ═══ STEP 5: PAIEMENT ═══ */}
             {step === 5 && (
               <div className="space-y-6">
-                <Card className="overflow-hidden border-white/10">
-                  <CardHeader className="pb-4 border-b border-white/10" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(6,182,212,0.06))' }}>
+                <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
+                  <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                     <CardTitle className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7C3AED, #0E7490)' }}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                         <CreditCard className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <span className="text-lg font-bold text-foreground">Paiement sécurisé</span>
+                        <span className="text-lg font-bold text-[#0066CC]">Paiement sécurisé</span>
                         <span className="flex items-center gap-1 text-xs text-emerald-400 font-medium mt-0.5">
                           <Lock className="w-3 h-3" /> Chiffrement SSL 256-bit
                         </span>
@@ -1991,7 +1991,7 @@ const GuestCheckout = () => {
                     className="flex-1 h-14 text-base font-bold rounded-xl"
                     disabled={!isPaymentDone || !isLegalComplete || isSubmitting}
                     onClick={handleSubmit}
-                    style={(!isPaymentDone || !isLegalComplete || isSubmitting) ? {} : { background: 'linear-gradient(135deg, #059669, #10B981)', boxShadow: '0 4px 24px rgba(16,185,129,0.35)' }}
+                    style={(!isPaymentDone || !isLegalComplete || isSubmitting) ? {} : { background: '#00A651', boxShadow: '0 4px 24px rgba(16,185,129,0.35)' }}
                   >
                     {isSubmitting ? (
                       <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Traitement en cours...</>
@@ -2033,7 +2033,7 @@ const GuestCheckout = () => {
                 <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(124,58,237,0.3)', boxShadow: '0 8px 40px rgba(124,58,237,0.15)' }}>
 
                   {/* Gradient header */}
-                  <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, #3B0764 0%, #0E7490 100%)' }}>
+                  <div className="px-5 py-4" style={{ background: '#EEF4FB' }}>
                     <div className="flex items-center gap-2 mb-3">
                       <ShoppingCart className="w-4 h-4 text-white/80" />
                       <span className="font-bold text-white text-sm tracking-wide uppercase">Votre commande</span>
@@ -2155,7 +2155,7 @@ const GuestCheckout = () => {
                         {isServerPricingLoading ? (
                           <Skeleton className="h-7 w-24" />
                         ) : (
-                          <span className="text-2xl font-black" style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                          <span className="text-2xl font-black" style={{ background: '#0066CC', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                             {fmt(todayTotal)}
                           </span>
                         )}
@@ -2204,7 +2204,7 @@ const GuestCheckout = () => {
           >
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-muted-foreground">Total aujourd'hui</span>
-              <span className="font-black text-lg" style={{ background: 'linear-gradient(135deg, #7C3AED, #06B6D4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              <span className="font-black text-lg" style={{ background: '#0066CC', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 {fmt(todayTotal)}
               </span>
             </div>
