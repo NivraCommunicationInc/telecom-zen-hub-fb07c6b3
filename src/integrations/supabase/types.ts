@@ -10080,8 +10080,10 @@ export type Database = {
           currency: string
           customer_email: string | null
           customer_name: string | null
+          description: string | null
           expires_at: string
           id: string
+          line_items: Json | null
           paid_at: string | null
           payment_method: string
           paypal_approval_url: string | null
@@ -10100,8 +10102,10 @@ export type Database = {
           currency?: string
           customer_email?: string | null
           customer_name?: string | null
+          description?: string | null
           expires_at?: string
           id?: string
+          line_items?: Json | null
           paid_at?: string | null
           payment_method?: string
           paypal_approval_url?: string | null
@@ -10120,8 +10124,10 @@ export type Database = {
           currency?: string
           customer_email?: string | null
           customer_name?: string | null
+          description?: string | null
           expires_at?: string
           id?: string
+          line_items?: Json | null
           paid_at?: string | null
           payment_method?: string
           paypal_approval_url?: string | null
