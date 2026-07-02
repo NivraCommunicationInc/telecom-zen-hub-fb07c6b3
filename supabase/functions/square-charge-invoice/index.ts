@@ -358,19 +358,48 @@ serve(async (req) => {
         console.warn("[square-charge-invoice] Email skipped — customerEmail:", customerEmail, "already_processed:", alreadyProcessed);
       }
 
-      // Auto-note: payment received (Correction 4)
+      // Auto-note: payment received — visible dans tous les portails (Core, OneView CS, Employee)
       if (customerId && !alreadyProcessed) {
         try {
-          await supabase.from("client_internal_notes").insert({
-            client_id: customerId,
-            note_type: "payment",
-            body: `Paiement Square reçu: ${amountPaid.toFixed(2)} CAD | Facture: ${invoiceNumber} | Square #${paymentId}`,
-            created_by_user_id: "00000000-0000-0000-0000-000000000000",
-            created_by_role: "system",
-            created_by_name: "Système",
-          });
-        } catch (noteErr) {
-          console.warn("[square-charge-invoice] Auto-note insert failed:", noteErr);
+          // Résoudre le profil client (client_internal_notes.client_id = profiles.id / auth user id)
+          const { data: bc } = await supabase
+            .from("billing_customers")
+            .select("user_id")
+            .eq("id", customerId)
+            .single();
+
+          const profileId = bc?.user_id;
+          if (profileId) {
+            // Optionnel: rattacher à un compte si l'un des services de la facture pointe vers un account_id
+            let accountId: string | null = null;
+            try {
+              const { data: acc } = await supabase
+                .from("accounts")
+                .select("id")
+                .eq("client_id", profileId)
+                .limit(1)
+                .maybeSingle();
+              accountId = acc?.id ?? null;
+            } catch { /* ignore */ }
+
+            const body = `Paiement Square reçu — ${amountPaid.toFixed(2)} $ — Facture #${invoiceNumber || invoiceData.id} — Référence Square : ${paymentId}`;
+
+            const { error: noteErr } = await supabase.from("client_internal_notes").insert({
+              client_id: profileId,
+              account_id: accountId,
+              note_type: "system",
+              body,
+              created_by_user_id: "00000000-0000-0000-0000-000000000000", // remplacé par trigger normalize_...system_auto
+              created_by_role: "system_auto",
+              created_by_name: "Système Nivra",
+            });
+            if (noteErr) console.warn("[square-charge-invoice] Auto-note insert error:", noteErr.message);
+            else console.log("[square-charge-invoice] Auto-note created for profile:", profileId);
+          } else {
+            console.warn("[square-charge-invoice] Auto-note skipped — billing_customers.user_id missing for", customerId);
+          }
+        } catch (noteErr: any) {
+          console.warn("[square-charge-invoice] Auto-note block failed:", noteErr?.message || noteErr);
         }
       }
     }
