@@ -1,73 +1,93 @@
-# Plan d'exécution — Lot de corrections & nouvelles fonctionnalités
+## Page publique de paiement — Plan complet
 
-Demande très large. Je propose de la découper en **9 chantiers** indépendants. Confirme l'ordre (ou dis "tout") et je commence. Chaque chantier est livrable seul.
+### 1. Route et intégration menu
+
+- **Route publique** : `/payer` (FR, court, mémorisable) — alias `/pay` redirige vers `/payer`.
+- **Menu header public** (composant nav marketing) : ajouter un lien **"Payer une facture"** à droite, séparé visuellement, style bouton secondaire (pas primary — le CTA principal reste "Commander").
+- Aussi accessible depuis le footer sous "Support".
+
+### 2. Champs de recherche (2-facteurs OBLIGATOIRE)
+
+**Champ 1 — Référence** (un des trois) :
+- Numéro de facture → `billing_invoices.invoice_number`
+- Numéro de dossier/compte → `accounts.account_number` OU `profiles.client_number`
+- Numéro de ticket → `support_tickets` (ajout d'un lien de paiement optionnel)
+
+**Champ 2 — Identité** (un des quatre) :
+- Email → `profiles.email`
+- Téléphone → `profiles.phone` (normalisation E.164)
+- Numéro de compte → `accounts.account_number` / `profiles.client_number`
+- NIP client (4 chiffres) → validé via RPC contre `client_login_pins` (hash+salt)
+
+**Règle** : les deux doivent pointer vers le MÊME `client_id`/`user_id`. Un seul match = refus générique ("Aucun dossier trouvé"), jamais indiquer lequel a échoué.
+
+### 3. Sécurité
+
+- **Rate limit** : 3 tentatives / IP / heure via `rate_limit_attempts` (clé `public-pay-search:<ip>`), verrou 1h après échec.
+- **Log complet** : chaque tentative (succès + échec) dans `activity_logs` avec IP, user-agent, champs saisis (référence hashée SHA-256 pour éviter fuite si dump), résultat.
+- **Aucune donnée sensible** exposée : jamais solde global, jamais autres factures, jamais méthodes de paiement enregistrées, prénom uniquement.
+- **Edge function** `public-invoice-lookup` en `verify_jwt = false` avec validation stricte serveur.
+
+### 4. Paiement Square
+
+- `square-charge-invoice` accepte déjà les appels anonymes (JWT non requis pour ce cas) — je vérifie et documente. Sinon j'ajoute une branche `public_token` signé issu du lookup, valide 15 min, à usage unique.
+- Formulaire `SquarePaymentForm` réutilisé tel quel (composant existant, corporate blue).
+- Interac en secondaire (bouton "Payer par virement Interac" → affiche instructions email + référence).
+
+### 5. Après paiement
+
+- `square-charge-invoice` fait déjà : update `billing_invoices` (status=paid, balance_due=0, amount_paid), création `billing_payments`, invalidation caches.
+- **Ajouts** :
+  - Note auto dans `client_internal_notes` (type=`system`) : "Paiement public reçu — X$ — Réf Square: XXXXX — IP: xxx"
+  - Email confirmation via template existant `payment_received` (bleu #0066CC, avec réf Square)
+- **UI** : `SquarePaymentSuccessCard` existant, reste affiché jusqu'à fermeture manuelle.
+
+### 6. Section Nivra Core — "Paiements publics"
+
+- Nouvelle page `/core/paiements-publics` (sous menu Paiements).
+- Vue = filtre sur `billing_payments` où `source = 'public_pay_page'` (nouveau champ) OU tag dans `notes`.
+- Colonnes : Client · Facture · Montant · Réf Square · Date · IP.
+- Réutilise `useAdminPayments` avec filtre.
+
+### 7. Base de données
+
+**Vérifications faites** :
+- `billing_invoices` : `invoice_number`, `customer_id`, `balance_due`, `status`, `total` ✓
+- `accounts` : `account_number`, `client_id` ✓
+- `profiles` : `email`, `phone`, `client_number`, `first_name` ✓
+- `support_tickets` : existe ✓
+- `client_login_pins` : `pin_hash`, `pin_salt`, `user_id` ✓
+
+**Migration nécessaire** :
+- Ajouter `billing_payments.source TEXT` (valeurs: `portal`, `core_pos`, `public_pay`, `autopay`, `field`)
+- Ajouter `billing_payments.payer_ip TEXT` (nullable, seulement public_pay)
+- Vue `public_payments_view` pour Core
+
+### 8. Fichiers touchés
+
+**Nouveaux** :
+- `src/pages/public/PayerPublic.tsx` — page recherche + paiement
+- `src/core-app/pages/CorePublicPayments.tsx` — vue Core
+- `supabase/functions/public-invoice-lookup/index.ts` — recherche 2-facteurs, rate limit, log
+- Migration : colonnes `source`/`payer_ip` sur `billing_payments`, vue Core
+
+**Modifiés** :
+- Header/nav marketing → ajout lien "Payer une facture"
+- Footer → même lien sous Support
+- `src/components/AppRoutes.tsx` → route `/payer` + `/pay`
+- `supabase/functions/square-charge-invoice/index.ts` → accepte `public_token` du lookup, écrit `source='public_pay'`
+- `src/core-app/pages/CorePOSPage.tsx` / navigation Core → ajout entrée menu
+
+### 9. Ce que je NE fais PAS
+
+- Pas de création de compte automatique.
+- Pas d'exposition du portail client.
+- Pas de recherche par nom (trop faible).
+- Pas d'affichage d'autres factures du même client.
 
 ---
 
-## 1. Nivra Core — Traitement de commande (équipement + date + anti-fraude)
-- **Équipement pré-rempli** : à l'étape "Équipement" du workspace, lire `order_items` et générer automatiquement N cartes (1 borne, 2 terminaux TV, etc.) prêtes à recevoir serial/MAC. Plus de bouton "+ ajouter".
-- **Date de commande** affichée dans le header du workspace + colonne dans la liste.
-- **Rendez-vous technicien synchronisé** : à la confirmation, créer/MAJ `technician_assignments` avec la date + plage horaire choisies au checkout. Si modifié dans Core → propagé au portail technicien (realtime).
-- **Anti-fraude** : nouveau module `fraud_check` qui calcule un score (0–100) à la création d'une commande :
-  - Vérifie cohérence nom/DOB/adresse vs `profiles`, `orders` historiques, `account_fraud_incidents`
-  - Détecte: même adresse + nom différent, email jetable, téléphone réutilisé, mismatch nom CB
-  - Hook prêt pour brancher futur credit check / KYC ID (interface `fraud_provider`)
-  - Badge visible dans le workspace : Vert <30, Jaune 30–70, Rouge >70 + raisons listées
-- Tables: réutilise `account_fraud_incidents` + nouvelle `order_fraud_assessments`
-
-## 2. Installation TV+Internet → 1 seul RDV
-Quand une commande contient un forfait TV bundle internet, ne créer **qu'un seul** `installation_job` / `technician_assignment` partagé. Corriger split actuel.
-
-## 3. Chaînes TV — règles strictes + packs aléatoires + email + ticket
-- Respect du forfait : base + X chaînes standard (limite dure dans `TVChannelSelectionBase`)
-- Chaînes premium = surcharge automatique ajoutée à la facture mensuelle
-- Boutons "Pack rapide" : Sport, Francophone, Mix Sport+Séries, Famille (auto-sélection)
-- Email post-sélection avec lien `?token=…` qui ouvre directement la page de modification dans le portail
-- Création auto d'un `internal_ticket` (catégorie "channel_selection") visible dans Core
-
-## 4. PDF Contract + Modalités fusionnés (nouveau template telecom premium)
-- Nouveau template **PDF unifié v4** "Contrat & Modalités" — un seul document
-- Réutilise palette du site (#7c3aed accent, navy/dark) — style telecom moderne
-- Reçus & factures harmonisés au même style
-- Skill PDF: QA visuel page par page avant livraison
-- Texte mis à jour selon dernières conditions
-
-## 5. Portail client — Paiements (bug adresse + détails commande)
-- Quand client connecté avec adresse au profil : pré-remplir + ne pas redemander pour add-credit / pay-invoice / paiement libre
-- Bouton "Détails" commande : actuellement redirige vers `/`, corriger vers `/portal/orders/:id`
-
-## 6. Portail client — Tickets, Changement de forfait, Remplacement, Annulation
-- **Création ticket** : peupler le select "Sujet" (facturation, chaînes, support général, technique, équipement, autre)
-- **Changement forfait** : afficher forfait actuel + alternatives compatibles (cacher Internet si bundle TV+Internet déjà actif). Soumission → notif Core qui orchestre le changement + prorata via règles existantes
-- **Remplacement d'équipement** : lister équipements actifs par service, bouton "Demander remplacement" → ticket Core
-- **Annulation/Pause** : lister services actifs, sélection + raison → demande dans Core avec notif
-
-## 7. Changement d'email (client + Core)
-- Portail client : nouveau flow avec OTP de confirmation sur l'ancien ET le nouveau
-- Core : possibilité de changer l'email d'un client (avec audit + notif au client)
-
-## 8. PayPal pré-autorisé — fix PAYPAL_CREATE_FAILED
-- Debug edge function `paypal-create-billing-agreement` (probable: plan_id manquant ou montant 0)
-- Logs + retry + message d'erreur lisible
-
-## 9. Programme fidélité refonte + Carte de fidélité
-- **Barème durci** : 1 pt = 1$ dépensé (au lieu du généreux actuel), récompenses à 2000 pts = 25$, 5000 pts = 75$, 10000 pts = 200$
-- **Carte de fidélité** : numéro auto-généré (format NIV-XXXX-XXXX-XXXX), statut Bronze/Argent/Or/Platine selon points cumulés
-- Design carte premium (gradient violet, hologramme CSS, QR code)
-- Gestion Core : voir/ajuster points, suspendre carte, historique
-
----
-
-## Ordre d'exécution recommandé
-1. **Quick wins** (#5 détails commande + adresse, #6 select tickets, #8 PayPal) — 1 tour
-2. **Chantier Core** (#1 équipement+date+fraude, #2 RDV unifié) — 1 tour
-3. **Chaînes TV** (#3) — 1 tour
-4. **PDF unifié** (#4) — 1 tour avec QA skill
-5. **Portail flows lourds** (#6 changement forfait, remplacement, annulation, #7 email) — 1 tour
-6. **Fidélité + carte** (#9) — 1 tour
-
-## Confirmation
-Dis-moi:
-- **"go tout"** → j'attaque dans l'ordre ci-dessus
-- **"go #X #Y"** → je fais seulement ces chantiers
-- **modifs** → ajuste et je remets le plan à jour
+**Confirmations demandées avant de coder** :
+1. OK pour la route `/payer` et l'ajout menu header + footer ?
+2. OK pour ajouter les colonnes `source` + `payer_ip` sur `billing_payments` ?
+3. OK pour rate limit **3/h/IP avec verrou 1h** (strict) ou préfères-tu **5/h** ?
