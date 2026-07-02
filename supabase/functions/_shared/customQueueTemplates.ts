@@ -808,7 +808,7 @@ export function renderQueueTemplate(
           bodyText: `Votre paiement mensuel pour <strong>${planName}</strong> n'a pas pu être traité${amount ? ` (${amount})` : ""}. Pour éviter toute interruption de service, veuillez vérifier votre méthode de paiement.`,
           cardTitle: "Que faire maintenant ?",
           cardRows: [
-            ["1. Vérifiez votre compte PayPal", "Assurez-vous qu'il est actif et approvisionné"],
+            ["1. Vérifiez votre méthode de paiement", "Assurez-vous que votre carte est active et valide"],
             ["2. Mettez à jour si nécessaire", "Connectez un autre mode de paiement"],
             ["3. Une nouvelle tentative", "sera effectuée automatiquement sous 24h"],
           ],
