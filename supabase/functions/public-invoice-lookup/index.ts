@@ -136,6 +136,72 @@ serve(async (req) => {
     // ── Resolve reference → invoice ─────────────────────────────────────
     let invoice: any = null;
     const refNorm = reference.replace(/\s+/g, "").toUpperCase();
+    const identityLower = identity.toLowerCase();
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // ── 0a. Already-paid check (block double payment) ──────────────────
+    // If the NVR reference matches a completed payment → reply "already paid".
+    if (refNorm.startsWith("NVR-")) {
+      const { data: paid } = await supabase
+        .from("billing_payments")
+        .select("nivra_reference, amount, processed_at, created_at, status")
+        .ilike("nivra_reference", refNorm)
+        .in("status", ["succeeded", "completed", "captured", "paid"])
+        .order("processed_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      if (paid) {
+        await logAttempt(false, reference, { reason: "already_paid_nvr" });
+        return json({
+          ok: false,
+          already_paid: true,
+          error: `Cette facture a déjà été payée le ${new Date(paid.processed_at || paid.created_at).toLocaleDateString("fr-CA")} — montant : ${Number(paid.amount).toFixed(2)} $ CAD.`,
+        }, 200);
+      }
+    }
+
+    // ── 0b. NVR-XXXX or raw UUID token → redirect to /payer/lien/:token ─
+    {
+      const isUuid = UUID_RE.test(reference.trim());
+      const isNvr = refNorm.startsWith("NVR-");
+      if (isUuid || isNvr) {
+        let q = supabase
+          .from("public_payment_links")
+          .select("public_token, recipient_email, status, amount, expires_at")
+          .limit(1);
+        q = isUuid ? q.eq("public_token", reference.trim()) : q.ilike("nivra_reference", refNorm);
+        const { data: link } = await q.maybeSingle();
+        if (link) {
+          if (link.status === "paid" || link.status === "completed") {
+            await logAttempt(false, reference, { reason: "already_paid_link" });
+            return json({
+              ok: false,
+              already_paid: true,
+              error: `Cette facture a déjà été payée — montant : ${Number(link.amount).toFixed(2)} $ CAD.`,
+            }, 200);
+          }
+          if (link.expires_at && new Date(link.expires_at).getTime() < Date.now()) {
+            await logAttempt(false, reference, { reason: "link_expired" });
+            return json({
+              ok: false,
+              error: "Ce lien a expiré — contactez support@nivra-telecom.ca.",
+            }, 410);
+          }
+          // Email match required (case-insensitive)
+          const emailOk = link.recipient_email && link.recipient_email.toLowerCase() === identityLower;
+          if (!emailOk) {
+            await logAttempt(false, reference, { reason: "link_identity_mismatch" });
+            return json({ ok: false, error: "Aucun dossier trouvé. Vérifiez les informations." }, 404);
+          }
+          await supabase.from("rate_limit_attempts").delete().eq("key", rateKey);
+          await logAttempt(true, reference, { link_token: link.public_token });
+          return json({
+            ok: true,
+            redirect_token: link.public_token,
+          });
+        }
+      }
+    }
 
     // Try invoice_number first
     {
@@ -155,7 +221,6 @@ serve(async (req) => {
         .ilike("account_number", refNorm)
         .maybeSingle();
       if (acc?.client_id) {
-        // find billing_customers.id for that user
         const { data: bc } = await supabase
           .from("billing_customers")
           .select("id")
