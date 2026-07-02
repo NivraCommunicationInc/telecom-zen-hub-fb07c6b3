@@ -158,7 +158,7 @@ export const CoreSquarePaymentDialog = ({
       } catch {}
 
       invalidateAfterPayment(qc);
-      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`, { duration: 10000 });
       setDone(true);
       onSuccess?.();
     } catch (e: any) {
