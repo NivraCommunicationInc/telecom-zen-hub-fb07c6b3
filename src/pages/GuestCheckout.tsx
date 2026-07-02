@@ -2198,24 +2198,21 @@ const GuestCheckout = () => {
         {/* ═══ MOBILE FIXED BOTTOM BAR ═══ */}
         {step < 6 && selectedServices.length > 0 && (
           <div
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-4 py-3"
+            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-4 py-3 bg-white border-t border-[#E5E7EB]"
             style={{
               paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-              background: 'rgba(6,4,15,0.92)',
-              backdropFilter: 'blur(12px)',
-              borderTop: '1px solid rgba(124,58,237,0.25)',
-              boxShadow: '0 -4px 24px rgba(124,58,237,0.1)',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.06)',
             }}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Total aujourd'hui</span>
-              <span className="font-black text-lg" style={{ background: '#0066CC', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              <span className="text-xs text-[#6B7280]">Total aujourd'hui</span>
+              <span className="font-black text-lg text-[#0066CC]">
                 {fmt(todayTotal)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground/60">Étape {step} / 5</span>
-              <span className="text-[10px] text-emerald-400 font-medium">{fmt(monthlyTotalWithTax)}/mois après</span>
+              <span className="text-[10px] text-[#6B7280]">Étape {step} / 5</span>
+              <span className="text-[10px] text-[#00A651] font-medium">{fmt(monthlyTotalWithTax)}/mois après</span>
             </div>
           </div>
         )}
