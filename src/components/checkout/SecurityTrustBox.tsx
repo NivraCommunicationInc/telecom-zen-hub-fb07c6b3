@@ -24,33 +24,35 @@ export const SecurityTrustBox = ({
   supportEmail = COMPANY_CONTACT.supportEmailDisplay,
 }: SecurityTrustBoxProps) => {
   return (
-    <div className="space-y-5 mt-6">
-      {/* Rogers-style security footer */}
-      <div className="flex items-center gap-3 py-4">
-        <Lock className="w-5 h-5 text-slate-500 flex-shrink-0" />
-        <p className="text-xs text-slate-500 leading-relaxed">
-          {isFrench
-            ? "Protégé par un chiffrement sécurisé 256 bits pour garantir la sécurité de vos données."
-            : "Protected by 256-bit secure encryption to ensure the security of your data."}
-        </p>
+    <div className="space-y-4 mt-6">
+      <div className="flex flex-wrap gap-2">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00A651]/10 text-[#00A651] text-xs font-semibold border border-[#00A651]/20">
+          <Lock className="w-3.5 h-3.5" />
+          {isFrench ? "SSL 256-bit" : "SSL 256-bit"}
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0066CC]/10 text-[#0066CC] text-xs font-semibold border border-[#0066CC]/20">
+          {isFrench ? "PCI-DSS Level 1" : "PCI-DSS Level 1"}
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-[#1A1A2E] text-xs font-semibold border border-[#E5E7EB]">
+          {isFrench ? "Satisfait ou remboursé 30 j" : "30-day money back"}
+        </span>
       </div>
 
-      {/* Support Callout - email only */}
       {showSupport && (
-        <div className="border-t border-slate-200 pt-4">
-          <p className="text-sm font-semibold text-slate-900 mb-2">
+        <div className="border-t border-[#E5E7EB] pt-4">
+          <p className="text-sm font-semibold text-[#1A1A2E] mb-2">
             {isFrench ? "Besoin d'aide?" : "Need help?"}
           </p>
           <div className="flex flex-wrap gap-4 text-sm">
             <a
               href={getMailtoLink()}
-              className="flex items-center gap-1.5 text-red-600 hover:underline"
+              className="flex items-center gap-1.5 text-[#0066CC] hover:text-[#0052A3] hover:underline font-medium"
             >
               <Mail className="w-4 h-4" />
               {supportEmail}
             </a>
           </div>
-          <p className="text-xs text-slate-500 mt-2">
+          <p className="text-xs text-[#6B7280] mt-2">
             {isFrench
               ? "Support par courriel et clavardage uniquement — réponse rapide 7j/7."
               : "Email and live chat support only — fast response 7 days a week."}
