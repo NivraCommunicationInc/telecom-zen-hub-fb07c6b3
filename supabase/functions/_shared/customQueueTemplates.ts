@@ -8291,7 +8291,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     // ===================================================================
     case "refund_issued": {
       const refundAmount = money(v.refund_amount ?? v.amount);
-      const refundMethod = esc(v.refund_method || "PayPal");
+      const refundMethod = esc(v.refund_method || "Carte de crédit");
       const refundReason = esc(v.reason || "Demande de remboursement");
       const invoiceNum = esc(v.invoice_number || "");
       return {
