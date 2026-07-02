@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireStaff } from "../_shared/adminAuth.ts";
 
 /**
  * AI IMPROVE MESSAGE - Assistant IA pour améliorer les messages tickets
@@ -42,6 +44,17 @@ serve(async (req) => {
   }
 
   try {
+    // Staff auth required — prevents public abuse of the AI credits
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const auth = await requireStaff(req, admin, [
+      "admin", "super_admin", "employee", "supervisor",
+      "support", "sales", "manager", "hr", "field_agent", "field_sales",
+    ]);
+    if (auth instanceof Response) return auth;
+
     // SECURITY: Use auto-provisioned Lovable API key
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     

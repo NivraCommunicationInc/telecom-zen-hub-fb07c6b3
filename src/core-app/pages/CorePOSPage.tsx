@@ -25,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════

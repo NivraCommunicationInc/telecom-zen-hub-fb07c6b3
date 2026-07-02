@@ -3,6 +3,7 @@
 // to that address as attachments via Resend; otherwise returns them as base64.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { requireStaff } from "../_shared/adminAuth.ts";
 import {
   buildInvoicePdfAttachment,
   buildContractPdfAttachment,
@@ -18,16 +19,13 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  // Auth check (verify_jwt=true enforces JWT at infra level; validate here as defense-in-depth)
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Authentification requise" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Admin-only — this function can regenerate/send customer PDFs
+  const auth = await requireStaff(req, sb, ["admin", "super_admin", "supervisor"]);
+  if (auth instanceof Response) return auth;
 
   const { order_number, email } = await req.json();
-  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   let order: { id: string; order_number: number } | null = null;
   if (order_number) {
