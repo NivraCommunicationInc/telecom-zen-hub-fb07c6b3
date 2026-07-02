@@ -180,6 +180,7 @@ export default function PayerPublic() {
                     invoiceNumber={invoice.invoice_number}
                     customerName={invoice.first_name}
                     customerEmail={invoice.email || undefined}
+                    paymentSource="public_pay"
                     onSuccess={() => setPaidOk(true)}
                   />
                   <p className="mt-4 text-xs text-white/40 text-center">
