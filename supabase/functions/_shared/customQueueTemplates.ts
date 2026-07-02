@@ -7092,7 +7092,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Prix mensuel", `${monthly} + taxes`],
             ["Prochain renouvellement", renewal],
             ["Statut", status],
-            ["Mode de paiement", "PayPal"],
+            ["Mode de paiement", "Carte de crédit"],
           ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Accéder à mon compte",
