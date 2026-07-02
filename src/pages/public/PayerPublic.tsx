@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Search, ShieldCheck, CreditCard, ArrowLeft, Mail, Copy, Check } from "lucide-react";
+import {
+  Loader2, Search, ShieldCheck, CreditCard, ArrowLeft, Mail, Copy, Check,
+  CheckCircle2, ExternalLink, UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -71,6 +75,14 @@ export default function PayerPublic() {
   const [loading, setLoading] = useState(false);
   const [invoice, setInvoice] = useState<LookupInvoice | null>(null);
   const [paidOk, setPaidOk] = useState(false);
+  const [paidRef, setPaidRef] = useState<{
+    nvr: string | null;
+    sqRef: string | null;
+    receiptUrl: string | null;
+    amount: number;
+    when: string;
+  } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   // Custom amount state
   const [amountMode, setAmountMode] = useState<"full" | "custom">("full");
@@ -94,7 +106,7 @@ export default function PayerPublic() {
       });
       const data = await res.json();
       if (!data?.ok) {
-        toast.error(data?.error || "Aucun dossier trouvé.");
+        toast.error(data?.error || "Aucun dossier trouvé — vérifiez vos informations ou contactez support@nivra-telecom.ca");
         return;
       }
       setInvoice(data.invoice);
@@ -109,10 +121,46 @@ export default function PayerPublic() {
   const reset = () => {
     setInvoice(null);
     setPaidOk(false);
+    setPaidRef(null);
     setReference("");
     setIdentity("");
     setAmountMode("full");
     setCustomAmount("");
+  };
+
+  // On payment success, fetch the NVR reference from billing_payments
+  const handlePaid = async (receiptUrl?: string | null, sqPaymentId?: string) => {
+    setPaidOk(true);
+    const now = new Date().toISOString();
+    let nvr: string | null = null;
+    try {
+      if (sqPaymentId) {
+        // Retry a few times as backend may write async
+        for (let i = 0; i < 5; i++) {
+          const { data } = await supabase
+            .from("billing_payments")
+            .select("nivra_reference")
+            .eq("square_payment_id", sqPaymentId)
+            .maybeSingle();
+          if (data?.nivra_reference) { nvr = data.nivra_reference; break; }
+          await new Promise((r) => setTimeout(r, 800));
+        }
+      }
+    } catch { /* non-fatal */ }
+    setPaidRef({
+      nvr,
+      sqRef: sqPaymentId || null,
+      receiptUrl: receiptUrl || null,
+      amount: effectiveAmount,
+      when: now,
+    });
+  };
+
+  const copy = (val: string, key: string) => {
+    navigator.clipboard.writeText(val);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+    toast.success("Copié");
   };
 
   const parsedCustom = parseFloat(customAmount || "0");
@@ -288,7 +336,7 @@ export default function PayerPublic() {
                     customerName={invoice.first_name}
                     customerEmail={invoice.email || undefined}
                     paymentSource="public_pay"
-                    onSuccess={() => setPaidOk(true)}
+                    onSuccess={handlePaid}
                   />
                   <p className="mt-4 text-xs text-white/40 text-center">
                     Paiement sécurisé traité par Square. Nous ne conservons aucune information de carte.
@@ -296,6 +344,98 @@ export default function PayerPublic() {
 
                   <InteracBlock amount={effectiveAmount} reference={invoice.invoice_number} />
                 </>
+              )}
+
+              {paidOk && (
+                <div className="space-y-5">
+                  {/* Real-time checkpoints */}
+                  <div className="space-y-2">
+                    {[
+                      "Paiement confirmé par Square",
+                      "Facture mise à jour dans votre dossier",
+                      "Email de confirmation envoyé",
+                    ].map((label, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"
+                        style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)" }}
+                      >
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                        <span className="text-sm text-white">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* NVR reference block */}
+                  <div
+                    className="rounded-xl p-5 text-center"
+                    style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.35)" }}
+                  >
+                    <div className="text-xs uppercase tracking-widest text-white/60 mb-2">
+                      Votre numéro de référence Nivra
+                    </div>
+                    <div className="text-3xl md:text-4xl font-bold font-mono text-white tracking-wider break-all">
+                      {paidRef?.nvr || (
+                        <span className="inline-flex items-center gap-2 text-white/70">
+                          <Loader2 className="w-5 h-5 animate-spin" /> Génération…
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-white/50 mt-3">
+                      Conservez cette référence — utile en cas de question sur votre paiement.
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2 mt-4">
+                      {paidRef?.nvr && (
+                        <Button
+                          onClick={() => copy(paidRef.nvr!, "nvr")}
+                          variant="outline"
+                          className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                        >
+                          {copied === "nvr"
+                            ? <Check className="w-4 h-4 mr-2" />
+                            : <Copy className="w-4 h-4 mr-2" />}
+                          Copier la référence
+                        </Button>
+                      )}
+                      {paidRef?.receiptUrl && (
+                        <Button asChild variant="outline" className="bg-white/5 border-white/20 text-white hover:bg-white/10">
+                          <a href={paidRef.receiptUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Voir mon reçu
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div className="rounded-lg p-4 space-y-1.5 text-sm" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Montant payé</span>
+                      <span className="text-white font-semibold">{fmt(paidRef?.amount || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Facture</span>
+                      <span className="text-white font-mono text-xs">{invoice.invoice_number}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Date</span>
+                      <span className="text-white text-xs">
+                        {paidRef ? new Date(paidRef.when).toLocaleString("fr-CA") : ""}
+                      </span>
+                    </div>
+                    {paidRef?.sqRef && (
+                      <div className="flex justify-between">
+                        <span className="text-white/40 text-xs">Réf. Square</span>
+                        <span className="text-white/50 font-mono text-[10px]">{paidRef.sqRef}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button onClick={reset} variant="ghost" className="w-full text-white/70 hover:bg-white/5">
+                    Payer une autre facture
+                  </Button>
+                </div>
               )}
             </Card>
           )}
