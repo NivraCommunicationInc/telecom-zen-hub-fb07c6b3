@@ -146,7 +146,7 @@ export function EmployeeSquarePaymentDialog({
         targetId: invoice.id,
         details: { payment_id: sqRef, amount: balanceDue },
       });
-      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`, { duration: 10000 });
       setPaid(true);
       invalidateAfterPayment(qc);
       onSuccess?.();
