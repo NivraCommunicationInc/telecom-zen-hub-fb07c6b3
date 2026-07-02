@@ -1837,7 +1837,7 @@ export function renderQueueTemplate(
           heroTitle: "Votre commande n'a pas pu être traitée",
           icon: "x",
           greeting,
-          bodyText: "Suite à une vérification, votre commande n'a pas pu être traitée. Un remboursement a été initié via PayPal et apparaîtra dans 3 à 5 jours ouvrables.",
+          bodyText: "Suite à une vérification, votre commande n'a pas pu être traitée. Un remboursement a été initié automatiquement et apparaîtra dans 3 à 5 jours ouvrables.",
           ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
           ctaPrimaryLabel: "Nous contacter",
         }),
