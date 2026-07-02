@@ -1,93 +1,79 @@
-## Page publique de paiement — Plan complet
+## Plan — 4 points avant publication
 
-### 1. Route et intégration menu
+### POINT 1 — Bloc Interac sur `/payer`
+Dans `src/pages/public/PayerPublic.tsx`, sous le `SquarePaymentForm`, ajouter un bloc statique visible :
+- Adresse email : `support@nivra-telecom.ca`
+- Montant : préremp­li = `invoice.balance_due` (ou montant custom sélectionné)
+- Réponse sécurité : `invoice.invoice_number`
+- Note : "Envoyer via votre banque — un accusé sera envoyé une fois le virement reçu."
+Aucun flux automatique, pur affichage (comme partout ailleurs).
 
-- **Route publique** : `/payer` (FR, court, mémorisable) — alias `/pay` redirige vers `/payer`.
-- **Menu header public** (composant nav marketing) : ajouter un lien **"Payer une facture"** à droite, séparé visuellement, style bouton secondaire (pas primary — le CTA principal reste "Commander").
-- Aussi accessible depuis le footer sous "Support".
+### POINT 2 — Preuve JWT
+Aucune ligne `[functions.square-charge-invoice]` ni `[functions.public-invoice-lookup]` dans `supabase/config.toml`. Par défaut Lovable = `verify_jwt = false`. Les deux fonctions sont donc publiques. **Aucun correctif requis.** Je livrerai la preuve `grep` dans le message final.
 
-### 2. Champs de recherche (2-facteurs OBLIGATOIRE)
+### POINT 3 — Montant personnalisé + surpaiement
+**Frontend (`PayerPublic.tsx`)** : après match, deux options :
+- `Payer X$ (montant exact)` (défaut)
+- `Payer un autre montant` → input numérique min 1$, max = balance_due × 3 (garde-fou anti-erreur), pas au-dessus sauf case cochée "je souhaite créditer mon compte".
 
-**Champ 1 — Référence** (un des trois) :
-- Numéro de facture → `billing_invoices.invoice_number`
-- Numéro de dossier/compte → `accounts.account_number` OU `profiles.client_number`
-- Numéro de ticket → `support_tickets` (ajout d'un lien de paiement optionnel)
+Passer le montant à `SquarePaymentForm` via une prop `amountOverrideCents?: number`. Étendre `SquarePaymentForm` pour envoyer `amount_cents` optionnel à `square-charge-invoice`.
 
-**Champ 2 — Identité** (un des quatre) :
-- Email → `profiles.email`
-- Téléphone → `profiles.phone` (normalisation E.164)
-- Numéro de compte → `accounts.account_number` / `profiles.client_number`
-- NIP client (4 chiffres) → validé via RPC contre `client_login_pins` (hash+salt)
+**Backend (`square-charge-invoice/index.ts`)** :
+1. Accepter `amount_cents` optionnel (validation : ≥100, ≤ balance × 3).
+2. Charger Square pour ce montant réel (déjà le cas via `amountCents`).
+3. Dans `applySquarePaymentDirectly`, après update de la facture :
+   - Si `amountPaid > invoiceTotal - paidBefore` (surpaiement), insérer dans `account_adjustments` (`type='credit'`, `amount=overage`, `description="Crédit — surpaiement page publique X$"`, `account_id` résolu via billing_customers→profiles→accounts, `created_by_role='system_auto'`).
+4. Statuts déjà gérés (`paid` / `partially_paid`) via logique `newBalanceDue`.
 
-**Règle** : les deux doivent pointer vers le MÊME `client_id`/`user_id`. Un seul match = refus générique ("Aucun dossier trouvé"), jamais indiquer lequel a échoué.
+**Preuve** : je livrerai les 3 branches (partial / exact / overpay) commentées avec numéros de ligne.
 
-### 3. Sécurité
+### POINT 4 — Section Nivra Core « Caisse publique »
+Renommer/étendre la page existante `CorePublicPaymentsPage.tsx` en `CorePublicCashierPage.tsx` avec 3 onglets :
 
-- **Rate limit** : 3 tentatives / IP / heure via `rate_limit_attempts` (clé `public-pay-search:<ip>`), verrou 1h après échec.
-- **Log complet** : chaque tentative (succès + échec) dans `activity_logs` avec IP, user-agent, champs saisis (référence hashée SHA-256 pour éviter fuite si dump), résultat.
-- **Aucune donnée sensible** exposée : jamais solde global, jamais autres factures, jamais méthodes de paiement enregistrées, prénom uniquement.
-- **Edge function** `public-invoice-lookup` en `verify_jwt = false` avec validation stricte serveur.
+**Onglet A — Historique** (existant, enrichi)
+- Colonnes : Date · Client · Facture · Montant · Réf Square · IP · Statut · Reçu
+- Filtres : date range, statut (succès/échec via `billing_system_alerts` type `square_charge_db_update_failed`), recherche texte
+- Export CSV via `exportUtils.ts`
 
-### 4. Paiement Square
+**Onglet B — Nouveau lien de paiement**
+- Recherche client existant (nom / email / n° compte via query `profiles` + `billing_customers`)
+- OU champ libre (nom + email pour non-enregistré)
+- Champs : `amount`, `description`
+- Sur submit : insert `field_payment_intents` (déjà supporté par `square-charge-invoice`) avec `source='public_pay_admin'`, `token` random 32 chars
+- Retour : URL `/payer/i/<token>` copiable + bouton "Envoyer par email" (queue template dédié)
 
-- `square-charge-invoice` accepte déjà les appels anonymes (JWT non requis pour ce cas) — je vérifie et documente. Sinon j'ajoute une branche `public_token` signé issu du lookup, valide 15 min, à usage unique.
-- Formulaire `SquarePaymentForm` réutilisé tel quel (composant existant, corporate blue).
-- Interac en secondaire (bouton "Payer par virement Interac" → affiche instructions email + référence).
+**Onglet C — Facture rapide**
+- Similaire à B mais crée une vraie `billing_invoice` liée à un `billing_customer` (créé si manquant), génère lien `/payer/i/<invoiceToken>`
+- Description → 1 ligne dans `billing_invoice_lines`
 
-### 5. Après paiement
-
-- `square-charge-invoice` fait déjà : update `billing_invoices` (status=paid, balance_due=0, amount_paid), création `billing_payments`, invalidation caches.
-- **Ajouts** :
-  - Note auto dans `client_internal_notes` (type=`system`) : "Paiement public reçu — X$ — Réf Square: XXXXX — IP: xxx"
-  - Email confirmation via template existant `payment_received` (bleu #0066CC, avec réf Square)
-- **UI** : `SquarePaymentSuccessCard` existant, reste affiché jusqu'à fermeture manuelle.
-
-### 6. Section Nivra Core — "Paiements publics"
-
-- Nouvelle page `/core/paiements-publics` (sous menu Paiements).
-- Vue = filtre sur `billing_payments` où `source = 'public_pay_page'` (nouveau champ) OU tag dans `notes`.
-- Colonnes : Client · Facture · Montant · Réf Square · Date · IP.
-- Réutilise `useAdminPayments` avec filtre.
-
-### 7. Base de données
-
-**Vérifications faites** :
-- `billing_invoices` : `invoice_number`, `customer_id`, `balance_due`, `status`, `total` ✓
-- `accounts` : `account_number`, `client_id` ✓
-- `profiles` : `email`, `phone`, `client_number`, `first_name` ✓
-- `support_tickets` : existe ✓
-- `client_login_pins` : `pin_hash`, `pin_salt`, `user_id` ✓
+**Route publique enrichie** : `/payer/i/:token` — page qui skip la recherche 2-facteurs (le token EST l'auth), affiche description + montant, propose Square + Interac. Nouvelle edge fn légère `public-payment-link-resolve` (verify_jwt=false) qui lit `field_payment_intents.token` OU `billing_invoices` via token stocké dans `billing_snapshot_payment.public_token`.
 
 **Migration nécessaire** :
-- Ajouter `billing_payments.source TEXT` (valeurs: `portal`, `core_pos`, `public_pay`, `autopay`, `field`)
-- Ajouter `billing_payments.payer_ip TEXT` (nullable, seulement public_pay)
-- Vue `public_payments_view` pour Core
+- `field_payment_intents.public_token TEXT UNIQUE` (nullable) + index
+- `field_payment_intents.source TEXT` (agrandi pour accepter `public_pay_admin`)
+- Contrainte étendue sur `billing_payments.source` (déjà OK avec `public_pay`)
 
-### 8. Fichiers touchés
+**Menu Core** : entrée « Caisse publique » sous Paiements (remplace « Paiements publics »).
+
+### Fichiers touchés
 
 **Nouveaux** :
-- `src/pages/public/PayerPublic.tsx` — page recherche + paiement
-- `src/core-app/pages/CorePublicPayments.tsx` — vue Core
-- `supabase/functions/public-invoice-lookup/index.ts` — recherche 2-facteurs, rate limit, log
-- Migration : colonnes `source`/`payer_ip` sur `billing_payments`, vue Core
+- `supabase/functions/public-payment-link-resolve/index.ts`
+- `src/pages/public/PayerPublicByToken.tsx`
+- `src/core-app/pages/CorePublicCashierPage.tsx` (renomme + 3 onglets)
+- `src/core-app/components/public-cashier/{HistoryTab,NewLinkTab,QuickInvoiceTab}.tsx`
+- Migration `add_public_token_to_field_payment_intents.sql`
 
 **Modifiés** :
-- Header/nav marketing → ajout lien "Payer une facture"
-- Footer → même lien sous Support
-- `src/components/AppRoutes.tsx` → route `/payer` + `/pay`
-- `supabase/functions/square-charge-invoice/index.ts` → accepte `public_token` du lookup, écrit `source='public_pay'`
-- `src/core-app/pages/CorePOSPage.tsx` / navigation Core → ajout entrée menu
+- `src/pages/public/PayerPublic.tsx` — bloc Interac + montant custom
+- `src/components/payment/SquarePaymentForm.tsx` — prop `amountOverrideCents`, allowCustom
+- `supabase/functions/square-charge-invoice/index.ts` — `amount_cents`, création credit surpaiement
+- `src/components/AppRoutes.tsx` — route `/payer/i/:token`
+- `src/core-app/CoreApp.tsx` / navigation — entrée menu renommée
 
-### 9. Ce que je NE fais PAS
+### Ce que je NE fais PAS
+- Pas de vrai flux Interac automatique (juste instructions statiques).
+- Pas de gestion des "échecs" Square autrement que via `billing_system_alerts` (Square ne persiste rien si refus).
+- Pas de refonte du composant `SquarePaymentForm` — juste 1 prop optionnelle.
 
-- Pas de création de compte automatique.
-- Pas d'exposition du portail client.
-- Pas de recherche par nom (trop faible).
-- Pas d'affichage d'autres factures du même client.
-
----
-
-**Confirmations demandées avant de coder** :
-1. OK pour la route `/payer` et l'ajout menu header + footer ?
-2. OK pour ajouter les colonnes `source` + `payer_ip` sur `billing_payments` ?
-3. OK pour rate limit **3/h/IP avec verrou 1h** (strict) ou préfères-tu **5/h** ?
+Confirme et je code tout d'un bloc + livre les preuves grep/code.

@@ -18,6 +18,8 @@ export interface SquarePaymentFormProps {
   onBeforeCharge?: () => Promise<{ invoice_id?: string; intent_id?: string }>;
   /** Montant affiché sur le bouton */
   amount: number;
+  /** Si fourni (en cents) → transmis à square-charge-invoice pour override du montant (paiement partiel/surpaiement) */
+  amountOverrideCents?: number;
   /** Numéro de facture lisible — pour la note Square */
   invoiceNumber?: string;
   /** Pour la note Square (visible dans le dashboard Square) */
@@ -33,12 +35,14 @@ export function SquarePaymentForm({
   invoiceId,
   onBeforeCharge,
   amount,
+  amountOverrideCents,
   invoiceNumber,
   customerName,
   customerEmail,
   paymentSource,
   onSuccess,
 }: SquarePaymentFormProps) {
+
   const qc = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -111,6 +115,8 @@ export function SquarePaymentForm({
 
       let chargeBody: Record<string, any> = { source_id: result.token, customer_email: customerEmail };
       if (paymentSource) chargeBody.source = paymentSource;
+      if (typeof amountOverrideCents === "number" && amountOverrideCents > 0) chargeBody.amount_cents = amountOverrideCents;
+
       if (onBeforeCharge) {
         const ids = await onBeforeCharge();
         if (ids.intent_id) chargeBody.intent_id = ids.intent_id;

@@ -136,7 +136,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: CreditCard, label: "Vue d'ensemble", href: "/billing" },
       { icon: FileText, label: "Factures", href: "/invoices" },
       { icon: DollarSign, label: "Paiements", href: "/payments" },
-      { icon: CreditCard, label: "Paiements publics", href: "/public-payments" },
+      { icon: CreditCard, label: "Caisse publique", href: "/public-payments" },
       { icon: Activity, label: "Transactions", href: "/transactions" },
       { icon: RefreshCcw, label: "Abonnements", href: "/subscriptions" },
       { icon: FileText, label: "Modèles PDF", href: "/pdf-templates" },
