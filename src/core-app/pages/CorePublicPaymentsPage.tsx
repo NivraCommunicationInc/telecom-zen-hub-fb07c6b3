@@ -252,6 +252,7 @@ function HistoryTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "success" | "failed" | "pending">("all");
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [selectedLink, setSelectedLink] = useState<any | null>(null);
 
   const { data: successes, isLoading: loadingS } = useQuery({
     queryKey: ["core-public-payments-success"],
@@ -272,8 +273,7 @@ function HistoryTab() {
     queryFn: async () => {
       const { data } = await supabase
         .from("public_payment_links")
-        .select("id, nivra_reference, recipient_name, recipient_email, amount_due, description, created_at, expires_at, status, token")
-        .eq("status", "pending")
+        .select("id, nivra_reference, recipient_name, recipient_email, amount_due, amount_paid, description, created_at, expires_at, status, token, paid_at, payment_id")
         .order("created_at", { ascending: false })
         .limit(200);
       return data || [];
@@ -330,13 +330,20 @@ function HistoryTab() {
       receipt: r.square_receipt_url || null,
     }));
     const pend = (pending || []).map((r: any) => ({
-      kind: "pending" as const,
+      kind: (r.status === "paid" || r.status === "completed" ? "success" : r.status === "cancelled" || r.status === "canceled" ? "failed" : "pending") as "success" | "failed" | "pending",
+      sourceType: "link" as const,
       id: r.id,
       date: r.created_at,
+      created_at: r.created_at,
+      expires_at: r.expires_at,
+      paid_at: r.paid_at,
+      status: r.status,
+      payment_id: r.payment_id,
       client: r.recipient_name || "—",
       email: r.recipient_email || "",
       invoice: r.description?.slice(0, 40) || "—",
-      amount: Number(r.amount_due),
+      amount: Number(r.amount_paid || r.amount_due),
+      amount_due: Number(r.amount_due),
       nivra: r.nivra_reference || "—",
       sqRef: "—",
       ip: "—",
@@ -436,6 +443,106 @@ function HistoryTab() {
     }
   };
 
+  const sendPaymentLink = async (row: any) => {
+    if (!row.email || !row.token) return toast.error("Email ou token manquant.");
+    setSendingId(row.id);
+    try {
+      const url = publicPayUrl(row.token);
+      const { error } = await supabase.from("email_queue").insert({
+        event_key: `public_pay_resend_${row.id}_${Date.now()}`,
+        to_email: row.email,
+        template_key: "invoice_payment_link",
+        template_vars: {
+          client_name: row.client || "Client",
+          first_name: (row.client || "Client").split(" ")[0],
+          order_number: row.nivra,
+          invoice_number: row.nivra,
+          total: row.amount_due || row.amount,
+          amount: row.amount_due || row.amount,
+          approval_url: url,
+          payment_url: url,
+          summary: row.invoice || "Paiement Nivra Telecom",
+          description: row.invoice || "Paiement Nivra Telecom",
+          agent_name: "Nivra Telecom",
+          valid_until: row.expires_at ? new Date(row.expires_at).toLocaleString("fr-CA") : "30 jours",
+        },
+        status: "queued",
+        attempts: 0,
+        max_attempts: 5,
+      });
+      if (error) throw error;
+      await supabase.from("public_payment_links").update({ sent_at: new Date().toISOString() }).eq("id", row.id);
+      toast.success("Lien envoyé à " + row.email);
+      qc.invalidateQueries({ queryKey: ["core-public-payments-pending"] });
+    } catch (e: any) {
+      toast.error("Envoi échoué : " + (e?.message || String(e)));
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const editLink = async (row: any) => {
+    if (row.kind !== "pending") return toast.error("Modification bloquée : lien déjà payé ou annulé.");
+    const amountRaw = window.prompt("Nouveau montant CAD", String(row.amount_due || row.amount));
+    if (amountRaw === null) return;
+    const amount = Number.parseFloat(amountRaw.replace(",", "."));
+    if (!(amount >= 1)) return toast.error("Montant invalide.");
+    const description = window.prompt("Description", row.invoice || "Paiement Nivra Telecom");
+    if (description === null) return;
+    const { error } = await supabase.from("public_payment_links").update({ amount_due: amount, description }).eq("id", row.id).eq("status", "pending");
+    if (error) return toast.error(error.message);
+    if (row.token) await supabase.from("field_payment_intents").update({ amount, description }).eq("public_token", row.token).neq("status", "completed");
+    toast.success("Lien modifié");
+    qc.invalidateQueries({ queryKey: ["core-public-payments-pending"] });
+  };
+
+  const extendLink = async (row: any) => {
+    if (row.kind !== "pending") return toast.error("Prolongation bloquée : lien déjà payé ou annulé.");
+    const daysRaw = window.prompt("Prolonger de combien de jours ?", "30");
+    if (daysRaw === null) return;
+    const days = Number.parseInt(daysRaw, 10);
+    if (!(days > 0 && days <= 365)) return toast.error("Nombre de jours invalide.");
+    const base = row.expires_at ? new Date(row.expires_at) : new Date();
+    const next = new Date(Math.max(base.getTime(), Date.now()));
+    next.setDate(next.getDate() + days);
+    const { error } = await supabase.from("public_payment_links").update({ expires_at: next.toISOString() }).eq("id", row.id).eq("status", "pending");
+    if (error) return toast.error(error.message);
+    if (row.token) await supabase.from("field_payment_intents").update({ expires_at: next.toISOString() }).eq("public_token", row.token).neq("status", "completed");
+    toast.success("Expiration prolongée");
+    qc.invalidateQueries({ queryKey: ["core-public-payments-pending"] });
+  };
+
+  const cancelLink = async (row: any) => {
+    if (row.kind !== "pending") return toast.error("Ce lien n'est plus annulable.");
+    if (!window.confirm(`Annuler le lien ${row.nivra} ? Le paiement futur sera bloqué.`)) return;
+    const { error } = await supabase.from("public_payment_links").update({ status: "cancelled" }).eq("id", row.id).eq("status", "pending");
+    if (error) return toast.error(error.message);
+    if (row.token) await supabase.from("field_payment_intents").update({ status: "cancelled" }).eq("public_token", row.token).neq("status", "completed");
+    toast.success("Lien annulé");
+    qc.invalidateQueries({ queryKey: ["core-public-payments-pending"] });
+    qc.invalidateQueries({ queryKey: ["core-public-kpis"] });
+  };
+
+  const viewReceiptPdf = (row: any, open = true) => {
+    const result = generateReceiptPDF({
+      receipt_number: row.nivra || row.sqRef || row.id,
+      payment_date: row.paid_at || row.date || new Date().toISOString(),
+      payment_method: "card",
+      amount_paid: Number(row.amount || row.amount_due || 0),
+      invoice_number: row.invoice || row.nivra,
+      invoice_total: Number(row.amount || row.amount_due || 0),
+      client_name: row.client || "Client Nivra",
+      client_email: row.email || "support@nivra-telecom.ca",
+      account_number: row.nivra || "N/A",
+      billed_items: [{ description: row.invoice || "Paiement Nivra Telecom", amount: Number(row.amount || row.amount_due || 0) }],
+      transaction_reference: row.sqRef !== "—" ? row.sqRef : row.nivra,
+      balance_remaining: 0,
+      subtotal: Number(row.amount || row.amount_due || 0),
+    });
+    if (!result.success || !result.blob) return toast.error(result.error || "PDF indisponible");
+    return open ? safePDFOpen(result.blob, `recu-${row.nivra || row.id}.pdf`) : safePDFDownload(result.blob, `recu-${row.nivra || row.id}.pdf`);
+  };
+
   const isLoading = loadingS;
 
   const StatusBadge = ({ kind }: { kind: string }) => {
@@ -530,6 +637,33 @@ function HistoryTab() {
                             </a>
                           </Button>
                         )}
+                        {(r as any).sourceType === "link" && (
+                          <Button size="sm" variant="ghost" className="h-8" title="Voir les détails complets" onClick={() => setSelectedLink(r)}>
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {(r as any).sourceType === "link" && (r as any).token && (
+                          <Button size="sm" variant="ghost" className="h-8" title="Copier le lien" onClick={() => copyText(publicPayUrl((r as any).token), "Lien") }>
+                            <Copy className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {(r as any).sourceType === "link" && r.email && (
+                          <Button size="sm" variant="ghost" className="h-8" title="Envoyer/renvoyer le lien par email" disabled={sendingId === r.id} onClick={() => sendPaymentLink(r)}>
+                            {sendingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                          </Button>
+                        )}
+                        {(r as any).sourceType === "link" && r.kind === "pending" && (
+                          <>
+                            <Button size="sm" variant="ghost" className="h-8" title="Modifier le montant" onClick={() => editLink(r)}><Edit3 className="w-3.5 h-3.5" /></Button>
+                            <Button size="sm" variant="ghost" className="h-8" title="Prolonger l'expiration" onClick={() => extendLink(r)}><RefreshCw className="w-3.5 h-3.5" /></Button>
+                            <Button size="sm" variant="ghost" className="h-8" title="Annuler le lien" onClick={() => cancelLink(r)}><Ban className="w-3.5 h-3.5" /></Button>
+                          </>
+                        )}
+                        {r.kind === "success" && (
+                          <Button size="sm" variant="ghost" className="h-8" title="Voir le reçu PDF" onClick={() => viewReceiptPdf(r)}>
+                            <Receipt className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         {r.kind === "success" && r.email && r.receipt && (
                           <Button
                             size="sm"
@@ -566,6 +700,7 @@ function HistoryTab() {
           </div>
         )}
       </Card>
+      <PublicLinkDetailDialog row={selectedLink} open={!!selectedLink} onOpenChange={(open) => !open && setSelectedLink(null)} />
     </div>
   );
 }
