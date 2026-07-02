@@ -113,7 +113,7 @@ interface Props {
 export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
   const [tab, setTab] = useState("client");
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState<{ order: string; commission: number; paypalUrl: string | null } | null>(null);
+  const [success, setSuccess] = useState<{ order: string; commission: number; paymentUrl: string | null } | null>(null);
 
   // Form state
   const [firstName, setFirstName] = useState("");
@@ -283,8 +283,8 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
         toast.error(`Erreur: ${message}`);
         return;
       }
-      const r = data as { order_number: string; commission_estimate: number; paypal_approve_url: string | null };
-      setSuccess({ order: r.order_number, commission: r.commission_estimate, paypalUrl: r.paypal_approve_url ?? null });
+      const r = data as { order_number: string; commission_estimate: number; payment_url?: string | null; paypal_approve_url?: string | null };
+      setSuccess({ order: r.order_number, commission: r.commission_estimate, paymentUrl: r.payment_url ?? r.paypal_approve_url ?? null });
       toast.success(`Vente complétée! Commande ${r.order_number} • Commission: ${r.commission_estimate.toFixed(2)}$`);
       onSuccess?.();
     } catch (e: any) {
@@ -312,14 +312,14 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
             <p className="text-sm text-muted-foreground">Commande <span className="font-mono font-semibold">{success.order}</span></p>
             <p className="text-sm">Commission estimée : <span className="font-bold text-emerald-500">{success.commission.toFixed(2)} $</span></p>
             <p className="text-xs text-muted-foreground">📧 Email de confirmation envoyé au client · Commande liée à Nivra Core</p>
-            {success.paypalUrl && (
+            {success.paymentUrl && (
               <a
-                href={success.paypalUrl}
+                href={success.paymentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#ffc439] text-[#003087] font-bold text-sm hover:brightness-95"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#7C3AED] text-white font-bold text-sm hover:brightness-95"
               >
-                💳 Ouvrir le paiement PayPal
+                💳 Ouvrir la page de paiement Square
               </a>
             )}
             <div className="pt-2">
@@ -587,7 +587,7 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
                 </div>
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-300">
                   📋 La commande sera créée avec statut <strong>pending payment</strong>, liée à Nivra Core,
-                  et un courriel de confirmation officiel sera envoyé au client avec le lien PayPal.
+                  et un courriel de confirmation officiel sera envoyé au client avec le lien de paiement Square.
                 </div>
                 <div className="flex justify-between pt-2">
                   <Button variant="ghost" onClick={() => setTab("install")} disabled={submitting}>Retour</Button>
