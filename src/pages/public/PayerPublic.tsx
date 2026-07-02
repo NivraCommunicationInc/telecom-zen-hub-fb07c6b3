@@ -105,6 +105,11 @@ export default function PayerPublic() {
         body: JSON.stringify({ reference: reference.trim(), identity: identity.trim() }),
       });
       const data = await res.json();
+      if (data?.redirect_token) {
+        // NVR-XXXX or raw token → jump straight to the token payment page
+        window.location.href = `/payer/lien/${data.redirect_token}`;
+        return;
+      }
       if (!data?.ok) {
         toast.error(data?.error || "Aucun dossier trouvé — vérifiez vos informations ou contactez support@nivra-telecom.ca");
         return;
