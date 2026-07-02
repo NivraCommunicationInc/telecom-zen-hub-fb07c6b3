@@ -138,12 +138,24 @@ serve(async (req) => {
     const squareData = await squareRes.json();
 
     if (!squareRes.ok || squareData.errors) {
-      const errMsg =
-        squareData.errors?.[0]?.detail ||
-        squareData.errors?.[0]?.code ||
-        "Paiement refusé";
+      // Retourne EXACTEMENT ce que Square dit — aucune traduction, aucune modification.
+      // Aucune écriture DB, aucune facture marquée payée, aucun email envoyé.
+      const sqErr = squareData.errors?.[0] || {};
+      const code: string = sqErr.code || "UNKNOWN_ERROR";
+      const detail: string = sqErr.detail || "";
+      const category: string = sqErr.category || "";
+      const errMsg = detail
+        ? `Paiement refusé par Square : ${code} — ${detail}`
+        : `Paiement refusé par Square : ${code}`;
       console.error("[square-charge-invoice] Square error:", JSON.stringify(squareData.errors));
-      return json({ ok: false, error: errMsg }, 402);
+      return json({
+        ok: false,
+        error: errMsg,
+        square_error_code: code,
+        square_error_detail: detail,
+        square_error_category: category,
+        square_errors: squareData.errors ?? null,
+      }, 402);
     }
 
     const payment = squareData.payment;
