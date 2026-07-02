@@ -10091,7 +10091,9 @@ export type Database = {
           payment_method: string
           paypal_approval_url: string | null
           paypal_order_id: string | null
+          public_token: string | null
           quote_id: string | null
+          source: string | null
           status: string
           updated_at: string
         }
@@ -10113,7 +10115,9 @@ export type Database = {
           payment_method?: string
           paypal_approval_url?: string | null
           paypal_order_id?: string | null
+          public_token?: string | null
           quote_id?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
         }
@@ -10135,7 +10139,9 @@ export type Database = {
           payment_method?: string
           paypal_approval_url?: string | null
           paypal_order_id?: string | null
+          public_token?: string | null
           quote_id?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
         }
