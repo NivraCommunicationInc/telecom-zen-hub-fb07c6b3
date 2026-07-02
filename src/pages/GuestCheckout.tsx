@@ -1137,12 +1137,17 @@ const GuestCheckout = () => {
 
   return (
     <div style={{ background: '#F5F7FA' }} className="relative min-h-screen overflow-hidden">
-      <PhotoBg url="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1920&q=80" opacity={0.08} filter="saturate(0.6) brightness(0.65)" />
-      <div aria-hidden style={{ position: 'absolute', top: '-15%', right: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,0.14) 0%, transparent 65%)', animation: 'n-aurora-1 14s ease-in-out infinite', pointerEvents: 'none' }} />
-      <div aria-hidden style={{ position: 'absolute', bottom: '-15%', left: '-6%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(6,182,212,0.08) 0%, transparent 65%)', animation: 'n-aurora-2 18s ease-in-out infinite', pointerEvents: 'none' }} />
       <Header />
 
       <div className="relative container mx-auto px-4 sm:px-6 max-w-[1200px] py-8 lg:py-12">
+        {/* Trust banner — telecom style */}
+        <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 rounded-xl bg-white border border-[#E5E7EB] shadow-sm text-xs sm:text-sm font-medium text-[#1A1A2E]">
+          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans contrat</span>
+          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans vérification de crédit</span>
+          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Activation rapide</span>
+          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Support québécois</span>
+        </div>
+
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-3 mb-1.5">
             <h1 className="text-3xl lg:text-4xl font-bold text-[#1A1A2E]">Commander</h1>
@@ -1152,7 +1157,7 @@ const GuestCheckout = () => {
               </span>
             )}
           </div>
-          <p className="text-muted-foreground text-sm">Aucun compte requis — commandez en quelques minutes</p>
+          <p className="text-[#6B7280] text-sm">Aucun compte requis — commandez en quelques minutes</p>
         </div>
 
         {/* Mobile only: horizontal stepper + gradient bar */}
