@@ -166,6 +166,7 @@ const CoreBillingPage = lazy(() => import("@/core-app/pages/CoreBillingPage"));
 const CoreInvoices = lazy(() => import("@/core-app/pages/InvoicesPage"));
 const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
 const CorePayments = lazy(() => import("@/core-app/pages/PaymentsPage"));
+const CorePublicPaymentsPage = lazy(() => import("@/core-app/pages/CorePublicPaymentsPage"));
 const CoreTransactionsPage = lazy(() => import("@/core-app/pages/CoreTransactionsPage"));
 const CoreSubscriptions = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
 const CoreSubscriptionDetail = lazy(() => import("@/core-app/pages/SubscriptionDetailPage"));
@@ -1014,6 +1015,7 @@ const AppRoutes = () => {
           <Route path="invoices" element={<Suspense fallback={null}><CoreInvoices /></Suspense>} />
           <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><CoreInvoiceDetail /></Suspense>} />
           <Route path="payments" element={<Suspense fallback={null}><CorePayments /></Suspense>} />
+          <Route path="public-payments" element={<Suspense fallback={null}><CorePublicPaymentsPage /></Suspense>} />
           <Route path="transactions" element={<Suspense fallback={null}><CoreTransactionsPage /></Suspense>} />
           <Route path="subscriptions" element={<Suspense fallback={null}><CoreSubscriptions /></Suspense>} />
           <Route path="subscriptions/:id" element={<Suspense fallback={null}><CoreSubscriptionDetail /></Suspense>} />
