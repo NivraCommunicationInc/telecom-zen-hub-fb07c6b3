@@ -18,8 +18,10 @@ async function applySquarePaymentDirectly(params: {
   amountPaid: number;
   paymentId: string;
   receiptUrl: string | null;
+  source?: string;
+  payerIp?: string | null;
 }) {
-  const { supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl } = params;
+  const { supabase, invoiceData, customerId, amountPaid, paymentId, receiptUrl, source, payerIp } = params;
   const now = new Date().toISOString();
 
   const { data: existingPayment, error: existingErr } = await supabase
