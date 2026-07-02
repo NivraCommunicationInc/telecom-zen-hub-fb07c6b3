@@ -409,8 +409,8 @@ function HistoryTab() {
   };
 
   const resendReceipt = async (row: any) => {
-    if (!row.email || !row.receipt) {
-      toast.error("Aucun email ou reçu disponible.");
+    if (!row.email) {
+      toast.error("Aucun email disponible.");
       return;
     }
     setSendingId(row.id);
@@ -425,10 +425,11 @@ function HistoryTab() {
           invoice_number: row.invoice || row.nivra,
           amount: row.amount,
           amount_paid_today: row.amount,
-          reference: row.nvr || row.sqRef,
+          reference: row.nivra || row.sqRef,
           payment_method: "Carte de crédit — Square",
           payment_date: row.date,
-          invoice_url: row.receipt,
+          invoice_url: row.receipt || undefined,
+          receipt_url: row.receipt || undefined,
         },
         status: "queued",
         attempts: 0,
@@ -664,7 +665,7 @@ function HistoryTab() {
                             <Receipt className="w-3.5 h-3.5" />
                           </Button>
                         )}
-                        {r.kind === "success" && r.email && r.receipt && (
+                        {r.kind === "success" && r.email && (
                           <Button
                             size="sm"
                             variant="ghost"
