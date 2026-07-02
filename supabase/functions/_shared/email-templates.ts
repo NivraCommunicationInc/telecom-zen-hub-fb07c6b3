@@ -2048,7 +2048,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
   },
 
   // =============================================
-  // PAYPAL RECURRING TEMPLATES
+  // RECURRING PAYMENT TEMPLATES
   // =============================================
 
   paypal_recurring_approval: {
@@ -2056,8 +2056,8 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('info', '🔄', 'Paiement automatique', 'Automatic payments',
-        'Votre commande a été payée avec succès. Pour activer la facturation automatique mensuelle, veuillez approuver votre abonnement PayPal.',
-        'Your order has been paid successfully. To activate automatic monthly billing, please approve your PayPal subscription.'
+        "Votre commande a été payée avec succès. Pour activer la facturation automatique mensuelle, veuillez confirmer votre autorisation de prélèvement.",
+        'Your order has been paid successfully. To activate automatic monthly billing, please confirm your pre-authorization.'
       )}
       ${detailsCard([
         ...(vars.order_number ? [{ label: 'Nº commande / Order #', value: vars.order_number }] : []),
@@ -2066,14 +2066,14 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
       ])}
       <div style="text-align:center; margin:28px 0;">
         <a href="${vars.approval_url}" target="_blank" style="display:inline-block; background:${emailStyles.accent}; color:#fff; padding:14px 36px; border-radius:8px; text-decoration:none; font-weight:600; font-size:16px;">
-          Approuver sur PayPal / Approve on PayPal
+          Approuver le paiement automatique / Approve automatic payments
         </a>
       </div>
       <p style="margin:20px 0; font-size:13px; color:${emailStyles.textMuted};">
-        Ce lien vous redirige vers PayPal pour autoriser les prélèvements automatiques mensuels. Aucun paiement supplémentaire ne sera prélevé aujourd'hui.<br>
-        <em>This link redirects you to PayPal to authorize automatic monthly payments. No additional payment will be charged today.</em>
+        Ce lien vous permet d'autoriser les prélèvements automatiques mensuels. Aucun paiement supplémentaire ne sera prélevé aujourd'hui.<br>
+        <em>This link lets you authorize automatic monthly payments. No additional payment will be charged today.</em>
       </p>
-    `, vars.approval_url || joinUrl(config.baseUrl, "/portal"), "Approuver sur PayPal / Approve on PayPal", config.supportEmail),
+    `, vars.approval_url || joinUrl(config.baseUrl, "/portal"), "Approuver le paiement automatique / Approve automatic payments", config.supportEmail),
   },
 
   paypal_subscription_activated: {
@@ -2081,8 +2081,8 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('success', '✅', 'Paiement automatique activé', 'Automatic payments activated',
-        'Votre abonnement PayPal est maintenant actif. Vos prochaines factures seront payées automatiquement.',
-        'Your PayPal subscription is now active. Your future invoices will be paid automatically.'
+        "Votre paiement automatique est maintenant actif. Vos prochaines factures seront payées automatiquement.",
+        'Your automatic payments are now active. Your future invoices will be paid automatically.'
       )}
       ${detailsCard([
         ...(vars.order_number ? [{ label: 'Nº commande / Order #', value: vars.order_number }] : []),
@@ -2098,8 +2098,8 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('warning', '⚠️', 'Paiement automatique annulé', 'Automatic payments cancelled',
-        'Votre abonnement PayPal a été annulé. Vos prochaines factures devront être payées manuellement.',
-        'Your PayPal subscription has been cancelled. Future invoices must be paid manually.'
+        "Votre paiement automatique a été annulé. Vos prochaines factures devront être payées manuellement.",
+        'Your automatic payments have been cancelled. Future invoices must be paid manually.'
       )}
       ${detailsCard([
         { label: 'Plan', value: vars.plan_name || 'N/A' },
@@ -2113,8 +2113,8 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('error', '❌', 'Échec du paiement', 'Payment failed',
-        'Votre paiement automatique PayPal a échoué. Veuillez vérifier votre compte PayPal ou payer manuellement.',
-        'Your automatic PayPal payment has failed. Please check your PayPal account or pay manually.'
+        "Votre paiement automatique a échoué. Veuillez vérifier votre méthode de paiement ou payer manuellement.",
+        'Your automatic payment has failed. Please check your payment method or pay manually.'
       )}
       ${detailsCard([
         { label: 'Plan', value: vars.plan_name || 'N/A' },

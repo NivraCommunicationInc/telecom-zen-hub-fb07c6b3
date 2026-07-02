@@ -541,7 +541,7 @@ export function renderQueueTemplate(
       const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || t("En cours","In progress", lang));
       const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable ?? v.AMOUNT);
       const reference = esc(v.reference || v.payment_reference || t("Non disponible","Not available", lang));
-      const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
+      const method = esc(v.payment_method || v.PAYMENT_METHOD || "Carte de crédit");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
       const prRows: Array<[string, string]> = [
         [t("Commande","Order", lang), `#${String(orderNum).replace(/^#/, "")}`],
@@ -808,7 +808,7 @@ export function renderQueueTemplate(
           bodyText: `Votre paiement mensuel pour <strong>${planName}</strong> n'a pas pu être traité${amount ? ` (${amount})` : ""}. Pour éviter toute interruption de service, veuillez vérifier votre méthode de paiement.`,
           cardTitle: "Que faire maintenant ?",
           cardRows: [
-            ["1. Vérifiez votre compte PayPal", "Assurez-vous qu'il est actif et approvisionné"],
+            ["1. Vérifiez votre méthode de paiement", "Assurez-vous que votre carte est active et valide"],
             ["2. Mettez à jour si nécessaire", "Connectez un autre mode de paiement"],
             ["3. Une nouvelle tentative", "sera effectuée automatiquement sous 24h"],
           ],
@@ -828,15 +828,15 @@ export function renderQueueTemplate(
       const interacEmail = esc(v.interac_email || "support@nivra-telecom.ca");
       const portalBilling = `${portalUrl}/billing`;
       return {
-        subject: `Action urgente — Votre service PayPal ne peut être débité`,
+        subject: `Action urgente — Votre paiement automatique ne peut être débité`,
         html: shell({
-          preheader: `3 tentatives PayPal ont échoué. Passez à Interac pour maintenir votre service.`,
+          preheader: `3 tentatives de paiement ont échoué. Passez à Interac pour maintenir votre service.`,
           badge: "ACTION URGENTE",
-          heroTitle: "Impossible de traiter votre paiement PayPal",
+          heroTitle: "Impossible de traiter votre paiement automatique",
           heroSub: "Après 3 tentatives sans succès, nous vous proposons une alternative.",
           icon: "alert",
           greeting,
-          bodyText: `Après <strong>3 tentatives infructueuses</strong>, votre paiement mensuel pour <strong>${planName}</strong>${amount ? ` (${amount})` : ""} n'a pas pu être traité via PayPal. Pour maintenir votre service actif, vous pouvez régler par <strong>virement Interac e-Transfer</strong>.`,
+          bodyText: `Après <strong>3 tentatives infructueuses</strong>, votre paiement mensuel pour <strong>${planName}</strong>${amount ? ` (${amount})` : ""} n'a pas pu être traité. Pour maintenir votre service actif, vous pouvez régler par <strong>virement Interac e-Transfer</strong>.`,
           cardTitle: "Payer par Interac maintenant",
           cardRows: [
             ["Envoyez à", interacEmail],
@@ -1611,7 +1611,7 @@ export function renderQueueTemplate(
       const manageUrl = String(v.manage_url || `${portalUrl}/paiement`);
       const detailsBody =
         `<strong style="color:#1a1a2e;">Votre paiement pré-autorisé est maintenant actif.</strong><br/><br/>` +
-        `Vos factures mensuelles seront prélevées automatiquement sur votre mode de paiement PayPal.<br/><br/>` +
+        `Vos factures mensuelles seront prélevées automatiquement sur votre mode de paiement enregistré.<br/><br/>` +
         `<strong style="color:#7c3aed;">Vous bénéficiez d'un rabais de 5,00 $/mois</strong> tant que ` +
         `votre paiement automatique est actif. Ce rabais est appliqué automatiquement sur chaque facture mensuelle.<br/><br/>` +
         `<strong style="color:#1a1a2e;">Comment ça fonctionne :</strong> chaque mois, votre facture est générée ` +
@@ -1632,7 +1632,7 @@ export function renderQueueTemplate(
           cardTitle: "Détails de votre abonnement",
           cardRows: [
             ["Date d'activation", activatedAt],
-            ["Référence PayPal", subRef],
+            ["Référence", subRef],
             ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
             ["Rabais mensuel", "5,00 $"],
           ],
@@ -1741,7 +1741,7 @@ export function renderQueueTemplate(
           heroTitle: "Facture en attente de paiement",
           icon: "alert",
           greeting: customGreeting,
-          bodyText: `Votre facture <strong>${invoiceNumber}</strong> est en attente de paiement (${overdueLabel}). Si vous avez plusieurs factures impayées, vous pouvez régler la totalité de votre solde en un seul paiement PayPal.`,
+          bodyText: `Votre facture <strong>${invoiceNumber}</strong> est en attente de paiement (${overdueLabel}). Si vous avez plusieurs factures impayées, vous pouvez régler la totalité de votre solde en un seul paiement.`,
           cardTitle: "Détails de la facture",
           cardRows: [
             ["Facture", invoiceNumber],
@@ -1837,7 +1837,7 @@ export function renderQueueTemplate(
           heroTitle: "Votre commande n'a pas pu être traitée",
           icon: "x",
           greeting,
-          bodyText: "Suite à une vérification, votre commande n'a pas pu être traitée. Un remboursement a été initié via PayPal et apparaîtra dans 3 à 5 jours ouvrables.",
+          bodyText: "Suite à une vérification, votre commande n'a pas pu être traitée. Un remboursement a été initié automatiquement et apparaîtra dans 3 à 5 jours ouvrables.",
           ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
           ctaPrimaryLabel: "Nous contacter",
         }),
@@ -1888,12 +1888,12 @@ export function renderQueueTemplate(
           heroTitle: "Votre remboursement a été traité",
           icon: "check",
           greeting,
-          bodyText: `Votre remboursement a été émis avec succès. Il apparaîtra sur votre compte PayPal ou votre relevé bancaire dans 3 à 5 jours ouvrables.`,
+          bodyText: `Votre remboursement a été émis avec succès. Il apparaîtra sur votre relevé de carte de crédit ou votre compte bancaire dans 3 à 5 jours ouvrables.`,
           cardTitle: "Détails du remboursement",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Montant", amount],
-            ["Méthode", "PayPal"],
+            ["Méthode", "Carte de crédit"],
             ["Date", fmtDate(new Date().toISOString())],
           ],
           ctaPrimaryUrl: `${portalUrl}/phones`,
@@ -5214,7 +5214,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
         ? (isEn ? "Interac e-Transfer" : "Interac e-Transfer")
         : methodRaw === "gift_card"
         ? (isEn ? "Visa/Mastercard gift card" : "Carte-cadeau Visa/Mastercard")
-        : "PayPal";
+        : "Virement électronique";
       return {
         subject: isEn
           ? `Your referral is qualified — 25$/mo for 10 months`
@@ -5253,7 +5253,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
         ? "Interac e-Transfer"
         : methodRaw === "gift_card"
         ? (isEn ? "Visa/Mastercard gift card" : "Carte-cadeau Visa/Mastercard")
-        : "PayPal";
+        : "Virement électronique";
       return {
         subject: isEn ? `Your referral reward has been issued` : `Votre récompense de parrainage est émise`,
         html: shell({
@@ -6417,13 +6417,13 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroTitle: "Votre service se renouvelle dans 7 jours",
           icon: "check",
           greeting,
-          bodyText: "Assurez-vous que votre compte PayPal dispose des fonds nécessaires pour un renouvellement sans interruption.",
+          bodyText: "Assurez-vous que votre méthode de paiement est active et valide pour un renouvellement sans interruption.",
           cardTitle: "Détails du renouvellement",
           cardRows: [
             ["Forfait", planName],
             ["Montant", `${amount} + taxes`],
             ["Date de renouvellement", renewal],
-            ["Mode de paiement", "PayPal automatique"],
+            ["Mode de paiement", "Paiement automatique"],
           ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Gérer mon compte",
@@ -7092,7 +7092,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Prix mensuel", `${monthly} + taxes`],
             ["Prochain renouvellement", renewal],
             ["Statut", status],
-            ["Mode de paiement", "PayPal"],
+            ["Mode de paiement", "Carte de crédit"],
           ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Accéder à mon compte",
@@ -7415,7 +7415,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       //   invoice_number, plan_name, subtotal, discount_lines[]
       const debitAmount = String(v.debit_amount || v.amount || "—");
       const debitDate = String(v.debit_date || v.due_date || "—");
-      const paymentLabel = String(v.payment_method_label || "PayPal pré-autorisé");
+      const paymentLabel = String(v.payment_method_label || "Paiement automatique pré-autorisé");
       const invoiceNumber = String(v.invoice_number || "—");
       const planName = String(v.plan_name || "Service Nivra");
       const subtotal = String(v.subtotal || debitAmount);
@@ -7441,7 +7441,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           greeting,
           bodyText:
             "Ceci est un avis amical de 3 jours avant votre prélèvement automatique mensuel. " +
-            "Aucune action n'est requise — le débit se fera tout seul via PayPal. " +
+            "Aucune action n'est requise — le débit se fera automatiquement. " +
             "Si vous voulez modifier votre méthode de paiement ou annuler le prélèvement automatique, " +
             "vous pouvez le faire dans votre portail client avant la date.",
           cardTitle: `Détails — Facture ${invoiceNumber}`,
@@ -8291,7 +8291,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     // ===================================================================
     case "refund_issued": {
       const refundAmount = money(v.refund_amount ?? v.amount);
-      const refundMethod = esc(v.refund_method || "PayPal");
+      const refundMethod = esc(v.refund_method || "Carte de crédit");
       const refundReason = esc(v.reason || "Demande de remboursement");
       const invoiceNum = esc(v.invoice_number || "");
       return {
@@ -8668,26 +8668,26 @@ Réponse à la question de sécurité : <strong>${acctNum}</strong><br><br>
           preheader: "Configurez votre carte de crédit pour continuer à profiter du rabais autopay.",
           badge: "MISE À JOUR PAIEMENT",
           heroTitle: "Nouveau système de paiement",
-          heroSub: "Square — paiement par carte encore plus sécurisé",
+          heroSub: "Paiement par carte encore plus sécurisé",
           icon: "card",
           greeting,
           bodyText:
-            "Bonne nouvelle : Nivra Telecom passe à Square pour les prélèvements automatiques mensuels. " +
-            "Square est un processeur de paiement certifié PCI-DSS de niveau 1 — le plus haut standard de sécurité. " +
+            "Bonne nouvelle : Nivra Telecom met à jour son système de prélèvements automatiques mensuels. " +
+            "Notre nouveau processeur est certifié PCI-DSS de niveau 1 — le plus haut standard de sécurité. " +
             "Pour continuer à bénéficier du rabais de 5 $/mois sur le prélèvement automatique, " +
             "enregistrez simplement votre carte de crédit dans votre portail client.",
           cardTitle: "Votre abonnement actuel",
           cardRows: [
             ["Forfait", planName],
             ...(monthlyAmount ? [["Montant mensuel", `${esc(monthlyAmount)} $`] as [string, string]] : []),
-            ["Rabais autopay", "−5,00 $ / mois (maintenu avec Square)"],
-            ["Votre PayPal", "Toujours actif en attendant votre carte"],
+            ["Rabais autopay", "−5,00 $ / mois (maintenu)"],
+            ["Statut actuel", "Toujours actif en attendant votre carte"],
           ],
           ctaPrimaryUrl: setupUrl,
           ctaPrimaryLabel: "Configurer ma carte",
           helpHtml:
             "Votre service ne sera <strong>pas interrompu</strong> pendant la transition. " +
-            "PayPal continue de fonctionner jusqu'à ce que vous enregistriez votre nouvelle carte.",
+            "Votre paiement automatique actuel continue de fonctionner jusqu'à ce que vous enregistriez votre nouvelle carte.",
           helpVariant: "info",
         }),
       };
