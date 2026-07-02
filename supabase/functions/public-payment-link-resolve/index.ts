@@ -48,6 +48,7 @@ serve(async (req) => {
         .eq("public_token", token)
         .maybeSingle();
 
+      if (!intent?.id) return json({ ok: false, error: "Intention de paiement introuvable" }, 404);
       if (intent?.status === "completed") return json({ ok: false, error: "Ce lien a déjà été payé" }, 400);
 
       let invoice_number: string | null = link.nivra_reference || null;
@@ -63,7 +64,7 @@ serve(async (req) => {
       return json({
         ok: true,
         intent: {
-          id: intent?.id || link.id,
+          id: intent.id,
           amount: Number(link.amount_due),
           currency: intent?.currency || "CAD",
           customer_name: link.recipient_name || intent?.customer_name || null,
