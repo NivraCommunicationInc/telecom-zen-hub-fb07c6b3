@@ -541,7 +541,7 @@ export function renderQueueTemplate(
       const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || t("En cours","In progress", lang));
       const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable ?? v.AMOUNT);
       const reference = esc(v.reference || v.payment_reference || t("Non disponible","Not available", lang));
-      const method = esc(v.payment_method || v.PAYMENT_METHOD || "PayPal");
+      const method = esc(v.payment_method || v.PAYMENT_METHOD || "Carte de crédit");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
       const prRows: Array<[string, string]> = [
         [t("Commande","Order", lang), `#${String(orderNum).replace(/^#/, "")}`],
