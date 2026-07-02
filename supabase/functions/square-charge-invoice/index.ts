@@ -147,7 +147,7 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    const { source_id, invoice_id, intent_id, customer_email: bodyEmail, source: bodySource } = body;
+    const { source_id, invoice_id, intent_id, customer_email: bodyEmail, source: bodySource, amount_cents: requestedAmountCents } = body;
     const payerIp = req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
     const paymentSource = bodySource === "public_pay" ? "public_pay" : "portal";
 
@@ -165,6 +165,8 @@ serve(async (req) => {
     let customerEmail: string | null = null;
     let customerName = "";
     let invoiceData: any = null;
+    let isOverpayment = false;
+    let overpaymentAmount = 0;
 
     if (invoice_id) {
       console.log("[square-charge-invoice] Looking up invoice_id:", invoice_id);
@@ -183,12 +185,30 @@ serve(async (req) => {
       const balance = Number(inv.balance_due);
       if (balance <= 0) return json({ ok: false, error: "Facture déjà payée" }, 400);
 
-      amountCents = Math.round(balance * 100);
+      // ── CUSTOM AMOUNT (public pay only) ─────────────────────────────────
+      // Trois cas :
+      //   1. amount_cents < balance*100 → paiement partiel (status devient partially_paid)
+      //   2. amount_cents == balance*100 (ou absent) → paiement exact (status devient paid)
+      //   3. amount_cents > balance*100 → surpaiement, excédent noté comme crédit
+      const balanceCents = Math.round(balance * 100);
+      if (typeof requestedAmountCents === "number" && requestedAmountCents > 0) {
+        if (requestedAmountCents < 100) return json({ ok: false, error: "Montant minimum 1,00 $" }, 400);
+        if (requestedAmountCents > balanceCents * 3) return json({ ok: false, error: "Montant trop élevé (max 3× le solde dû)" }, 400);
+        amountCents = requestedAmountCents;
+        if (requestedAmountCents > balanceCents) {
+          isOverpayment = true;
+          overpaymentAmount = (requestedAmountCents - balanceCents) / 100;
+        }
+      } else {
+        amountCents = balanceCents;
+      }
+
       invoiceNumber = inv.invoice_number || "";
       customerId = inv.customer_id;
       customerEmail = (inv.customer as any)?.email || bodyEmail || null;
       customerName = `${(inv.customer as any)?.first_name || ""} ${(inv.customer as any)?.last_name || ""}`.trim();
       invoiceData = inv;
+
 
     } else {
       // Field payment intent flow
