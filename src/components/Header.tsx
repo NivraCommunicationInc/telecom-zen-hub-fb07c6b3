@@ -407,6 +407,12 @@ const Header = () => {
                   >
                     {isFr ? "Commander" : "Order Now"} <ArrowRight className="w-4 h-4" />
                   </Link>
+                  <Link to="/payer" onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center justify-center gap-2 w-full font-semibold cursor-pointer"
+                    style={{ height:48, color:"rgba(255,255,255,0.85)", borderRadius:12, border:"1px solid rgba(255,255,255,0.12)", textDecoration:"none", fontFamily:"'Space Grotesk', sans-serif", fontSize:14 }}
+                  >
+                    {isFr ? "Payer une facture" : "Pay a bill"}
+                  </Link>
                   <Link to={portalLink} onClick={() => setIsMenuOpen(false)}
                     className="flex items-center justify-center gap-2 w-full font-semibold cursor-pointer"
                     style={{ height:48, color:"rgba(255,255,255,0.7)", borderRadius:12, border:"1px solid rgba(255,255,255,0.12)", textDecoration:"none", fontFamily:"'Space Grotesk', sans-serif", fontSize:14, transition:"border-color .18s, background .18s" }}
