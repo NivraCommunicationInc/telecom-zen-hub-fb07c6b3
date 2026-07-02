@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { Loader2, CreditCard, CheckCircle2, Copy, Link2, ExternalLink } from "lucide-react";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateAfterPayment } from "@/lib/queryInvalidation";
 
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
 const SQUARE_LOCATION_ID = "LQW27N70DQ2N8";
@@ -40,6 +42,7 @@ type Mode = "choose" | "direct" | "link" | "manual";
 export function EmployeeSquarePaymentDialog({
   open, onOpenChange, invoice, clientEmail, clientName, onSuccess,
 }: Props) {
+  const qc = useQueryClient();
   const [mode, setMode] = useState<Mode>("choose");
   const [paid, setPaid] = useState(false);
   const [squareRef, setSquareRef] = useState<string | null>(null);
@@ -144,6 +147,7 @@ export function EmployeeSquarePaymentDialog({
       });
       toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
       setPaid(true);
+      invalidateAfterPayment(qc);
       onSuccess?.();
     } catch (e: any) {
       toast.error("Erreur : " + (e?.message || String(e)));
