@@ -1278,12 +1278,17 @@ export default function CorePublicPaymentsPage() {
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
+          <TabsTrigger value="invoices">Factures Core</TabsTrigger>
           <TabsTrigger value="new-link">Créer un lien</TabsTrigger>
           <TabsTrigger value="quick-invoice">Facture rapide</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
           <HistoryTab />
+        </TabsContent>
+
+        <TabsContent value="invoices">
+          <CoreInvoicesTab />
         </TabsContent>
 
         <TabsContent value="new-link">
