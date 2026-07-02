@@ -36,6 +36,7 @@ export function SquarePaymentForm({
   invoiceNumber,
   customerName,
   customerEmail,
+  paymentSource,
   onSuccess,
 }: SquarePaymentFormProps) {
   const qc = useQueryClient();
