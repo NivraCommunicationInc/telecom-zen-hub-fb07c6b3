@@ -169,6 +169,11 @@ export default function CorePOSPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState<{ orderId: string; orderNumber: string } | null>(null);
 
+  // ── Square link (email) state ──
+  const [squareLinkEmail, setSquareLinkEmail] = useState("");
+  const [squareLink, setSquareLink] = useState<string | null>(null);
+  const [squareLinkSending, setSquareLinkSending] = useState(false);
+
   // ── Address Qualification ──
   const [qualificationResult, setQualificationResult] = useState<any>(null);
   const [qualifyingAddress, setQualifyingAddress] = useState(false);
