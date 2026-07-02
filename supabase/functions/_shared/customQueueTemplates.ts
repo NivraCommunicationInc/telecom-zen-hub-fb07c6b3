@@ -1741,7 +1741,7 @@ export function renderQueueTemplate(
           heroTitle: "Facture en attente de paiement",
           icon: "alert",
           greeting: customGreeting,
-          bodyText: `Votre facture <strong>${invoiceNumber}</strong> est en attente de paiement (${overdueLabel}). Si vous avez plusieurs factures impayées, vous pouvez régler la totalité de votre solde en un seul paiement PayPal.`,
+          bodyText: `Votre facture <strong>${invoiceNumber}</strong> est en attente de paiement (${overdueLabel}). Si vous avez plusieurs factures impayées, vous pouvez régler la totalité de votre solde en un seul paiement.`,
           cardTitle: "Détails de la facture",
           cardRows: [
             ["Facture", invoiceNumber],
