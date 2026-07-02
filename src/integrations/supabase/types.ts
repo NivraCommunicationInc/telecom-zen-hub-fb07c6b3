@@ -2740,6 +2740,7 @@ export type Database = {
           invoice_id: string
           legacy_note: string | null
           method: Database["public"]["Enums"]["billing_payment_method"]
+          nivra_reference: string | null
           payer_ip: string | null
           payment_number: string
           provider: string | null
@@ -2771,6 +2772,7 @@ export type Database = {
           invoice_id: string
           legacy_note?: string | null
           method?: Database["public"]["Enums"]["billing_payment_method"]
+          nivra_reference?: string | null
           payer_ip?: string | null
           payment_number: string
           provider?: string | null
@@ -2802,6 +2804,7 @@ export type Database = {
           invoice_id?: string
           legacy_note?: string | null
           method?: Database["public"]["Enums"]["billing_payment_method"]
+          nivra_reference?: string | null
           payer_ip?: string | null
           payment_number?: string
           provider?: string | null
@@ -19679,6 +19682,141 @@ export type Database = {
           },
         ]
       }
+      public_payment_attempts: {
+        Row: {
+          created_at: string
+          id: number
+          identifier: string | null
+          ip: string
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          identifier?: string | null
+          ip: string
+          success?: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          identifier?: string | null
+          ip?: string
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      public_payment_links: {
+        Row: {
+          amount_due: number
+          amount_paid: number | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          customer_id: string | null
+          description: string
+          expires_at: string
+          id: string
+          invoice_id: string | null
+          nivra_reference: string
+          paid_at: string | null
+          payment_id: string | null
+          recipient_email: string | null
+          recipient_name: string
+          recipient_phone: string | null
+          reminder_sent_at: string | null
+          sent_at: string | null
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          amount_due: number
+          amount_paid?: number | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          customer_id?: string | null
+          description: string
+          expires_at?: string
+          id?: string
+          invoice_id?: string | null
+          nivra_reference: string
+          paid_at?: string | null
+          payment_id?: string | null
+          recipient_email?: string | null
+          recipient_name: string
+          recipient_phone?: string | null
+          reminder_sent_at?: string | null
+          sent_at?: string | null
+          status?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number
+          amount_paid?: number | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          customer_id?: string | null
+          description?: string
+          expires_at?: string
+          id?: string
+          invoice_id?: string | null
+          nivra_reference?: string
+          paid_at?: string | null
+          payment_id?: string | null
+          recipient_email?: string | null
+          recipient_name?: string
+          recipient_phone?: string | null
+          reminder_sent_at?: string | null
+          sent_at?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_payment_links_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_payment_links_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "public_payment_links_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_payment_links_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "public_payment_links_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "billing_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -28325,6 +28463,7 @@ export type Database = {
       generate_internal_ticket_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_monthly_invoice_number: { Args: never; Returns: string }
+      generate_nivra_reference: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_payment_reference: { Args: never; Returns: string }
