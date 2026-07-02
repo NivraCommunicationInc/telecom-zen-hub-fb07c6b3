@@ -186,6 +186,7 @@ const CoreApp = () => {
                 <Route path="invoices" element={<S><InvoicesPage /></S>} />
                 <Route path="invoices/:invoiceId" element={<S><CoreInvoiceDetail /></S>} />
                 <Route path="payments" element={<S><PaymentsPage /></S>} />
+                <Route path="public-payments" element={<S><CorePublicPaymentsPage /></S>} />
                 <Route path="transactions" element={<S><CoreTransactionsPage /></S>} />
                 <Route path="subscriptions" element={<S><SubscriptionsPage /></S>} />
                 <Route path="subscriptions/:id" element={<S><SubscriptionDetailPage /></S>} />
