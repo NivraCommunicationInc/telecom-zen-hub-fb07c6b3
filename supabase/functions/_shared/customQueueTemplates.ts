@@ -1632,7 +1632,7 @@ export function renderQueueTemplate(
           cardTitle: "Détails de votre abonnement",
           cardRows: [
             ["Date d'activation", activatedAt],
-            ["Référence PayPal", subRef],
+            ["Référence", subRef],
             ["Compte", `#${String(accountNum).replace(/^#/, "")}`],
             ["Rabais mensuel", "5,00 $"],
           ],
