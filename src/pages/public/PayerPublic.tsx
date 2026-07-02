@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Search, ShieldCheck, CreditCard, ArrowLeft } from "lucide-react";
+import { Loader2, Search, ShieldCheck, CreditCard, ArrowLeft, Mail, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 import Header from "@/components/Header";
@@ -23,6 +23,48 @@ interface LookupInvoice {
   email: string | null;
 }
 
+const fmt = (n: number) =>
+  n.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+
+function InteracBlock({ amount, reference }: { amount: number; reference: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (val: string, key: string) => {
+    navigator.clipboard.writeText(val);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+    toast.success("Copié");
+  };
+  const Row = ({ label, value, k }: { label: string; value: string; k: string }) => (
+    <div className="flex items-center justify-between gap-2 py-2 border-b border-white/5 last:border-0">
+      <div>
+        <div className="text-xs text-white/50">{label}</div>
+        <div className="text-sm text-white font-mono">{value}</div>
+      </div>
+      <button
+        onClick={() => copy(value, k)}
+        className="text-white/50 hover:text-white p-1.5 rounded transition"
+        aria-label={`Copier ${label}`}
+      >
+        {copied === k ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+      </button>
+    </div>
+  );
+  return (
+    <Card className="p-5 mt-6" style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.08)" }}>
+      <div className="flex items-center gap-2 mb-3">
+        <Mail className="w-4 h-4" style={{ color: "#A78BFA" }} />
+        <h3 className="text-white font-semibold text-sm">Payer par virement Interac</h3>
+      </div>
+      <p className="text-xs text-white/60 mb-3">
+        Envoyez un virement Interac depuis votre banque avec les informations suivantes. Un accusé sera envoyé une fois le virement reçu.
+      </p>
+      <Row label="Adresse courriel" value="support@nivra-telecom.ca" k="email" />
+      <Row label="Montant" value={fmt(amount)} k="amount" />
+      <Row label="Réponse à la question de sécurité" value={reference} k="ref" />
+    </Card>
+  );
+}
+
 export default function PayerPublic() {
   const [reference, setReference] = useState("");
   const [identity, setIdentity] = useState("");
@@ -30,8 +72,9 @@ export default function PayerPublic() {
   const [invoice, setInvoice] = useState<LookupInvoice | null>(null);
   const [paidOk, setPaidOk] = useState(false);
 
-  const fmt = (n: number) =>
-    n.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+  // Custom amount state
+  const [amountMode, setAmountMode] = useState<"full" | "custom">("full");
+  const [customAmount, setCustomAmount] = useState<string>("");
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +98,7 @@ export default function PayerPublic() {
         return;
       }
       setInvoice(data.invoice);
+      setCustomAmount(String(data.invoice.balance_due.toFixed(2)));
     } catch (err: any) {
       toast.error("Erreur : " + (err?.message || String(err)));
     } finally {
@@ -67,13 +111,21 @@ export default function PayerPublic() {
     setPaidOk(false);
     setReference("");
     setIdentity("");
+    setAmountMode("full");
+    setCustomAmount("");
   };
+
+  const parsedCustom = parseFloat(customAmount || "0");
+  const validCustom = amountMode === "custom" && parsedCustom >= 1;
+  const effectiveAmount = amountMode === "custom" && validCustom ? parsedCustom : invoice?.balance_due || 0;
+  const amountOverrideCents =
+    amountMode === "custom" && validCustom ? Math.round(parsedCustom * 100) : undefined;
 
   return (
     <>
       <SEOHead
         title="Payer une facture — Nivra Telecom"
-        description="Payez votre facture Nivra en ligne par carte de crédit — accès sans compte, sécurisé."
+        description="Payez votre facture Nivra en ligne par carte de crédit ou virement Interac — accès sans compte, sécurisé."
       />
       <Header />
       <main style={{ minHeight: "80vh", background: "#020209", paddingTop: 100, paddingBottom: 60 }}>
@@ -173,10 +225,65 @@ export default function PayerPublic() {
 
               {!paidOk && (
                 <>
+                  {/* Choix montant */}
+                  <div className="mb-4 space-y-2">
+                    <div className="text-sm text-white/70 font-medium mb-2">Choisissez le montant</div>
+                    <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${amountMode === "full" ? "border-purple-500 bg-purple-500/10" : "border-white/10 bg-white/5"}`}>
+                      <input
+                        type="radio"
+                        name="amt"
+                        checked={amountMode === "full"}
+                        onChange={() => setAmountMode("full")}
+                        className="accent-purple-500"
+                      />
+                      <div className="flex-1">
+                        <div className="text-white text-sm font-medium">Payer {fmt(invoice.balance_due)}</div>
+                        <div className="text-white/50 text-xs">Montant exact du solde dû</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${amountMode === "custom" ? "border-purple-500 bg-purple-500/10" : "border-white/10 bg-white/5"}`}>
+                      <input
+                        type="radio"
+                        name="amt"
+                        checked={amountMode === "custom"}
+                        onChange={() => setAmountMode("custom")}
+                        className="accent-purple-500 mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="text-white text-sm font-medium mb-2">Payer un autre montant</div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 text-sm">$</span>
+                          <Input
+                            type="number"
+                            min="1"
+                            step="0.01"
+                            value={customAmount}
+                            onChange={(e) => setCustomAmount(e.target.value)}
+                            disabled={amountMode !== "custom"}
+                            className="pl-7 bg-white/5 border-white/10 text-white"
+                            placeholder="Minimum 1,00"
+                          />
+                        </div>
+                        {amountMode === "custom" && parsedCustom > invoice.balance_due && (
+                          <div className="text-xs text-amber-300 mt-1.5">
+                            Surpaiement de {fmt(parsedCustom - invoice.balance_due)} — sera crédité à votre dossier.
+                          </div>
+                        )}
+                        {amountMode === "custom" && parsedCustom > 0 && parsedCustom < invoice.balance_due && (
+                          <div className="text-xs text-white/50 mt-1.5">
+                            Paiement partiel — solde restant après : {fmt(invoice.balance_due - parsedCustom)}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+
                   <div className="mb-3 text-sm text-white/70 font-medium">Paiement par carte de crédit</div>
                   <SquarePaymentForm
+                    key={amountOverrideCents ?? "full"}
                     invoiceId={invoice.id}
-                    amount={invoice.balance_due}
+                    amount={effectiveAmount}
+                    amountOverrideCents={amountOverrideCents}
                     invoiceNumber={invoice.invoice_number}
                     customerName={invoice.first_name}
                     customerEmail={invoice.email || undefined}
@@ -186,6 +293,8 @@ export default function PayerPublic() {
                   <p className="mt-4 text-xs text-white/40 text-center">
                     Paiement sécurisé traité par Square. Nous ne conservons aucune information de carte.
                   </p>
+
+                  <InteracBlock amount={effectiveAmount} reference={invoice.invoice_number} />
                 </>
               )}
             </Card>
