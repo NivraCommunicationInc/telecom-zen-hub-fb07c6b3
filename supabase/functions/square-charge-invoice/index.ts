@@ -147,7 +147,9 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    const { source_id, invoice_id, intent_id, customer_email: bodyEmail } = body;
+    const { source_id, invoice_id, intent_id, customer_email: bodyEmail, source: bodySource } = body;
+    const payerIp = req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+    const paymentSource = bodySource === "public_pay" ? "public_pay" : "portal";
 
     if (!source_id) return json({ ok: false, error: "source_id requis" }, 400);
     if (!invoice_id && !intent_id) return json({ ok: false, error: "invoice_id ou intent_id requis" }, 400);
