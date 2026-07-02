@@ -706,6 +706,247 @@ function HistoryTab() {
   );
 }
 
+function InvoiceDetailDialog({ invoiceId, open, onOpenChange }: { invoiceId: string | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["core-public-invoice-detail", invoiceId],
+    enabled: open && !!invoiceId,
+    queryFn: async () => {
+      const { data: invoice, error } = await supabase.from("billing_invoices").select("*").eq("id", invoiceId!).single();
+      if (error) throw error;
+      const [lines, payments, customer] = await Promise.all([
+        supabase.from("billing_invoice_lines").select("*").eq("invoice_id", invoiceId!).order("created_at", { ascending: true }),
+        supabase.from("billing_payments").select("id, payment_number, amount, method, status, received_at, reference, square_payment_id, square_receipt_url, nivra_reference, created_at").eq("invoice_id", invoiceId!).order("created_at", { ascending: false }),
+        supabase.from("billing_customers").select("id, first_name, last_name, email, phone, user_id").eq("id", invoice.customer_id).maybeSingle(),
+      ]);
+      return { invoice, lines: lines.data || [], payments: payments.data || [], customer: customer.data };
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Facture {data?.invoice?.invoice_number || "Core"}</DialogTitle>
+          <DialogDescription>Détail complet, lignes de facturation et paiements associés.</DialogDescription>
+        </DialogHeader>
+        {isLoading ? <div className="p-6 text-sm text-muted-foreground">Chargement…</div> : data && (
+          <div className="space-y-5">
+            <div className="grid sm:grid-cols-3 gap-3 text-sm">
+              <div><span className="text-muted-foreground">Client</span><div className="font-medium">{`${data.customer?.first_name || ""} ${data.customer?.last_name || ""}`.trim() || "—"}</div></div>
+              <div><span className="text-muted-foreground">Email</span><div className="font-medium break-all">{data.customer?.email || "—"}</div></div>
+              <div><span className="text-muted-foreground">Statut</span><div className="font-medium">{data.invoice.status}</div></div>
+              <div><span className="text-muted-foreground">Total</span><div className="font-semibold">{fmt(Number(data.invoice.total))}</div></div>
+              <div><span className="text-muted-foreground">Payé</span><div>{fmt(Number(data.invoice.amount_paid || 0))}</div></div>
+              <div><span className="text-muted-foreground">Solde</span><div>{fmt(Number(data.invoice.balance_due || 0))}</div></div>
+              <div><span className="text-muted-foreground">Créée</span><div>{shortDateTime(data.invoice.created_at)}</div></div>
+              <div><span className="text-muted-foreground">Échéance</span><div>{data.invoice.due_date || "—"}</div></div>
+              <div><span className="text-muted-foreground">Méthode</span><div>{data.invoice.payment_method || "—"}</div></div>
+              <div className="sm:col-span-3"><span className="text-muted-foreground">Description / notes</span><div>{data.invoice.notes || "—"}</div></div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm">Lignes de facture</h3>
+              <div className="rounded-md border overflow-hidden">
+                {data.lines.length ? data.lines.map((line: any) => (
+                  <div key={line.id} className="grid sm:grid-cols-[1fr_80px_120px_120px] gap-2 p-2 border-b last:border-0 text-sm">
+                    <div>{line.description || line.line_type || "—"}</div>
+                    <div>Qté {line.quantity || 1}</div>
+                    <div>{fmt(Number(line.unit_price || 0))}</div>
+                    <div className="font-semibold text-right">{fmt(Number(line.line_total || 0))}</div>
+                  </div>
+                )) : <div className="p-3 text-sm text-muted-foreground">Aucune ligne enregistrée.</div>}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm">Historique des paiements</h3>
+              <div className="rounded-md border overflow-hidden">
+                {data.payments.length ? data.payments.map((p: any) => (
+                  <div key={p.id} className="grid sm:grid-cols-[120px_100px_1fr_160px] gap-2 p-2 border-b last:border-0 text-sm">
+                    <div className="font-semibold">{fmt(Number(p.amount || 0))}</div>
+                    <div>{p.status}</div>
+                    <div className="font-mono text-xs break-all">{p.nivra_reference || p.square_payment_id || p.reference || p.payment_number || p.id}</div>
+                    <div>{shortDateTime(p.received_at || p.created_at)}</div>
+                  </div>
+                )) : <div className="p-3 text-sm text-muted-foreground">Aucun paiement sur cette facture.</div>}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CoreInvoicesTab() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [payInvoice, setPayInvoice] = useState<any | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  const { data: invoices, isLoading } = useQuery({
+    queryKey: ["core-public-billing-invoices"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing_invoices")
+        .select("id, invoice_number, total, subtotal, tps_amount, tvq_amount, balance_due, amount_paid, status, due_date, created_at, notes, customer_id, customer:billing_customers(id, first_name, last_name, email, phone)")
+        .order("created_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (invoices || []).filter((r: any) => {
+      if (!q) return true;
+      const name = `${r.customer?.first_name || ""} ${r.customer?.last_name || ""}`.toLowerCase();
+      return String(r.invoice_number || "").toLowerCase().includes(q) || name.includes(q) || String(r.customer?.email || "").toLowerCase().includes(q);
+    });
+  }, [invoices, search]);
+
+  const fetchInvoiceDetail = async (invoiceId: string) => {
+    const { data: invoice, error } = await supabase.from("billing_invoices").select("*").eq("id", invoiceId).single();
+    if (error) throw error;
+    const [lines, payments, customer] = await Promise.all([
+      supabase.from("billing_invoice_lines").select("*").eq("invoice_id", invoiceId).order("created_at", { ascending: true }),
+      supabase.from("billing_payments").select("*").eq("invoice_id", invoiceId).order("created_at", { ascending: false }),
+      supabase.from("billing_customers").select("id, first_name, last_name, email, phone, user_id").eq("id", invoice.customer_id).maybeSingle(),
+    ]);
+    return { invoice, lines: lines.data || [], payments: payments.data || [], customer: customer.data };
+  };
+
+  const generatePdf = async (row: any, open = false) => {
+    try {
+      const detail = await fetchInvoiceDetail(row.id);
+      const result = await generateInvoicePDF(buildInvoicePdfData(detail), { invoice_id: row.id });
+      if (!result.success || !result.blob || !result.filename) throw new Error(result.error || "PDF indisponible");
+      if (open) safePDFOpen(result.blob, result.filename);
+      else safePDFDownload(result.blob, result.filename);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur PDF");
+    }
+  };
+
+  const sendInvoiceEmail = async (row: any) => {
+    const email = row.customer?.email;
+    if (!email) return toast.error("Email client manquant.");
+    setSendingId(row.id);
+    try {
+      const { error } = await supabase.from("email_queue").insert({
+        event_key: `core_invoice_send_${row.id}_${Date.now()}`,
+        to_email: email,
+        template_key: "invoice_sent",
+        template_vars: {
+          client_name: `${row.customer?.first_name || ""} ${row.customer?.last_name || ""}`.trim() || "Client",
+          first_name: row.customer?.first_name || "Client",
+          invoice_number: row.invoice_number,
+          period: row.due_date || "—",
+          subtotal: Number(row.subtotal || 0),
+          tps: Number(row.tps_amount || 0),
+          tvq: Number(row.tvq_amount || 0),
+          total: Number(row.total || 0),
+          amount_due: Number(row.balance_due || 0),
+          due_date: row.due_date,
+          portal_url: window.location.origin,
+          payment_url: `${window.location.origin}/payer`,
+        },
+        status: "queued",
+        attempts: 0,
+        max_attempts: 5,
+      });
+      if (error) throw error;
+      toast.success("Facture envoyée à " + email);
+    } catch (e: any) {
+      toast.error("Envoi échoué : " + (e?.message || String(e)));
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const editInvoice = async (row: any) => {
+    if (row.status === "paid" || Number(row.balance_due || 0) <= 0) return toast.error("Facture déjà payée : modification bloquée.");
+    const amountRaw = window.prompt("Nouveau total facture CAD", String(row.total || row.balance_due || 0));
+    if (amountRaw === null) return;
+    const total = Number.parseFloat(amountRaw.replace(",", "."));
+    if (!(total >= 0)) return toast.error("Montant invalide.");
+    const notes = window.prompt("Description / notes", row.notes || row.invoice_number || "");
+    if (notes === null) return;
+    const amountPaid = Number(row.amount_paid || 0);
+    const balanceDue = Math.max(0, Math.round((total - amountPaid) * 100) / 100);
+    const { error } = await supabase.from("billing_invoices").update({ total, balance_due: balanceDue, notes }).eq("id", row.id).neq("status", "paid");
+    if (error) return toast.error(error.message);
+    toast.success("Facture modifiée");
+    qc.invalidateQueries({ queryKey: ["core-public-billing-invoices"] });
+  };
+
+  const cancelInvoice = async (row: any) => {
+    if (row.status === "paid" || Number(row.amount_paid || 0) > 0) return toast.error("Facture payée ou partiellement payée : annulation bloquée.");
+    if (!window.confirm(`Annuler la facture ${row.invoice_number} ?`)) return;
+    const { error } = await supabase.from("billing_invoices").update({ status: "cancelled", balance_due: 0 }).eq("id", row.id).eq("amount_paid", 0);
+    if (error) return toast.error(error.message);
+    toast.success("Facture annulée");
+    qc.invalidateQueries({ queryKey: ["core-public-billing-invoices"] });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-md">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Recherche facture, client, email…" className="pl-9" />
+      </div>
+      <Card className="overflow-hidden">
+        {isLoading ? <div className="p-8 text-center text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Chargement…</div> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left"><tr><th className="p-3">Facture</th><th className="p-3">Client</th><th className="p-3">Statut</th><th className="p-3 text-right">Solde</th><th className="p-3">Échéance</th><th className="p-3 text-right">Actions</th></tr></thead>
+              <tbody>
+                {rows.map((r: any) => {
+                  const name = `${r.customer?.first_name || ""} ${r.customer?.last_name || ""}`.trim() || "—";
+                  return (
+                    <tr key={r.id} className="border-t hover:bg-muted/30">
+                      <td className="p-3 font-mono text-xs">{r.invoice_number}</td>
+                      <td className="p-3"><div className="font-medium">{name}</div><div className="text-xs text-muted-foreground">{r.customer?.email || "—"}</div></td>
+                      <td className="p-3"><Badge variant="outline">{r.status}</Badge></td>
+                      <td className="p-3 text-right font-semibold">{fmt(Number(r.balance_due || 0))}</td>
+                      <td className="p-3">{r.due_date || "—"}</td>
+                      <td className="p-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" className="h-8" title="Voir la facture complète" onClick={() => setSelectedInvoiceId(r.id)}><Eye className="w-3.5 h-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Modifier montant ou description" onClick={() => editInvoice(r)}><Edit3 className="w-3.5 h-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Annuler la facture" onClick={() => cancelInvoice(r)}><Ban className="w-3.5 h-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Envoyer la facture par email" disabled={sendingId === r.id} onClick={() => sendInvoiceEmail(r)}>{sendingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}</Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Voir le PDF" onClick={() => generatePdf(r, true)}><FileText className="w-3.5 h-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Télécharger le PDF" onClick={() => generatePdf(r, false)}><Download className="w-3.5 h-3.5" /></Button>
+                          {Number(r.balance_due || 0) > 0 && r.status !== "cancelled" && <Button size="sm" variant="ghost" className="h-8" title="Prendre un paiement Square" onClick={() => setPayInvoice(r)}><CreditCard className="w-3.5 h-3.5" /></Button>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+      <InvoiceDetailDialog invoiceId={selectedInvoiceId} open={!!selectedInvoiceId} onOpenChange={(open) => !open && setSelectedInvoiceId(null)} />
+      <CoreSquarePaymentDialog
+        open={!!payInvoice}
+        onOpenChange={(open) => !open && setPayInvoice(null)}
+        unpaidInvoices={payInvoice ? [{ id: payInvoice.id, invoice_number: payInvoice.invoice_number, balance_due: payInvoice.balance_due, total: payInvoice.total }] : []}
+        customerName={payInvoice ? `${payInvoice.customer?.first_name || ""} ${payInvoice.customer?.last_name || ""}`.trim() : undefined}
+        customerEmail={payInvoice?.customer?.email || undefined}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: ["core-public-billing-invoices"] });
+          qc.invalidateQueries({ queryKey: ["core-public-payments-success"] });
+        }}
+      />
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Create payment link
 // ─────────────────────────────────────────────────────────────────────
