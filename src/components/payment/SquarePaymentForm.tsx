@@ -35,6 +35,7 @@ export function SquarePaymentForm({
   customerEmail,
   onSuccess,
 }: SquarePaymentFormProps) {
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState(false);
