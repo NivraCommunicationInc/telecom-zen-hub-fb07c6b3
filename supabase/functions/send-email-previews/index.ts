@@ -47,13 +47,13 @@ const getTemplates = () => [
   {
     category: "01 - MARKETING",
     name: "Découvrez Nivra",
-    subject: "ðŸ"§ [Preview] Découvrez Nivra Télécom",
+    subject: "[preview] [Preview] Dcouvrez Nivra Tlcom",
     html: marketing.discoverNivra({ ...baseParams, recipientName: sampleData.clientName }),
   },
   {
     category: "01 - MARKETING",
     name: "Offre de bienvenue",
-    subject: "ðŸ"§ [Preview] Offre de bienvenue - 50%",
+    subject: "[preview] [Preview] Offre de bienvenue - 50%",
     html: marketing.welcomeOffer({ 
       ...baseParams, 
       recipientName: sampleData.clientName,
@@ -65,7 +65,7 @@ const getTemplates = () => [
   {
     category: "01 - MARKETING",
     name: "Campagne saisonnière",
-    subject: "ðŸ"§ [Preview] Campagne Black Friday",
+    subject: "[preview] [Preview] Campagne Black Friday",
     html: marketing.seasonalCampaign({
       ...baseParams,
       recipientName: sampleData.clientName,
@@ -81,7 +81,7 @@ const getTemplates = () => [
   {
     category: "01 - MARKETING",
     name: "Panier abandonné",
-    subject: "ðŸ"§ [Preview] Panier abandonné",
+    subject: "[preview] [Preview] Panier abandonn",
     html: marketing.abandonedCart({
       ...baseParams,
       recipientName: sampleData.clientName,
@@ -95,7 +95,7 @@ const getTemplates = () => [
   {
     category: "01 - MARKETING",
     name: "Newsletter",
-    subject: "ðŸ"§ [Preview] Newsletter Nivra",
+    subject: "[preview] [Preview] Newsletter Nivra",
     html: marketing.newsletter({
       ...baseParams,
       recipientName: sampleData.clientName,
@@ -110,7 +110,7 @@ const getTemplates = () => [
   {
     category: "01 - MARKETING",
     name: "Invitation parrainage",
-    subject: "ðŸ"§ [Preview] Parrainage",
+    subject: "[preview] [Preview] Parrainage",
     html: marketing.referralInvite({
       ...baseParams,
       referrerName: "Marie Dupont",
@@ -122,7 +122,7 @@ const getTemplates = () => [
   {
     category: "01 - MARKETING",
     name: "Proposition personnalisée",
-    subject: "ðŸ"§ [Preview] Proposition personnalisée",
+    subject: "[preview] [Preview] Proposition personnalise",
     html: marketing.personalizedProposal({
       ...baseParams,
       recipientName: sampleData.clientName,
@@ -139,7 +139,7 @@ const getTemplates = () => [
   {
     category: "01 - MARKETING",
     name: "Demande d'avis",
-    subject: "ðŸ"§ [Preview] Demande d'avis",
+    subject: "[preview] [Preview] Demande d'avis",
     html: marketing.feedbackRequest({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -150,7 +150,7 @@ const getTemplates = () => [
   {
     category: "02 - ONBOARDING",
     name: "Compte créé",
-    subject: "ðŸ"§ [Preview] Compte créé",
+    subject: "[preview] [Preview] Compte cr",
     html: onboarding.accountCreated({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -161,7 +161,7 @@ const getTemplates = () => [
   {
     category: "02 - ONBOARDING",
     name: "Vérification OTP",
-    subject: "ðŸ"§ [Preview] Code OTP",
+    subject: "[preview] [Preview] Code OTP",
     html: onboarding.emailVerificationOtp({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -172,7 +172,7 @@ const getTemplates = () => [
   {
     category: "02 - ONBOARDING",
     name: "Vérification lien",
-    subject: "ðŸ"§ [Preview] Vérification email",
+    subject: "[preview] [Preview] Vrification email",
     html: onboarding.emailVerificationLink({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -182,7 +182,7 @@ const getTemplates = () => [
   {
     category: "02 - ONBOARDING",
     name: "Bienvenue",
-    subject: "ðŸ"§ [Preview] Bienvenue chez Nivra",
+    subject: "[preview] [Preview] Bienvenue chez Nivra",
     html: onboarding.welcomeToNivra({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -192,7 +192,7 @@ const getTemplates = () => [
   {
     category: "02 - ONBOARDING",
     name: "Récapitulatif forfait",
-    subject: "ðŸ"§ [Preview] Récapitulatif forfait",
+    subject: "[preview] [Preview] Rcapitulatif forfait",
     html: onboarding.planSummary({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -206,7 +206,7 @@ const getTemplates = () => [
   {
     category: "02 - ONBOARDING",
     name: "Conditions acceptées",
-    subject: "ðŸ"§ [Preview] Conditions acceptées",
+    subject: "[preview] [Preview] Conditions acceptes",
     html: onboarding.termsAccepted({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -217,7 +217,7 @@ const getTemplates = () => [
   {
     category: "02 - ONBOARDING",
     name: "Paiement préautorisé confirmé",
-    subject: "ðŸ"§ [Preview] Paiement préautorisé",
+    subject: "[preview] [Preview] Paiement prautoris",
     html: onboarding.preauthorizedPaymentConfirmed({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -232,7 +232,7 @@ const getTemplates = () => [
   {
     category: "03 - COMMANDES",
     name: "Suivi commande",
-    subject: "ðŸ"§ [Preview] Suivi commande",
+    subject: "[preview] [Preview] Suivi commande",
     html: orders.orderTracking({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -246,7 +246,7 @@ const getTemplates = () => [
   {
     category: "03 - COMMANDES",
     name: "SIM expédiée",
-    subject: "ðŸ"§ [Preview] SIM expédiée",
+    subject: "[preview] [Preview] SIM expdie",
     html: orders.simShipped({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -261,7 +261,7 @@ const getTemplates = () => [
   {
     category: "03 - COMMANDES",
     name: "Technicien planifié",
-    subject: "ðŸ"§ [Preview] RDV technicien",
+    subject: "[preview] [Preview] RDV technicien",
     html: orders.technicianScheduled({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -276,7 +276,7 @@ const getTemplates = () => [
   {
     category: "03 - COMMANDES",
     name: "Rappel RDV",
-    subject: "ðŸ"§ [Preview] Rappel rendez-vous",
+    subject: "[preview] [Preview] Rappel rendez-vous",
     html: orders.appointmentReminder({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -291,7 +291,7 @@ const getTemplates = () => [
   {
     category: "03 - COMMANDES",
     name: "Activation réussie",
-    subject: "ðŸ"§ [Preview] Service activé",
+    subject: "[preview] [Preview] Service activ",
     html: orders.activationSuccess({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -303,7 +303,7 @@ const getTemplates = () => [
   {
     category: "03 - COMMANDES",
     name: "Guide démarrage",
-    subject: "ðŸ"§ [Preview] Guide démarrage",
+    subject: "[preview] [Preview] Guide dmarrage",
     html: orders.quickStartGuide({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -321,7 +321,7 @@ const getTemplates = () => [
   {
     category: "04 - PORTABILITÉ",
     name: "Demande reçue",
-    subject: "ðŸ"§ [Preview] Portabilité reçue",
+    subject: "[preview] [Preview] Portabilit reue",
     html: portability.portingRequestReceived({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -334,7 +334,7 @@ const getTemplates = () => [
   {
     category: "04 - PORTABILITÉ",
     name: "En cours",
-    subject: "ðŸ"§ [Preview] Portabilité en cours",
+    subject: "[preview] [Preview] Portabilit en cours",
     html: portability.portingInProgress({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -346,7 +346,7 @@ const getTemplates = () => [
   {
     category: "04 - PORTABILITÉ",
     name: "Approuvée",
-    subject: "ðŸ"§ [Preview] Portabilité approuvée",
+    subject: "[preview] [Preview] Portabilit approuve",
     html: portability.portingApproved({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -357,7 +357,7 @@ const getTemplates = () => [
   {
     category: "04 - PORTABILITÉ",
     name: "Complétée",
-    subject: "ðŸ"§ [Preview] Portabilité complétée",
+    subject: "[preview] [Preview] Portabilit complte",
     html: portability.portingCompleted({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -368,7 +368,7 @@ const getTemplates = () => [
   {
     category: "04 - PORTABILITÉ",
     name: "Problème",
-    subject: "ðŸ"§ [Preview] Problème portabilité",
+    subject: "[preview] [Preview] Problme portabilit",
     html: portability.portingIssue({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -382,7 +382,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Facture mensuelle",
-    subject: "ðŸ"§ [Preview] Facture mensuelle",
+    subject: "[preview] [Preview] Facture mensuelle",
     html: billing.monthlyInvoice({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -402,7 +402,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Reçu paiement",
-    subject: "ðŸ"§ [Preview] Reçu de paiement",
+    subject: "[preview] [Preview] Reu de paiement",
     html: billing.paymentReceipt({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -416,7 +416,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Prélèvement réussi",
-    subject: "ðŸ"§ [Preview] Prélèvement réussi",
+    subject: "[preview] [Preview] Prlvement russi",
     html: billing.preauthorizedPaymentSuccess({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -429,7 +429,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Paiement échoué",
-    subject: "ðŸ"§ [Preview] Paiement échoué",
+    subject: "[preview] [Preview] Paiement chou",
     html: billing.paymentFailed({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -443,7 +443,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Nouvelle tentative",
-    subject: "ðŸ"§ [Preview] Nouvelle tentative",
+    subject: "[preview] [Preview] Nouvelle tentative",
     html: billing.paymentRetry({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -455,7 +455,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Solde en retard",
-    subject: "ðŸ"§ [Preview] Solde en retard",
+    subject: "[preview] [Preview] Solde en retard",
     html: billing.overdueBalance({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -468,7 +468,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Avis suspension",
-    subject: "ðŸ"§ [Preview] Avis de suspension",
+    subject: "[preview] [Preview] Avis de suspension",
     html: billing.suspensionWarning({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -480,7 +480,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Service suspendu",
-    subject: "ðŸ"§ [Preview] Service suspendu",
+    subject: "[preview] [Preview] Service suspendu",
     html: billing.serviceSuspended({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -492,7 +492,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Service réactivé",
-    subject: "ðŸ"§ [Preview] Service réactivé",
+    subject: "[preview] [Preview] Service ractiv",
     html: billing.serviceReactivated({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -502,7 +502,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Crédit appliqué",
-    subject: "ðŸ"§ [Preview] Crédit appliqué",
+    subject: "[preview] [Preview] Crdit appliqu",
     html: billing.creditApplied({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -514,7 +514,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Rappel de paiement",
-    subject: "ðŸ"§ [Preview] Rappel de paiement",
+    subject: "[preview] [Preview] Rappel de paiement",
     html: billing.paymentReminder({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -527,7 +527,7 @@ const getTemplates = () => [
   {
     category: "05 - FACTURATION",
     name: "Mode de paiement modifié",
-    subject: "ðŸ"§ [Preview] Mode de paiement modifié",
+    subject: "[preview] [Preview] Mode de paiement modifi",
     html: billing.paymentMethodChanged({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -541,7 +541,7 @@ const getTemplates = () => [
   {
     category: "06 - COMPTE",
     name: "Compte bloqué",
-    subject: "ðŸ"§ [Preview] Compte bloqué",
+    subject: "[preview] [Preview] Compte bloqu",
     html: account.accountBlocked({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -552,7 +552,7 @@ const getTemplates = () => [
   {
     category: "06 - COMPTE",
     name: "Compte débloqué",
-    subject: "ðŸ"§ [Preview] Compte débloqué",
+    subject: "[preview] [Preview] Compte dbloqu",
     html: account.accountUnblocked({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -562,7 +562,7 @@ const getTemplates = () => [
   {
     category: "06 - COMPTE",
     name: "Accès en ligne bloqué",
-    subject: "ðŸ"§ [Preview] Accès en ligne bloqué",
+    subject: "[preview] [Preview] Accs en ligne bloqu",
     html: account.onlineAccessBlocked({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -573,7 +573,7 @@ const getTemplates = () => [
   {
     category: "06 - COMPTE",
     name: "Réinitialisation mot de passe",
-    subject: "ðŸ"§ [Preview] Réinitialisation mot de passe",
+    subject: "[preview] [Preview] Rinitialisation mot de passe",
     html: account.passwordReset({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -585,7 +585,7 @@ const getTemplates = () => [
   {
     category: "06 - COMPTE",
     name: "Mot de passe modifié",
-    subject: "ðŸ"§ [Preview] Mot de passe modifié",
+    subject: "[preview] [Preview] Mot de passe modifi",
     html: account.passwordChanged({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -595,7 +595,7 @@ const getTemplates = () => [
   {
     category: "06 - COMPTE",
     name: "Connexion suspecte",
-    subject: "ðŸ"§ [Preview] Connexion suspecte",
+    subject: "[preview] [Preview] Connexion suspecte",
     html: account.suspiciousLogin({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -610,7 +610,7 @@ const getTemplates = () => [
   {
     category: "07 - SERVICES",
     name: "Demande d'annulation reçue",
-    subject: "ðŸ"§ [Preview] Demande d'annulation reçue",
+    subject: "[preview] [Preview] Demande d'annulation reue",
     html: service.cancellationRequestReceived({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -624,7 +624,7 @@ const getTemplates = () => [
   {
     category: "07 - SERVICES",
     name: "Service annulé",
-    subject: "ðŸ"§ [Preview] Service annulé",
+    subject: "[preview] [Preview] Service annul",
     html: service.serviceCancelled({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -637,7 +637,7 @@ const getTemplates = () => [
   {
     category: "07 - SERVICES",
     name: "Service suspendu",
-    subject: "ðŸ"§ [Preview] Service suspendu",
+    subject: "[preview] [Preview] Service suspendu",
     html: service.serviceSuspended({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -650,7 +650,7 @@ const getTemplates = () => [
   {
     category: "07 - SERVICES",
     name: "Service réactivé",
-    subject: "ðŸ"§ [Preview] Service réactivé",
+    subject: "[preview] [Preview] Service ractiv",
     html: service.serviceReactivated({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -661,7 +661,7 @@ const getTemplates = () => [
   {
     category: "07 - SERVICES",
     name: "Changement de forfait",
-    subject: "ðŸ"§ [Preview] Changement de forfait",
+    subject: "[preview] [Preview] Changement de forfait",
     html: service.planChangeConfirmed({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -675,7 +675,7 @@ const getTemplates = () => [
   {
     category: "07 - SERVICES",
     name: "SIM perdue déclarée",
-    subject: "ðŸ"§ [Preview] SIM perdue déclarée",
+    subject: "[preview] [Preview] SIM perdue dclare",
     html: service.simLostReported({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -687,7 +687,7 @@ const getTemplates = () => [
   {
     category: "07 - SERVICES",
     name: "SIM remplacement expédiée",
-    subject: "ðŸ"§ [Preview] SIM remplacement expédiée",
+    subject: "[preview] [Preview] SIM remplacement expdie",
     html: service.replacementSimShipped({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -702,12 +702,12 @@ const getTemplates = () => [
   {
     category: "08 - SUPPORT",
     name: "Ticket créé",
-    subject: "ðŸ"§ [Preview] Ticket créé",
+    subject: "[preview] [Preview] Ticket cr",
     html: support.ticketCreated({
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0789",
-      subject: "Problème de connexion internet intermittent",
+      subject: "Problme de connexion internet intermittent",
       category: "Internet",
       priority: "Urgent",
       createdAt: "15 janvier 2025 Ã  14h30",
@@ -716,12 +716,12 @@ const getTemplates = () => [
   {
     category: "08 - SUPPORT",
     name: "Ticket mis Ã  jour",
-    subject: "ðŸ"§ [Preview] Ticket mis Ã  jour",
+    subject: "[preview] [Preview] Ticket mis  jour",
     html: support.ticketUpdated({
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0789",
-      subject: "Problème de connexion internet intermittent",
+      subject: "Problme de connexion internet intermittent",
       updateMessage: "Bonjour Jean-François,\n\nNous avons analysé votre connexion et identifié un problème avec le routeur. Un technicien vous contactera sous 24h pour planifier une intervention.\n\nMerci de votre patience!",
       updatedBy: "Sophie Martin - Support technique",
       updatedAt: "15 janvier 2025 Ã  16h45",
@@ -730,12 +730,12 @@ const getTemplates = () => [
   {
     category: "08 - SUPPORT",
     name: "Ticket résolu",
-    subject: "ðŸ"§ [Preview] Ticket résolu",
+    subject: "[preview] [Preview] Ticket rsolu",
     html: support.ticketResolved({
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0789",
-      subject: "Problème de connexion internet intermittent",
+      subject: "Problme de connexion internet intermittent",
       resolution: "Le problème a été résolu suite au remplacement du routeur défectueux. Votre connexion devrait maintenant être stable. N'hésitez pas Ã  nous recontacter si le problème persiste.",
       resolvedAt: "17 janvier 2025 Ã  11h00",
     }),
@@ -743,19 +743,19 @@ const getTemplates = () => [
   {
     category: "08 - SUPPORT",
     name: "Ticket fermé automatiquement",
-    subject: "ðŸ"§ [Preview] Ticket fermé automatiquement",
+    subject: "[preview] [Preview] Ticket ferm automatiquement",
     html: support.ticketAutoClosed({
       ...baseParams,
       clientName: sampleData.clientName,
       ticketNumber: "TKT-2025-0789",
-      subject: "Problème de connexion internet intermittent",
+      subject: "Problme de connexion internet intermittent",
       closedAt: "24 janvier 2025",
     }),
   },
   {
     category: "08 - SUPPORT",
     name: "Demande de documents",
-    subject: "ðŸ"§ [Preview] Demande de documents",
+    subject: "[preview] [Preview] Demande de documents",
     html: support.documentRequest({
       ...baseParams,
       clientName: sampleData.clientName,
@@ -791,7 +791,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("targetEmail is required");
     }
     
-    console.log(`ðŸ"§ Sending all email previews to: ${targetEmail}`);
+    console.log(`[preview] Sending all email previews to: ${targetEmail}`);
     
     const templates = getTemplates();
     const results: Array<{ name: string; success: boolean; error?: string }> = [];
@@ -803,7 +803,7 @@ const handler = async (req: Request): Promise<Response> => {
       const template = templates[i];
       
       try {
-        console.log(`ðŸ"§ Sending ${i + 1}/${templates.length}: ${template.category} - ${template.name}`);
+        console.log(`[preview] Sending ${i + 1}/${templates.length}: ${template.category} - ${template.name}`);
         
         const { error } = await resend.emails.send({
           from: "Nivra Télécom <support@nivra-telecom.ca>",
@@ -817,7 +817,7 @@ const handler = async (req: Request): Promise<Response> => {
           results.push({ name: `${template.category} - ${template.name}`, success: false, error: error.message });
           failCount++;
         } else {
-          console.log(`âœ… Sent: ${template.name}`);
+          console.log(`[preview] Sent: ${template.name}`);
           results.push({ name: `${template.category} - ${template.name}`, success: true });
           successCount++;
         }
@@ -834,7 +834,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
     
-    console.log(`ðŸ"§ Complete! Sent: ${successCount}, Failed: ${failCount}`);
+    console.log(`[preview] Complete! Sent: ${successCount}, Failed: ${failCount}`);
     
     return new Response(
       JSON.stringify({
