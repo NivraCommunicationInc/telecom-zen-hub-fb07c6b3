@@ -7415,7 +7415,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       //   invoice_number, plan_name, subtotal, discount_lines[]
       const debitAmount = String(v.debit_amount || v.amount || "—");
       const debitDate = String(v.debit_date || v.due_date || "—");
-      const paymentLabel = String(v.payment_method_label || "PayPal pré-autorisé");
+      const paymentLabel = String(v.payment_method_label || "Paiement automatique pré-autorisé");
       const invoiceNumber = String(v.invoice_number || "—");
       const planName = String(v.plan_name || "Service Nivra");
       const subtotal = String(v.subtotal || debitAmount);
