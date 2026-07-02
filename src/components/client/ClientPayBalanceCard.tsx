@@ -8,6 +8,7 @@ import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { AlertCircle, Copy, Send, CreditCard, Loader2, CheckCircle2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { invalidateAfterPayment } from "@/lib/queryInvalidation";
+import { SquarePaymentSuccessCard } from "@/components/payment/SquarePaymentSuccessCard";
 
 const INTERAC_EMAIL = "support@nivra-telecom.ca";
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
