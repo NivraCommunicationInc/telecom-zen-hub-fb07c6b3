@@ -23,6 +23,8 @@ export interface SquarePaymentFormProps {
   /** Pour la note Square (visible dans le dashboard Square) */
   customerName?: string;
   customerEmail?: string;
+  /** Source du paiement — transmis à square-charge-invoice (portal | public_pay | core_pos …) */
+  paymentSource?: string;
   /** Appelé si le paiement réussit */
   onSuccess: (receiptUrl?: string | null, paymentId?: string) => void;
 }
