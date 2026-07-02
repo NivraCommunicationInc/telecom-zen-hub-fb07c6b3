@@ -5214,7 +5214,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
         ? (isEn ? "Interac e-Transfer" : "Interac e-Transfer")
         : methodRaw === "gift_card"
         ? (isEn ? "Visa/Mastercard gift card" : "Carte-cadeau Visa/Mastercard")
-        : "PayPal";
+        : "Virement électronique";
       return {
         subject: isEn
           ? `Your referral is qualified — 25$/mo for 10 months`
