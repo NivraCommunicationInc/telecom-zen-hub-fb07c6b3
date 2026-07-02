@@ -290,7 +290,6 @@ serve(async (req) => {
     }
 
     // Match on email OR phone (case-insensitive; phone normalized)
-    const identityLower = identity.toLowerCase();
     const emailMatch = bcust.email && bcust.email.toLowerCase() === identityLower;
     let phoneMatch = false;
     if (bcust.phone) {
