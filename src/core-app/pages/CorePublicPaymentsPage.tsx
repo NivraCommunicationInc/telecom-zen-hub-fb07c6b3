@@ -8,15 +8,84 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Loader2, CreditCard, ExternalLink, Copy, Mail, Search, Plus, Download, Check,
-  TrendingUp, Clock, DollarSign, Calendar, Wallet, Send,
+  TrendingUp, Clock, DollarSign, Calendar, Wallet, Send, Eye, Edit3, Ban, FileText,
+  Receipt, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { exportToCSV } from "@/core-app/lib/exportUtils";
+import { generateInvoicePDF, generateReceiptPDF, type InvoiceDataV2 } from "@/lib/pdf";
+import { safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
+import { CoreSquarePaymentDialog } from "@/core-app/components/account-360/CoreSquarePaymentDialog";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+
+const shortDateTime = (value?: string | null) =>
+  value ? new Date(value).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" }) : "—";
+
+const publicPayUrl = (token?: string | null) => `${window.location.origin}/payer/lien/${token || ""}`;
+
+const copyText = async (value: string, label: string) => {
+  await navigator.clipboard.writeText(value);
+  toast.success(`${label} copié`);
+};
+
+function buildInvoicePdfData(detail: any): InvoiceDataV2 {
+  const inv = detail.invoice;
+  const customer = detail.customer || {};
+  const lines = detail.lines || [];
+  const payments = detail.payments || [];
+  return {
+    invoice_type: inv.type === "monthly" ? "MONTHLY" : "ONETIME",
+    invoice_number: inv.invoice_number || inv.id,
+    invoice_date: String(inv.created_at || new Date().toISOString()).slice(0, 10),
+    due_date: String(inv.due_date || inv.created_at || new Date().toISOString()).slice(0, 10),
+    account_number: inv.billing_snapshot_account_number || "N/A",
+    billing_period_start: inv.cycle_start_date || undefined,
+    billing_period_end: inv.cycle_end_date || undefined,
+    currency: inv.currency || "CAD",
+    status: inv.status || "pending",
+    customer: {
+      full_name: `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Client Nivra",
+      email: customer.email || "support@nivra-telecom.ca",
+      phone: customer.phone || undefined,
+      address_line1: inv.address_snapshot?.line1 || inv.address_snapshot?.address || "Adresse au dossier",
+      city: inv.address_snapshot?.city || "Québec",
+      province: inv.address_snapshot?.province || "QC",
+      postal_code: inv.address_snapshot?.postal_code || "",
+    },
+    items: lines.length
+      ? lines.map((line: any) => ({
+          category: "Other",
+          description: line.description || line.line_type || "Ligne de facture",
+          qty: Number(line.quantity || 1),
+          unit_price: Number(line.unit_price || line.line_total || 0),
+          amount: Number(line.line_total || 0),
+        }))
+      : [{ category: "Other", description: inv.notes || inv.invoice_number || "Facture Nivra", qty: 1, unit_price: Number(inv.subtotal || inv.total || 0), amount: Number(inv.subtotal || inv.total || 0) }],
+    subtotal: Number(inv.subtotal || 0),
+    taxes: {
+      gst_rate: 0.05,
+      gst_amount: Number(inv.tps_amount || 0),
+      qst_rate: 0.09975,
+      qst_amount: Number(inv.tvq_amount || 0),
+    },
+    total: Number(inv.total || 0),
+    balance_due: Number(inv.balance_due || 0),
+    payments_total: Number(inv.amount_paid || 0),
+    payments: payments.map((p: any) => ({
+      method: p.method || "card",
+      status: p.status || "confirmed",
+      paid_amount: Number(p.amount || 0),
+      paid_at: p.received_at || p.created_at,
+      payment_reference: p.nivra_reference || p.reference || p.square_payment_id || p.payment_number || p.id,
+      processor_txn_id: p.square_payment_id || p.provider_payment_id || undefined,
+    })),
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // KPI Dashboard
