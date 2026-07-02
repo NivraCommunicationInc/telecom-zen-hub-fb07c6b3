@@ -124,7 +124,14 @@ export function EmployeeSquarePaymentDialog({
         body: JSON.stringify({ source_id: result.token, invoice_id: invoice.id, customer_email: clientEmail }),
       });
       const data = await res.json();
-      if (!data?.ok) { toast.error(data?.error || "Paiement refusé"); return; }
+      if (!data?.ok) {
+        // Message Square VERBATIM — pas de traduction ni reformulation.
+        toast.error(data?.error || "Paiement refusé");
+        return;
+      }
+
+      const sqRef: string | null = data.square_payment_id || data.payment_id || null;
+      setSquareRef(sqRef);
 
       await logInternalAudit({
         action: "square_direct_payment_completed",
@@ -132,9 +139,9 @@ export function EmployeeSquarePaymentDialog({
         portal: "employee",
         targetType: "invoice",
         targetId: invoice.id,
-        details: { payment_id: data.payment_id, amount: balanceDue },
+        details: { payment_id: sqRef, amount: balanceDue },
       });
-      toast.success("Paiement accepté — reçu envoyé au client");
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
       setPaid(true);
       onSuccess?.();
     } catch (e: any) {
