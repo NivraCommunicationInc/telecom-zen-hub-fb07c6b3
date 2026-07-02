@@ -214,7 +214,7 @@ serve(async (req) => {
       // Field payment intent flow
       const { data: intent } = await supabase
         .from("field_payment_intents")
-        .select("id, amount, status, customer_name, customer_email, converted_invoice_id")
+        .select("id, amount, status, customer_name, customer_email, converted_invoice_id, public_token, description")
         .eq("id", intent_id)
         .single();
 
@@ -473,6 +473,58 @@ serve(async (req) => {
         .from("field_payment_intents")
         .update({ status: "completed", paid_at: new Date().toISOString() })
         .eq("id", intent_id);
+
+      try {
+        const { data: intentForLink } = await supabase
+          .from("field_payment_intents")
+          .select("public_token")
+          .eq("id", intent_id)
+          .maybeSingle();
+
+        if (intentForLink?.public_token) {
+          const { data: link } = await supabase
+            .from("public_payment_links")
+            .update({
+              status: "paid",
+              paid_at: new Date().toISOString(),
+              amount_paid: amountPaid,
+            })
+            .eq("token", intentForLink.public_token)
+            .select("id, invoice_id, customer_id, nivra_reference, amount_due, description, recipient_name, recipient_email")
+            .maybeSingle();
+
+          if (link && !invoiceData) {
+            const { data: existing } = await supabase
+              .from("billing_payments")
+              .select("id")
+              .eq("square_payment_id", paymentId)
+              .maybeSingle();
+
+            if (!existing?.id) {
+              await supabase.from("billing_payments").insert({
+                invoice_id: link.invoice_id || null,
+                customer_id: link.customer_id || null,
+                method: "card",
+                amount: amountPaid,
+                status: "confirmed",
+                provider: "square",
+                provider_payment_id: paymentId,
+                square_payment_id: paymentId,
+                square_receipt_url: receiptUrl,
+                source: "public_pay",
+                payer_ip: payerIp,
+                nivra_reference: link.nivra_reference,
+                reference: link.nivra_reference,
+                created_by_name: "Square Payment",
+                created_by_role: "system",
+                received_at: new Date().toISOString(),
+              });
+            }
+          }
+        }
+      } catch (linkSyncErr) {
+        console.warn("[square-charge-invoice] public payment link sync failed:", linkSyncErr);
+      }
     }
 
     return json({

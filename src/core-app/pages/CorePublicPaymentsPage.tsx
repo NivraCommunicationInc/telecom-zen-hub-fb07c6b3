@@ -8,15 +8,84 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Loader2, CreditCard, ExternalLink, Copy, Mail, Search, Plus, Download, Check,
-  TrendingUp, Clock, DollarSign, Calendar, Wallet, Send,
+  TrendingUp, Clock, DollarSign, Calendar, Wallet, Send, Eye, Edit3, Ban, FileText,
+  Receipt, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { exportToCSV } from "@/core-app/lib/exportUtils";
+import { generateInvoicePDF, generateReceiptPDF, type InvoiceDataV2 } from "@/lib/pdf";
+import { safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
+import { CoreSquarePaymentDialog } from "@/core-app/components/account-360/CoreSquarePaymentDialog";
 
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+
+const shortDateTime = (value?: string | null) =>
+  value ? new Date(value).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" }) : "—";
+
+const publicPayUrl = (token?: string | null) => `${window.location.origin}/payer/lien/${token || ""}`;
+
+const copyText = async (value: string, label: string) => {
+  await navigator.clipboard.writeText(value);
+  toast.success(`${label} copié`);
+};
+
+function buildInvoicePdfData(detail: any): InvoiceDataV2 {
+  const inv = detail.invoice;
+  const customer = detail.customer || {};
+  const lines = detail.lines || [];
+  const payments = detail.payments || [];
+  return {
+    invoice_type: inv.type === "monthly" ? "MONTHLY" : "ONETIME",
+    invoice_number: inv.invoice_number || inv.id,
+    invoice_date: String(inv.created_at || new Date().toISOString()).slice(0, 10),
+    due_date: String(inv.due_date || inv.created_at || new Date().toISOString()).slice(0, 10),
+    account_number: inv.billing_snapshot_account_number || "N/A",
+    billing_period_start: inv.cycle_start_date || undefined,
+    billing_period_end: inv.cycle_end_date || undefined,
+    currency: inv.currency || "CAD",
+    status: inv.status || "pending",
+    customer: {
+      full_name: `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Client Nivra",
+      email: customer.email || "support@nivra-telecom.ca",
+      phone: customer.phone || undefined,
+      address_line1: inv.address_snapshot?.line1 || inv.address_snapshot?.address || "Adresse au dossier",
+      city: inv.address_snapshot?.city || "Québec",
+      province: inv.address_snapshot?.province || "QC",
+      postal_code: inv.address_snapshot?.postal_code || "",
+    },
+    items: lines.length
+      ? lines.map((line: any) => ({
+          category: "Other",
+          description: line.description || line.line_type || "Ligne de facture",
+          qty: Number(line.quantity || 1),
+          unit_price: Number(line.unit_price || line.line_total || 0),
+          amount: Number(line.line_total || 0),
+        }))
+      : [{ category: "Other", description: inv.notes || inv.invoice_number || "Facture Nivra", qty: 1, unit_price: Number(inv.subtotal || inv.total || 0), amount: Number(inv.subtotal || inv.total || 0) }],
+    subtotal: Number(inv.subtotal || 0),
+    taxes: {
+      gst_rate: 0.05,
+      gst_amount: Number(inv.tps_amount || 0),
+      qst_rate: 0.09975,
+      qst_amount: Number(inv.tvq_amount || 0),
+    },
+    total: Number(inv.total || 0),
+    balance_due: Number(inv.balance_due || 0),
+    payments_total: Number(inv.amount_paid || 0),
+    payments: payments.map((p: any) => ({
+      method: p.method || "card",
+      status: p.status || "confirmed",
+      paid_amount: Number(p.amount || 0),
+      paid_at: p.received_at || p.created_at,
+      payment_reference: p.nivra_reference || p.reference || p.square_payment_id || p.payment_number || p.id,
+      processor_txn_id: p.square_payment_id || p.provider_payment_id || undefined,
+    })),
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // KPI Dashboard
@@ -106,6 +175,75 @@ function DashboardKpis() {
   );
 }
 
+function PublicLinkDetailDialog({ row, open, onOpenChange }: { row: any | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["core-public-link-detail", row?.id, row?.nivra, row?.token],
+    enabled: open && !!row?.id,
+    queryFn: async () => {
+      const attempts = await supabase
+        .from("public_payment_attempts")
+        .select("id, ip, identifier, success, user_agent, created_at")
+        .or(`identifier.ilike.%${row.nivra}%,identifier.ilike.%${row.token || "__none__"}%`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const payments = await supabase
+        .from("billing_payments")
+        .select("id, amount, status, method, received_at, created_at, square_payment_id, square_receipt_url, nivra_reference")
+        .or(`nivra_reference.ilike.${row.nivra},id.eq.${row.payment_id || "00000000-0000-0000-0000-000000000000"}`)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return { attempts: attempts.data || [], payments: payments.data || [] };
+    },
+  });
+
+  if (!row) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Lien public {row.nivra}</DialogTitle>
+          <DialogDescription>Détails complets, statut et historique associé.</DialogDescription>
+        </DialogHeader>
+        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+          <div><span className="text-muted-foreground">Client</span><div className="font-medium">{row.client}</div></div>
+          <div><span className="text-muted-foreground">Email</span><div className="font-medium break-all">{row.email || "—"}</div></div>
+          <div><span className="text-muted-foreground">Montant</span><div className="font-semibold">{fmt(row.amount)}</div></div>
+          <div><span className="text-muted-foreground">Statut</span><div className="font-medium">{row.kind}</div></div>
+          <div><span className="text-muted-foreground">Créé le</span><div>{shortDateTime(row.created_at || row.date)}</div></div>
+          <div><span className="text-muted-foreground">Expiration</span><div>{shortDateTime(row.expires_at)}</div></div>
+          <div className="sm:col-span-2"><span className="text-muted-foreground">Description</span><div>{row.invoice}</div></div>
+          <div className="sm:col-span-2"><span className="text-muted-foreground">Lien</span><div className="font-mono text-xs break-all">{publicPayUrl(row.token)}</div></div>
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <h3 className="font-semibold text-sm">Historique des tentatives de paiement</h3>
+          {isLoading ? <div className="text-sm text-muted-foreground">Chargement…</div> : data?.attempts.length ? (
+            <div className="rounded-md border overflow-hidden">
+              {data.attempts.map((a: any) => (
+                <div key={a.id} className="grid sm:grid-cols-[1fr_120px_160px] gap-2 p-2 border-b last:border-0 text-xs">
+                  <div className="font-mono break-all">{a.identifier || "—"}</div>
+                  <div>{a.success ? "Réussie" : "Échouée"}</div>
+                  <div>{shortDateTime(a.created_at)}</div>
+                </div>
+              ))}
+            </div>
+          ) : <div className="text-sm text-muted-foreground">Aucune tentative enregistrée dans public_payment_attempts.</div>}
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <h3 className="font-semibold text-sm">Paiements liés</h3>
+          {data?.payments.length ? data.payments.map((p: any) => (
+            <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 text-sm">
+              <div><span className="font-medium">{fmt(Number(p.amount))}</span> · {p.status} · {shortDateTime(p.received_at || p.created_at)}</div>
+              <div className="font-mono text-xs">{p.square_payment_id || p.nivra_reference || p.id}</div>
+            </div>
+          )) : <div className="text-sm text-muted-foreground">Aucun paiement confirmé lié.</div>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // History Tab — table with NVR
 // ─────────────────────────────────────────────────────────────────────
@@ -114,6 +252,7 @@ function HistoryTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "success" | "failed" | "pending">("all");
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [selectedLink, setSelectedLink] = useState<any | null>(null);
 
   const { data: successes, isLoading: loadingS } = useQuery({
     queryKey: ["core-public-payments-success"],
@@ -134,8 +273,7 @@ function HistoryTab() {
     queryFn: async () => {
       const { data } = await supabase
         .from("public_payment_links")
-        .select("id, nivra_reference, recipient_name, recipient_email, amount_due, description, created_at, expires_at, status, token")
-        .eq("status", "pending")
+        .select("id, nivra_reference, recipient_name, recipient_email, amount_due, amount_paid, description, created_at, expires_at, status, token, paid_at, payment_id")
         .order("created_at", { ascending: false })
         .limit(200);
       return data || [];
@@ -192,13 +330,20 @@ function HistoryTab() {
       receipt: r.square_receipt_url || null,
     }));
     const pend = (pending || []).map((r: any) => ({
-      kind: "pending" as const,
+      kind: (r.status === "paid" || r.status === "completed" ? "success" : r.status === "cancelled" || r.status === "canceled" ? "failed" : "pending") as "success" | "failed" | "pending",
+      sourceType: "link" as const,
       id: r.id,
       date: r.created_at,
+      created_at: r.created_at,
+      expires_at: r.expires_at,
+      paid_at: r.paid_at,
+      status: r.status,
+      payment_id: r.payment_id,
       client: r.recipient_name || "—",
       email: r.recipient_email || "",
       invoice: r.description?.slice(0, 40) || "—",
-      amount: Number(r.amount_due),
+      amount: Number(r.amount_paid || r.amount_due),
+      amount_due: Number(r.amount_due),
       nivra: r.nivra_reference || "—",
       sqRef: "—",
       ip: "—",
@@ -264,8 +409,8 @@ function HistoryTab() {
   };
 
   const resendReceipt = async (row: any) => {
-    if (!row.email || !row.receipt) {
-      toast.error("Aucun email ou reçu disponible.");
+    if (!row.email) {
+      toast.error("Aucun email disponible.");
       return;
     }
     setSendingId(row.id);
@@ -280,10 +425,11 @@ function HistoryTab() {
           invoice_number: row.invoice || row.nivra,
           amount: row.amount,
           amount_paid_today: row.amount,
-          reference: row.nvr || row.sqRef,
+          reference: row.nivra || row.sqRef,
           payment_method: "Carte de crédit — Square",
           payment_date: row.date,
-          invoice_url: row.receipt,
+          invoice_url: row.receipt || undefined,
+          receipt_url: row.receipt || undefined,
         },
         status: "queued",
         attempts: 0,
@@ -296,6 +442,106 @@ function HistoryTab() {
     } finally {
       setSendingId(null);
     }
+  };
+
+  const sendPaymentLink = async (row: any) => {
+    if (!row.email || !row.token) return toast.error("Email ou token manquant.");
+    setSendingId(row.id);
+    try {
+      const url = publicPayUrl(row.token);
+      const { error } = await supabase.from("email_queue").insert({
+        event_key: `public_pay_resend_${row.id}_${Date.now()}`,
+        to_email: row.email,
+        template_key: "invoice_payment_link",
+        template_vars: {
+          client_name: row.client || "Client",
+          first_name: (row.client || "Client").split(" ")[0],
+          order_number: row.nivra,
+          invoice_number: row.nivra,
+          total: row.amount_due || row.amount,
+          amount: row.amount_due || row.amount,
+          approval_url: url,
+          payment_url: url,
+          summary: row.invoice || "Paiement Nivra Telecom",
+          description: row.invoice || "Paiement Nivra Telecom",
+          agent_name: "Nivra Telecom",
+          valid_until: row.expires_at ? new Date(row.expires_at).toLocaleString("fr-CA") : "30 jours",
+        },
+        status: "queued",
+        attempts: 0,
+        max_attempts: 5,
+      });
+      if (error) throw error;
+      await supabase.from("public_payment_links").update({ sent_at: new Date().toISOString() }).eq("id", row.id);
+      toast.success("Lien envoyé à " + row.email);
+      qc.invalidateQueries({ queryKey: ["core-public-payments-pending"] });
+    } catch (e: any) {
+      toast.error("Envoi échoué : " + (e?.message || String(e)));
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const editLink = async (row: any) => {
+    if (row.kind !== "pending") return toast.error("Modification bloquée : lien déjà payé ou annulé.");
+    const amountRaw = window.prompt("Nouveau montant CAD", String(row.amount_due || row.amount));
+    if (amountRaw === null) return;
+    const amount = Number.parseFloat(amountRaw.replace(",", "."));
+    if (!(amount >= 1)) return toast.error("Montant invalide.");
+    const description = window.prompt("Description", row.invoice || "Paiement Nivra Telecom");
+    if (description === null) return;
+    const { error } = await supabase.from("public_payment_links").update({ amount_due: amount, description }).eq("id", row.id).eq("status", "pending");
+    if (error) return toast.error(error.message);
+    if (row.token) await supabase.from("field_payment_intents").update({ amount, description }).eq("public_token", row.token).neq("status", "completed");
+    toast.success("Lien modifié");
+    qc.invalidateQueries({ queryKey: ["core-public-payments-pending"] });
+  };
+
+  const extendLink = async (row: any) => {
+    if (row.kind !== "pending") return toast.error("Prolongation bloquée : lien déjà payé ou annulé.");
+    const daysRaw = window.prompt("Prolonger de combien de jours ?", "30");
+    if (daysRaw === null) return;
+    const days = Number.parseInt(daysRaw, 10);
+    if (!(days > 0 && days <= 365)) return toast.error("Nombre de jours invalide.");
+    const base = row.expires_at ? new Date(row.expires_at) : new Date();
+    const next = new Date(Math.max(base.getTime(), Date.now()));
+    next.setDate(next.getDate() + days);
+    const { error } = await supabase.from("public_payment_links").update({ expires_at: next.toISOString() }).eq("id", row.id).eq("status", "pending");
+    if (error) return toast.error(error.message);
+    if (row.token) await supabase.from("field_payment_intents").update({ expires_at: next.toISOString() }).eq("public_token", row.token).neq("status", "completed");
+    toast.success("Expiration prolongée");
+    qc.invalidateQueries({ queryKey: ["core-public-payments-pending"] });
+  };
+
+  const cancelLink = async (row: any) => {
+    if (row.kind !== "pending") return toast.error("Ce lien n'est plus annulable.");
+    if (!window.confirm(`Annuler le lien ${row.nivra} ? Le paiement futur sera bloqué.`)) return;
+    const { error } = await supabase.from("public_payment_links").update({ status: "cancelled" }).eq("id", row.id).eq("status", "pending");
+    if (error) return toast.error(error.message);
+    if (row.token) await supabase.from("field_payment_intents").update({ status: "cancelled" }).eq("public_token", row.token).neq("status", "completed");
+    toast.success("Lien annulé");
+    qc.invalidateQueries({ queryKey: ["core-public-payments-pending"] });
+    qc.invalidateQueries({ queryKey: ["core-public-kpis"] });
+  };
+
+  const viewReceiptPdf = (row: any, open = true) => {
+    const result = generateReceiptPDF({
+      receipt_number: row.nivra || row.sqRef || row.id,
+      payment_date: row.paid_at || row.date || new Date().toISOString(),
+      payment_method: "card",
+      amount_paid: Number(row.amount || row.amount_due || 0),
+      invoice_number: row.invoice || row.nivra,
+      invoice_total: Number(row.amount || row.amount_due || 0),
+      client_name: row.client || "Client Nivra",
+      client_email: row.email || "support@nivra-telecom.ca",
+      account_number: row.nivra || "N/A",
+      billed_items: [{ description: row.invoice || "Paiement Nivra Telecom", amount: Number(row.amount || row.amount_due || 0) }],
+      transaction_reference: row.sqRef !== "—" ? row.sqRef : row.nivra,
+      balance_remaining: 0,
+      subtotal: Number(row.amount || row.amount_due || 0),
+    });
+    if (!result.success || !result.blob) return toast.error(result.error || "PDF indisponible");
+    return open ? safePDFOpen(result.blob, `recu-${row.nivra || row.id}.pdf`) : safePDFDownload(result.blob, `recu-${row.nivra || row.id}.pdf`);
   };
 
   const isLoading = loadingS;
@@ -392,7 +638,34 @@ function HistoryTab() {
                             </a>
                           </Button>
                         )}
-                        {r.kind === "success" && r.email && r.receipt && (
+                        {(r as any).sourceType === "link" && (
+                          <Button size="sm" variant="ghost" className="h-8" title="Voir les détails complets" onClick={() => setSelectedLink(r)}>
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {(r as any).sourceType === "link" && (r as any).token && (
+                          <Button size="sm" variant="ghost" className="h-8" title="Copier le lien" onClick={() => copyText(publicPayUrl((r as any).token), "Lien") }>
+                            <Copy className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {(r as any).sourceType === "link" && r.email && (
+                          <Button size="sm" variant="ghost" className="h-8" title="Envoyer/renvoyer le lien par email" disabled={sendingId === r.id} onClick={() => sendPaymentLink(r)}>
+                            {sendingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                          </Button>
+                        )}
+                        {(r as any).sourceType === "link" && r.kind === "pending" && (
+                          <>
+                            <Button size="sm" variant="ghost" className="h-8" title="Modifier le montant" onClick={() => editLink(r)}><Edit3 className="w-3.5 h-3.5" /></Button>
+                            <Button size="sm" variant="ghost" className="h-8" title="Prolonger l'expiration" onClick={() => extendLink(r)}><RefreshCw className="w-3.5 h-3.5" /></Button>
+                            <Button size="sm" variant="ghost" className="h-8" title="Annuler le lien" onClick={() => cancelLink(r)}><Ban className="w-3.5 h-3.5" /></Button>
+                          </>
+                        )}
+                        {r.kind === "success" && (
+                          <Button size="sm" variant="ghost" className="h-8" title="Voir le reçu PDF" onClick={() => viewReceiptPdf(r)}>
+                            <Receipt className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {r.kind === "success" && r.email && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -428,6 +701,248 @@ function HistoryTab() {
           </div>
         )}
       </Card>
+      <PublicLinkDetailDialog row={selectedLink} open={!!selectedLink} onOpenChange={(open) => !open && setSelectedLink(null)} />
+    </div>
+  );
+}
+
+function InvoiceDetailDialog({ invoiceId, open, onOpenChange }: { invoiceId: string | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["core-public-invoice-detail", invoiceId],
+    enabled: open && !!invoiceId,
+    queryFn: async () => {
+      const { data: invoice, error } = await supabase.from("billing_invoices").select("*").eq("id", invoiceId!).single();
+      if (error) throw error;
+      const [lines, payments, customer] = await Promise.all([
+        supabase.from("billing_invoice_lines").select("*").eq("invoice_id", invoiceId!).order("created_at", { ascending: true }),
+        supabase.from("billing_payments").select("id, payment_number, amount, method, status, received_at, reference, square_payment_id, square_receipt_url, nivra_reference, created_at").eq("invoice_id", invoiceId!).order("created_at", { ascending: false }),
+        supabase.from("billing_customers").select("id, first_name, last_name, email, phone, user_id").eq("id", invoice.customer_id).maybeSingle(),
+      ]);
+      return { invoice, lines: lines.data || [], payments: payments.data || [], customer: customer.data };
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Facture {data?.invoice?.invoice_number || "Core"}</DialogTitle>
+          <DialogDescription>Détail complet, lignes de facturation et paiements associés.</DialogDescription>
+        </DialogHeader>
+        {isLoading ? <div className="p-6 text-sm text-muted-foreground">Chargement…</div> : data && (
+          <div className="space-y-5">
+            <div className="grid sm:grid-cols-3 gap-3 text-sm">
+              <div><span className="text-muted-foreground">Client</span><div className="font-medium">{`${data.customer?.first_name || ""} ${data.customer?.last_name || ""}`.trim() || "—"}</div></div>
+              <div><span className="text-muted-foreground">Email</span><div className="font-medium break-all">{data.customer?.email || "—"}</div></div>
+              <div><span className="text-muted-foreground">Statut</span><div className="font-medium">{data.invoice.status}</div></div>
+              <div><span className="text-muted-foreground">Total</span><div className="font-semibold">{fmt(Number(data.invoice.total))}</div></div>
+              <div><span className="text-muted-foreground">Payé</span><div>{fmt(Number(data.invoice.amount_paid || 0))}</div></div>
+              <div><span className="text-muted-foreground">Solde</span><div>{fmt(Number(data.invoice.balance_due || 0))}</div></div>
+              <div><span className="text-muted-foreground">Créée</span><div>{shortDateTime(data.invoice.created_at)}</div></div>
+              <div><span className="text-muted-foreground">Échéance</span><div>{data.invoice.due_date || "—"}</div></div>
+              <div><span className="text-muted-foreground">Méthode</span><div>{data.invoice.payment_method || "—"}</div></div>
+              <div className="sm:col-span-3"><span className="text-muted-foreground">Description / notes</span><div>{data.invoice.notes || "—"}</div></div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm">Lignes de facture</h3>
+              <div className="rounded-md border overflow-hidden">
+                {data.lines.length ? data.lines.map((line: any) => (
+                  <div key={line.id} className="grid sm:grid-cols-[1fr_80px_120px_120px] gap-2 p-2 border-b last:border-0 text-sm">
+                    <div>{line.description || line.line_type || "—"}</div>
+                    <div>Qté {line.quantity || 1}</div>
+                    <div>{fmt(Number(line.unit_price || 0))}</div>
+                    <div className="font-semibold text-right">{fmt(Number(line.line_total || 0))}</div>
+                  </div>
+                )) : <div className="p-3 text-sm text-muted-foreground">Aucune ligne enregistrée.</div>}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm">Historique des paiements</h3>
+              <div className="rounded-md border overflow-hidden">
+                {data.payments.length ? data.payments.map((p: any) => (
+                  <div key={p.id} className="grid sm:grid-cols-[120px_100px_1fr_160px] gap-2 p-2 border-b last:border-0 text-sm">
+                    <div className="font-semibold">{fmt(Number(p.amount || 0))}</div>
+                    <div>{p.status}</div>
+                    <div className="font-mono text-xs break-all">{p.nivra_reference || p.square_payment_id || p.reference || p.payment_number || p.id}</div>
+                    <div>{shortDateTime(p.received_at || p.created_at)}</div>
+                  </div>
+                )) : <div className="p-3 text-sm text-muted-foreground">Aucun paiement sur cette facture.</div>}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CoreInvoicesTab() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [payInvoice, setPayInvoice] = useState<any | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  const { data: invoices, isLoading } = useQuery({
+    queryKey: ["core-public-billing-invoices"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing_invoices")
+        .select("id, invoice_number, total, subtotal, tps_amount, tvq_amount, balance_due, amount_paid, status, due_date, created_at, notes, customer_id, customer:billing_customers(id, first_name, last_name, email, phone)")
+        .order("created_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (invoices || []).filter((r: any) => {
+      if (!q) return true;
+      const name = `${r.customer?.first_name || ""} ${r.customer?.last_name || ""}`.toLowerCase();
+      return String(r.invoice_number || "").toLowerCase().includes(q) || name.includes(q) || String(r.customer?.email || "").toLowerCase().includes(q);
+    });
+  }, [invoices, search]);
+
+  const fetchInvoiceDetail = async (invoiceId: string) => {
+    const { data: invoice, error } = await supabase.from("billing_invoices").select("*").eq("id", invoiceId).single();
+    if (error) throw error;
+    const [lines, payments, customer] = await Promise.all([
+      supabase.from("billing_invoice_lines").select("*").eq("invoice_id", invoiceId).order("created_at", { ascending: true }),
+      supabase.from("billing_payments").select("*").eq("invoice_id", invoiceId).order("created_at", { ascending: false }),
+      supabase.from("billing_customers").select("id, first_name, last_name, email, phone, user_id").eq("id", invoice.customer_id).maybeSingle(),
+    ]);
+    return { invoice, lines: lines.data || [], payments: payments.data || [], customer: customer.data };
+  };
+
+  const generatePdf = async (row: any, open = false) => {
+    try {
+      const detail = await fetchInvoiceDetail(row.id);
+      const result = await generateInvoicePDF(buildInvoicePdfData(detail), { invoice_id: row.id });
+      if (!result.success || !result.blob || !result.filename) throw new Error(result.error || "PDF indisponible");
+      if (open) safePDFOpen(result.blob, result.filename);
+      else safePDFDownload(result.blob, result.filename);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur PDF");
+    }
+  };
+
+  const sendInvoiceEmail = async (row: any) => {
+    const email = row.customer?.email;
+    if (!email) return toast.error("Email client manquant.");
+    setSendingId(row.id);
+    try {
+      const { error } = await supabase.from("email_queue").insert({
+        event_key: `core_invoice_send_${row.id}_${Date.now()}`,
+        to_email: email,
+        template_key: "invoice_sent",
+        template_vars: {
+          client_name: `${row.customer?.first_name || ""} ${row.customer?.last_name || ""}`.trim() || "Client",
+          first_name: row.customer?.first_name || "Client",
+          invoice_number: row.invoice_number,
+          period: row.due_date || "—",
+          subtotal: Number(row.subtotal || 0),
+          tps: Number(row.tps_amount || 0),
+          tvq: Number(row.tvq_amount || 0),
+          total: Number(row.total || 0),
+          amount_due: Number(row.balance_due || 0),
+          due_date: row.due_date,
+          portal_url: window.location.origin,
+          payment_url: `${window.location.origin}/payer`,
+        },
+        status: "queued",
+        attempts: 0,
+        max_attempts: 5,
+      });
+      if (error) throw error;
+      toast.success("Facture envoyée à " + email);
+    } catch (e: any) {
+      toast.error("Envoi échoué : " + (e?.message || String(e)));
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const editInvoice = async (row: any) => {
+    if (row.status === "paid" || Number(row.balance_due || 0) <= 0) return toast.error("Facture déjà payée : modification bloquée.");
+    const amountRaw = window.prompt("Nouveau total facture CAD", String(row.total || row.balance_due || 0));
+    if (amountRaw === null) return;
+    const total = Number.parseFloat(amountRaw.replace(",", "."));
+    if (!(total >= 0)) return toast.error("Montant invalide.");
+    const notes = window.prompt("Description / notes", row.notes || row.invoice_number || "");
+    if (notes === null) return;
+    const amountPaid = Number(row.amount_paid || 0);
+    const balanceDue = Math.max(0, Math.round((total - amountPaid) * 100) / 100);
+    const { error } = await supabase.from("billing_invoices").update({ total, balance_due: balanceDue, notes }).eq("id", row.id).neq("status", "paid");
+    if (error) return toast.error(error.message);
+    toast.success("Facture modifiée");
+    qc.invalidateQueries({ queryKey: ["core-public-billing-invoices"] });
+  };
+
+  const cancelInvoice = async (row: any) => {
+    if (row.status === "paid" || Number(row.amount_paid || 0) > 0) return toast.error("Facture payée ou partiellement payée : annulation bloquée.");
+    if (!window.confirm(`Annuler la facture ${row.invoice_number} ?`)) return;
+    const { error } = await supabase.from("billing_invoices").update({ status: "cancelled", balance_due: 0 }).eq("id", row.id).eq("amount_paid", 0);
+    if (error) return toast.error(error.message);
+    toast.success("Facture annulée");
+    qc.invalidateQueries({ queryKey: ["core-public-billing-invoices"] });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-md">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Recherche facture, client, email…" className="pl-9" />
+      </div>
+      <Card className="overflow-hidden">
+        {isLoading ? <div className="p-8 text-center text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Chargement…</div> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left"><tr><th className="p-3">Facture</th><th className="p-3">Client</th><th className="p-3">Statut</th><th className="p-3 text-right">Solde</th><th className="p-3">Échéance</th><th className="p-3 text-right">Actions</th></tr></thead>
+              <tbody>
+                {rows.map((r: any) => {
+                  const name = `${r.customer?.first_name || ""} ${r.customer?.last_name || ""}`.trim() || "—";
+                  return (
+                    <tr key={r.id} className="border-t hover:bg-muted/30">
+                      <td className="p-3 font-mono text-xs">{r.invoice_number}</td>
+                      <td className="p-3"><div className="font-medium">{name}</div><div className="text-xs text-muted-foreground">{r.customer?.email || "—"}</div></td>
+                      <td className="p-3"><Badge variant="outline">{r.status}</Badge></td>
+                      <td className="p-3 text-right font-semibold">{fmt(Number(r.balance_due || 0))}</td>
+                      <td className="p-3">{r.due_date || "—"}</td>
+                      <td className="p-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" className="h-8" title="Voir la facture complète" onClick={() => setSelectedInvoiceId(r.id)}><Eye className="w-3.5 h-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Modifier montant ou description" onClick={() => editInvoice(r)}><Edit3 className="w-3.5 h-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Annuler la facture" onClick={() => cancelInvoice(r)}><Ban className="w-3.5 h-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Envoyer la facture par email" disabled={sendingId === r.id} onClick={() => sendInvoiceEmail(r)}>{sendingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}</Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Voir le PDF" onClick={() => generatePdf(r, true)}><FileText className="w-3.5 h-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-8" title="Télécharger le PDF" onClick={() => generatePdf(r, false)}><Download className="w-3.5 h-3.5" /></Button>
+                          {Number(r.balance_due || 0) > 0 && r.status !== "cancelled" && <Button size="sm" variant="ghost" className="h-8" title="Prendre un paiement Square" onClick={() => setPayInvoice(r)}><CreditCard className="w-3.5 h-3.5" /></Button>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+      <InvoiceDetailDialog invoiceId={selectedInvoiceId} open={!!selectedInvoiceId} onOpenChange={(open) => !open && setSelectedInvoiceId(null)} />
+      <CoreSquarePaymentDialog
+        open={!!payInvoice}
+        onOpenChange={(open) => !open && setPayInvoice(null)}
+        unpaidInvoices={payInvoice ? [{ id: payInvoice.id, invoice_number: payInvoice.invoice_number, balance_due: payInvoice.balance_due, total: payInvoice.total }] : []}
+        customerName={payInvoice ? `${payInvoice.customer?.first_name || ""} ${payInvoice.customer?.last_name || ""}`.trim() : undefined}
+        customerEmail={payInvoice?.customer?.email || undefined}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: ["core-public-billing-invoices"] });
+          qc.invalidateQueries({ queryKey: ["core-public-payments-success"] });
+        }}
+      />
     </div>
   );
 }
@@ -763,12 +1278,17 @@ export default function CorePublicPaymentsPage() {
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
+          <TabsTrigger value="invoices">Factures Core</TabsTrigger>
           <TabsTrigger value="new-link">Créer un lien</TabsTrigger>
           <TabsTrigger value="quick-invoice">Facture rapide</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
           <HistoryTab />
+        </TabsContent>
+
+        <TabsContent value="invoices">
+          <CoreInvoicesTab />
         </TabsContent>
 
         <TabsContent value="new-link">
