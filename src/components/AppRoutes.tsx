@@ -307,6 +307,7 @@ const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
 const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
 const Unsubscribe = lazy(() => import("@/pages/Unsubscribe"));
 const PayerCommande = lazy(() => import("@/pages/PayerCommande"));
+const PayerPublic = lazy(() => import("@/pages/public/PayerPublic"));
 const SignContract = lazy(() => import("@/pages/SignContract"));
 const APropos = lazy(() => import("@/pages/APropos"));
 const Aide = lazy(() => import("@/pages/Aide"));
