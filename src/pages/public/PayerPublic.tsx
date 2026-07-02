@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Search, ShieldCheck, CreditCard, ArrowLeft, Mail, Copy, Check } from "lucide-react";
+import {
+  Loader2, Search, ShieldCheck, CreditCard, ArrowLeft, Mail, Copy, Check,
+  CheckCircle2, ExternalLink, UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
