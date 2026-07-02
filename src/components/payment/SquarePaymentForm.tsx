@@ -145,7 +145,11 @@ export function SquarePaymentForm({
     }
   };
 
-  if (done && !dismissed) {
+  if (done && dismissed) {
+    return null;
+  }
+
+  if (done) {
     return (
       <SquarePaymentSuccessCard
         amountLabel={`${amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} débité sur votre carte.`}
