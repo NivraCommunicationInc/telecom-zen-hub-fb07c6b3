@@ -75,6 +75,14 @@ export default function PayerPublic() {
   const [loading, setLoading] = useState(false);
   const [invoice, setInvoice] = useState<LookupInvoice | null>(null);
   const [paidOk, setPaidOk] = useState(false);
+  const [paidRef, setPaidRef] = useState<{
+    nvr: string | null;
+    sqRef: string | null;
+    receiptUrl: string | null;
+    amount: number;
+    when: string;
+  } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   // Custom amount state
   const [amountMode, setAmountMode] = useState<"full" | "custom">("full");
@@ -98,7 +106,7 @@ export default function PayerPublic() {
       });
       const data = await res.json();
       if (!data?.ok) {
-        toast.error(data?.error || "Aucun dossier trouvé.");
+        toast.error(data?.error || "Aucun dossier trouvé — vérifiez vos informations ou contactez support@nivra-telecom.ca");
         return;
       }
       setInvoice(data.invoice);
@@ -113,10 +121,46 @@ export default function PayerPublic() {
   const reset = () => {
     setInvoice(null);
     setPaidOk(false);
+    setPaidRef(null);
     setReference("");
     setIdentity("");
     setAmountMode("full");
     setCustomAmount("");
+  };
+
+  // On payment success, fetch the NVR reference from billing_payments
+  const handlePaid = async (receiptUrl?: string | null, sqPaymentId?: string) => {
+    setPaidOk(true);
+    const now = new Date().toISOString();
+    let nvr: string | null = null;
+    try {
+      if (sqPaymentId) {
+        // Retry a few times as backend may write async
+        for (let i = 0; i < 5; i++) {
+          const { data } = await supabase
+            .from("billing_payments")
+            .select("nivra_reference")
+            .eq("square_payment_id", sqPaymentId)
+            .maybeSingle();
+          if (data?.nivra_reference) { nvr = data.nivra_reference; break; }
+          await new Promise((r) => setTimeout(r, 800));
+        }
+      }
+    } catch { /* non-fatal */ }
+    setPaidRef({
+      nvr,
+      sqRef: sqPaymentId || null,
+      receiptUrl: receiptUrl || null,
+      amount: effectiveAmount,
+      when: now,
+    });
+  };
+
+  const copy = (val: string, key: string) => {
+    navigator.clipboard.writeText(val);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+    toast.success("Copié");
   };
 
   const parsedCustom = parseFloat(customAmount || "0");
