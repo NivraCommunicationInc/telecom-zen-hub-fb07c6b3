@@ -146,7 +146,7 @@ serve(async (req) => {
         .from("billing_payments")
         .select("nivra_reference, amount, processed_at, created_at, status")
         .ilike("nivra_reference", refNorm)
-        .in("status", ["succeeded", "completed", "captured", "paid"])
+        .in("status", ["confirmed", "succeeded", "completed", "captured", "paid"])
         .order("processed_at", { ascending: false, nullsFirst: false })
         .limit(1)
         .maybeSingle();
@@ -160,16 +160,17 @@ serve(async (req) => {
       }
     }
 
-    // ── 0b. NVR-XXXX or raw UUID token → redirect to /payer/lien/:token ─
+    // ── 0b. NVR-XXXX or raw token → redirect to /payer/lien/:token ─
     {
       const isUuid = UUID_RE.test(reference.trim());
       const isNvr = refNorm.startsWith("NVR-");
-      if (isUuid || isNvr) {
+      const isRawToken = /^[a-z0-9-]{16,80}$/i.test(reference.trim());
+      if (isUuid || isNvr || isRawToken) {
         let q = supabase
           .from("public_payment_links")
-          .select("public_token, recipient_email, status, amount, expires_at")
+          .select("token, recipient_email, status, amount_due, expires_at, paid_at")
           .limit(1);
-        q = isUuid ? q.eq("public_token", reference.trim()) : q.ilike("nivra_reference", refNorm);
+        q = isNvr ? q.ilike("nivra_reference", refNorm) : q.eq("token", reference.trim());
         const { data: link } = await q.maybeSingle();
         if (link) {
           if (link.status === "paid" || link.status === "completed") {
@@ -177,8 +178,12 @@ serve(async (req) => {
             return json({
               ok: false,
               already_paid: true,
-              error: `Cette facture a déjà été payée — montant : ${Number(link.amount).toFixed(2)} $ CAD.`,
+              error: `Cette facture a déjà été payée${link.paid_at ? ` le ${new Date(link.paid_at).toLocaleDateString("fr-CA")}` : ""} — montant : ${Number(link.amount_due).toFixed(2)} $ CAD.`,
             }, 200);
+          }
+          if (link.status === "cancelled" || link.status === "canceled") {
+            await logAttempt(false, reference, { reason: "link_cancelled" });
+            return json({ ok: false, error: "Ce lien de paiement a été annulé." }, 410);
           }
           if (link.expires_at && new Date(link.expires_at).getTime() < Date.now()) {
             await logAttempt(false, reference, { reason: "link_expired" });
@@ -194,10 +199,10 @@ serve(async (req) => {
             return json({ ok: false, error: "Aucun dossier trouvé. Vérifiez les informations." }, 404);
           }
           await supabase.from("rate_limit_attempts").delete().eq("key", rateKey);
-          await logAttempt(true, reference, { link_token: link.public_token });
+          await logAttempt(true, reference, { link_token: link.token });
           return json({
             ok: true,
-            redirect_token: link.public_token,
+            redirect_token: link.token,
           });
         }
       }
