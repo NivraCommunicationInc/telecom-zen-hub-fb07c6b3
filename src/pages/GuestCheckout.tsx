@@ -2035,13 +2035,13 @@ const GuestCheckout = () => {
               <div className="sticky top-6 space-y-4">
 
                 {/* Order Summary Panel */}
-                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(124,58,237,0.3)', boxShadow: '0 8px 40px rgba(124,58,237,0.15)' }}>
+                <div className="rounded-2xl overflow-hidden bg-white border border-[#E5E7EB] shadow-sm">
 
-                  {/* Gradient header */}
-                  <div className="px-5 py-4" style={{ background: '#EEF4FB' }}>
+                  {/* Header */}
+                  <div className="px-5 py-4 bg-[#F0F6FC] border-b border-[#E5E7EB]">
                     <div className="flex items-center gap-2 mb-3">
-                      <ShoppingCart className="w-4 h-4 text-white/80" />
-                      <span className="font-bold text-white text-sm tracking-wide uppercase">Votre commande</span>
+                      <ShoppingCart className="w-4 h-4 text-[#0066CC]" />
+                      <span className="font-bold text-[#0066CC] text-sm tracking-wide uppercase">Votre commande</span>
                     </div>
                     {selectedServices.length > 0 ? (
                       <div className="space-y-1.5">
@@ -2050,21 +2050,21 @@ const GuestCheckout = () => {
                           return (
                             <div key={s.id} className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <Icon className="w-3.5 h-3.5 text-white/60" />
-                                <span className="text-sm font-semibold text-white">{s.name}</span>
+                                <Icon className="w-3.5 h-3.5 text-[#6B7280]" />
+                                <span className="text-sm font-semibold text-[#1A1A2E]">{s.name}</span>
                               </div>
-                              <span className="text-sm font-bold text-white">{fmt(s.price)}<span className="text-white/60 text-xs font-normal">/mois</span></span>
+                              <span className="text-sm font-bold text-[#1A1A2E]">{fmt(s.price)}<span className="text-[#6B7280] text-xs font-normal">/mois</span></span>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <p className="text-sm text-white/50">Aucun forfait sélectionné</p>
+                      <p className="text-sm text-[#6B7280]">Aucun forfait sélectionné</p>
                     )}
 
                     {/* 1er mois GRATUIT badge */}
                     {selectedServices.length > 0 && !isStreamingOnlyOrder && (
-                      <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold" style={{ background: 'rgba(16,185,129,0.25)', border: '1px solid rgba(16,185,129,0.5)', color: '#6EE7B7' }}>
+                      <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[#00A651]/15 border border-[#00A651]/30 text-[#00A651]">
                         <Gift className="w-3 h-3" />
                         1er mois 100% GRATUIT
                       </div>
@@ -2073,66 +2073,66 @@ const GuestCheckout = () => {
 
                   {/* Pricing breakdown */}
                   {selectedServices.length > 0 && (
-                    <div className="px-5 py-4 space-y-3" style={{ background: 'rgba(6,4,15,0.75)' }}>
+                    <div className="px-5 py-4 space-y-3 bg-white">
 
                       {/* Monthly recurring */}
                       <div className="flex items-baseline justify-between">
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Mensuel (taxes incl.)</span>
-                        <span className="font-bold text-foreground text-sm">{fmt(monthlyTotalWithTax)}</span>
+                        <span className="text-xs text-[#6B7280] uppercase tracking-wider font-semibold">Mensuel (taxes incl.)</span>
+                        <span className="font-bold text-[#1A1A2E] text-sm">{fmt(monthlyTotalWithTax)}</span>
                       </div>
 
-                      <div className="h-px bg-white/8" />
+                      <div className="h-px bg-[#E5E7EB]" />
 
                       {/* One-time fees */}
                       <div className="space-y-2">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Frais une fois</p>
+                        <p className="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest">Frais une fois</p>
                         {activationFee > 0 && (
                           <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Activation</span>
-                            <span className="text-foreground">{fmt(activationFee)}</span>
+                            <span className="text-[#6B7280]">Activation</span>
+                            <span className="text-[#1A1A2E]">{fmt(activationFee)}</span>
                           </div>
                         )}
                         {routerFee > 0 && (
                           <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Routeur WiFi 6</span>
-                            <span className="text-foreground">{fmt(routerFee)}</span>
+                            <span className="text-[#6B7280]">Routeur WiFi 6</span>
+                            <span className="text-[#1A1A2E]">{fmt(routerFee)}</span>
                           </div>
                         )}
                         {terminalFee > 0 && (
                           <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Terminal TV ×{tvTerminalQty}</span>
-                            <span className="text-foreground">{fmt(terminalFee)}</span>
+                            <span className="text-[#6B7280]">Terminal TV ×{tvTerminalQty}</span>
+                            <span className="text-[#1A1A2E]">{fmt(terminalFee)}</span>
                           </div>
                         )}
                         {simFee > 0 && (
                           <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Carte SIM</span>
-                            <span className="text-foreground">{fmt(simFee)}</span>
+                            <span className="text-[#6B7280]">Carte SIM</span>
+                            <span className="text-[#1A1A2E]">{fmt(simFee)}</span>
                           </div>
                         )}
                         {deliveryFee > 0 && (
                           <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Livraison</span>
-                            <span className="text-foreground">{fmt(deliveryFee)}</span>
+                            <span className="text-[#6B7280]">Livraison</span>
+                            <span className="text-[#1A1A2E]">{fmt(deliveryFee)}</span>
                           </div>
                         )}
                         {installationFee > 0 && (
                           <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Installation</span>
-                            <span className="text-foreground">{fmt(installationFee)}</span>
+                            <span className="text-[#6B7280]">Installation</span>
+                            <span className="text-[#1A1A2E]">{fmt(installationFee)}</span>
                           </div>
                         )}
                       </div>
 
                       {/* Discounts */}
                       {normalizedPricing && toNonNegativeMoney(normalizedPricing.discount_total_combined) > 0 && (
-                        <div className="flex justify-between text-xs font-semibold text-emerald-400">
+                        <div className="flex justify-between text-xs font-semibold text-[#00A651]">
                           <span className="flex items-center gap-1"><Star className="w-3 h-3" /> Rabais</span>
                           <span>-{fmt(toNonNegativeMoney(normalizedPricing.discount_total_combined))}</span>
                         </div>
                       )}
                       {enableAutoBilling && (
-                        <div className="flex justify-between text-xs text-emerald-400">
+                        <div className="flex justify-between text-xs text-[#00A651]">
                           <span>Rabais pré-autorisé (mensuel)</span>
                           <span>-{fmt(AUTOPAY_DISCOUNT)}/mois</span>
                         </div>
@@ -2141,26 +2141,26 @@ const GuestCheckout = () => {
                       {/* Taxes */}
                       {normalizedPricing && (
                         <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] text-muted-foreground/70">
+                          <div className="flex justify-between text-[11px] text-[#6B7280]">
                             <span>TPS (5%)</span>
                             <span>{fmt(normalizedPricing.tps_amount)}</span>
                           </div>
-                          <div className="flex justify-between text-[11px] text-muted-foreground/70">
+                          <div className="flex justify-between text-[11px] text-[#6B7280]">
                             <span>TVQ (9,975%)</span>
                             <span>{fmt(normalizedPricing.tvq_amount)}</span>
                           </div>
                         </div>
                       )}
 
-                      <div className="h-px bg-white/8" />
+                      <div className="h-px bg-[#E5E7EB]" />
 
                       {/* Grand total */}
                       <div className="flex items-baseline justify-between pt-1">
-                        <span className="text-sm font-bold text-foreground">Total aujourd'hui</span>
+                        <span className="text-sm font-bold text-[#1A1A2E]">Total aujourd'hui</span>
                         {isServerPricingLoading ? (
                           <Skeleton className="h-7 w-24" />
                         ) : (
-                          <span className="text-2xl font-black" style={{ background: '#0066CC', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                          <span className="text-2xl font-black text-[#0066CC]">
                             {fmt(todayTotal)}
                           </span>
                         )}
@@ -2170,20 +2170,20 @@ const GuestCheckout = () => {
                 </div>
 
                 {/* Trust badges */}
-                <div className="rounded-xl p-4 space-y-2.5" style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                  <div className="flex items-center gap-2.5 text-xs text-emerald-400">
+                <div className="rounded-xl p-4 space-y-2.5 bg-[#00A651]/5 border border-[#00A651]/20">
+                  <div className="flex items-center gap-2.5 text-xs text-[#00A651]">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
                     <span className="font-medium">Premier mois 100% gratuit pour les nouveaux clients</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-xs text-emerald-400">
+                  <div className="flex items-center gap-2.5 text-xs text-[#00A651]">
                     <Shield className="w-4 h-4 shrink-0" />
                     <span className="font-medium">Garantie satisfait ou remboursé 30 jours</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2.5 text-xs text-[#6B7280]">
                     <Lock className="w-4 h-4 shrink-0" />
                     <span>Paiement sécurisé SSL 256-bit · Sans contrat</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2.5 text-xs text-[#6B7280]">
                     <Star className="w-4 h-4 shrink-0" />
                     <span>Entreprise québécoise 🇨🇦</span>
                   </div>
