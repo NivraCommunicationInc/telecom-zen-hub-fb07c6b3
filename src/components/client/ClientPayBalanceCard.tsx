@@ -47,6 +47,8 @@ export const ClientPayBalanceCard = () => {
   const [sqLoading, setSqLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
+  const [successRefs, setSuccessRefs] = useState<string[]>([]);
+  const [successDismissed, setSuccessDismissed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<any>(null);
 
