@@ -565,18 +565,24 @@ function CreateLinkForm({ withCustomerSearch }: { withCustomerSearch: boolean })
     if (!result) return;
     setSending(true);
     try {
+      const expiresIn24h = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleString("fr-CA");
       const { error } = await supabase.from("email_queue").insert({
         event_key: `public_pay_link_${result.token}`,
         to_email: customerEmail.trim(),
-        template_key: "generic_notification",
+        template_key: "invoice_payment_link",
         template_vars: {
           client_name: customerName.trim(),
           first_name: customerName.trim().split(" ")[0],
-          subject: `Lien de paiement Nivra — ${result.nvr}`,
-          heading: "Un paiement est en attente",
-          body_text: `Référence Nivra : ${result.nvr}\n\n${description}\n\nMontant : ${fmt(parseFloat(amount))}\n\nCliquez sur le bouton ci-dessous pour régler par carte de crédit en toute sécurité.`,
-          cta_label: "Payer maintenant",
-          cta_url: result.url,
+          order_number: result.nvr,
+          invoice_number: result.nvr,
+          total: parseFloat(amount),
+          amount: parseFloat(amount),
+          approval_url: result.url,
+          payment_url: result.url,
+          summary: description || "Paiement Nivra Telecom",
+          description: description || "Paiement Nivra Telecom",
+          agent_name: "Nivra Telecom",
+          valid_until: expiresIn24h,
         },
         status: "queued",
         attempts: 0,
