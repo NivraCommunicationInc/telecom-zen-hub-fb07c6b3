@@ -3637,46 +3637,48 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
-    // FIELD SALES — PayPal payment link sent by agent
+    // FIELD SALES / POS — Secure payment link sent by agent (card processor)
     // ===================================================================
     case "payment_link_employee":
+    case "invoice_payment_link":
+    case "pos_payment_link":
     case "field_payment_link": {
       const total = money(v.total ?? v.amount ?? v.total_amount);
-      const approvalUrl = String(v.approval_url || v.approvalUrl || v.paypal_url || v.payment_url || "#");
-      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || orderNum || `SUB-${Date.now().toString(36).toUpperCase().slice(0, 8)}`);
+      const approvalUrl = String(v.approval_url || v.approvalUrl || v.payment_url || "#");
+      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || v.invoice_number || orderNum || `SUB-${Date.now().toString(36).toUpperCase().slice(0, 8)}`);
       const agentName = esc(v.agent_name || "Votre conseiller Nivra");
-      const summary = esc(v.summary || v.services || v.plan_name || v.SERVICES_LIST || "Voir détails de la commande");
-      const equipment = esc(v.equipment || "Aucun équipement");
+      const summary = esc(v.summary || v.services || v.plan_name || v.description || v.SERVICES_LIST || "Voir détails de la commande");
+      const equipment = esc(v.equipment || "");
       const validUntil = esc(v.valid_until || "24 heures à compter de ce courriel");
       const discountLabel = v.discount_label ? esc(String(v.discount_label)) : null;
       const rows: Array<[string, string]> = [
-        ["Numéro de soumission", `#${String(orderRef).replace(/^#/, "")}`],
-        ["Forfaits", String(summary)],
-        ["Équipement", String(equipment)],
+        ["Numéro de référence", `#${String(orderRef).replace(/^#/, "")}`],
+        ["Détail", String(summary)],
       ];
+      if (equipment && equipment !== "Aucun équipement") rows.push(["Équipement", String(equipment)]);
       if (discountLabel) rows.push(["Rabais appliqué", String(discountLabel)]);
       else if (v.discount && Number(v.discount) > 0) rows.push(["Rabais appliqué", `-${money(v.discount)}`]);
       if (v.subtotal) rows.push(["Sous-total", money(v.subtotal)]);
       if (v.tps) rows.push(["TPS (5%)", money(v.tps)]);
       if (v.tvq) rows.push(["TVQ (9,975%)", money(v.tvq)]);
       rows.push(["Total à payer", String(total)]);
-      rows.push(["Méthode", "PayPal"]);
+      rows.push(["Méthode", "Carte de crédit"]);
       rows.push(["Lien valide jusqu'au", String(validUntil)]);
       rows.push(["Agent responsable", String(agentName)]);
       return {
-        subject: `Votre lien de paiement PayPal — ${total}`,
+        subject: `Votre lien de paiement — ${total}`,
         html: shell({
-          preheader: `Finalisez votre commande Nivra de ${total} via PayPal — lien valable 24 heures.`,
+          preheader: `Finalisez votre commande Nivra de ${total} — paiement sécurisé par carte de crédit.`,
           badge: "PAIEMENT EN ATTENTE",
           heroTitle: "Votre lien de paiement est prêt",
           heroSub: `Montant : ${total}`,
           icon: "doc",
           greeting,
-          bodyText: `${agentName} vient de préparer votre commande Nivra. Pour la finaliser, cliquez sur le bouton ci-dessous pour payer en toute sécurité avec PayPal (carte de crédit acceptée, aucun compte PayPal requis).`,
+          bodyText: `${agentName} vient de préparer votre commande Nivra. Pour la finaliser, cliquez sur le bouton ci-dessous et réglez en toute sécurité par carte de crédit (Visa, Mastercard, Amex acceptées).`,
           cardTitle: "Récapitulatif",
           cardRows: rows,
           ctaPrimaryUrl: approvalUrl,
-          ctaPrimaryLabel: "Payer maintenant avec PayPal",
+          ctaPrimaryLabel: "Payer par carte de crédit",
           helpVariant: "warning",
           helpHtml: `<strong>Lien valable 24 heures.</strong> Passé ce délai, contactez ${agentName} ou écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
         }),
@@ -3703,7 +3705,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroSub: `Montant : ${total}`,
           icon: "alert",
           greeting,
-          bodyText: `Votre commande Nivra n'a pas encore été réglée. Pour ne pas la perdre, finalisez le paiement maintenant en cliquant ci-dessous (PayPal — carte de crédit acceptée, aucun compte requis).`,
+          bodyText: `Votre commande Nivra n'a pas encore été réglée. Pour ne pas la perdre, finalisez le paiement maintenant en cliquant ci-dessous — paiement sécurisé par carte de crédit.`,
           cardTitle: "Récapitulatif",
           cardRows: [
             ["Commande", `#${String(orderRef).replace(/^#/, "")}`],
