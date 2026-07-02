@@ -1611,7 +1611,7 @@ export function renderQueueTemplate(
       const manageUrl = String(v.manage_url || `${portalUrl}/paiement`);
       const detailsBody =
         `<strong style="color:#1a1a2e;">Votre paiement pré-autorisé est maintenant actif.</strong><br/><br/>` +
-        `Vos factures mensuelles seront prélevées automatiquement sur votre mode de paiement PayPal.<br/><br/>` +
+        `Vos factures mensuelles seront prélevées automatiquement sur votre mode de paiement enregistré.<br/><br/>` +
         `<strong style="color:#7c3aed;">Vous bénéficiez d'un rabais de 5,00 $/mois</strong> tant que ` +
         `votre paiement automatique est actif. Ce rabais est appliqué automatiquement sur chaque facture mensuelle.<br/><br/>` +
         `<strong style="color:#1a1a2e;">Comment ça fonctionne :</strong> chaque mois, votre facture est générée ` +
