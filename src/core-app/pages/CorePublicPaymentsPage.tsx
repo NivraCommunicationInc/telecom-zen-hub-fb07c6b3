@@ -175,6 +175,75 @@ function DashboardKpis() {
   );
 }
 
+function PublicLinkDetailDialog({ row, open, onOpenChange }: { row: any | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["core-public-link-detail", row?.id, row?.nivra, row?.token],
+    enabled: open && !!row?.id,
+    queryFn: async () => {
+      const attempts = await supabase
+        .from("public_payment_attempts")
+        .select("id, ip, identifier, success, user_agent, created_at")
+        .or(`identifier.ilike.%${row.nivra}%,identifier.ilike.%${row.token || "__none__"}%`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const payments = await supabase
+        .from("billing_payments")
+        .select("id, amount, status, method, received_at, created_at, square_payment_id, square_receipt_url, nivra_reference")
+        .or(`nivra_reference.ilike.${row.nivra},id.eq.${row.payment_id || "00000000-0000-0000-0000-000000000000"}`)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return { attempts: attempts.data || [], payments: payments.data || [] };
+    },
+  });
+
+  if (!row) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Lien public {row.nivra}</DialogTitle>
+          <DialogDescription>Détails complets, statut et historique associé.</DialogDescription>
+        </DialogHeader>
+        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+          <div><span className="text-muted-foreground">Client</span><div className="font-medium">{row.client}</div></div>
+          <div><span className="text-muted-foreground">Email</span><div className="font-medium break-all">{row.email || "—"}</div></div>
+          <div><span className="text-muted-foreground">Montant</span><div className="font-semibold">{fmt(row.amount)}</div></div>
+          <div><span className="text-muted-foreground">Statut</span><div className="font-medium">{row.kind}</div></div>
+          <div><span className="text-muted-foreground">Créé le</span><div>{shortDateTime(row.created_at || row.date)}</div></div>
+          <div><span className="text-muted-foreground">Expiration</span><div>{shortDateTime(row.expires_at)}</div></div>
+          <div className="sm:col-span-2"><span className="text-muted-foreground">Description</span><div>{row.invoice}</div></div>
+          <div className="sm:col-span-2"><span className="text-muted-foreground">Lien</span><div className="font-mono text-xs break-all">{publicPayUrl(row.token)}</div></div>
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <h3 className="font-semibold text-sm">Historique des tentatives de paiement</h3>
+          {isLoading ? <div className="text-sm text-muted-foreground">Chargement…</div> : data?.attempts.length ? (
+            <div className="rounded-md border overflow-hidden">
+              {data.attempts.map((a: any) => (
+                <div key={a.id} className="grid sm:grid-cols-[1fr_120px_160px] gap-2 p-2 border-b last:border-0 text-xs">
+                  <div className="font-mono break-all">{a.identifier || "—"}</div>
+                  <div>{a.success ? "Réussie" : "Échouée"}</div>
+                  <div>{shortDateTime(a.created_at)}</div>
+                </div>
+              ))}
+            </div>
+          ) : <div className="text-sm text-muted-foreground">Aucune tentative enregistrée dans public_payment_attempts.</div>}
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <h3 className="font-semibold text-sm">Paiements liés</h3>
+          {data?.payments.length ? data.payments.map((p: any) => (
+            <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 text-sm">
+              <div><span className="font-medium">{fmt(Number(p.amount))}</span> · {p.status} · {shortDateTime(p.received_at || p.created_at)}</div>
+              <div className="font-mono text-xs">{p.square_payment_id || p.nivra_reference || p.id}</div>
+            </div>
+          )) : <div className="text-sm text-muted-foreground">Aucun paiement confirmé lié.</div>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // History Tab — table with NVR
 // ─────────────────────────────────────────────────────────────────────
