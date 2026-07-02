@@ -133,8 +133,9 @@ export const ClientPayBalanceCard = () => {
       }
       if (!anyFailed) {
         setAllPaid(true);
+        setSuccessRefs(squareRefs);
         const refStr = squareRefs.length ? ` — Référence(s) Square : ${squareRefs.join(", ")}` : "";
-        toast.success(`Paiement approuvé par Square${refStr}`);
+        toast.success(`Paiement approuvé par Square${refStr}`, { duration: 10000 });
         invalidateAfterPayment(qc);
       }
     } catch (e: any) {
@@ -145,17 +146,25 @@ export const ClientPayBalanceCard = () => {
   };
 
   if (isLoading) return <Skeleton className="h-40 w-full" />;
-  if (!data || data.totalBalance <= 0 || allPaid) {
-    if (allPaid) return (
+
+  if (allPaid && !successDismissed) {
+    return (
       <Card className="border-emerald-300/50 bg-emerald-50/30">
-        <CardContent className="p-6 flex items-center gap-3">
-          <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0" />
-          <p className="font-semibold text-emerald-700">Toutes les factures sont payées !</p>
+        <CardContent className="p-6">
+          <SquarePaymentSuccessCard
+            amountLabel="Toutes les factures sont payées !"
+            squareRefs={successRefs}
+            onClose={() => setSuccessDismissed(true)}
+          />
         </CardContent>
       </Card>
     );
+  }
+
+  if (!data || data.totalBalance <= 0 || allPaid) {
     return null;
   }
+
 
   return (
     <Card className="border-amber-300/50 bg-amber-50/30">
