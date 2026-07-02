@@ -131,7 +131,14 @@ export const CoreSquarePaymentDialog = ({
         body: JSON.stringify({ source_id: result.token, invoice_id: selectedInvoiceId, customer_email: customerEmail }),
       });
       const data = await res.json();
-      if (!data?.ok) { toast.error(data?.error || "Paiement refusé"); return; }
+      if (!data?.ok) {
+        // Message Square VERBATIM — pas de traduction ni reformulation.
+        toast.error(data?.error || "Paiement refusé");
+        return;
+      }
+
+      const sqRef: string | null = data.square_payment_id || data.payment_id || null;
+      setSquareRef(sqRef);
 
       // Activity log (best-effort)
       try {
@@ -142,13 +149,13 @@ export const CoreSquarePaymentDialog = ({
           entity_id: selectedInvoiceId,
           user_id: user?.id ?? "00000000-0000-0000-0000-000000000000",
           actor_email: user?.email ?? null,
-          details: { amount: balanceDue, account_id: accountId ?? null, payment_id: data.payment_id },
+          details: { amount: balanceDue, account_id: accountId ?? null, payment_id: sqRef },
         });
       } catch {}
 
       qc.invalidateQueries({ queryKey: ["account-profile-invoices"] });
       qc.invalidateQueries({ queryKey: ["account-profile-payments"] });
-      toast.success(`${balanceDue.toFixed(2)} $ débité par carte Square`);
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
       setDone(true);
       onSuccess?.();
     } catch (e: any) {
