@@ -42,6 +42,7 @@ export function EmployeeSquarePaymentDialog({
 }: Props) {
   const [mode, setMode] = useState<Mode>("choose");
   const [paid, setPaid] = useState(false);
+  const [squareRef, setSquareRef] = useState<string | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [linkSent, setLinkSent] = useState(false);
   const [generatingLink, setGeneratingLink] = useState(false);
@@ -124,7 +125,14 @@ export function EmployeeSquarePaymentDialog({
         body: JSON.stringify({ source_id: result.token, invoice_id: invoice.id, customer_email: clientEmail }),
       });
       const data = await res.json();
-      if (!data?.ok) { toast.error(data?.error || "Paiement refusé"); return; }
+      if (!data?.ok) {
+        // Message Square VERBATIM — pas de traduction ni reformulation.
+        toast.error(data?.error || "Paiement refusé");
+        return;
+      }
+
+      const sqRef: string | null = data.square_payment_id || data.payment_id || null;
+      setSquareRef(sqRef);
 
       await logInternalAudit({
         action: "square_direct_payment_completed",
@@ -132,9 +140,9 @@ export function EmployeeSquarePaymentDialog({
         portal: "employee",
         targetType: "invoice",
         targetId: invoice.id,
-        details: { payment_id: data.payment_id, amount: balanceDue },
+        details: { payment_id: sqRef, amount: balanceDue },
       });
-      toast.success("Paiement accepté — reçu envoyé au client");
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
       setPaid(true);
       onSuccess?.();
     } catch (e: any) {
@@ -208,7 +216,13 @@ export function EmployeeSquarePaymentDialog({
         {paid ? (
           <div className="py-8 text-center space-y-3">
             <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
-            <p className="text-sm font-medium">Paiement confirmé</p>
+            <p className="text-sm font-medium">Paiement approuvé par Square</p>
+            {squareRef && (
+              <p className="text-xs text-muted-foreground">
+                Référence Square :{" "}
+                <span className="font-mono font-semibold text-foreground">{squareRef}</span>
+              </p>
+            )}
             {clientEmail && <p className="text-xs text-muted-foreground">Reçu envoyé à {clientEmail}.</p>}
             <Button onClick={() => onOpenChange(false)} className="mt-2">Fermer</Button>
           </div>

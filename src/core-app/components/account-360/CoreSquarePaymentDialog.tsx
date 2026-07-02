@@ -43,6 +43,7 @@ export const CoreSquarePaymentDialog = ({
   const qc = useQueryClient();
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("");
   const [done, setDone] = useState(false);
+  const [squareRef, setSquareRef] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [sqLoading, setSqLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,6 +66,7 @@ export const CoreSquarePaymentDialog = ({
     if (!open) {
       setSelectedInvoiceId("");
       setDone(false);
+      setSquareRef(null);
       setSqLoading(true);
       cardRef.current?.destroy?.();
       cardRef.current = null;
@@ -131,7 +133,14 @@ export const CoreSquarePaymentDialog = ({
         body: JSON.stringify({ source_id: result.token, invoice_id: selectedInvoiceId, customer_email: customerEmail }),
       });
       const data = await res.json();
-      if (!data?.ok) { toast.error(data?.error || "Paiement refusé"); return; }
+      if (!data?.ok) {
+        // Message Square VERBATIM — pas de traduction ni reformulation.
+        toast.error(data?.error || "Paiement refusé");
+        return;
+      }
+
+      const sqRef: string | null = data.square_payment_id || data.payment_id || null;
+      setSquareRef(sqRef);
 
       // Activity log (best-effort)
       try {
@@ -142,13 +151,13 @@ export const CoreSquarePaymentDialog = ({
           entity_id: selectedInvoiceId,
           user_id: user?.id ?? "00000000-0000-0000-0000-000000000000",
           actor_email: user?.email ?? null,
-          details: { amount: balanceDue, account_id: accountId ?? null, payment_id: data.payment_id },
+          details: { amount: balanceDue, account_id: accountId ?? null, payment_id: sqRef },
         });
       } catch {}
 
       qc.invalidateQueries({ queryKey: ["account-profile-invoices"] });
       qc.invalidateQueries({ queryKey: ["account-profile-payments"] });
-      toast.success(`${balanceDue.toFixed(2)} $ débité par carte Square`);
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
       setDone(true);
       onSuccess?.();
     } catch (e: any) {
@@ -175,10 +184,16 @@ export const CoreSquarePaymentDialog = ({
         {done ? (
           <div className="py-8 text-center space-y-3">
             <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
-            <p className="font-semibold">Paiement accepté !</p>
+            <p className="font-semibold">Paiement approuvé par Square</p>
             <p className="text-sm text-muted-foreground">
               {balanceDue.toFixed(2)} $ débité — facture marquée payée.
             </p>
+            {squareRef && (
+              <p className="text-xs text-muted-foreground">
+                Référence Square :{" "}
+                <span className="font-mono font-semibold text-foreground">{squareRef}</span>
+              </p>
+            )}
             <Button onClick={() => onOpenChange(false)} className="mt-2">Fermer</Button>
           </div>
         ) : (

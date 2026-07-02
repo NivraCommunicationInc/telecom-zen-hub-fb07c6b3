@@ -110,6 +110,7 @@ export const ClientPayBalanceCard = () => {
       const source_id = result.token;
 
       let anyFailed = false;
+      const squareRefs: string[] = [];
       for (const inv of data.unpaidInvoices) {
         const res = await fetch(`${BACKEND_URL}/functions/v1/square-charge-invoice`, {
           method: "POST",
@@ -119,12 +120,17 @@ export const ClientPayBalanceCard = () => {
         const d = await res.json();
         if (!d?.ok) {
           anyFailed = true;
-          toast.error(`Facture ${inv.invoice_number || inv.id}: ${d?.error || "Erreur"}`);
+          // Message Square VERBATIM.
+          toast.error(`Facture ${inv.invoice_number || inv.id}: ${d?.error || "Paiement refusé"}`);
+        } else {
+          const ref = d.square_payment_id || d.payment_id;
+          if (ref) squareRefs.push(ref);
         }
       }
       if (!anyFailed) {
         setAllPaid(true);
-        toast.success("Toutes les factures payées !");
+        const refStr = squareRefs.length ? ` — Référence(s) Square : ${squareRefs.join(", ")}` : "";
+        toast.success(`Paiement approuvé par Square${refStr}`);
         qc.invalidateQueries({ queryKey: ["canonical-client"] });
         qc.invalidateQueries({ queryKey: ["billing-hub-unpaid"] });
       }
