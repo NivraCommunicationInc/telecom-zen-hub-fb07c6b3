@@ -331,7 +331,15 @@ serve(async (req) => {
         .eq("id", intent_id);
     }
 
-    return json({ ok: true, payment_id: paymentId, square_payment_id: paymentId, receipt_url: receiptUrl });
+    return json({
+      ok: true,
+      payment_id: paymentId,
+      square_payment_id: paymentId,
+      square_status: payment.status ?? "COMPLETED",
+      receipt_url: receiptUrl,
+      amount: amountPaid,
+      message: `Paiement approuvé par Square (${payment.status ?? "COMPLETED"}) — Référence Square : ${paymentId}`,
+    });
   } catch (err: any) {
     console.error("[square-charge-invoice] Fatal:", err);
     return json({ ok: false, error: err?.message || String(err) }, 500);
