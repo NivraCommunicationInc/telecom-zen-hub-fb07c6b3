@@ -1854,8 +1854,8 @@ const GuestCheckout = () => {
                       </div>
                       <div>
                         <span className="text-lg font-bold text-[#0066CC]">Paiement sécurisé</span>
-                        <span className="flex items-center gap-1 text-xs text-emerald-400 font-medium mt-0.5">
-                          <Lock className="w-3 h-3" /> Chiffrement SSL 256-bit
+                        <span className="flex items-center gap-1 text-xs text-[#00A651] font-medium mt-0.5">
+                          <Lock className="w-3 h-3" /> Chiffrement SSL 256-bit — PCI-DSS Level 1
                         </span>
                       </div>
                     </CardTitle>
