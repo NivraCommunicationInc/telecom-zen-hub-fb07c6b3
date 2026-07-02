@@ -115,6 +115,8 @@ export function SquarePaymentForm({
 
       let chargeBody: Record<string, any> = { source_id: result.token, customer_email: customerEmail };
       if (paymentSource) chargeBody.source = paymentSource;
+      if (typeof amountOverrideCents === "number" && amountOverrideCents > 0) chargeBody.amount_cents = amountOverrideCents;
+
       if (onBeforeCharge) {
         const ids = await onBeforeCharge();
         if (ids.intent_id) chargeBody.intent_id = ids.intent_id;
