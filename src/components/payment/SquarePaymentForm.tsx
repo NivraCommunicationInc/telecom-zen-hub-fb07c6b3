@@ -40,6 +40,7 @@ export function SquarePaymentForm({
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [squareRef, setSquareRef] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<any>(null);
