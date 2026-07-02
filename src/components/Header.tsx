@@ -449,6 +449,12 @@ const Header = () => {
                 <Search className="w-[14px] h-[14px]" />
                 <span className="hidden xl:block" style={{ fontSize:10 }}>⌘K</span>
               </button>
+              <Link to="/payer"
+                className="hidden xl:flex items-center gap-1.5 font-semibold text-white text-sm cursor-pointer"
+                style={{ height:38, padding:"0 14px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:10, textDecoration:"none", fontFamily:"'Space Grotesk', sans-serif" }}
+              >
+                {isFr ? "Payer une facture" : "Pay a bill"}
+              </Link>
               <Link to={portalLink}
                 className="flex items-center gap-2 font-semibold text-white text-sm transition-all hover:opacity-90 cursor-pointer"
                 style={{ height:38, padding:"0 16px", background:"rgba(124,58,237,0.1)", border:"1px solid rgba(124,58,237,0.25)", borderRadius:10, textDecoration:"none", fontFamily:"'Space Grotesk', sans-serif", transition:"border-color .18s, background .18s" }}
