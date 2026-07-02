@@ -314,6 +314,8 @@ serve(async (req) => {
             invoice_number: invoiceNumber || `CMD-${intent_id.slice(0, 8).toUpperCase()}`,
             payment_method: "Carte de crédit (Square)",
             reference: paymentId,
+            square_payment_id: paymentId,
+            square_reference: paymentId,
           },
           attachments: null,
           status: "queued",
