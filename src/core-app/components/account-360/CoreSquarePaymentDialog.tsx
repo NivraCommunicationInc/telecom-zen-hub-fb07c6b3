@@ -43,6 +43,7 @@ export const CoreSquarePaymentDialog = ({
   const qc = useQueryClient();
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("");
   const [done, setDone] = useState(false);
+  const [squareRef, setSquareRef] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [sqLoading, setSqLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
