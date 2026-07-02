@@ -1244,6 +1244,14 @@ export default function CorePOSPage() {
                         const amt = paymentMode === "partial" && Number(partialAmount) > 0
                           ? Number(partialAmount)
                           : totals.firstMonthTotal;
+                        const lineItems = [
+                          ...services.map((s: any) => ({ name: s.name, quantity: 1, price: s.monthlyPrice ?? s.price ?? 0, type: "service" })),
+                          ...equipment.map((e) => ({ name: e.name, quantity: e.quantity, price: e.price, type: "equipment" })),
+                          ...adjustments.map((a) => ({ name: a.name, quantity: 1, price: a.amount, type: "adjustment" })),
+                        ];
+                        const description = lineItems.length
+                          ? lineItems.map((li) => `${li.name}${li.quantity > 1 ? ` ×${li.quantity}` : ""}`).join(", ")
+                          : "Commande Nivra";
                         const { data, error } = await supabase.functions.invoke("pos-square-intent", {
                           body: {
                             amount: amt,
@@ -1251,6 +1259,8 @@ export default function CorePOSPage() {
                             send_email: true,
                             customer_email: targetEmail,
                             customer_name: selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim() || null,
+                            description,
+                            line_items: lineItems,
                           },
                         });
                         if (error || !(data as any)?.ok) {
@@ -1262,7 +1272,7 @@ export default function CorePOSPage() {
                         if ((data as any).email_sent) {
                           toast.success(`Lien envoyé à ${targetEmail}`);
                         } else {
-                          toast.warning("Lien créé mais email non envoyé — copiez-le manuellement");
+                          toast.warning(`Lien créé mais email non envoyé${(data as any).email_error ? ` — ${(data as any).email_error}` : ""}`);
                         }
                       } catch (e: any) {
                         toast.error(e?.message || "Impossible de générer le lien");

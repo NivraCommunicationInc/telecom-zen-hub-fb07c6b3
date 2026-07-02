@@ -36,6 +36,8 @@ interface IntentData {
     paid_at: string | null;
     expires_at: string | null;
     created_at: string;
+    description?: string | null;
+    line_items?: Array<{ name?: string; quantity?: number; price?: number; type?: string }> | null;
   };
   quote: null | {
     client_info: any;
@@ -316,8 +318,32 @@ export default function PayerCommande() {
                 </div>
               </div>
             ) : (
-              <div className="border-t border-white/10 pt-4">
-                <SummaryRow label="Total à payer" value={fmt(amount)} />
+              <div className="border-t border-white/10 pt-4 space-y-3">
+                <div>
+                  <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Référence</p>
+                  <p className="text-sm font-mono text-white/80">POS-{String(intent.id).slice(0, 8).toUpperCase()}</p>
+                </div>
+                {Array.isArray(intent.line_items) && intent.line_items.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-white/40 uppercase tracking-wide">Détail</p>
+                    {intent.line_items.map((li, i) => (
+                      <SummaryRow
+                        key={`li${i}`}
+                        label={`${li?.name || "Article"}${li?.quantity && li.quantity > 1 ? ` ×${li.quantity}` : ""}`}
+                        value={fmt(Number(li?.price || 0) * Number(li?.quantity || 1))}
+                      />
+                    ))}
+                  </div>
+                ) : intent.description ? (
+                  <div>
+                    <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Description</p>
+                    <p className="text-sm text-white/85">{intent.description}</p>
+                  </div>
+                ) : null}
+                <div className="border-t border-white/10 pt-3 flex items-baseline justify-between">
+                  <span className="text-base font-semibold text-white">Total à payer</span>
+                  <span className="text-2xl font-bold text-violet-400">{fmt(amount)}</span>
+                </div>
               </div>
             )}
           </Card>

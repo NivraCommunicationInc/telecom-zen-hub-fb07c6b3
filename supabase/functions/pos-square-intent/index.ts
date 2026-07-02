@@ -6,9 +6,10 @@
  *
  * Body:
  *   { amount, customer_email?, customer_name?,
- *     mode?: 'inline' | 'link' | 'email',   // default 'inline'
- *     send_email?: boolean }                // force queue payment link email
- * Returns: { ok, intent_id, payment_url, email_sent }
+ *     description?, line_items?,               // shown on /payer/:id
+ *     mode?: 'inline' | 'link' | 'email',     // default 'inline'
+ *     send_email?: boolean }                   // force queue payment link email
+ * Returns: { ok, intent_id, payment_url, email_sent, email_error? }
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -41,17 +42,29 @@ serve(async (req) => {
       : (body?.mode === "link" ? "link" : "inline");
 
     let agentId = SYSTEM_AGENT_ID;
+    let agentName = "Nivra Telecom";
     const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
     if (token && token !== Deno.env.get("SUPABASE_ANON_KEY")) {
       try {
         const { data: { user } } = await supabase.auth.getUser(token);
-        if (user?.id) agentId = user.id;
+        if (user?.id) {
+          agentId = user.id;
+          const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+          if (prof?.full_name) agentName = prof.full_name;
+        }
       } catch { /* fallback */ }
     }
 
     // Longer lifetime for email links so the customer has time to pay
     const expiresMs = mode === "inline" ? 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
     const expires = new Date(Date.now() + expiresMs).toISOString();
+
+    const lineItems = Array.isArray(body?.line_items) ? body.line_items : null;
+    const description: string | null = typeof body?.description === "string" && body.description.trim()
+      ? body.description.trim()
+      : (lineItems && lineItems.length
+          ? lineItems.map((li: any) => `${li?.name || "Article"}${li?.quantity && li.quantity > 1 ? ` ×${li.quantity}` : ""}`).join(", ")
+          : null);
 
     const { data: intent, error } = await supabase
       .from("field_payment_intents")
@@ -63,6 +76,8 @@ serve(async (req) => {
         payment_method: mode === "inline" ? "square_inline" : "square_link",
         customer_email: body?.customer_email ?? null,
         customer_name: body?.customer_name ?? null,
+        description,
+        line_items: lineItems,
         expires_at: expires,
       })
       .select("id")
@@ -72,31 +87,47 @@ serve(async (req) => {
 
     const paymentUrl = `${SITE_URL}/payer/${intent.id}`;
     let emailSent = false;
+    let emailError: string | null = null;
 
     if (mode === "email" && body?.customer_email) {
       try {
-        await supabase.from("email_queue").insert({
+        const orderRef = `POS-${intent.id.slice(0, 8).toUpperCase()}`;
+        const { error: qErr } = await supabase.from("email_queue").insert({
           event_key: `pos_payment_link_${intent.id}`,
           to_email: body.customer_email,
-          template_key: "invoice_payment_link",
+          template_key: "field_payment_link",
           template_vars: {
             client_name: body?.customer_name || "Client",
             first_name: (body?.customer_name || "Client").split(" ")[0],
-            invoice_number: `POS-${intent.id.slice(0, 8).toUpperCase()}`,
+            order_number: orderRef,
+            invoice_number: orderRef,
             amount: Number(amount).toFixed(2),
+            total: Number(amount).toFixed(2),
             payment_url: paymentUrl,
+            approval_url: paymentUrl,
+            summary: description || "Commande Nivra",
+            description: description || "Commande Nivra",
+            services: description || "Commande Nivra",
+            agent_name: agentName,
+            valid_until: "7 jours à compter de ce courriel",
           },
           status: "queued",
           attempts: 0,
           max_attempts: 5,
         });
-        emailSent = true;
-      } catch (e) {
-        console.warn("[pos-square-intent] email queue failed (non-fatal)", e);
+        if (qErr) {
+          emailError = qErr.message;
+          console.error("[pos-square-intent] email_queue insert failed:", qErr);
+        } else {
+          emailSent = true;
+        }
+      } catch (e: any) {
+        emailError = e?.message || String(e);
+        console.error("[pos-square-intent] email queue exception:", e);
       }
     }
 
-    return json({ ok: true, intent_id: intent.id, payment_url: paymentUrl, email_sent: emailSent });
+    return json({ ok: true, intent_id: intent.id, payment_url: paymentUrl, email_sent: emailSent, email_error: emailError });
   } catch (e: any) {
     return json({ ok: false, error: e?.message || String(e) }, 500);
   }
