@@ -50,11 +50,13 @@ Deno.serve(async (req) => {
       }
       const { data: roleRows } = await db
         .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("status", "active");
-      isAdminRequest = (roleRows || []).some((r: any) =>
-        ["admin", "supervisor", "employee"].includes(r.role)
+        .select("role, is_active, status")
+        .eq("user_id", user.id);
+      const activeRoles = (roleRows || []).filter(
+        (r: any) => r.is_active !== false && (r.status ?? "active") === "active",
+      );
+      isAdminRequest = activeRoles.some((r: any) =>
+        ["admin", "super_admin", "supervisor"].includes(r.role)
       );
       if (!isAdminRequest) {
         return new Response(JSON.stringify({ success: false, error: "Accès refusé — rôle insuffisant" }), {

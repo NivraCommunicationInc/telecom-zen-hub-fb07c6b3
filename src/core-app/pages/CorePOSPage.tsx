@@ -25,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
@@ -167,6 +168,11 @@ export default function CorePOSPage() {
   const [paymentNote, setPaymentNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState<{ orderId: string; orderNumber: string } | null>(null);
+
+  // ── Square link (email) state ──
+  const [squareLinkEmail, setSquareLinkEmail] = useState("");
+  const [squareLink, setSquareLink] = useState<string | null>(null);
+  const [squareLinkSending, setSquareLinkSending] = useState(false);
 
   // ── Address Qualification ──
   const [qualificationResult, setQualificationResult] = useState<any>(null);
@@ -1170,6 +1176,116 @@ export default function CorePOSPage() {
                     value={partialAmount} onChange={e => setPartialAmount(e.target.value)}
                     className="mt-2 h-8 bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)] text-white text-sm"
                   />
+                )}
+              </div>
+            )}
+
+            {/* Square: inline card widget */}
+            {paymentMethod === "card" && (
+              <div className="rounded-lg border border-emerald-600/30 bg-emerald-950/20 p-3">
+                <div className="text-[11px] uppercase text-emerald-300 mb-2">
+                  Carte de crédit — encaissement Square
+                </div>
+                <SquarePaymentForm
+                  amount={paymentMode === "partial" && Number(partialAmount) > 0
+                    ? Number(partialAmount)
+                    : totals.firstMonthTotal}
+                  customerName={selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim() || undefined}
+                  customerEmail={selectedClient?.email || newClient.email || undefined}
+                  invoiceNumber={`POS-${Date.now().toString().slice(-6)}`}
+                  onBeforeCharge={async () => {
+                    const amt = paymentMode === "partial" && Number(partialAmount) > 0
+                      ? Number(partialAmount)
+                      : totals.firstMonthTotal;
+                    const { data, error } = await supabase.functions.invoke("pos-square-intent", {
+                      body: {
+                        amount: amt,
+                        mode: "inline",
+                        customer_email: selectedClient?.email || newClient.email || null,
+                        customer_name: selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim() || null,
+                      },
+                    });
+                    if (error || !(data as any)?.ok) {
+                      throw new Error((data as any)?.error || error?.message || "Impossible de créer l'intent Square");
+                    }
+                    return { intent_id: (data as any).intent_id as string };
+                  }}
+                  onSuccess={(_receiptUrl, paymentId) => {
+                    setPaymentRef(paymentId || "");
+                    toast.success("Paiement Square encaissé — confirmez la commande");
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Square: send payment link by email */}
+            {paymentMethod === "square" && (
+              <div className="rounded-lg border border-blue-600/30 bg-blue-950/20 p-3 space-y-2">
+                <div className="text-[11px] uppercase text-blue-300">
+                  Envoyer un lien de paiement Square par email
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    value={squareLinkEmail || selectedClient?.email || newClient.email || ""}
+                    onChange={(e) => setSquareLinkEmail(e.target.value)}
+                    placeholder="client@example.com"
+                    className="h-8 bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)] text-white text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={squareLinkSending}
+                    onClick={async () => {
+                      const targetEmail = squareLinkEmail || selectedClient?.email || newClient.email;
+                      if (!targetEmail) { toast.error("Email requis"); return; }
+                      setSquareLinkSending(true);
+                      try {
+                        const amt = paymentMode === "partial" && Number(partialAmount) > 0
+                          ? Number(partialAmount)
+                          : totals.firstMonthTotal;
+                        const { data, error } = await supabase.functions.invoke("pos-square-intent", {
+                          body: {
+                            amount: amt,
+                            mode: "email",
+                            send_email: true,
+                            customer_email: targetEmail,
+                            customer_name: selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim() || null,
+                          },
+                        });
+                        if (error || !(data as any)?.ok) {
+                          throw new Error((data as any)?.error || error?.message || "Erreur");
+                        }
+                        const url = (data as any).payment_url as string;
+                        setSquareLink(url);
+                        setPaymentRef((data as any).intent_id);
+                        if ((data as any).email_sent) {
+                          toast.success(`Lien envoyé à ${targetEmail}`);
+                        } else {
+                          toast.warning("Lien créé mais email non envoyé — copiez-le manuellement");
+                        }
+                      } catch (e: any) {
+                        toast.error(e?.message || "Impossible de générer le lien");
+                      } finally {
+                        setSquareLinkSending(false);
+                      }
+                    }}
+                    className="bg-blue-600 hover:bg-blue-500 text-white"
+                  >
+                    {squareLinkSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />}
+                  </Button>
+                </div>
+                {squareLink && (
+                  <div className="flex items-center gap-2 rounded bg-black/30 p-2 text-[11px] font-mono text-blue-200 break-all">
+                    <span className="flex-1">{squareLink}</span>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(squareLink); toast.success("Copié"); }}
+                      className="text-blue-400 hover:text-white"
+                    >
+                      Copier
+                    </button>
+                  </div>
                 )}
               </div>
             )}
