@@ -416,6 +416,7 @@ serve(async (req) => {
           template_key: "payment_receipt",
           template_vars: {
             client_name: customerName || "Client",
+            first_name: (customerName || "Client").split(" ")[0],
             amount: amountPaid.toFixed(2),
             amount_paid_today: amountPaid.toFixed(2),
             invoice_number: invoiceNumber || `CMD-${intent_id.slice(0, 8).toUpperCase()}`,
@@ -423,6 +424,8 @@ serve(async (req) => {
             reference: paymentId,
             square_payment_id: paymentId,
             square_reference: paymentId,
+            receipt_url: receiptUrl || null,
+            payment_date: new Date().toISOString(),
           },
           attachments: null,
           status: "queued",
