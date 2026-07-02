@@ -135,7 +135,7 @@ export function SquarePaymentForm({
       const sqRef = data.square_payment_id || data.payment_id || null;
       setSquareRef(sqRef);
       setDone(true);
-      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
+      toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`, { duration: 10000 });
       invalidateAfterPayment(qc);
       onSuccess(data.receipt_url ?? null, sqRef ?? undefined);
     } catch (e: any) {
@@ -145,20 +145,13 @@ export function SquarePaymentForm({
     }
   };
 
-  if (done) {
+  if (done && !dismissed) {
     return (
-      <div className="flex flex-col items-center py-6 gap-3 text-center">
-        <CheckCircle2 className="w-12 h-12 text-emerald-500" />
-        <p className="font-semibold text-foreground">Paiement approuvé par Square</p>
-        <p className="text-sm text-muted-foreground">
-          {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} débité sur votre carte.
-        </p>
-        {squareRef && (
-          <p className="text-xs text-muted-foreground">
-            Référence Square : <span className="font-mono font-semibold text-foreground">{squareRef}</span>
-          </p>
-        )}
-      </div>
+      <SquarePaymentSuccessCard
+        amountLabel={`${amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} débité sur votre carte.`}
+        squareRefs={squareRef ? [squareRef] : []}
+        onClose={() => setDismissed(true)}
+      />
     );
   }
 
