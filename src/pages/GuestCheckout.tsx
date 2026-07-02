@@ -1952,8 +1952,8 @@ const GuestCheckout = () => {
                         </div>
                       )}
 
-                      <div className="text-center text-xs text-muted-foreground mt-3">
-                        🔒 Paiement traité de façon sécurisée par Square · Vos informations bancaires ne sont jamais partagées
+                      <div className="text-center text-xs text-[#6B7280] mt-3 flex items-center justify-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5" /> Chiffrement 256-bit SSL — Square PCI-DSS Level 1
                       </div>
                     </div>
 
