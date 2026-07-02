@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateAfterPayment } from "@/lib/queryInvalidation";
 
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
 const SQUARE_LOCATION_ID = "LQW27N70DQ2N8";
@@ -33,6 +35,7 @@ export function SquarePaymentForm({
   customerEmail,
   onSuccess,
 }: SquarePaymentFormProps) {
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState(false);
@@ -131,6 +134,7 @@ export function SquarePaymentForm({
       setSquareRef(sqRef);
       setDone(true);
       toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
+      invalidateAfterPayment(qc);
       onSuccess(data.receipt_url ?? null, sqRef ?? undefined);
     } catch (e: any) {
       toast.error("Erreur : " + (e?.message || String(e)));

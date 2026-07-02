@@ -14,6 +14,7 @@ import { Loader2, CreditCard, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invalidateAfterPayment } from "@/lib/queryInvalidation";
 
 const BACKEND_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const BACKEND_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -155,8 +156,7 @@ export const CoreSquarePaymentDialog = ({
         });
       } catch {}
 
-      qc.invalidateQueries({ queryKey: ["account-profile-invoices"] });
-      qc.invalidateQueries({ queryKey: ["account-profile-payments"] });
+      invalidateAfterPayment(qc);
       toast.success(data.message || `Paiement approuvé par Square — Référence : ${sqRef}`);
       setDone(true);
       onSuccess?.();

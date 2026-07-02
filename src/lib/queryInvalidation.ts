@@ -82,3 +82,14 @@ export function invalidateClientRealtimeQueries(queryClient: QueryClient) {
 export function invalidateOperationalRealtimeQueries(queryClient: QueryClient) {
   invalidateQueryKeyList(queryClient, OPERATIONAL_REALTIME_QUERY_KEYS);
 }
+
+/**
+ * Invalidate ALL balance / invoice / payment caches across every portal
+ * (Nivra Core, portail client, OneView CS, Employee). Call this after ANY
+ * successful Square charge so the client's balance refreshes immediately
+ * without needing a page reload.
+ */
+export function invalidateAfterPayment(queryClient: QueryClient) {
+  invalidateClientRealtimeQueries(queryClient);
+  invalidateOperationalRealtimeQueries(queryClient);
+}

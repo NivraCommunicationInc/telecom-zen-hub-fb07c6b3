@@ -7,6 +7,7 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { AlertCircle, Copy, Send, CreditCard, Loader2, CheckCircle2, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { invalidateAfterPayment } from "@/lib/queryInvalidation";
 
 const INTERAC_EMAIL = "support@nivra-telecom.ca";
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
@@ -131,8 +132,7 @@ export const ClientPayBalanceCard = () => {
         setAllPaid(true);
         const refStr = squareRefs.length ? ` — Référence(s) Square : ${squareRefs.join(", ")}` : "";
         toast.success(`Paiement approuvé par Square${refStr}`);
-        qc.invalidateQueries({ queryKey: ["canonical-client"] });
-        qc.invalidateQueries({ queryKey: ["billing-hub-unpaid"] });
+        invalidateAfterPayment(qc);
       }
     } catch (e: any) {
       toast.error("Erreur : " + (e?.message || String(e)));
