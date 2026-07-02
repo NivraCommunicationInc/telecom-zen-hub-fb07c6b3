@@ -410,7 +410,12 @@ serve(async (req) => {
               accountId = acc?.id ?? null;
             } catch { /* ignore */ }
 
-            const body = `Paiement Square reçu — ${amountPaid.toFixed(2)} $ — Facture #${invoiceNumber || invoiceData.id} — Référence Square : ${paymentId}`;
+            const sourceLabel = paymentSource === "public_pay" ? " — Source : page publique /payer" : "";
+            const overLabel = isOverpayment
+              ? ` — Crédit — surpaiement page publique ${overpaymentAmount.toFixed(2)} $ (à créditer manuellement au dossier)`
+              : "";
+            const body = `Paiement Square reçu — ${amountPaid.toFixed(2)} $ — Facture #${invoiceNumber || invoiceData.id} — Référence Square : ${paymentId}${sourceLabel}${overLabel}`;
+
 
             const { error: noteErr } = await supabase.from("client_internal_notes").insert({
               client_id: profileId,
