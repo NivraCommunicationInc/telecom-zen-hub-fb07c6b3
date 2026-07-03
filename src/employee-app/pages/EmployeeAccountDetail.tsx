@@ -528,6 +528,11 @@ export default function EmployeeAccountDetail() {
         </div>
       </div>
 
+      {/* ═══ Historique des paiements ═══ */}
+      <ClientPaymentsHistory billingCustomerId={billingCustomerId} />
+
+
+
       {showEscalation && (
         <EscalationRequestDialog
           clientId={account.client_id}
