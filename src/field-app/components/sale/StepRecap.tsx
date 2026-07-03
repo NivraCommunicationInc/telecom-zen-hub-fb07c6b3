@@ -70,11 +70,64 @@ export default function StepRecap({
   const { user } = useStaffUser();
   const [savingQuote, setSavingQuote] = useState(false);
   const [quoteSavedId, setQuoteSavedId] = useState<string | null>(null);
+  const [sendingLink, setSendingLink] = useState(false);
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState<string | null>(null);
 
   const estimatedCommission = useMemo(
     () => Number((monthlyBeforeDiscount * 0.30 + equipmentTotal * 0.05).toFixed(2)),
     [monthlyBeforeDiscount, equipmentTotal],
   );
+
+  const agentDisplayName = () =>
+    (user?.user_metadata as Record<string, string> | undefined)?.full_name ||
+    user?.email ||
+    "Agent Nivra";
+
+  const handleSendPaymentLink = async () => {
+    if (sendingLink) return;
+    if (!draft.customer.email) {
+      toast.error("Le courriel du client est requis pour envoyer le lien de paiement.");
+      return;
+    }
+    if (draft.services.length === 0 && draft.equipment.length === 0) {
+      toast.error("Ajoutez au moins un service ou équipement.");
+      return;
+    }
+    setSendingLink(true);
+    try {
+      // 1) Persist the quote (no client email — the payment-link email is sent instead)
+      let quoteId = quoteSavedId;
+      if (!quoteId) {
+        const saved = await saveQuoteAndEmail({
+          draft,
+          agentName: agentDisplayName(),
+          activationFee,
+          subtotal,
+          tps,
+          tvq,
+          total,
+          skipClientEmail: true,
+        });
+        quoteId = saved.id;
+        setQuoteSavedId(saved.id);
+      }
+      // 2) Generate the secure Square payment link + email
+      const link = await sendPaymentLinkFromQuote(quoteId);
+      setPaymentLinkUrl(link.payment_url);
+      toast.success(
+        link.email_sent
+          ? `Lien envoyé à ${draft.customer.email}. Commission préservée.`
+          : "Lien de paiement créé — le courriel n'a pas pu être envoyé.",
+        { duration: 6000 },
+      );
+    } catch (err: any) {
+      console.warn("[payment_link] send failed", err);
+      toast.error(err?.message || "Impossible de créer le lien de paiement.");
+    } finally {
+      setSendingLink(false);
+    }
+  };
+
 
   const handleSaveQuote = async () => {
     if (savingQuote) return;
