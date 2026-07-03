@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
+import { SlotOverridesManager } from "@/core-app/components/appointments/SlotOverridesManager";
 
 interface SlotRule {
   id: string;
