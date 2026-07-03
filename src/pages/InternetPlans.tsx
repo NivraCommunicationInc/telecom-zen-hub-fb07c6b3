@@ -15,6 +15,7 @@ import { ItemListSchema } from "@/components/seo";
 import { useInternetPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 import CriticalInfoSummary from "@/components/CriticalInfoSummary";
+import { writePrecheckedAddress } from "@/lib/checkout/prechekedAddress";
 
 const BG = '#020209';
 const PURPLE = '#7C3AED';
