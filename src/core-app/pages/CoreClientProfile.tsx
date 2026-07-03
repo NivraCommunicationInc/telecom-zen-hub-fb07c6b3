@@ -84,7 +84,6 @@ const CoreClientProfile = () => {
   const [mainTab, setMainTab] = useState("overview");
   const [overviewTab, setOverviewTab] = useState("profil");
   const [invPage, setInvPage] = useState(1);
-  const [pmtPage, setPmtPage] = useState(1);
   const [eqPage, setEqPage] = useState(1);
   const [ordPage, setOrdPage] = useState(1);
   const [ctPage, setCtPage] = useState(1);
