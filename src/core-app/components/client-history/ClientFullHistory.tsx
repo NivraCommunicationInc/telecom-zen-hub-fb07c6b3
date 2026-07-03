@@ -291,28 +291,47 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
       </HistorySection>
 
       {/* ═══ PAYMENTS ═══ */}
-      <HistorySection title="Tous les paiements" icon={CreditCard} count={paymentsQ.data?.length || 0} loading={paymentsQ.isLoading}>
+      <HistorySection title="Historique des paiements" icon={CreditCard} count={paymentsQ.data?.length || 0} loading={paymentsQ.isLoading}>
         {paymentsQ.data && paymentsQ.data.length > 0 ? (
           <div className="overflow-x-auto mt-2">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[hsl(220,15%,14%)]">
-                  {["Date", "N° paiement", "Montant", "Méthode", "Référence", "Statut"].map((h) => (
+                  {["Date", "Montant", "Méthode", "Facture", "Réf NVR", "Réf processeur", "Source", "Statut", ""].map((h) => (
                     <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {paymentsQ.data.map((p: any) => (
-                  <tr key={p.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
-                    <td className="px-2 py-2 text-[#A1A1AA]">{fmtDate(p.received_at || p.created_at)}</td>
-                    <td className="px-2 py-2 font-mono text-white">{p.payment_number}</td>
-                    <td className="px-2 py-2 text-emerald-400 font-medium tabular-nums">{Number(p.amount).toFixed(2)} $</td>
-                    <td className="px-2 py-2 text-[#A1A1AA] capitalize">{p.method || "—"}</td>
-                    <td className="px-2 py-2 text-[#A1A1AA] font-mono text-[10px]">{p.reference || "—"}</td>
-                    <td className="px-2 py-2"><StatusBadge label={p.status || "confirmed"} variant={statusToVariant(p.status || "confirmed")} size="sm" /></td>
-                  </tr>
-                ))}
+                {paymentsQ.data.map((p: any) => {
+                  const methodBase = p.method === "card" ? "Carte" : p.method === "paypal" ? "Carte" : p.method === "interac" ? "Interac" : p.method === "manual" ? "Manuel" : p.method === "internal" ? "Crédit promo" : (p.method || "—");
+                  const providerTag = p.provider === "square" ? " (Square)" : p.provider === "paypal" ? " (PayPal)" : p.method === "paypal" ? " (PayPal)" : "";
+                  const methodLabel = `${methodBase}${providerTag}`;
+                  const procRef = p.square_payment_id || p.provider_payment_id || p.reference || "—";
+                  const nvrRef = p.nivra_reference || p.payment_number;
+                  const sourceLabel = p.source ? (PAYMENT_SOURCES[p.source] || p.source) : "—";
+                  return (
+                    <tr key={p.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
+                      <td className="px-2 py-2 text-[#A1A1AA] whitespace-nowrap">{fmtDate(p.received_at || p.created_at)}</td>
+                      <td className="px-2 py-2 text-emerald-400 font-medium tabular-nums whitespace-nowrap">{Number(p.amount).toFixed(2)} $</td>
+                      <td className="px-2 py-2 text-[#CBD5E1] whitespace-nowrap">{methodLabel}</td>
+                      <td className="px-2 py-2 font-mono text-[10px]">
+                        {p.invoice?.invoice_number ? (
+                          <Link to={corePath(`/invoices/${p.invoice_id}`)} className="text-[#38BDF8] hover:underline">{p.invoice.invoice_number}</Link>
+                        ) : <span className="text-[hsl(220,10%,38%)]">—</span>}
+                      </td>
+                      <td className="px-2 py-2 font-mono text-[10px] text-white">{nvrRef}</td>
+                      <td className="px-2 py-2 font-mono text-[10px] text-[#94A3B8] truncate max-w-[140px]">{procRef}</td>
+                      <td className="px-2 py-2 text-[#94A3B8] text-[10px]">{sourceLabel}</td>
+                      <td className="px-2 py-2"><StatusBadge label={p.status || "confirmed"} variant={statusToVariant(p.status || "confirmed")} size="sm" /></td>
+                      <td className="px-2 py-2">
+                        {p.square_receipt_url && (
+                          <a href={p.square_receipt_url} target="_blank" rel="noreferrer" className="text-[#38BDF8] hover:underline text-[10px]">Reçu</a>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -320,6 +339,8 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
           <EmptyRow label={billingCustomerId ? "Aucun paiement" : "Aucun compte de facturation lié"} />
         )}
       </HistorySection>
+
+
 
       {/* ═══ KYC SESSIONS ═══ */}
       <HistorySection title="Sessions de vérification KYC" icon={Shield} count={kycQ.data?.length || 0} loading={kycQ.isLoading}>
