@@ -10,7 +10,7 @@
  *   - Employee portal (EmployeeAccountDetail)
  *   - OneView CS / Staff (StaffClientDetail)
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -64,8 +64,10 @@ const methodLabel = (method?: string | null, provider?: string | null): string =
 };
 
 interface Props {
-  /** UUID from billing_customers.id — required to load payments */
+  /** UUID from billing_customers.id — optional; component resolves from userId/email when absent */
   billingCustomerId: string | null | undefined;
+  /** Auth/profile user_id used to resolve billing_customers when billingCustomerId is absent */
+  userId?: string | null;
   /** Optional: link invoice numbers to a custom route (e.g. Core /invoices/:id) */
   invoiceHref?: (invoiceId: string) => string;
   /** Optional: fallback email if no customer_email column resolved */
@@ -76,6 +78,7 @@ interface Props {
 
 export function ClientPaymentsHistory({
   billingCustomerId,
+  userId,
   invoiceHref,
   fallbackEmail,
   showWrapper = true,
@@ -83,10 +86,48 @@ export function ClientPaymentsHistory({
   const qc = useQueryClient();
   const [sending, setSending] = useState<string | null>(null);
 
-  const paymentsQ = useQuery({
-    queryKey: ["client-payments-history", billingCustomerId],
+  const normalizedEmail = useMemo(() => fallbackEmail?.trim().toLowerCase() || null, [fallbackEmail]);
+
+  const resolvedCustomerQ = useQuery({
+    queryKey: ["client-payments-history-customer", billingCustomerId, userId, normalizedEmail],
     queryFn: async () => {
-      if (!billingCustomerId) return [];
+      if (billingCustomerId) return billingCustomerId;
+
+      if (userId) {
+        const { data, error } = await supabase
+          .from("billing_customers")
+          .select("id")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        if (data?.id) return data.id as string;
+      }
+
+      if (normalizedEmail) {
+        const { data, error } = await supabase
+          .from("billing_customers")
+          .select("id")
+          .eq("email", normalizedEmail)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        if (data?.id) return data.id as string;
+      }
+
+      return null;
+    },
+    enabled: !!billingCustomerId || !!userId || !!normalizedEmail,
+  });
+
+  const resolvedBillingCustomerId = resolvedCustomerQ.data ?? null;
+
+  const paymentsQ = useQuery({
+    queryKey: ["client-payments-history", resolvedBillingCustomerId],
+    queryFn: async () => {
+      if (!resolvedBillingCustomerId) return [];
       const { data, error } = await supabase
         .from("billing_payments")
         .select(`
@@ -96,27 +137,27 @@ export function ClientPaymentsHistory({
           invoice:billing_invoices(invoice_number),
           customer:billing_customers(email)
         `)
-        .eq("customer_id", billingCustomerId)
+        .eq("customer_id", resolvedBillingCustomerId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!billingCustomerId,
+    enabled: !!resolvedBillingCustomerId,
   });
 
   // Realtime — refresh on any change to this customer's payments
   useEffect(() => {
-    if (!billingCustomerId) return;
+    if (!resolvedBillingCustomerId) return;
     const channel = supabase
-      .channel(`payments-history-${billingCustomerId}`)
+      .channel(`payments-history-${resolvedBillingCustomerId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "billing_payments", filter: `customer_id=eq.${billingCustomerId}` },
-        () => qc.invalidateQueries({ queryKey: ["client-payments-history", billingCustomerId] }),
+        { event: "*", schema: "public", table: "billing_payments", filter: `customer_id=eq.${resolvedBillingCustomerId}` },
+        () => qc.invalidateQueries({ queryKey: ["client-payments-history", resolvedBillingCustomerId] }),
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [billingCustomerId, qc]);
+  }, [resolvedBillingCustomerId, qc]);
 
   const resendReceipt = async (p: any) => {
     const email = p.customer?.email || fallbackEmail;
@@ -154,14 +195,12 @@ export function ClientPaymentsHistory({
 
   const inner = (
     <>
-      {paymentsQ.isLoading ? (
+      {resolvedCustomerQ.isLoading || paymentsQ.isLoading ? (
         <div className="flex items-center justify-center py-8 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin mr-2" /> Chargement…
         </div>
-      ) : !billingCustomerId ? (
-        <p className="text-xs text-muted-foreground py-4 text-center">Aucun compte de facturation lié</p>
       ) : rows.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-4 text-center">Aucun paiement pour ce client</p>
+        <p className="text-xs text-muted-foreground py-4 text-center">Aucun paiement enregistré</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">

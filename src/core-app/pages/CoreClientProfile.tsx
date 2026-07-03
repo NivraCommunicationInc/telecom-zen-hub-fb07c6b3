@@ -686,6 +686,7 @@ const CoreClientProfile = () => {
 
               <ClientPaymentsHistory
                 billingCustomerId={billingCustomer?.id}
+                userId={clientId}
                 invoiceHref={(invoiceId) => corePath(`/invoices/${invoiceId}`)}
                 fallbackEmail={profile.email}
               />

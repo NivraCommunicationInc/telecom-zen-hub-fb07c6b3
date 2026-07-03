@@ -672,6 +672,8 @@ export default function StaffClientDetail() {
                 {/* ═══ Historique des paiements (staff — vrai processeur visible) ═══ */}
                 <ClientPaymentsHistory
                   billingCustomerId={staffBillingCustomerId}
+                  userId={clientId}
+                  fallbackEmail={client?.email}
                   invoiceHref={(invoiceId) => `/staff/billing/${invoiceId}`}
                 />
               </CardContent>
