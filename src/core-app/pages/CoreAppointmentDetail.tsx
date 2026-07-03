@@ -73,6 +73,7 @@ export default function CoreAppointmentDetail() {
           <ArrowLeft className="h-3.5 w-3.5" /> Rendez-vous
         </Link>
         <div className="flex items-center gap-2">
+          <AppointmentActionsMenu appointment={apt} onRefresh={() => refetch()} />
           <button
             onClick={() => setEditOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 px-3 py-1.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
