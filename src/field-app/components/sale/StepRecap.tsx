@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   Sparkles,
   Wrench,
+  Send,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
