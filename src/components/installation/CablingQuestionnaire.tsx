@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -55,8 +54,8 @@ const QUESTIONS = (isFrench: boolean): QuestionDef[] => [
       : "A coaxial cable is a round black cable with a metal connector that screws into the wall outlet and the modem.",
     showCableImage: true,
     options: [
-      { value: "yes", label: isFrench ? "Oui, le câble est présent et intact" : "Yes, the cable is present and intact" },
-      { value: "no", label: isFrench ? "Non, il est absent ou coupé" : "No, it is absent or cut" },
+      { value: "yes", label: isFrench ? "Oui, présent et intact" : "Yes, present and intact" },
+      { value: "no", label: isFrench ? "Non, absent ou coupé" : "No, absent or cut" },
       { value: "unknown", label: isFrench ? "Je ne sais pas" : "I don't know" },
     ],
   },
@@ -66,9 +65,7 @@ const QUESTIONS = (isFrench: boolean): QuestionDef[] => [
     question: isFrench
       ? "Un service Internet ou télévision par câble fonctionnait-il déjà ici dans les 24 derniers mois ?"
       : "Has a cable Internet or TV service worked at this address in the last 24 months?",
-    helpText: isFrench
-      ? "Par exemple avec :"
-      : "For example with:",
+    helpText: isFrench ? "Par exemple avec :" : "For example with:",
     providerExamples: ["Fournisseurs câble/coax au Québec"],
     options: [
       { value: "yes", label: isFrench ? "Oui" : "Yes" },
@@ -84,7 +81,6 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
 
   const questions = QUESTIONS(isFrench);
   const allAnswered = questions.every((q) => answers[q.key]);
-
   const fullAnswers = allAnswered ? (answers as CablingData) : null;
   const risky = fullAnswers ? isRiskyCoax(fullAnswers) : false;
 
@@ -97,43 +93,49 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
   };
 
   const handleSubmit = () => {
-    if (allAnswered) {
-      onComplete(answers as CablingData);
-    }
+    if (allAnswered) onComplete(answers as CablingData);
   };
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Cable className="w-5 h-5 text-primary" />
-          {isFrench ? "Vérification de votre câblage" : "Cabling Quick-Check"}
-        </CardTitle>
-        <CardDescription>
-          {isFrench
-            ? "Répondez à ces 3 questions pour déterminer le type d'installation adapté à votre logement."
-            : "Answer these 3 questions to determine the right installation type for your home."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Progress indicators */}
+    <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
+      <div className="px-5 sm:px-6 py-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-[#0066CC]/10 flex items-center justify-center flex-shrink-0">
+            <Cable className="w-5 h-5 text-[#0066CC]" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-[#1A1A2E] leading-tight">
+              {isFrench ? "Vérification de votre câblage" : "Cabling Quick-Check"}
+            </h3>
+            <p className="text-xs text-[#4B5563] mt-0.5">
+              {isFrench
+                ? "3 questions pour déterminer le type d'installation adapté à votre logement."
+                : "3 questions to determine the right installation type for your home."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-5 sm:p-6 space-y-6">
+        {/* Progress */}
         <div className="flex items-center gap-2">
           {questions.map((q, i) => (
             <div key={q.key} className="flex items-center gap-1">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors cursor-pointer ${
-                  answers[q.key]
-                    ? "bg-primary text-primary-foreground"
-                    : i === currentQ
-                    ? "bg-primary/20 text-primary border-2 border-primary"
-                    : "bg-muted text-muted-foreground"
-                }`}
+              <button
+                type="button"
                 onClick={() => setCurrentQ(i)}
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                  answers[q.key]
+                    ? "bg-[#0066CC] text-white"
+                    : i === currentQ
+                    ? "bg-white text-[#0066CC] border-2 border-[#0066CC]"
+                    : "bg-[#F5F7FA] text-[#4B5563] border border-[#E5E7EB]"
+                }`}
               >
                 {answers[q.key] ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
-              </div>
+              </button>
               {i < questions.length - 1 && (
-                <div className={`w-8 h-0.5 ${answers[q.key] ? "bg-primary" : "bg-muted"}`} />
+                <div className={`w-8 h-0.5 ${answers[q.key] ? "bg-[#0066CC]" : "bg-[#E5E7EB]"}`} />
               )}
             </div>
           ))}
@@ -146,24 +148,24 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
           return (
             <div key={q.key} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Icon className="w-5 h-5 text-primary" />
+                <div className="p-2 rounded-lg bg-[#0066CC]/10 flex-shrink-0">
+                  <Icon className="w-5 h-5 text-[#0066CC]" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{q.question}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[#1A1A2E]">{q.question}</p>
 
                   {q.helpText && (
-                    <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border">
+                    <div className="mt-2 p-3 rounded-lg bg-[#F5F7FA] border border-[#E5E7EB]">
                       <div className="flex items-start gap-2">
-                        <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                        <div className="text-sm text-muted-foreground">
+                        <Info className="w-4 h-4 text-[#6B7280] flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-[#374151]">
                           <p>{q.helpText}</p>
                           {q.providerExamples && (
                             <div className="flex flex-wrap gap-2 mt-1.5">
                               {q.providerExamples.map((provider) => (
                                 <span
                                   key={provider}
-                                  className="inline-block px-2 py-0.5 rounded-md bg-background border border-border text-xs font-medium text-foreground"
+                                  className="inline-block px-2 py-0.5 rounded-md bg-white border border-[#E5E7EB] text-xs font-medium text-[#1A1A2E]"
                                 >
                                   {provider}
                                 </span>
@@ -175,19 +177,18 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
                     </div>
                   )}
 
-                  {/* Coaxial outlet image for Q1 */}
                   {q.showOutletImage && (
-                    <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                    <div className="mt-3 p-3 rounded-lg bg-[#F5F7FA] border border-[#E5E7EB]">
+                      <p className="text-xs font-semibold text-[#374151] mb-2">
                         {isFrench ? "Exemple de prise câble :" : "Cable outlet example:"}
                       </p>
                       <div className="flex items-center gap-4">
                         <img
                           src={coaxialImage}
                           alt={isFrench ? "Exemple de prise coaxiale murale" : "Wall coaxial outlet example"}
-                          className="w-20 h-20 rounded-lg object-cover border border-border"
+                          className="w-20 h-20 rounded-lg object-cover border border-[#E5E7EB]"
                         />
-                        <ul className="text-xs text-muted-foreground space-y-1">
+                        <ul className="text-xs text-[#374151] space-y-1">
                           <li>• {isFrench ? "Petite prise ronde sur le mur" : "Small round wall outlet"}</li>
                           <li>• {isFrench ? "Filetage métallique" : "Metal threading"}</li>
                           <li>• {isFrench ? "Souvent dans le salon ou près de la TV" : "Usually in the living room or near the TV"}</li>
@@ -196,19 +197,18 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
                     </div>
                   )}
 
-                  {/* Cable connector image for Q2 */}
                   {q.showCableImage && (
-                    <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                    <div className="mt-3 p-3 rounded-lg bg-[#F5F7FA] border border-[#E5E7EB]">
+                      <p className="text-xs font-semibold text-[#374151] mb-2">
                         {isFrench ? "Exemple de câble coaxial avec connecteur :" : "Coaxial cable with connector example:"}
                       </p>
                       <div className="flex items-center gap-4">
                         <img
                           src={cableConnectorImage}
                           alt={isFrench ? "Câble coaxial avec connecteur F à vis métallique" : "Coaxial cable with F-type metal screw connector"}
-                          className="w-24 h-20 rounded-lg object-cover border border-border"
+                          className="w-24 h-20 rounded-lg object-cover border border-[#E5E7EB]"
                         />
-                        <ul className="text-xs text-muted-foreground space-y-1">
+                        <ul className="text-xs text-[#374151] space-y-1">
                           <li>• {isFrench ? "Câble noir rond" : "Round black cable"}</li>
                           <li>• {isFrench ? "Connecteur métallique avec vis" : "Metal connector with screw threading"}</li>
                           <li>• {isFrench ? "Se visse dans la prise murale et le modem" : "Screws into the wall outlet and modem"}</li>
@@ -224,31 +224,33 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
                 onValueChange={(v) => handleAnswer(q.key, v as CablingAnswer)}
                 className="grid grid-cols-1 sm:grid-cols-3 gap-3"
               >
-                {q.options.map((opt) => (
-                  <div key={opt.value}>
-                    <RadioGroupItem value={opt.value} id={`${q.key}-${opt.value}`} className="peer sr-only" />
-                    <Label
-                      htmlFor={`${q.key}-${opt.value}`}
-                      className={`flex items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all text-center font-medium ${
-                        answers[q.key] === opt.value
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:border-primary/50 hover:bg-accent"
-                      }`}
-                    >
-                      {opt.label}
-                    </Label>
-                  </div>
-                ))}
+                {q.options.map((opt) => {
+                  const selected = answers[q.key] === opt.value;
+                  return (
+                    <div key={opt.value}>
+                      <RadioGroupItem value={opt.value} id={`${q.key}-${opt.value}`} className="peer sr-only" />
+                      <Label
+                        htmlFor={`${q.key}-${opt.value}`}
+                        className={`flex items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all text-center font-semibold text-sm ${
+                          selected
+                            ? "border-[#0066CC] bg-[#0066CC] text-white shadow-sm"
+                            : "border-[#E5E7EB] bg-white text-[#1A1A2E] hover:border-[#0066CC]/50 hover:bg-[#0066CC]/[0.03]"
+                        }`}
+                      >
+                        {opt.label}
+                      </Label>
+                    </div>
+                  );
+                })}
               </RadioGroup>
             </div>
           );
         })}
 
-        {/* RISKY_COAX warning */}
         {allAnswered && risky && (
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-accent/50 border border-accent animate-in fade-in duration-300">
-            <AlertTriangle className="w-5 h-5 text-accent-foreground flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-accent-foreground">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-[#FFFBEB] border border-[#FCD34D] animate-in fade-in duration-300">
+            <AlertTriangle className="w-5 h-5 text-[#B45309] flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-[#1A1A2E]">
               {isFrench
                 ? "Une validation sur place peut être nécessaire. Un technicien vérifiera l'état du câblage à votre adresse."
                 : "On-site validation may be required. A technician will verify the cabling condition at your address."}
@@ -256,16 +258,18 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
           </div>
         )}
 
-        {/* Submit */}
         {allAnswered && (
           <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <Button onClick={handleSubmit} className="w-full gap-2">
+            <Button
+              onClick={handleSubmit}
+              className="w-full gap-2 bg-[#0066CC] hover:bg-[#0052A3] text-white h-11"
+            >
               {isFrench ? "Voir les disponibilités" : "See availability"}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
