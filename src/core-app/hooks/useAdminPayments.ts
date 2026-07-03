@@ -33,7 +33,10 @@ export interface AdminPayment {
   customer_email: string | null;
   account_number: string | null;
   environment?: string;
-  
+  nivra_reference?: string | null;
+  square_receipt_url?: string | null;
+  square_payment_id?: string | null;
+
   authorized_amount?: number | null;
   authorization_status?: string | null;
   authorized_at?: string | null;
