@@ -278,15 +278,21 @@ export default function PayerCommande() {
         </Card>
       ) : (
         <>
-          {/* Order summary */}
+          {/* Premium hero — reassure client the order was prepared for them */}
           <Card>
-            <div className="space-y-1 mb-4">
-              <p className="text-xs uppercase tracking-wider text-violet-400 font-semibold">Commande en attente</p>
-              <h2 className="text-2xl font-bold text-white">Compléter votre commande</h2>
-              <p className="text-sm text-white/50">
-                Présentée par <span className="font-medium text-white/75">{agent_name}</span>
-              </p>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/40">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-2xl font-bold text-white leading-tight">Votre commande est prête</h2>
+                <p className="text-sm text-white/65 leading-relaxed">
+                  <span className="font-medium text-white/85">{agent_name}</span> a préparé votre commande pour vous.
+                  Vérifiez les informations ci-dessous et procédez au paiement sécurisé.
+                </p>
+              </div>
             </div>
+
 
             {quote ? (
               <div className="border-t border-white/10 pt-4 space-y-3">
