@@ -192,6 +192,43 @@ export default function StepRecap({
         )}
       </div>
 
+      {/* Installation preferences — visible to client on the payment link page */}
+      <div className="rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] p-5 md:p-6 space-y-3">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-[hsl(var(--field-text-dim))]">
+          <Wrench className="h-3.5 w-3.5" /> Installation
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs text-[hsl(var(--field-text-muted))]">Mode d'installation</span>
+            <select
+              value={draft.customer.install_mode || "technician"}
+              onChange={(e) =>
+                onCustomerChange?.({ ...draft.customer, install_mode: e.target.value as "technician" | "self" })
+              }
+              className="h-11 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
+            >
+              <option value="technician">Installation par technicien</option>
+              <option value="self">Auto-installation</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs text-[hsl(var(--field-text-muted))]">Date prévue</span>
+            <input
+              type="date"
+              min={new Date().toISOString().split("T")[0]}
+              value={draft.customer.install_date || ""}
+              onChange={(e) =>
+                onCustomerChange?.({ ...draft.customer, install_date: e.target.value || null })
+              }
+              className="h-11 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
+            />
+          </label>
+        </div>
+        <p className="text-[11px] text-[hsl(var(--field-text-dim))]">
+          Le client verra cette date sur sa page de commande et pourra demander une modification si nécessaire.
+        </p>
+      </div>
+
       {/* Order breakdown */}
       <div className="rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] p-5 md:p-6 space-y-3">
         <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-[hsl(var(--field-text-dim))]">
