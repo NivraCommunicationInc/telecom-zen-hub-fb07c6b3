@@ -183,7 +183,7 @@ export default function EmployeeAccountDetail() {
     );
   }
 
-  const { account, profile, orders, invoices, subscriptions, equipment, appointments, locations } = data;
+  const { account, profile, orders, invoices, subscriptions, equipment, appointments, locations, billingCustomerId } = data;
   const fmtMoney = (v: number | null | undefined) => (v != null ? `${v.toFixed(2)} $` : "—");
 
   const unpaidInvoices = invoices.filter((i: any) => i.status !== "paid" && i.status !== "void" && (i.balance_due ?? 0) > 0);
