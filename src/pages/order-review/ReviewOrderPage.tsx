@@ -357,7 +357,29 @@ export default function ReviewOrderPage() {
     );
   }
 
-  if (isCancelled || isExpired) {
+  if (isCancelled) {
+    return (
+      <Page>
+        <Card>
+          <div className="text-center space-y-3 py-4">
+            <AlertCircle className="h-14 w-14 text-red-500 mx-auto" />
+            <h2 className="text-2xl font-bold text-white">Cette commande n'est plus disponible.</h2>
+            <p className="text-sm text-white/60">
+              Elle a été annulée. Contactez votre représentant Nivra pour repartir sur une nouvelle commande.
+            </p>
+            <Button
+              onClick={() => (window.location.href = "mailto:support@nivra-telecom.ca")}
+              className="mt-2 bg-violet-600 hover:bg-violet-500"
+            >
+              Contacter mon représentant
+            </Button>
+          </div>
+        </Card>
+      </Page>
+    );
+  }
+
+  if (isExpired) {
     return (
       <Page>
         <Card>
@@ -365,16 +387,21 @@ export default function ReviewOrderPage() {
             <AlertCircle className="h-14 w-14 text-amber-500 mx-auto" />
             <h2 className="text-2xl font-bold text-white">Ce lien a expiré.</h2>
             <p className="text-sm text-white/60">
-              Contactez votre représentant ou écrivez à{" "}
-              <a className="text-violet-400 underline" href="mailto:support@nivra-telecom.ca">
-                support@nivra-telecom.ca
-              </a>
+              Pour des raisons de sécurité, ce lien de commande était valide 7 jours.
+              Contactez votre représentant pour en recevoir un nouveau.
             </p>
+            <Button
+              onClick={() => (window.location.href = "mailto:support@nivra-telecom.ca")}
+              className="mt-2 bg-violet-600 hover:bg-violet-500"
+            >
+              Contacter mon représentant
+            </Button>
           </div>
         </Card>
       </Page>
     );
   }
+
 
   const { intent, quote, agent_name } = data;
   const ci = quote?.client_info || {};
