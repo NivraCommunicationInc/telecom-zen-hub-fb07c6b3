@@ -41,6 +41,7 @@ export async function saveQuoteAndEmail({
   tvq,
   total,
   agentGps,
+  skipClientEmail,
 }: SaveQuotePayload): Promise<SavedQuote> {
   const { data: userData } = await supabase.auth.getUser();
   const agentId = userData?.user?.id;
