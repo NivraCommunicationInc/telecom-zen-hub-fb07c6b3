@@ -135,6 +135,8 @@ const GuestCheckout = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
+  // Sub-phase inside step 4: "choice" (installation type + questionnaire) → "schedule" (calendar)
+  const [installationPhase, setInstallationPhase] = useState<"choice" | "schedule">("choice");
   const [notes, setNotes] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
