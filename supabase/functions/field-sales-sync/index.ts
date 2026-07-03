@@ -1,6 +1,8 @@
 ﻿import { createClient } from "npm:@supabase/supabase-js@2.89.0";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
+import { writePaymentAutoNote } from "../_shared/paymentAutoNote.ts";
+
 
 /**
  * Field Sales Sync Edge Function
