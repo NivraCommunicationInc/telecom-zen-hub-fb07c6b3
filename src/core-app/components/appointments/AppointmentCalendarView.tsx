@@ -172,10 +172,10 @@ export function AppointmentCalendarView({ appointments, onSelect }: Props) {
                 {format(d, "d")}
               </div>
               <div className="space-y-0.5">
-                {list.slice(0, 3).map((a) => {
+                {list.slice(0, mode === "day" ? 50 : 3).map((a) => {
                   return renderAppointmentButton(a, true);
                 })}
-                {list.length > 3 && (
+                {mode !== "day" && list.length > 3 && (
                   <div className="text-[9px] text-slate-500 pl-2">+{list.length - 3}</div>
                 )}
               </div>
