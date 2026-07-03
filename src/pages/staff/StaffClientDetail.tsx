@@ -138,18 +138,18 @@ export default function StaffClientDetail() {
     enabled: !!clientId && hasVerifiedAccess,
   });
 
-  // Fetch client billing from canonical billing_invoices
+  // Fetch client billing from canonical billing_invoices (+ expose billingCustomerId)
   const { data: billing } = useQuery({
     queryKey: ["staff-client-billing", clientId],
     queryFn: async () => {
-      if (!clientId) return [];
+      if (!clientId) return { invoices: [], billingCustomerId: null as string | null };
       // Resolve billing_customer
       const { data: customer } = await supabase
         .from("billing_customers")
         .select("id")
         .eq("user_id", clientId)
         .maybeSingle();
-      if (!customer) return [];
+      if (!customer) return { invoices: [], billingCustomerId: null as string | null };
       const { data, error } = await supabase
         .from("billing_invoices")
         .select("id, invoice_number, total, balance_due, status, due_date, created_at, paid_at")
@@ -158,7 +158,7 @@ export default function StaffClientDetail() {
         .limit(20);
       if (error) throw error;
       // Map to legacy shape used by template
-      return (data || []).map((inv: any) => ({
+      const invoices = (data || []).map((inv: any) => ({
         id: inv.id,
         invoice_number: inv.invoice_number,
         amount: inv.total,
@@ -168,9 +168,13 @@ export default function StaffClientDetail() {
         created_at: inv.created_at,
         paid_at: inv.paid_at,
       }));
+      return { invoices, billingCustomerId: customer.id as string };
     },
     enabled: !!clientId && hasVerifiedAccess,
   });
+  const billingInvoices = billing?.invoices ?? [];
+  const staffBillingCustomerId = billing?.billingCustomerId ?? null;
+
 
   // Fetch client tickets
   const { data: tickets } = useQuery({
