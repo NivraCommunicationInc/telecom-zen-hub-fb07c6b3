@@ -14,6 +14,7 @@ import { Account360QuickActions } from "@/core-app/components/account-360/Accoun
 import { AccountAdjustmentsList } from "@/core-app/components/account-actions/AccountAdjustmentsList";
 import { Account360RightPanel } from "@/core-app/components/account-360/Account360RightPanel";
 import { Account360ProfileEditDialog } from "@/core-app/components/account-360/Account360ProfileEditDialog";
+import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
 import {
   ProfileSection, BillingSection, SubscriptionsSection, OrdersSection,
   InvoicesSection, PaymentsSection, EquipmentSection, TicketsSection,
@@ -200,6 +201,14 @@ const CoreAccountDetail = () => {
 
       {/* Active manual adjustments (credits / fees) */}
       <AccountAdjustmentsList accountId={accountId} />
+
+      {/* Always-visible payment history for the Account 360 page used by Core staff */}
+      <ClientPaymentsHistory
+        billingCustomerId={data.customerId}
+        userId={data.clientId}
+        fallbackEmail={data.profile?.email || data.billingCustomer?.email || null}
+        invoiceHref={(invoiceId) => corePath(`/invoices/${invoiceId}`)}
+      />
 
       {/* 3-column layout: Nav | Content | Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-[210px_1fr_280px] gap-3">
