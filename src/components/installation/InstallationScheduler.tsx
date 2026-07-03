@@ -269,6 +269,8 @@ export function InstallationScheduler({
 
       const effectiveHold = hold ?? makeLocalHold(date, time);
       setActiveHold(effectiveHold);
+      setAppointmentConfirmed(true);
+      onAppointmentConfirmedChange?.(true);
       console.log("[InstallationScheduler] Hold ready:", effectiveHold.appointmentId);
     } finally {
       setHoldLoading(false);
