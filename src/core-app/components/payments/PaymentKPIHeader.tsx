@@ -1,43 +1,51 @@
 /**
- * Payment operations KPI header — financial dashboard strip
+ * Payment operations KPI — encaissé aujourd'hui / semaine / mois + échecs mois
  */
 import type { AdminPayment } from "@/core-app/hooks/useAdminPayments";
 import { fmtCAD } from "./PaymentConstants";
-import {
-  DollarSign, Clock, ShieldCheck, CheckCircle2, XCircle,
-  AlertTriangle, RotateCcw, TrendingUp,
-} from "lucide-react";
+import { TrendingUp, CalendarDays, CalendarRange, XCircle, Clock, ShieldCheck } from "lucide-react";
 
 interface Props {
   payments: AdminPayment[];
   isLoading: boolean;
 }
 
+const isConfirmed = (s: string | null) => s === "confirmed" || s === "completed";
+const isFailed = (s: string | null) => s === "failed" || s === "declined";
+
 export function PaymentKPIHeader({ payments, isLoading }: Props) {
-  const today = new Date().toISOString().slice(0, 10);
-  const todayPayments = payments.filter(p => p.created_at?.slice(0, 10) === today);
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+
+  const startOfWeek = new Date(now);
+  const day = startOfWeek.getDay(); // 0 Sun
+  const diff = (day === 0 ? -6 : 1) - day;
+  startOfWeek.setDate(startOfWeek.getDate() + diff);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const sum = (arr: AdminPayment[]) => arr.reduce((s, p) => s + (p.amount ?? 0), 0);
+  const dateOf = (p: AdminPayment) => new Date(p.received_at || p.created_at || 0);
+
+  const todayList = payments.filter(p => isConfirmed(p.status) && (p.received_at || p.created_at || "").slice(0, 10) === today);
+  const weekList = payments.filter(p => isConfirmed(p.status) && dateOf(p) >= startOfWeek);
+  const monthList = payments.filter(p => isConfirmed(p.status) && dateOf(p) >= startOfMonth);
+  const failedMonth = payments.filter(p => isFailed(p.status) && dateOf(p) >= startOfMonth);
   const pending = payments.filter(p => p.status === "pending");
-  const inVerification = payments.filter(p => p.status === "in_verification" || p.status === "manual_review");
-  const confirmed = payments.filter(p => p.status === "confirmed" || p.status === "completed");
-  const failed = payments.filter(p => p.status === "failed" || p.status === "declined");
-  const fraud = payments.filter(p => p.status === "fraud");
-  const refunded = payments.filter(p => p.status === "refunded" || p.status === "reversed");
-  const amountToday = todayPayments.reduce((s, p) => s + (p.amount ?? 0), 0);
-  const amountPending = pending.reduce((s, p) => s + (p.amount ?? 0), 0);
+  const inVerif = payments.filter(p => p.status === "in_verification" || p.status === "manual_review");
 
   const kpis = [
-    { label: "Aujourd'hui", value: todayPayments.length.toString(), sub: fmtCAD(amountToday), icon: TrendingUp, color: "text-white" },
-    { label: "En attente", value: pending.length.toString(), sub: fmtCAD(amountPending), icon: Clock, color: "text-amber-400" },
-    { label: "En vérification", value: inVerification.length.toString(), icon: ShieldCheck, color: "text-violet-400" },
-    { label: "Confirmés", value: confirmed.length.toString(), icon: CheckCircle2, color: "text-emerald-400" },
-    { label: "Échoués", value: failed.length.toString(), icon: XCircle, color: "text-red-400" },
-    { label: "Fraude", value: fraud.length.toString(), icon: AlertTriangle, color: "text-orange-400" },
-    { label: "Remboursés", value: refunded.length.toString(), icon: RotateCcw, color: "text-sky-400" },
-    { label: "Total traité", value: fmtCAD(confirmed.reduce((s, p) => s + (p.amount ?? 0), 0)), icon: DollarSign, color: "text-emerald-400" },
+    { label: "Encaissé aujourd'hui", value: fmtCAD(sum(todayList)), sub: `${todayList.length} paiement${todayList.length !== 1 ? "s" : ""}`, icon: TrendingUp, color: "text-emerald-400" },
+    { label: "Encaissé cette semaine", value: fmtCAD(sum(weekList)), sub: `${weekList.length} paiement${weekList.length !== 1 ? "s" : ""}`, icon: CalendarDays, color: "text-emerald-400" },
+    { label: "Encaissé ce mois", value: fmtCAD(sum(monthList)), sub: `${monthList.length} paiement${monthList.length !== 1 ? "s" : ""}`, icon: CalendarRange, color: "text-emerald-400" },
+    { label: "Échecs ce mois", value: failedMonth.length.toString(), sub: fmtCAD(sum(failedMonth)), icon: XCircle, color: "text-red-400" },
+    { label: "En attente", value: pending.length.toString(), sub: fmtCAD(sum(pending)), icon: Clock, color: "text-amber-400" },
+    { label: "À vérifier", value: inVerif.length.toString(), sub: fmtCAD(sum(inVerif)), icon: ShieldCheck, color: "text-violet-400" },
   ];
 
   return (
-    <div className="grid grid-cols-4 xl:grid-cols-8 gap-2">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
       {kpis.map(k => (
         <div key={k.label} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
           <div className="flex items-center gap-1.5 mb-1.5">

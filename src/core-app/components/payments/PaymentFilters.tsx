@@ -1,8 +1,8 @@
 /**
  * Advanced payment filters — status, method, date, search
  */
-import { Search, Filter, Wallet, Calendar } from "lucide-react";
-import { PAYMENT_STATUSES, PAYMENT_METHODS } from "./PaymentConstants";
+import { Search, Filter, Wallet, Radio } from "lucide-react";
+import { PAYMENT_STATUSES, PAYMENT_METHODS, PAYMENT_SOURCES } from "./PaymentConstants";
 
 interface Props {
   search: string;
@@ -11,6 +11,8 @@ interface Props {
   onStatus: (v: string) => void;
   method: string;
   onMethod: (v: string) => void;
+  source: string;
+  onSource: (v: string) => void;
   dateFrom: string;
   onDateFrom: (v: string) => void;
   dateTo: string;
