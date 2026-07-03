@@ -104,6 +104,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Shield, label: "KYC", href: "/kyc" },
       { icon: Wifi, label: "Demandes WiFi", href: "/wifi-requests" },
       { icon: Calendar, label: "Rendez-vous", href: "/appointments" },
+      { icon: Settings, label: "Disponibilités RDV", href: "/appointments/slots" },
       { icon: MessageSquare, label: "Demandes clients", href: "/requests" },
       { icon: RefreshCcw, label: "Changements forfait", href: "/plan-changes" },
       { icon: Lock, label: "Suspensions", href: "/pause-requests" },

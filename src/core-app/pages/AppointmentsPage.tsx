@@ -219,12 +219,6 @@ const AppointmentsPage = () => {
               <LayoutGrid className="h-3 w-3" /> Calendrier
             </button>
           </div>
-          <Link
-            to={corePath("/appointments/slots")}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-emerald-300 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-800/50 transition"
-          >
-            <Settings className="h-3 w-3" /> Disponibilités
-          </Link>
           <Button
             size="sm"
             onClick={() => setNewOpen(true)}
@@ -232,6 +226,12 @@ const AppointmentsPage = () => {
           >
             <Plus className="h-3 w-3 mr-1" /> Nouveau rendez-vous
           </Button>
+          <Link
+            to={corePath("/appointments/slots")}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-emerald-300 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-800/50 transition"
+          >
+            <Settings className="h-3 w-3" /> Gérer les disponibilités
+          </Link>
           <button
             onClick={() => refetch()}
             className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-white hover:bg-[hsl(220,15%,16%)] transition-colors"
