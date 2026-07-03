@@ -214,7 +214,7 @@ serve(async (req) => {
       // Field payment intent flow
       const { data: intent } = await supabase
         .from("field_payment_intents")
-        .select("id, amount, status, customer_name, customer_email, converted_invoice_id, public_token, description")
+        .select("id, amount, status, customer_name, customer_email, converted_invoice_id, public_token, description, quote_id, agent_id")
         .eq("id", intent_id)
         .single();
 
@@ -250,6 +250,7 @@ serve(async (req) => {
         invoiceNumber = `CMD-${intent_id.slice(0, 8).toUpperCase()}`;
       }
     }
+
 
     // ── Charge Square ────────────────────────────────────────────────────
     const note = [
