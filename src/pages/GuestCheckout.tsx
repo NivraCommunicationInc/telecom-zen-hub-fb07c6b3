@@ -1135,6 +1135,161 @@ const GuestCheckout = () => {
   // ── Format currency ──
   const fmt = (v: number) => v.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
 
+  // ── Auto-scroll to active step on step change ──
+  useEffect(() => {
+    if (step >= 6) return;
+    const el = document.getElementById(`step-${step}`);
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.scrollY - 140;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    }
+  }, [step]);
+
+  // ── Mobile summary sheet ──
+  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
+
+  // ── Step accordion metadata ──
+  const stepTitles: Record<number, { title: string; icon: any }> = {
+    1: { title: "Choisissez votre forfait", icon: ShoppingCart },
+    2: { title: "Adresse de service", icon: MapPin },
+    3: { title: "Vos informations", icon: User },
+    4: { title: "Options et livraison", icon: Package },
+    5: { title: "Paiement sécurisé", icon: CreditCard },
+  };
+
+  const stepSummary = (id: number): string => {
+    switch (id) {
+      case 1:
+        return selectedServices.length > 0 ? selectedServices.map(s => s.name).join(", ") : "";
+      case 2:
+        return addressStreet
+          ? `${addressStreet}${addressApartment ? " apt " + addressApartment : ""}, ${addressCity} ${addressPostalCode}`.trim()
+          : "";
+      case 3:
+        return (firstName || lastName || email)
+          ? [
+              `${firstName} ${lastName}`.trim(),
+              email,
+              phone,
+            ].filter(Boolean).join(" · ")
+          : "";
+      case 4:
+        return [
+          hasMobileService ? (simType === "esim" ? "eSIM" : "SIM physique") : null,
+          hasMobileService ? (wantsPortIn ? `Transfert (${portInCarrier})` : "Nouveau numéro") : null,
+          (hasInternetService || hasTVService)
+            ? (installationChoice === "technician" ? "Installation par technicien" : "Auto-installation")
+            : null,
+          selectedDate ? `${selectedDate} ${selectedTime || ""}`.trim() : null,
+        ].filter(Boolean).join(" · ");
+      default:
+        return "";
+    }
+  };
+
+  const renderStepShell = (id: number, content: React.ReactNode) => {
+    const meta = stepTitles[id];
+    const Icon = meta.icon;
+    const isOpen = step === id;
+    const isDone = step > id;
+    if (isOpen) {
+      return (
+        <div id={`step-${id}`} key={id} className="scroll-mt-32 animate-fade-in">
+          {content}
+        </div>
+      );
+    }
+    if (isDone) {
+      return (
+        <div
+          id={`step-${id}`}
+          key={id}
+          className="scroll-mt-32 bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-4 py-3.5 flex items-center justify-between gap-3 transition-all duration-300"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-full bg-[#00A651] text-white flex items-center justify-center shrink-0">
+              <Check className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold text-[#00A651] uppercase tracking-wide">Étape {id} · Complétée</p>
+              <p className="text-sm font-semibold text-[#1A1A2E] truncate">
+                {meta.title}
+                {stepSummary(id) ? <span className="font-normal text-[#6B7280]"> — {stepSummary(id)}</span> : null}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStep(id)}
+            className="text-sm font-semibold text-[#0066CC] hover:text-[#0052A3] hover:underline shrink-0"
+          >
+            Modifier
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div
+        id={`step-${id}`}
+        key={id}
+        className="scroll-mt-32 bg-white/70 rounded-xl border border-dashed border-[#E5E7EB] px-4 py-3.5 flex items-center gap-3 opacity-70 transition-all"
+      >
+        <div className="w-9 h-9 rounded-full bg-[#F3F4F6] text-[#6B7280] flex items-center justify-center text-sm font-bold shrink-0">{id}</div>
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-[#9CA3AF]" />
+          <p className="text-sm font-semibold text-[#6B7280]">{meta.title}</p>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Bell-style horizontal progress bar (desktop) ──
+  const renderDesktopProgress = () => (
+    <div className="hidden md:flex items-center">
+      {CHECKOUT_STEPS.filter(s => s.id <= 5).map((s, idx, arr) => {
+        const isDone = step > s.id;
+        const isCurrent = step === s.id;
+        return (
+          <div key={s.id} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={() => isDone && setStep(s.id)}
+                disabled={!isDone}
+                className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all shrink-0 ${isDone ? "cursor-pointer hover:scale-105" : "cursor-default"}`}
+                style={
+                  isDone
+                    ? { background: "#00A651", borderColor: "#00A651", color: "#fff" }
+                    : isCurrent
+                      ? { background: "#0066CC", borderColor: "#0066CC", color: "#fff", boxShadow: "0 0 0 5px rgba(0,102,204,0.15)" }
+                      : { background: "#fff", borderColor: "#E5E7EB", color: "#9CA3AF" }
+                }
+              >
+                {isDone ? <Check className="w-5 h-5" /> : s.id}
+              </button>
+              <span
+                className={`text-xs font-semibold whitespace-nowrap ${isDone ? "text-[#00A651]" : isCurrent ? "text-[#0066CC]" : "text-[#9CA3AF]"}`}
+              >
+                {s.labelFr}
+              </span>
+            </div>
+            {idx < arr.length - 1 && (
+              <div className="flex-1 h-[3px] mx-2 lg:mx-3 rounded-full overflow-hidden bg-[#E5E7EB] mb-6">
+                <div
+                  className="h-full transition-all duration-500 rounded-full"
+                  style={{
+                    width: isDone ? "100%" : "0%",
+                    background: "#00A651",
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div style={{ background: '#F5F7FA' }} className="relative min-h-screen overflow-hidden">
       <Header />
