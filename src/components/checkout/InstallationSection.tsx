@@ -62,14 +62,16 @@ export function InstallationSection({
       <div className="px-5 sm:px-6 py-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#0066CC]/10 flex items-center justify-center flex-shrink-0">
-            <Wrench className="w-5 h-5 text-[#0066CC]" />
+            {showSchedule ? <Calendar className="w-5 h-5 text-[#0066CC]" /> : <Wrench className="w-5 h-5 text-[#0066CC]" />}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-[#1A1A2E] leading-tight">
-              Mode d'installation
+              {showSchedule ? "Choisissez votre rendez-vous" : "Mode d'installation"}
             </h3>
             <p className="text-sm text-[#6B7280] mt-0.5">
-              Choisissez comment activer vos services Internet et TV
+              {showSchedule
+                ? "Sélectionnez la date et la plage horaire du passage du technicien"
+                : "Choisissez comment activer vos services Internet et TV"}
             </p>
           </div>
           {installationChoice && (
@@ -82,7 +84,8 @@ export function InstallationSection({
       </div>
 
       <div className="p-5 sm:p-6 space-y-5">
-        {/* ── Choice tiles ── */}
+        {/* ── Choice tiles (phase=choice only) ── */}
+        {showChoice && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Auto-installation */}
           <button
