@@ -33,7 +33,10 @@ export interface AdminPayment {
   customer_email: string | null;
   account_number: string | null;
   environment?: string;
-  
+  nivra_reference?: string | null;
+  square_receipt_url?: string | null;
+  square_payment_id?: string | null;
+
   authorized_amount?: number | null;
   authorization_status?: string | null;
   authorized_at?: string | null;
@@ -53,6 +56,7 @@ export function useAdminPayments(environment: EnvironmentFilter = "all") {
           legacy_note, created_by_name, invoice_id, customer_id, environment,
           authorized_amount, authorization_status,
           authorized_at, captured_at, captured_by,
+          nivra_reference, square_payment_id, square_receipt_url,
           invoice:billing_invoices(invoice_number, order_id, customer_id),
           customer:billing_customers(id, first_name, last_name, email, user_id)
         `)
@@ -114,7 +118,9 @@ export function useAdminPayments(environment: EnvironmentFilter = "all") {
           customer_email: p.customer?.email ?? null,
           account_number: accountNumber,
           environment: p.environment,
-
+          nivra_reference: p.nivra_reference,
+          square_payment_id: p.square_payment_id,
+          square_receipt_url: p.square_receipt_url,
           authorized_amount: p.authorized_amount,
           authorization_status: p.authorization_status,
           authorized_at: p.authorized_at,
