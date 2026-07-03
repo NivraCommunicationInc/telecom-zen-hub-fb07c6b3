@@ -19,6 +19,8 @@ export interface SaveQuotePayload {
   tvq: number;
   total: number;
   agentGps?: { lat: number; lng: number; accuracy: number } | null;
+  /** When true, the `field_quote` email is NOT sent (used by the payment-link flow which sends its own email). */
+  skipClientEmail?: boolean;
 }
 
 export interface SavedQuote {
@@ -39,6 +41,7 @@ export async function saveQuoteAndEmail({
   tvq,
   total,
   agentGps,
+  skipClientEmail,
 }: SaveQuotePayload): Promise<SavedQuote> {
   const { data: userData } = await supabase.auth.getUser();
   const agentId = userData?.user?.id;
@@ -70,7 +73,7 @@ export async function saveQuoteAndEmail({
   const validUntil = inserted.valid_until as string;
 
   // 2) Enqueue the Violet Bold "field_quote" email (best-effort).
-  if (draft.customer.email) {
+  if (!skipClientEmail && draft.customer.email) {
     const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
     const validUntilLabel = new Date(validUntil).toLocaleDateString("fr-CA", {
       day: "numeric",
@@ -109,4 +112,30 @@ export async function saveQuoteAndEmail({
   }
 
   return { id: quoteId, valid_until: validUntil };
+}
+
+/**
+ * Agent → Client secure Square payment link.
+ * Calls the `field-payment-link-create` edge function which creates a
+ * `field_payment_intents` row and emails the client the /payer/{id} URL.
+ */
+export interface PaymentLinkResult {
+  intent_id: string;
+  payment_url: string;
+  expires_at: string;
+  email_sent: boolean;
+}
+
+export async function sendPaymentLinkFromQuote(quoteId: string): Promise<PaymentLinkResult> {
+  const { data, error } = await supabase.functions.invoke("field-payment-link-create", {
+    body: { quote_id: quoteId, mode: "email" },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || "Échec de la création du lien de paiement.");
+  return {
+    intent_id: data.intent_id,
+    payment_url: data.payment_url,
+    expires_at: data.expires_at,
+    email_sent: !!data.email_sent,
+  };
 }

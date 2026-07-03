@@ -19,11 +19,13 @@ import {
   CheckCircle2,
   Sparkles,
   Wrench,
+  Send,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
-import { saveQuoteAndEmail } from "@/field-app/lib/fieldQuoteService";
+import { saveQuoteAndEmail, sendPaymentLinkFromQuote } from "@/field-app/lib/fieldQuoteService";
 import { formatDiscountLabel } from "@/field-app/lib/fieldUtils";
 
 interface Props {
@@ -68,11 +70,64 @@ export default function StepRecap({
   const { user } = useStaffUser();
   const [savingQuote, setSavingQuote] = useState(false);
   const [quoteSavedId, setQuoteSavedId] = useState<string | null>(null);
+  const [sendingLink, setSendingLink] = useState(false);
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState<string | null>(null);
 
   const estimatedCommission = useMemo(
     () => Number((monthlyBeforeDiscount * 0.30 + equipmentTotal * 0.05).toFixed(2)),
     [monthlyBeforeDiscount, equipmentTotal],
   );
+
+  const agentDisplayName = () =>
+    (user?.user_metadata as Record<string, string> | undefined)?.full_name ||
+    user?.email ||
+    "Agent Nivra";
+
+  const handleSendPaymentLink = async () => {
+    if (sendingLink) return;
+    if (!draft.customer.email) {
+      toast.error("Le courriel du client est requis pour envoyer le lien de paiement.");
+      return;
+    }
+    if (draft.services.length === 0 && draft.equipment.length === 0) {
+      toast.error("Ajoutez au moins un service ou équipement.");
+      return;
+    }
+    setSendingLink(true);
+    try {
+      // 1) Persist the quote (no client email — the payment-link email is sent instead)
+      let quoteId = quoteSavedId;
+      if (!quoteId) {
+        const saved = await saveQuoteAndEmail({
+          draft,
+          agentName: agentDisplayName(),
+          activationFee,
+          subtotal,
+          tps,
+          tvq,
+          total,
+          skipClientEmail: true,
+        });
+        quoteId = saved.id;
+        setQuoteSavedId(saved.id);
+      }
+      // 2) Generate the secure Square payment link + email
+      const link = await sendPaymentLinkFromQuote(quoteId);
+      setPaymentLinkUrl(link.payment_url);
+      toast.success(
+        link.email_sent
+          ? `Lien envoyé à ${draft.customer.email}. Commission préservée.`
+          : "Lien de paiement créé — le courriel n'a pas pu être envoyé.",
+        { duration: 6000 },
+      );
+    } catch (err: any) {
+      console.warn("[payment_link] send failed", err);
+      toast.error(err?.message || "Impossible de créer le lien de paiement.");
+    } finally {
+      setSendingLink(false);
+    }
+  };
+
 
   const handleSaveQuote = async () => {
     if (savingQuote) return;
@@ -275,27 +330,64 @@ export default function StepRecap({
         </p>
       </div>
 
-      {/* Save as quote — never creates an order */}
+      {/* PRIMARY — Send secure payment link to client (agent commission preserved) */}
+      <button
+        type="button"
+        onClick={handleSendPaymentLink}
+        disabled={sendingLink || (draft.services.length === 0 && draft.equipment.length === 0)}
+        className="w-full min-h-[64px] rounded-xl field-gradient-accent text-white font-bold text-base field-glow hover:field-glow-strong transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+      >
+        {sendingLink ? (
+          <><Loader2 className="h-5 w-5 animate-spin" /> Envoi du lien en cours…</>
+        ) : paymentLinkUrl ? (
+          <><CheckCircle2 className="h-5 w-5" /> Lien envoyé — Renvoyer au client</>
+        ) : (
+          <><Send className="h-5 w-5" /> Envoyer le lien de paiement au client</>
+        )}
+      </button>
+
+      {paymentLinkUrl && (
+        <div className="rounded-xl border border-[hsl(var(--field-accent)/0.35)] bg-[hsl(var(--field-accent)/0.06)] p-4 space-y-2">
+          <p className="text-xs uppercase tracking-wider text-[hsl(var(--field-accent-glow))] font-semibold">
+            Lien sécurisé — expire dans 7 jours
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 truncate rounded-lg bg-black/40 px-3 py-2 text-xs text-white/85 font-mono">
+              {paymentLinkUrl}
+            </code>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(paymentLinkUrl);
+                toast.success("Lien copié.");
+              }}
+              className="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 text-xs text-white/80 hover:bg-white/10 transition-colors flex items-center gap-1.5"
+            >
+              <Copy className="h-3.5 w-3.5" /> Copier
+            </button>
+          </div>
+          <p className="text-[11px] text-[hsl(var(--field-text-muted))]">
+            Un courriel a été envoyé à {draft.customer.email}. La commission vous est créditée automatiquement à la réception du paiement.
+          </p>
+        </div>
+      )}
+
+      {/* Secondary — Save as quote (no payment link, just an offer) */}
       <button
         type="button"
         onClick={handleSaveQuote}
         disabled={savingQuote || !!quoteSavedId || (draft.services.length === 0 && draft.equipment.length === 0)}
-        className="w-full min-h-[56px] rounded-xl border border-[hsl(var(--field-accent)/0.4)] bg-[hsl(var(--field-accent)/0.08)] text-[hsl(var(--field-accent-glow))] font-semibold hover:bg-[hsl(var(--field-accent)/0.15)] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full min-h-[52px] rounded-xl border border-[hsl(var(--field-border-subtle))] bg-transparent text-white/75 font-medium hover:bg-white/[0.03] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
       >
         {savingQuote ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" /> Envoi en cours…
-          </>
-        ) : quoteSavedId ? (
-          <>
-            <CheckCircle2 className="h-4 w-4" /> Soumission envoyée au client
-          </>
+          <><Loader2 className="h-4 w-4 animate-spin" /> Envoi en cours…</>
+        ) : quoteSavedId && !paymentLinkUrl ? (
+          <><CheckCircle2 className="h-4 w-4" /> Soumission envoyée</>
         ) : (
-          <>
-            <Save className="h-4 w-4" /> Sauvegarder comme soumission (valide 30 jours)
-          </>
+          <><Save className="h-4 w-4" /> Envoyer plutôt une soumission (sans paiement)</>
         )}
       </button>
+
 
       <div className="flex gap-3 pt-2">
         <button
