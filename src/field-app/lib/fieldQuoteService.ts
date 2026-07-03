@@ -2,10 +2,10 @@
  * Field Sales — Quotes service.
  *
  * Quotes are saved BEFORE any order/invoice is created. They live in
- * `field_quotes` and can be re-opened via /commander?quote_id=...
+ * `field_quotes` and the client receives a secure Review Order link.
  *
- * Sending the quote enqueues a Violet Bold "field_quote" email to the client
- * with a CTA to complete the order.
+ * Sending the quote creates a field payment intent and emails the client a
+ * Review Order link. The client must never be sent back to GuestCheckout.
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
@@ -74,42 +74,17 @@ export async function saveQuoteAndEmail({
   const quoteId = inserted.id as string;
   const validUntil = inserted.valid_until as string;
 
-  // 2) Enqueue the Violet Bold "field_quote" email (best-effort).
+  // 2) Create the Review Order/Square link and send that email.
+  // IMPORTANT: never send field-sale clients to /commander?quote_id=...
+  // That route is GuestCheckout and would make the client recreate the order.
   if (!skipClientEmail && draft.customer.email) {
-    const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
-    const validUntilLabel = new Date(validUntil).toLocaleDateString("fr-CA", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
+    const { data: linkData, error: linkErr } = await supabase.functions.invoke("field-payment-link-create", {
+      body: { quote_id: quoteId, mode: "email" },
     });
-    const completeUrl = `${window.location.origin}/commander?quote_id=${quoteId}`;
 
-    const { error: mailErr } = await supabase.from("email_queue").insert({
-      event_key: `field_quote_${quoteId}`,
-      to_email: draft.customer.email,
-      template_key: "field_quote",
-      template_vars: {
-        client_name: draft.customer.first_name || "Client",
-        first_name: draft.customer.first_name,
-        agent_name: agentName,
-        quote_id: quoteId,
-        valid_until: validUntilLabel,
-        total: total.toFixed(2),
-        summary,
-        complete_url: completeUrl,
-        subject: "Votre soumission Nivra Telecom — Valide 30 jours",
-      },
-      status: "queued",
-    } as any);
-
-    if (mailErr) {
+    if (linkErr || !linkData?.ok) {
       // Non-fatal: quote is still saved. Caller can decide how to surface this.
-      console.warn("[field_quote] email enqueue failed", mailErr);
-    } else {
-      await supabase
-        .from("field_quotes")
-        .update({ email_sent_at: new Date().toISOString(), status: "sent" } as any)
-        .eq("id", quoteId);
+      console.warn("[field_quote] review-order link failed", linkErr || linkData?.error);
     }
   }
 
