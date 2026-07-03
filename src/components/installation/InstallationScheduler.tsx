@@ -129,8 +129,37 @@ export function InstallationScheduler({
       query = query.eq("region", "montreal");
     }
 
-    const { data } = await query;
-    setAvailableSlots((data || []) as SlotData[]);
+    // Load Core admin overrides (closed / reduced slots) in the same window.
+    const [{ data: slotsData }, { data: overridesData }] = await Promise.all([
+      query,
+      portalClient
+        .from("appointment_slot_overrides")
+        .select("override_date, time_slot, status, capacity_override")
+        .gte("override_date", fromDate)
+        .lte("override_date", toDate),
+    ]);
+
+    const overrideMap = new Map<string, { status: string; capacity_override: number | null }>();
+    (overridesData || []).forEach((o: any) => {
+      overrideMap.set(`${o.override_date}|${o.time_slot}`, {
+        status: o.status,
+        capacity_override: o.capacity_override,
+      });
+    });
+
+    const filtered = ((slotsData || []) as SlotData[])
+      .map((s) => {
+        const ov = overrideMap.get(`${s.slot_date}|${s.time_slot}`);
+        if (!ov) return s;
+        if (ov.status === "closed") return null; // Core-closed → never shown publicly
+        if (ov.status === "reduced" && ov.capacity_override != null) {
+          return { ...s, capacity: ov.capacity_override };
+        }
+        return s;
+      })
+      .filter((s): s is SlotData => s !== null);
+
+    setAvailableSlots(filtered);
   }, []);
 
   const recordInstallation = useCallback(async (answers: CablingData, targetDecision: InstallationDecision) => {
