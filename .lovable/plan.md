@@ -1,89 +1,79 @@
-# Refonte structurelle — GuestCheckout.tsx (/commander)
+## Audit — Ce qui reste "ancien design" dans le checkout
 
-Fichier unique modifié : `src/pages/GuestCheckout.tsx` (2226 lignes).
-**Zéro touche à la logique** : tous les `useState`, `useEffect`, handlers, appels API, validations, `submitOrder`, PayPal/Square, promo/référral restent **identiques**. Seul le JSX de rendu (lignes ~1138 → fin) est restructuré.
+### 1. Composants enfants qui n'ont PAS été refondus (rendent l'ancien style au milieu du flow)
+Ces composants sont montés à l'intérieur de `GuestCheckout.tsx` mais utilisent encore `Card`/`CardHeader` shadcn avec `bg-card`, `text-muted-foreground`, `border-border`, icônes cyan/violet — d'où la sensation de "changer d'application".
 
----
+| # | Composant | Étape utilisateur | Ancien style détecté |
+|---|-----------|-------------------|----------------------|
+| A | `CheckoutServiceAddress.tsx` | Adresse de service | `bg-card`, `text-muted-foreground`, icône cyan |
+| B | `InstallationSection.tsx` | Installation (auto/technicien) | Card shadcn, texte muted, icônes vertes hors palette |
+| C | `CheckoutShippingAndActivation.tsx` | Livraison + date d'activation | Card shadcn, ancien layout |
+| D | `GuestIdentityVerification.tsx` / `GuestKycCard.tsx` | Vérification identité | Card shadcn, badges rouges shadcn |
+| E | `PinSetupSection.tsx` | Création NIP client | Card shadcn, style ancien |
+| F | `TVChannelSelection.tsx` + `StreamingServiceSelection.tsx` + `StreamingPlusSelector.tsx` | Sélection chaînes TV / streaming | Grid avec bordures grises, texte muted, checkboxes shadcn brutes |
+| G | `ReferralCodeInput.tsx` / `PromoCodeInput.tsx` | Code promo / parrainage | Inputs shadcn nus, boutons violet primary |
+| H | `AutoPayPalOption.tsx` | Opt-in facturation auto | Card émeraude, style ancien |
+| I | `CheckoutEssentialTerms.tsx` | Consentements légaux | Checkboxes shadcn, texte muted-foreground |
 
-## Commit 1 — Layout 2 colonnes + accordéon progressif
+### 2. Blocs JSX résiduels dans `GuestCheckout.tsx` (lignes)
+- **L. 1944-1956** — bloc "Notes (optionnel)" : `<Card>` nu sans header bleu, incohérent
+- **L. 1849-1871** — banner port-in "carrier détecté" : `Card bg-emerald-500/10`
+- **L. 1876-1891** — banner promo "premier mois gratuit" : `Card bg-emerald-50`
+- **L. 1392, 1412, 1461, 1476, 1486, 1495, 1506, 1543, 1547, 1552, 1556, 1566, 1574, 1632, 1642, 1666, 1702, 1727, 1740, 1766, 1775, 1799, 1830, 1839, 1856, 1864** — occurrences résiduelles de `text-muted-foreground`, `border-border`, `bg-primary/5`, `border-primary` qui doivent basculer sur la palette Nivra (`text-[#6B7280]`, `border-[#E5E7EB]`, `bg-[#0066CC]/5`, `border-[#0066CC]`)
 
-### 1.1 Header checkout dédié
-- Remplacer `<Header />` global par un header checkout minimal : fond blanc, `border-b`, logo Nivra à gauche (Link → `/`), à droite `🔒 Commande sécurisée` + langue. Pas de menu de navigation (le client reste focus achat).
-- Style Bell : hauteur 64px, `sticky top-0 z-50`.
+### 3. Bug fonctionnel — frais d'auto-installation
+Fichier `src/pages/GuestCheckout.tsx` L. 449 :
+```ts
+const deliveryFee = isStreamingOnlyOrder ? 0 
+  : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
+```
+Source canonique `src/hooks/useCanonicalFees.ts` L. 49 : `delivery_self_install: 30` (fallback), et migration SQL de fallback à 20 $.
+**Correction demandée** : auto-installation = **0,00 $** partout (checkout + résumé + confirmation + `ClientNewOrder.tsx`).
 
-### 1.2 Barre de progression pleine largeur (style Bell)
-- Sous le header, bande blanche `border-b` contenant une barre horizontale pleine largeur avec 5 pastilles numérotées connectées par un trait progressif bleu `#0066CC`.
-- Labels sous chaque pastille : Forfait · Adresse · Informations · Options · Paiement.
-- État : futur = gris, courant = bleu plein anneau, complété = vert `#00A651` avec ✓.
-- Mobile : version compacte "Étape X / 5 — Label" + barre linéaire (déjà existante, on la garde).
-
-### 1.3 Grille desktop 60/40 avec sidebar sticky
-- Remplacer la grille actuelle `col-span-2 / col-span-6 / col-span-4` par `lg:grid-cols-5` → **col-gauche `lg:col-span-3`** (formulaire, ~60%) + **col-droite `lg:col-span-2`** (récap, ~40%).
-- Supprimer la colonne stepper vertical gauche (redondante avec la nouvelle barre pleine largeur).
-- Sidebar droite : `sticky top-[header+progress]`, `max-h-[calc(100vh-...)]`, `overflow-y-auto`.
-
-### 1.4 Étapes en accordéon progressif (style Rogers)
-- Nouveau composant local `StepShell({ id, title, isOpen, isDone, summary, onEdit, children })` inline dans le fichier.
-- États :
-  - **Ouverte** (id === step) : card blanche `shadow-md rounded-xl p-6`, header avec pastille numérotée bleue + titre + description.
-  - **Complétée** (id < step) : card repliée `p-4` fond `#F9FAFB`, ✓ vert + résumé 1 ligne (nom+prix pour Forfait, adresse formatée, `Prénom Nom · email`, options cochées) + bouton "Modifier" texte bleu à droite qui fait `setStep(id)`.
-  - **Future** (id > step) : card repliée grisée, opacity-60, non-cliquable, juste numéro + titre.
-- Wrapper chaque bloc `{step === N && (…)}` existant dans un `<StepShell>`. On rend **tous les steps 1-5 en même temps** dans la colonne gauche, chacun dans son état (ouvert/complété/futur). La logique de navigation reste `setStep(step+1)`.
-- Auto-scroll : dans un `useEffect([step])`, `document.getElementById(`step-${step}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })`.
-
-### 1.5 Sidebar récap (colonne droite desktop)
-- Card blanche `shadow-lg rounded-2xl` :
-  1. Header `bg-[#F0F6FC]` : "Votre commande"
-  2. Forfait sélectionné : nom en gras + prix `/mois` gros (24px), badge vert "1er mois GRATUIT" si applicable
-  3. Liste équipements requis (WiFi router, terminal TV, SIM) avec qty × prix
-  4. `Separator`
-  5. Sous-total, TPS, TVQ (labels gris, montants alignés droite)
-  6. **Total** ligne bleue `#0066CC` gros 20px bold
-  7. Promo/référral appliqués : ligne verte avec pastille
-  8. Espace + petit texte "Payable aujourd'hui : X$"
-- Extraire du JSX existant (déjà présent sous forme d'aside) — juste re-structurer, garder les mêmes `useMemo` de pricing.
+### 4. Bug fonctionnel — adresse redemandée
+`InternetPlans.tsx` (et `TVPlans.tsx`, `MobilePlans.tsx`) valident l'adresse via `AddressAutocomplete` puis appellent `navigate('/commander?plan=...')` **sans transmettre l'adresse**. Résultat : le checkout redemande tout.
 
 ---
 
-## Commit 2 — Paiement + Mobile + Micro-détails
+## Plan d'exécution (un seul commit)
 
-### 2.1 Section paiement pro (step 5)
-- Header dédié dans le StepShell : titre `Paiement sécurisé` à gauche + `🔒` + logos cartes SVG (Visa, MC, Amex, Interac) alignés à droite.
-- Encadré `bg-[#FAFBFC] border rounded-lg p-4` autour du `<SquarePaymentForm>`.
-- Sous le bouton "Confirmer et payer" : ligne de réassurance centrée 3 pictos : `🔒 Chiffré SSL 256-bit` · `✓ PCI-DSS Level 1` · `↩ Remboursable 30j`.
+### Commit — refonte uniforme + fixes
 
-### 2.2 Barre mobile sticky bottom
-- Remplacer l'actuelle nav mobile bas par 2 zones empilées `fixed bottom-0 inset-x-0 z-40` :
-  - **Bandeau récap collapsible** (fond blanc, `border-t`) : `Total : 45,99 $ — Voir le détail ▲` → click ouvre un `<Sheet>` shadcn qui affiche le contenu de la sidebar récap.
-  - **Bouton d'action pleine largeur** au-dessus : "Continuer →" ou "Confirmer et payer" selon step, hauteur 56px, bleu `#0066CC`.
-- Padding-bottom du form mobile augmenté pour compenser (`pb-40 lg:pb-0`).
+**Fix 1 — Pré-remplissage adresse (avant checkout → checkout)**
+- Dans `InternetPlans.tsx` / `TVPlans.tsx` / `MobilePlans.tsx` : au clic sur "Commander", écrire dans `sessionStorage` sous la clé `nivra_prechecked_address` un objet `{ line1, apartment, city, region, postalCode }` construit depuis `addressDetails`.
+- Dans `GuestCheckout.tsx` `useEffect` initial : si `nivra_prechecked_address` existe ET que le draft checkout n'a pas encore d'adresse, hydrater `addressStreet / addressCity / addressProvince / addressPostalCode` puis retirer la clé.
+- Champs restent modifiables (aucune UI verrouillée).
 
-### 2.3 Micro-détails
-- Transitions accordéon : classes `transition-all duration-300 ease-out` sur ouverture/fermeture des StepShell.
-- Skeleton loaders : déjà présents pour services, ajouter aussi pour `isServerPricingLoading` dans la sidebar (3 lignes skeleton à la place des chiffres).
-- Erreurs de champ : ajouter `id={\`field-${name}\`}` + après `toast.error`, `document.querySelector('[aria-invalid="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })`.
-- Formatage : `formatCanadianPhone` et `formatPostalCode` déjà utilisés — vérifier que tous les inputs `phone`/`postal` passent par eux (ils le font déjà).
-- AddressAutocomplete : déjà importé, vérifier qu'il est bien branché en step 2 (il l'est).
+**Fix 2 — Auto-installation 0 $**
+- `src/pages/GuestCheckout.tsx` L. 449 → `deliveryFee = isStreamingOnlyOrder ? 0 : 0` quand `installationChoice === "auto"` (retire fallback 20 $).
+- `src/pages/client/ClientNewOrder.tsx` L. 1962 et L. 3282 → même traitement.
+- `src/hooks/useCanonicalFees.ts` L. 49 → fallback `delivery_self_install: 0`.
+- Migration SQL : `UPDATE public.operational_fees SET amount = 0 WHERE fee_key = 'delivery_self_install'`.
+- Résumé de commande : conditionner l'affichage de la ligne "Livraison" pour ne plus l'afficher quand elle vaut 0.
 
----
+**Fix 3 — Uniformisation visuelle**
+Créer un composant partagé `<CheckoutCard title icon>` (calqué sur `CheckoutSection` déjà refait) : carte blanche `rounded-2xl shadow-sm border border-[#E5E7EB]`, header `bg-[#F0F6FC]` avec pastille bleue `#0066CC/10` + icône `#0066CC`, corps `p-5 sm:p-6 space-y-4`.
 
-## Vérifications avant chaque commit
-1. `npx tsgo --noEmit` doit passer.
-2. Grep : aucun handler / `useState` / `useEffect` / `submitOrder` / `handlePayment` supprimé ou renommé.
-3. Playwright headless : ouvrir `/commander`, screenshot desktop 1280×1800 et mobile 390×800 → viewer les 2 pour valider visuellement.
-4. `security--get_scan_results` avant publication.
-5. `preview_ui--publish` après commit 2.
+Puis refondre :
+- **A. CheckoutServiceAddress.tsx** — remplace `Card` par `CheckoutCard`, icônes/labels au style Nivra, inputs shadcn conservés (déjà bien) mais wrapper cohérent.
+- **B. InstallationSection.tsx** — deux cartes-choix radio (`auto` / `technician`) en tuiles `border-2` sélectionnables, prix affiché `Gratuit` / `25 $`, checklist bleue.
+- **C. CheckoutShippingAndActivation.tsx** — un `CheckoutCard` unifié "Livraison & activation", date-picker Nivra.
+- **D. GuestIdentityVerification.tsx / GuestKycCard.tsx** — même shell, upload styled comme le reste.
+- **E. PinSetupSection.tsx** — `CheckoutCard` bleu avec 4 cases NIP grandes (48×48).
+- **F. TVChannelSelection.tsx / StreamingServiceSelection.tsx / StreamingPlusSelector.tsx** — tuiles blanches `rounded-xl` hover `border-[#0066CC]`, prix en bleu.
+- **G. ReferralCodeInput.tsx / PromoCodeInput.tsx** — input + bouton `bg-[#0066CC]`, message succès `bg-[#00A651]/10`.
+- **H. AutoPayPalOption.tsx** — `CheckoutCard` avec toggle switch bleu.
+- **I. CheckoutEssentialTerms.tsx** — checkboxes `border-[#0066CC]`, texte `text-[#1A1A2E]`, liens `#0066CC underline`.
 
----
+**Fix 4 — Résidus dans GuestCheckout.tsx**
+- Bloc Notes (1944-1956) : bascule en `CheckoutCard`.
+- Banners port-in / promo : re-skin bleu Nivra (fond `#F0F6FC`, texte `#1A1A2E`, icône check `#00A651`).
+- Mass-replace des `text-muted-foreground` → `text-[#6B7280]`, `border-border` → `border-[#E5E7EB]`, `border-primary` → `border-[#0066CC]`, `bg-primary/5` → `bg-[#0066CC]/5` **uniquement dans `GuestCheckout.tsx` et les 9 composants ci-dessus** (aucun autre fichier touché).
 
-## Ce que je ne toucherai PAS
-- Tous les imports de logique, hooks, edge functions.
-- Signatures et handlers : `handleSubmit`, `handleNext`, `handleBack`, `applyPromoCode`, `handlePayPalApprove`, `submitOrder`, etc.
-- `useEffect` de tracking, abandonment email, draft persistence.
-- Validations (`validateShipping`, `validateActivation`, `validateDob`, `validateCanadianPhone`, `validateCanadianPostalCode`, `isChecklistComplete`).
-- Composants externes : `CheckoutShippingAndActivation`, `SquarePaymentForm`, `InstallationSection`, `PromoCodeInput`, `ReferralCodeInput`, `ConfirmationSuccess`, `CheckoutEssentialTermsBase`, `AddressAutocomplete`.
+### Validation
+- `npx tsgo --noEmit`
+- Playwright : capture desktop 1280×1800 + mobile 390×800 sur `/commander?plan=<id>` pour vérifier que **toutes** les étapes ont le même langage visuel.
+- Aucun changement à la logique (handlers, RPC, validations, state).
 
-## Après approbation
-J'exécute commit 1 → typecheck → screenshot → commit 2 → typecheck → screenshot → scan sécurité → publish.
-
-**Approuves-tu ce plan pour que je démarre le commit 1 ?**
+### Livraison
+Après validation, publication via `preview_ui--publish` sur la prod.
