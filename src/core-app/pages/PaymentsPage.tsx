@@ -2,7 +2,9 @@
  * Nivra Core — Payment Operations Console
  * Telecom-grade financial operations workspace.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useAdminPayments } from "@/core-app/hooks/useAdminPayments";
 import type { AdminPayment } from "@/core-app/hooks/useAdminPayments";
 import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
@@ -13,16 +15,33 @@ import { PaymentTable } from "@/core-app/components/payments/PaymentTable";
 import { PaymentDetailDrawer } from "@/core-app/components/payments/PaymentDetailDrawer";
 import { PaymentFinancialSummary } from "@/core-app/components/payments/PaymentFinancialSummary";
 import { InteracVerificationPanel } from "@/core-app/components/payments/InteracVerificationPanel";
-import { RefreshCw, CreditCard, LayoutGrid, List } from "lucide-react";
+import { PAYMENT_METHODS, PAYMENT_SOURCES, PAYMENT_STATUSES } from "@/core-app/components/payments/PaymentConstants";
+import { exportToCSV } from "@/core-app/lib/exportUtils";
+import { RefreshCw, CreditCard, Download } from "lucide-react";
 
 const PaymentsPage = () => {
+  const queryClient = useQueryClient();
   const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("all");
   const { data: payments = [], isLoading, refetch } = useAdminPayments(envFilter);
+
+  // Realtime: refetch on any billing_payments change
+  useEffect(() => {
+    const channel = supabase
+      .channel("core-payments-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "billing_payments" },
+        () => { queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] }); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   // Filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [methodFilter, setMethodFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [fraudOnly, setFraudOnly] = useState(false);
