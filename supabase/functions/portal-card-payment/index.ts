@@ -221,6 +221,30 @@ Deno.serve(async (req) => {
       },
     }).then(() => undefined, () => undefined);
 
+    // ── Auto-note: paiement reçu (portail client — carte) ──
+    if (payment?.id) {
+      const { data: pmtRow } = await admin
+        .from("billing_payments")
+        .select("payment_number, nivra_reference, invoice:billing_invoices(invoice_number)")
+        .eq("id", payment.id)
+        .maybeSingle();
+      await writePaymentAutoNote({
+        supabase: admin,
+        billingCustomerId: customer.id,
+        clientAuthUserId: userId,
+        amount: Number(amountStr),
+        method: "card",
+        provider: "paypal",
+        invoiceNumber: (pmtRow as any)?.invoice?.invoice_number || null,
+        invoiceId: invoiceId || null,
+        nivraReference: pmtRow?.nivra_reference || null,
+        paymentNumber: pmtRow?.payment_number || null,
+        channel: "Portail client (carte)",
+      });
+    }
+
+
+
     return new Response(JSON.stringify({
       success: true,
       paypal_order_id: paypalOrderId,
