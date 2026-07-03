@@ -2445,6 +2445,7 @@ const GuestCheckout = () => {
           </div>
         </>
       )}
+      <Footer />
     </div>
   );
 };
