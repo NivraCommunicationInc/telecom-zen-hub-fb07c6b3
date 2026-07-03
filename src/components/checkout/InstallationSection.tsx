@@ -199,10 +199,11 @@ export function InstallationSection({
             </div>
           </button>
         </div>
+        )}
 
         {/* ── Expanded panels ── */}
         <AnimatePresence mode="wait">
-          {installationChoice === "auto" && (
+          {showChoice && installationChoice === "auto" && (
             <motion.div
               key="auto"
               initial={{ opacity: 0, height: 0 }}
