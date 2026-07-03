@@ -520,6 +520,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
       const quote = await saveQuoteAndEmail({
         draft, agentName, activationFee,
         subtotal, tps, tvq, total, agentGps,
+        skipClientEmail: true,
       });
 
       const { data, error } = await supabase.functions.invoke("field-card-intent", {
