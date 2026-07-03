@@ -109,11 +109,18 @@ export function PaymentTable({ payments, isLoading, onSelect }: Props) {
               payments.map(p => {
                 const isFraud = p.status === "fraud";
                 const statusLabel = PAYMENT_STATUSES[p.status as keyof typeof PAYMENT_STATUSES] || p.status || "—";
-                // Mask paypal as "Carte"
-                const methodKey = p.method === "paypal" ? "card" : p.method;
-                const methodLabel = PAYMENT_METHODS[methodKey as keyof typeof PAYMENT_METHODS] || methodKey;
+                // STAFF VIEW — show real processor (Square / PayPal) alongside method
+                const baseMethod = PAYMENT_METHODS[p.method as keyof typeof PAYMENT_METHODS] || p.method;
+                const providerTag =
+                  p.provider === "square" ? " (Square)"
+                  : p.provider === "paypal" ? " (PayPal)"
+                  : p.method === "paypal" ? " (PayPal)"
+                  : "";
+                const methodLabel = `${baseMethod}${providerTag}`;
                 const sourceLabel = p.source ? (PAYMENT_SOURCES[p.source] || p.source) : "—";
-                const processorRef = p.square_payment_id || (p.provider === "paypal" ? "—" : p.provider_payment_id) || p.reference || "—";
+                // STAFF VIEW — full processor reference, never masked
+                const processorRef = p.square_payment_id || p.provider_payment_id || p.reference || "—";
+
 
                 return (
                   <tr
