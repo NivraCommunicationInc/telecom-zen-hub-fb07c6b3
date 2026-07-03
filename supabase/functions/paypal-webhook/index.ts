@@ -886,7 +886,24 @@ serve(async (req) => {
                 console.log(`[PayPal Webhook] ✓ Auto-reactivated subscription ${rpcResult.subscription_id}`);
               }
             }
+
+            // ── Auto-note: paiement reçu (capture PayPal one-time) ──
+            if (!rpcResult?.already_processed) {
+              await writePaymentAutoNote({
+                supabase,
+                billingCustomerId: rpcResult?.customer_id || null,
+                amount: captureAmount,
+                method: "paypal",
+                provider: "paypal",
+                invoiceNumber: rpcResult?.invoice_number || null,
+                invoiceId: v2Check.id,
+                nivraReference: rpcResult?.nivra_reference || null,
+                paymentNumber: rpcResult?.payment_number || null,
+                channel: "PayPal (capture)",
+              });
+            }
           }
+
         } else if (v2Check?.status === "paid") {
           console.log(`[PayPal Webhook] Invoice ${customId} already paid — skipping`);
         } else {
