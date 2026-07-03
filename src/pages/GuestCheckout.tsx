@@ -1442,10 +1442,10 @@ const GuestCheckout = () => {
                   Continuer <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 2: ADRESSE ═══ */}
-            {step === 2 && (
+            {step < 6 && renderStepShell(2, step === 2 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1523,10 +1523,10 @@ const GuestCheckout = () => {
                   </Button>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 3: INFORMATIONS CLIENT ═══ */}
-            {step === 3 && (
+            {step < 6 && renderStepShell(3, step === 3 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1595,10 +1595,10 @@ const GuestCheckout = () => {
                   </Button>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 4: OPTIONS ═══ */}
-            {step === 4 && (
+            {step < 6 && renderStepShell(4, step === 4 && (
               <div className="space-y-6">
                 {/* Installation */}
                 {(hasInternetService || hasTVService) && (
@@ -1979,10 +1979,10 @@ const GuestCheckout = () => {
                   </Button>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 5: PAIEMENT ═══ */}
-            {step === 5 && (
+            {step < 6 && renderStepShell(5, step === 5 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -2148,7 +2148,7 @@ const GuestCheckout = () => {
                   </Button>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 6: CONFIRMATION ═══ */}
             {step === 6 && orderResult && (
