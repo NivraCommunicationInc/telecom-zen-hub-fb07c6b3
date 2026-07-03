@@ -228,26 +228,28 @@ export function InstallationScheduler({
 
   return (
     <div className="space-y-4">
-      {/* Step 1: Questionnaire */}
-      <CablingQuestionnaire
-        isFrench={isFrench}
-        onComplete={handleQuestionnaireComplete}
-        initialValues={cablingAnswers || undefined}
-      />
+      {/* Step 1: Questionnaire — only in "choice" phase */}
+      {showQuestionnaire && (
+        <CablingQuestionnaire
+          isFrench={isFrench}
+          onComplete={handleQuestionnaireComplete}
+          initialValues={cablingAnswers || undefined}
+        />
+      )}
 
-      {/* Step 2: Decision */}
+      {/* Step 2: Decision — always visible once computed */}
       {decision && (
         <InstallationDecisionDisplay
           decision={decision}
           isFrench={isFrench}
           distanceKm={distanceKm}
-          onChooseAutoInstall={decision.messageKey === "remote_auto" ? handleChooseAuto : undefined}
-          onChooseTechnician={decision.messageKey === "remote_auto" ? handleChooseTechnician : undefined}
+          onChooseAutoInstall={showQuestionnaire && decision.messageKey === "remote_auto" ? handleChooseAuto : undefined}
+          onChooseTechnician={showQuestionnaire && decision.messageKey === "remote_auto" ? handleChooseTechnician : undefined}
         />
       )}
 
-      {/* Step 3: Slot picker (only for technician installs) */}
-      {decision && (decision.installationType === "technician" || overrideToTech) && (
+      {/* Step 3: Slot picker — only in "schedule" phase for technician installs */}
+      {showSchedule && decision && (decision.installationType === "technician" || overrideToTech) && (
         <>
           {activeHold && !holdLoading && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-[#0066CC]/[0.06] border border-[#0066CC]/25">
