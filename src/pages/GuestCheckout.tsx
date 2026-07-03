@@ -54,6 +54,7 @@ import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMone
 import { estimateTaxes as estimateMonthlyTaxes } from "@/lib/pricing/serverTaxEngine";
 import { submitNivraCheckout, type NivraFullCheckoutPayload, type NivraFullCheckoutResponse } from "@/lib/api/nivraApi";
 import { fallbackCheckout } from "@/lib/checkoutFallback";
+import { readPrecheckedAddress, clearPrecheckedAddress } from "@/lib/checkout/prechekedAddress";
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { toast } from "sonner";
 import {
