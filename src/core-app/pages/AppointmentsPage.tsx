@@ -58,7 +58,7 @@ const AppointmentsPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "calendar">("calendar");
   const [newOpen, setNewOpen] = useState(false);
   const [savingNew, setSavingNew] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
