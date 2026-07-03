@@ -85,7 +85,7 @@ const CHECKOUT_STEPS = [
   { id: 1, labelFr: "Forfait", labelEn: "Plan" },
   { id: 2, labelFr: "Adresse", labelEn: "Address" },
   { id: 3, labelFr: "Informations", labelEn: "Info" },
-  { id: 4, labelFr: "Options", labelEn: "Options" },
+  { id: 4, labelFr: "Installation", labelEn: "Installation" },
   { id: 5, labelFr: "Paiement", labelEn: "Payment" },
   { id: 6, labelFr: "Confirmation", labelEn: "Confirmation" },
 ];
@@ -1369,9 +1369,11 @@ const GuestCheckout = () => {
             {/* Mobile compact */}
             <div className="md:hidden">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wide">Étape {step} / 5</span>
+                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wide">
+                  Étape {step === 4 && installationPhase === "schedule" ? "4b" : step} / 5
+                </span>
                 <span className="text-sm font-bold text-[#0066CC]">
-                  {CHECKOUT_STEPS.find(s => s.id === step)?.labelFr}
+                  {step === 4 && installationPhase === "schedule" ? "Rendez-vous" : CHECKOUT_STEPS.find(s => s.id === step)?.labelFr}
                 </span>
               </div>
               <div className="h-2 w-full rounded-full overflow-hidden bg-[#E5E7EB]">
