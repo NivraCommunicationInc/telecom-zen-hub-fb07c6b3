@@ -107,6 +107,13 @@ serve(async (req) => {
         return json({ ok: false, error: "Erreur création du lien de paiement" }, 500);
       }
       intentId = intent.id;
+
+      // Journal — link_created
+      await supabase.rpc("log_field_order_event" as never, {
+        p_intent_id: intentId,
+        p_event_type: "link_created",
+        p_payload: { quote_id: quote.id, amount: total, caller: callerId } as never,
+      }).then(undefined, () => {});
     }
 
     const paymentUrl = `${SITE_URL}/payer/${intentId}`;
