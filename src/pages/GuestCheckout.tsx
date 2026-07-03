@@ -1725,7 +1725,108 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
-                {/* SIM type selector — shown whenever a Mobile plan is in the cart */}
+                {/* ── Installation details only (câblage, statut, notes d'accès) ── */}
+                <CheckoutShippingAndActivation
+                  shipping={shippingData}
+                  onShippingChange={setShippingData}
+                  activation={activationData}
+                  onActivationChange={setActivationData}
+                  installationDetails={installationDetailsData}
+                  onInstallationDetailsChange={setInstallationDetailsData}
+                  showShippingActivation={false}
+                  showInstallationDetails={hasInternetService || hasTVService}
+                />
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-12 rounded-xl"
+                    onClick={() => {
+                      if (installationPhase === "schedule" && requiresInstallation) {
+                        setInstallationPhase("choice");
+                      } else {
+                        setStep(3);
+                      }
+                    }}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Retour
+                  </Button>
+                  <Button
+                    className="flex-1 h-12 font-bold rounded-xl"
+                    disabled={(() => {
+                      if (!requiresInstallation) return !installationChoice;
+                      if (installationPhase === "choice") return !installationChoice;
+                      return !appointmentConfirmed || !selectedDate || !selectedTime;
+                    })()}
+                    onClick={() => {
+                      if (requiresInstallation && installationPhase === "choice") {
+                        setInstallationPhase("schedule");
+                        setTimeout(() => document.getElementById("step-4")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                        return;
+                      }
+                      setStep(5);
+                    }}
+                    style={{ background: '#0066CC', boxShadow: '0 4px 20px rgba(0,102,204,0.30)' }}
+                  >
+                    {requiresInstallation && installationPhase === "choice"
+                      ? <>Choisir le rendez-vous <ArrowRight className="w-4 h-4 ml-2" /></>
+                      : <>Continuer <ArrowRight className="w-4 h-4 ml-2" /></>}
+                  </Button>
+                </div>
+              </div>
+            ))}
+
+            {/* ═══ STEP 5: OPTIONS & LIVRAISON ═══ */}
+            {step < 7 && renderStepShell(5, step === 5 && (
+              <div className="space-y-6">
+                {/* Premier mois gratuit — welcome banner */}
+                {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
+                  <div className="rounded-xl border border-[#00A651]/30 bg-[#00A651]/[0.06] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-[#00A651]/15 flex items-center justify-center flex-shrink-0">
+                          <Star className="w-5 h-5 text-[#00A651]" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#1A1A2E] text-sm">Rabais bienvenue appliqué</p>
+                          <p className="text-xs text-[#6B7280]">
+                            50 % de rabais sur votre premier mois — appliqué automatiquement.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-[#6B7280] hover:text-[#1A1A2E]"
+                        onClick={() => setWelcomeDiscountDismissed(true)}
+                      >
+                        Retirer
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto-applied first-month-free banner */}
+                {autoAppliedPromo && appliedPromo?.code === "BIENVENUE2026" && (
+                  <div className="rounded-xl border border-[#00A651]/30 bg-[#00A651]/[0.06] p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[#00A651]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Gift className="w-5 h-5 text-[#00A651]" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#1A1A2E] text-sm mb-1">
+                          Premier mois gratuit appliqué automatiquement
+                        </p>
+                        <p className="text-xs text-[#6B7280] leading-relaxed">
+                          Nous avons détecté que vous êtes un nouveau client Nivra Telecom.
+                          Votre premier mois de service est entièrement gratuit — aucun code requis.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SIM type selector */}
                 {hasMobileService && (
                   <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                     <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1795,7 +1896,7 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
-                {/* ── Port-in : conservation du numéro ── */}
+                {/* Port-in : conservation du numéro */}
                 {hasMobileService && (
                   <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                     <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1896,53 +1997,7 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
-                {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
-                  <div className="rounded-xl border border-[#00A651]/30 bg-[#00A651]/[0.06] p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-[#00A651]/15 flex items-center justify-center flex-shrink-0">
-                          <Star className="w-5 h-5 text-[#00A651]" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[#1A1A2E] text-sm">Rabais bienvenue appliqué</p>
-                          <p className="text-xs text-[#6B7280]">
-                            50 % de rabais sur votre premier mois — appliqué automatiquement.
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs text-[#6B7280] hover:text-[#1A1A2E]"
-                        onClick={() => setWelcomeDiscountDismissed(true)}
-                      >
-                        Retirer
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Auto-applied first-month-free banner */}
-                {autoAppliedPromo && appliedPromo?.code === "BIENVENUE2026" && (
-                  <div className="rounded-xl border border-[#00A651]/30 bg-[#00A651]/[0.06] p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-[#00A651]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Gift className="w-5 h-5 text-[#00A651]" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[#1A1A2E] text-sm mb-1">
-                          Premier mois gratuit appliqué automatiquement
-                        </p>
-                        <p className="text-xs text-[#6B7280] leading-relaxed">
-                          Nous avons détecté que vous êtes un nouveau client Nivra Telecom.
-                          Votre premier mois de service est entièrement gratuit — aucun code requis.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Phase 2: Shipping override + activation date + installation details ── */}
+                {/* Shipping override + activation date */}
                 <CheckoutShippingAndActivation
                   shipping={shippingData}
                   onShippingChange={setShippingData}
@@ -1950,7 +2005,8 @@ const GuestCheckout = () => {
                   onActivationChange={setActivationData}
                   installationDetails={installationDetailsData}
                   onInstallationDetailsChange={setInstallationDetailsData}
-                  showInstallationDetails={hasInternetService || hasTVService}
+                  showShippingActivation={true}
+                  showInstallationDetails={false}
                 />
 
                 {/* Promo / Referral */}
@@ -1991,7 +2047,7 @@ const GuestCheckout = () => {
                   </CardContent>
                 </Card>
 
-                {/* Notes */}
+                {/* Notes de commande */}
                 <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
                   <div className="px-5 sm:px-6 py-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                     <div className="flex items-center gap-3">
@@ -1999,7 +2055,7 @@ const GuestCheckout = () => {
                         <Info className="w-5 h-5 text-[#0066CC]" />
                       </div>
                       <div>
-                        <h3 className="text-base font-semibold text-[#1A1A2E]">Notes</h3>
+                        <h3 className="text-base font-semibold text-[#1A1A2E]">Notes de commande</h3>
                         <p className="text-xs text-[#6B7280] mt-0.5">Optionnel — instructions particulières pour votre commande</p>
                       </div>
                     </div>
@@ -2016,60 +2072,30 @@ const GuestCheckout = () => {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-12 rounded-xl"
-                    onClick={() => {
-                      // If we're on the "schedule" sub-phase of step 4, go back to "choice" phase (not step 3)
-                      if (installationPhase === "schedule" && requiresInstallation) {
-                        setInstallationPhase("choice");
-                      } else {
-                        setStep(3);
-                      }
-                    }}
-                  >
+                  <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setStep(4)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
                     className="flex-1 h-12 font-bold rounded-xl"
-                    disabled={(() => {
-                      // Common blocking: shipping/activation validation always required
-                      if (validateShipping(shippingData)) return true;
-                      if (validateActivation(activationData)) return true;
-                      // No installation required (streaming-only, mobile-only) → nothing else to block
-                      if (!requiresInstallation) return !installationChoice;
-                      // Choice sub-phase: need a choice made (auto works instantly)
-                      if (installationPhase === "choice") return !installationChoice;
-                      // Schedule sub-phase: need a confirmed appointment
-                      return !appointmentConfirmed || !selectedDate || !selectedTime;
-                    })()}
+                    disabled={!!validateShipping(shippingData) || !!validateActivation(activationData)}
                     onClick={() => {
                       const shipErr = validateShipping(shippingData);
                       if (shipErr) { toast.error(shipErr); return; }
                       const actErr = validateActivation(activationData);
                       if (actErr) { toast.error(actErr); return; }
-                      // Technician + still on choice phase → advance to schedule sub-phase (stay on step 4)
-                      if (requiresInstallation && installationPhase === "choice") {
-                        setInstallationPhase("schedule");
-                        // Scroll to top of installation card
-                        setTimeout(() => document.getElementById("step-4")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-                        return;
-                      }
-                      // Otherwise → advance to payment
-                      setStep(5);
+                      setStep(6);
                     }}
                     style={{ background: '#0066CC', boxShadow: '0 4px 20px rgba(0,102,204,0.30)' }}
                   >
-                    {requiresInstallation && installationPhase === "choice"
-                      ? <>Choisir le rendez-vous <ArrowRight className="w-4 h-4 ml-2" /></>
-                      : <>Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" /></>}
+                    Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
               </div>
             ))}
 
-            {/* ═══ STEP 5: PAIEMENT ═══ */}
-            {step < 7 && renderStepShell(5, step === 5 && (
+            {/* ═══ STEP 6: PAIEMENT ═══ */}
+            {step < 7 && renderStepShell(6, step === 6 && (
+
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
