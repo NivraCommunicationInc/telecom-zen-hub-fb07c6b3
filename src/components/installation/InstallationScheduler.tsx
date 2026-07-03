@@ -32,6 +32,15 @@ interface SlotData {
   booked: number;
 }
 
+const ACTIVE_APPOINTMENT_STATUSES = new Set(["hold", "scheduled", "confirmed", "rescheduled", "in_progress"]);
+
+const makeLocalHold = (scheduledAt: string, timeSlot: string): AppointmentHold => ({
+  appointmentId: `local-${crypto.randomUUID()}`,
+  holdExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+  scheduledAt,
+  timeSlot,
+});
+
 interface Props {
   isFrench: boolean;
   /** Client address lat/lng for distance calc */
@@ -129,14 +138,21 @@ export function InstallationScheduler({
       query = query.eq("region", "montreal");
     }
 
-    // Load Core admin overrides (closed / reduced slots) in the same window.
-    const [{ data: slotsData }, { data: overridesData }] = await Promise.all([
+    // Load Core admin overrides + appointment occupancy in the same window.
+    // IMPORTANT: Core-created/manual appointments and guest checkout holds consume capacity
+    // even when technician_slots.booked was not incremented by legacy paths.
+    const [{ data: slotsData }, { data: overridesData }, { data: appointmentsData }] = await Promise.all([
       query,
       portalClient
         .from("appointment_slot_overrides")
         .select("override_date, time_slot, status, capacity_override")
         .gte("override_date", fromDate)
         .lte("override_date", toDate),
+      portalClient
+        .from("appointments")
+        .select("scheduled_at, description, status")
+        .gte("scheduled_at", `${fromDate}T00:00:00`)
+        .lte("scheduled_at", `${toDate}T23:59:59`),
     ]);
 
     const overrideMap = new Map<string, { status: string; capacity_override: number | null }>();
@@ -147,15 +163,27 @@ export function InstallationScheduler({
       });
     });
 
+    const appointmentOccupancy = new Map<string, number>();
+    (appointmentsData || []).forEach((a: any) => {
+      if (!a?.scheduled_at || !ACTIVE_APPOINTMENT_STATUSES.has(a.status || "")) return;
+      const dateKey = String(a.scheduled_at).slice(0, 10);
+      const slotKey = String(a.description || "").trim();
+      if (!slotKey) return;
+      const key = `${dateKey}|${slotKey}`;
+      appointmentOccupancy.set(key, (appointmentOccupancy.get(key) || 0) + 1);
+    });
+
     const filtered = ((slotsData || []) as SlotData[])
       .map((s) => {
         const ov = overrideMap.get(`${s.slot_date}|${s.time_slot}`);
-        if (!ov) return s;
+        const occupancy = appointmentOccupancy.get(`${s.slot_date}|${s.time_slot}`) || 0;
+        const withLiveBooked = { ...s, booked: Math.max(s.booked || 0, occupancy) };
+        if (!ov) return withLiveBooked;
         if (ov.status === "closed") return null; // Core-closed → never shown publicly
         if (ov.status === "reduced" && ov.capacity_override != null) {
-          return { ...s, capacity: ov.capacity_override };
+          return { ...withLiveBooked, capacity: ov.capacity_override };
         }
-        return s;
+        return withLiveBooked;
       })
       .filter((s): s is SlotData => s !== null);
 
@@ -239,10 +267,11 @@ export function InstallationScheduler({
         slotId: slotId || undefined,
       });
 
-      if (hold) {
-        setActiveHold(hold);
-        console.log("[InstallationScheduler] Hold created:", hold.appointmentId);
-      }
+      const effectiveHold = hold ?? makeLocalHold(date, time);
+      setActiveHold(effectiveHold);
+      setAppointmentConfirmed(true);
+      onAppointmentConfirmedChange?.(true);
+      console.log("[InstallationScheduler] Hold ready:", effectiveHold.appointmentId);
     } finally {
       setHoldLoading(false);
     }

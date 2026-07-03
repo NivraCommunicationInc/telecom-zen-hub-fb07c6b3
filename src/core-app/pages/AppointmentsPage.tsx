@@ -14,13 +14,19 @@ import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBad
 import { AppointmentActionsMenu } from "@/core-app/components/appointments/AppointmentActionsMenu";
 import { AppointmentCalendarView } from "@/core-app/components/appointments/AppointmentCalendarView";
 import {
-  Calendar, Search, RefreshCw, ArrowRight,
+  Calendar, Search, RefreshCw, ArrowRight, Plus, Loader2,
   MapPin, User, Wrench, Settings, LayoutGrid, List,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { CoreEnvironmentToggle } from "@/core-app/components/CoreEnvironmentToggle";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const STATUS_FILTERS = [
   { label: "Tous", value: "" },
@@ -39,12 +45,29 @@ const TYPE_FILTERS = [
   { label: "Auto-installation", value: "auto" },
 ];
 
+const TIME_SLOTS = ["09h - 12h", "12h - 15h", "15h - 18h", "18h - 20h"];
+
+const scheduledAtFromSlot = (date: string, slot: string) => {
+  const hour = slot.match(/(\d{1,2})h/)?.[1] || "9";
+  const d = new Date(`${date}T${hour.padStart(2, "0")}:00:00`);
+  return d.toISOString();
+};
+
 const AppointmentsPage = () => {
   const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "calendar">("calendar");
+  const [newOpen, setNewOpen] = useState(false);
+  const [savingNew, setSavingNew] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [newDate, setNewDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [newSlot, setNewSlot] = useState(TIME_SLOTS[0]);
+  const [newServiceType, setNewServiceType] = useState("Internet");
+  const [newTechId, setNewTechId] = useState("");
+  const [newNotes, setNewNotes] = useState("");
 
   const { data: appointments, isLoading, refetch } = useQuery({
     queryKey: ["core-appointments", statusFilter, envFilter],
@@ -65,6 +88,68 @@ const AppointmentsPage = () => {
       return data || [];
     },
   });
+
+  const { data: clientOptions = [], isFetching: clientsLoading } = useQuery({
+    queryKey: ["appointment-client-search", clientSearch],
+    enabled: newOpen && clientSearch.trim().length >= 2,
+    queryFn: async () => {
+      const q = clientSearch.trim();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, full_name, email, phone, service_address, service_city, service_postal_code")
+        .or(`email.ilike.%${q}%,full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
+        .limit(8);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: techs = [] } = useQuery({
+    queryKey: ["core-technicians-active-inline"],
+    enabled: newOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("technicians").select("id, full_name, status").order("full_name");
+      if (error) throw error;
+      return (data || []).filter((t: any) => t.status !== "inactive");
+    },
+  });
+
+  const createManualAppointment = async () => {
+    if (!selectedClient?.user_id) return toast.error("Sélectionnez un client existant");
+    if (!newDate || !newSlot) return toast.error("Date et créneau requis");
+    setSavingNew(true);
+    try {
+      const { error } = await supabase.from("appointments").insert({
+        client_id: selectedClient.user_id,
+        client_email: selectedClient.email || null,
+        client_phone: selectedClient.phone || null,
+        title: `Installation Technicien - ${newServiceType}`,
+        description: newSlot,
+        scheduled_at: scheduledAtFromSlot(newDate, newSlot),
+        duration_minutes: 180,
+        status: "scheduled",
+        service_type: newServiceType,
+        service_address: selectedClient.service_address || null,
+        service_city: selectedClient.service_city || null,
+        service_postal_code: selectedClient.service_postal_code || null,
+        installation_method: "technician",
+        technician_id: newTechId || null,
+        internal_notes: newNotes || null,
+        environment: "live",
+      } as any);
+      if (error) throw error;
+      toast.success("Rendez-vous créé");
+      setNewOpen(false);
+      setSelectedClient(null);
+      setClientSearch("");
+      setNewNotes("");
+      await refetch();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur");
+    } finally {
+      setSavingNew(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!appointments) return [];
@@ -140,6 +225,13 @@ const AppointmentsPage = () => {
           >
             <Settings className="h-3 w-3" /> Disponibilités
           </Link>
+          <Button
+            size="sm"
+            onClick={() => setNewOpen(true)}
+            className="h-8 text-xs bg-[#0066CC] hover:bg-[#0052A3] text-white"
+          >
+            <Plus className="h-3 w-3 mr-1" /> Nouveau rendez-vous
+          </Button>
           <button
             onClick={() => refetch()}
             className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-white hover:bg-[hsl(220,15%,16%)] transition-colors"
@@ -316,6 +408,79 @@ const AppointmentsPage = () => {
           </table>
         </div>
       )}
+
+      <Dialog open={newOpen} onOpenChange={setNewOpen}>
+        <DialogContent className="bg-[hsl(220,20%,10%)] border-[hsl(220,15%,18%)] text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">Nouveau rendez-vous manuel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-slate-400">Client existant</Label>
+              <Input
+                value={clientSearch}
+                onChange={(e) => { setClientSearch(e.target.value); setSelectedClient(null); }}
+                placeholder="Rechercher nom ou courriel…"
+                className="h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 mt-1"
+              />
+              {selectedClient ? (
+                <div className="mt-2 rounded border border-emerald-700/40 bg-emerald-950/20 p-2 text-xs text-emerald-200">
+                  Sélectionné: {selectedClient.full_name || `${selectedClient.first_name || ""} ${selectedClient.last_name || ""}`.trim() || selectedClient.email} · {selectedClient.email}
+                </div>
+              ) : clientSearch.trim().length >= 2 && (
+                <div className="mt-2 max-h-44 overflow-auto rounded border border-slate-800 bg-[#0d1421]">
+                  {clientsLoading ? <div className="p-3 text-xs text-slate-500">Recherche…</div> : clientOptions.map((c: any) => (
+                    <button
+                      key={c.user_id}
+                      type="button"
+                      onClick={() => setSelectedClient(c)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/70 border-b border-slate-800 last:border-b-0"
+                    >
+                      <span className="block text-slate-100">{c.full_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || c.email}</span>
+                      <span className="block text-slate-500">{c.email} · {[c.service_address, c.service_city].filter(Boolean).join(", ")}</span>
+                    </button>
+                  ))}
+                  {!clientsLoading && clientOptions.length === 0 && <div className="p-3 text-xs text-slate-500">Aucun client trouvé</div>}
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs text-slate-400">Date</Label>
+                <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs text-slate-400">Créneau</Label>
+                <select value={newSlot} onChange={(e) => setNewSlot(e.target.value)} className="w-full mt-1 bg-[#0d1421] border border-slate-700 text-slate-100 text-sm rounded-md h-9 px-2">
+                  {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs text-slate-400">Forfait / service</Label>
+                <Input value={newServiceType} onChange={(e) => setNewServiceType(e.target.value)} className="h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-400">Technicien</Label>
+              <select value={newTechId} onChange={(e) => setNewTechId(e.target.value)} className="w-full mt-1 bg-[#0d1421] border border-slate-700 text-slate-100 text-sm rounded-md h-9 px-2">
+                <option value="">— Non assigné —</option>
+                {techs.map((t: any) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-400">Notes</Label>
+              <Textarea rows={3} value={newNotes} onChange={(e) => setNewNotes(e.target.value)} className="text-sm bg-[#0d1421] border-slate-700 text-slate-100 mt-1" />
+            </div>
+            <p className="text-[11px] text-slate-500">Ce rendez-vous consomme immédiatement la capacité du créneau public grâce à la lecture des rendez-vous actifs par le checkout.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewOpen(false)} className="h-9 text-xs">Annuler</Button>
+            <Button onClick={createManualAppointment} disabled={savingNew} className="h-9 text-xs bg-[#0066CC] hover:bg-[#0052A3] text-white">
+              {savingNew && <Loader2 className="h-3 w-3 mr-1 animate-spin" />} Créer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

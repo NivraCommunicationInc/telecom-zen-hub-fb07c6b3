@@ -37,6 +37,20 @@ export default function CoreAppointmentDetail() {
     enabled: !!id,
   });
 
+  const { data: technician } = useQuery({
+    queryKey: ["core-appointment-technician", apt?.technician_id],
+    enabled: !!apt?.technician_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("technicians")
+        .select("id, full_name, email, phone, status")
+        .eq("id", apt.technician_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -142,6 +156,11 @@ export default function CoreAppointmentDetail() {
             <User className="h-4 w-4 text-cyan-400 mt-0.5 shrink-0" />
             <div>
               <p className="text-[11px] text-[hsl(220,10%,45%)] uppercase tracking-wide">Client</p>
+              {apt.client_id && (
+                <Link to={corePath(`/clients/${apt.client_id}`)} className="text-[13px] text-emerald-400 hover:underline">
+                  Ouvrir le profil client
+                </Link>
+              )}
               {apt.client_email && (
                 <p className="text-[13px] text-white flex items-center gap-1"><Mail className="h-3 w-3" /> {apt.client_email}</p>
               )}
@@ -162,6 +181,19 @@ export default function CoreAppointmentDetail() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Technician */}
+      <div className="rounded-xl border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,10%)] p-4">
+        <p className="text-[11px] text-[hsl(220,10%,45%)] uppercase tracking-wide mb-2">Technicien</p>
+        {technician ? (
+          <div className="text-[13px] text-white space-y-1">
+            <p className="font-medium">{technician.full_name}</p>
+            <p className="text-[hsl(220,10%,55%)]">{[technician.email, technician.phone, technician.status].filter(Boolean).join(" · ")}</p>
+          </div>
+        ) : (
+          <p className="text-[13px] text-[hsl(220,10%,50%)]">Non assigné</p>
+        )}
       </div>
 
       {/* Order link */}

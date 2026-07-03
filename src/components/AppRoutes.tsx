@@ -152,6 +152,7 @@ const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
 const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
 const CoreAppointments = lazy(() => import("@/core-app/pages/AppointmentsPage"));
 const CoreAppointmentDetail = lazy(() => import("@/core-app/pages/CoreAppointmentDetail"));
+const CoreAppointmentSlotsPage = lazy(() => import("@/core-app/pages/CoreAppointmentSlotsPage"));
 const CoreRequestsPage = lazy(() => import("@/core-app/pages/CoreRequestsPage"));
 const CoreWifiRequestsPage = lazy(() => import("@/core-app/pages/CoreActivationRequestsPage"));
 const CoreTechnicianMobilePage = lazy(() => import("@/core-app/pages/CoreTechnicianMobilePage"));
@@ -994,6 +995,7 @@ const AppRoutes = () => {
           <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
           <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
           <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
+          <Route path="appointments/slots" element={<Suspense fallback={null}><CoreAppointmentSlotsPage /></Suspense>} />
           <Route path="appointments/:id" element={<Suspense fallback={null}><CoreAppointmentDetail /></Suspense>} />
           <Route path="requests" element={<Suspense fallback={null}><CoreRequestsPage /></Suspense>} />
           <Route path="wifi-requests" element={<Suspense fallback={null}><CoreWifiRequestsPage /></Suspense>} />

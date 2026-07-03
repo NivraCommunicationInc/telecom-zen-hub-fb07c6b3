@@ -54,6 +54,7 @@ import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMone
 import { estimateTaxes as estimateMonthlyTaxes } from "@/lib/pricing/serverTaxEngine";
 import { submitNivraCheckout, type NivraFullCheckoutPayload, type NivraFullCheckoutResponse } from "@/lib/api/nivraApi";
 import { fallbackCheckout } from "@/lib/checkoutFallback";
+import { confirmAppointmentHold } from "@/lib/appointmentHold";
 import { readPrecheckedAddress, clearPrecheckedAddress } from "@/lib/checkout/prechekedAddress";
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { toast } from "sonner";
@@ -946,6 +947,44 @@ const GuestCheckout = () => {
         });
       } catch (e) {
         console.warn("[GuestCheckout] Canonical sync failed (non-blocking):", e);
+      }
+
+      // Link the public checkout appointment hold to the final order when available.
+      // If the buyer was a guest before account creation, no backend hold existed yet;
+      // create the confirmed appointment now so Core and public capacity stay synchronized.
+      if (requiresInstallation && installationChoice === "technician" && selectedDate && selectedTime) {
+        try {
+          const linkedExistingHold = await confirmAppointmentHold(response.order_id);
+          if (!linkedExistingHold) {
+            await supabase.from("appointments").insert({
+              order_id: response.order_id,
+              client_id: userId,
+              client_email: email.trim().toLowerCase(),
+              client_phone: phone.trim() || null,
+              title: `Installation Technicien - ${selectedServices.map(s => s.name).join(" + ") || "Service Nivra"}`,
+              description: selectedTime,
+              service_type: selectedServices.map(s => s.category || s.name).join(" + ") || "Internet",
+              service_address: addressStreet,
+              service_city: addressCity || null,
+              service_postal_code: addressPostalCode || null,
+              installation_method: "technician",
+              scheduled_at: selectedDate,
+              delivery_fee: deliveryFee,
+              installation_fee: installationFee,
+              equipment_details: checkoutPayload.equipment as any,
+              status: "confirmed",
+              created_by: userId,
+              environment: "live",
+              internal_notes: [
+                installationDetailsData.coaxAvailable ? `Coax: ${installationDetailsData.coaxAvailable}` : null,
+                installationDetailsData.occupancyStatus ? `Statut: ${installationDetailsData.occupancyStatus}` : null,
+                installationDetailsData.accessNotes ? `Accès: ${installationDetailsData.accessNotes}` : null,
+              ].filter(Boolean).join("\n") || null,
+            } as any);
+          }
+        } catch (e) {
+          console.warn("[GuestCheckout] Appointment link/create failed (non-blocking):", e);
+        }
       }
 
       // Step 6: Consent record (BLOCKING — must succeed)
