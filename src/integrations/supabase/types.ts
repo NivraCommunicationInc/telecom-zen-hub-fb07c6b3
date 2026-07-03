@@ -1821,6 +1821,42 @@ export type Database = {
         }
         Relationships: []
       }
+      appointment_slot_overrides: {
+        Row: {
+          capacity_override: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          override_date: string
+          reason: string | null
+          status: string
+          time_slot: string
+          updated_at: string
+        }
+        Insert: {
+          capacity_override?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          override_date: string
+          reason?: string | null
+          status?: string
+          time_slot: string
+          updated_at?: string
+        }
+        Update: {
+          capacity_override?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          override_date?: string
+          reason?: string | null
+          status?: string
+          time_slot?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       appointment_slot_rules: {
         Row: {
           capacity: number

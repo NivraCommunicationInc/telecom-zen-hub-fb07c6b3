@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
+import { SlotOverridesManager } from "@/core-app/components/appointments/SlotOverridesManager";
 
 interface SlotRule {
   id: string;
@@ -371,6 +372,9 @@ export default function CoreAppointmentSlotsPage() {
           </div>
         )}
       </div>
+
+      {/* Slot overrides — specific date+time closures / reduced capacity */}
+      <SlotOverridesManager />
 
       {/* Edit rule dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
