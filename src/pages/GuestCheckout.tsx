@@ -2171,8 +2171,9 @@ const GuestCheckout = () => {
 
           {/* ── RIGHT COLUMN: ORDER SUMMARY (sticky) ── */}
           {step < 6 && (
-            <div className="hidden lg:block lg:col-span-4">
-              <div className="sticky top-6 space-y-4">
+            <aside className="hidden lg:block lg:col-span-2">
+              <div className="sticky top-32 space-y-4">
+
 
                 {/* Order Summary Panel */}
                 <div className="rounded-2xl overflow-hidden bg-white border border-[#E5E7EB] shadow-sm">
@@ -2329,34 +2330,84 @@ const GuestCheckout = () => {
                   </div>
                 </div>
 
-                <div className="mt-2"><SecurityTrustBox isFrench /></div>
               </div>
-            </div>
+            </aside>
           )}
         </div>
+      </main>
 
-        {/* ═══ MOBILE FIXED BOTTOM BAR ═══ */}
-        {step < 6 && selectedServices.length > 0 && (
+      {/* ═══ MOBILE FIXED BOTTOM SUMMARY ═══ */}
+      {step < 6 && selectedServices.length > 0 && (
+        <>
+          {mobileSummaryOpen && (
+            <div
+              className="lg:hidden fixed inset-0 z-40 bg-black/40 animate-fade-in"
+              onClick={() => setMobileSummaryOpen(false)}
+              aria-hidden
+            />
+          )}
           <div
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-4 py-3 bg-white border-t border-[#E5E7EB]"
+            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#E5E7EB] transition-all duration-300"
             style={{
               paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-              boxShadow: '0 -4px 20px rgba(0,0,0,0.06)',
+              boxShadow: '0 -8px 24px rgba(0,0,0,0.08)',
+              maxHeight: mobileSummaryOpen ? '85vh' : 'auto',
+              overflowY: mobileSummaryOpen ? 'auto' : 'visible',
             }}
           >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-[#6B7280]">Total aujourd'hui</span>
-              <span className="font-black text-lg text-[#0066CC]">
-                {fmt(todayTotal)}
+            {mobileSummaryOpen && (
+              <div className="px-4 pt-4 pb-2 border-b border-[#E5E7EB] bg-[#F5F7FA]">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-bold text-[#1A1A2E] uppercase tracking-wide">Détail de la commande</p>
+                  <button
+                    type="button"
+                    onClick={() => setMobileSummaryOpen(false)}
+                    className="text-xs font-semibold text-[#0066CC]"
+                  >
+                    Fermer ✕
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {selectedServices.map(s => (
+                    <div key={s.id} className="flex justify-between">
+                      <span className="text-[#1A1A2E] font-medium">{s.name}</span>
+                      <span className="text-[#1A1A2E] font-bold">{fmt(s.price)}<span className="text-[#6B7280] text-xs font-normal">/mois</span></span>
+                    </div>
+                  ))}
+                  <div className="h-px bg-[#E5E7EB] my-2" />
+                  {activationFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Activation</span><span>{fmt(activationFee)}</span></div>)}
+                  {routerFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Routeur WiFi 6</span><span>{fmt(routerFee)}</span></div>)}
+                  {terminalFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Terminal TV ×{tvTerminalQty}</span><span>{fmt(terminalFee)}</span></div>)}
+                  {simFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Carte SIM</span><span>{fmt(simFee)}</span></div>)}
+                  {deliveryFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Livraison</span><span>{fmt(deliveryFee)}</span></div>)}
+                  {installationFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Installation</span><span>{fmt(installationFee)}</span></div>)}
+                  {normalizedPricing && (
+                    <>
+                      <div className="flex justify-between text-[11px] text-[#6B7280]"><span>TPS (5%)</span><span>{fmt(normalizedPricing.tps_amount)}</span></div>
+                      <div className="flex justify-between text-[11px] text-[#6B7280]"><span>TVQ (9,975%)</span><span>{fmt(normalizedPricing.tvq_amount)}</span></div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setMobileSummaryOpen(v => !v)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left"
+            >
+              <div>
+                <p className="text-[11px] text-[#6B7280] uppercase tracking-wide font-semibold">Total aujourd'hui</p>
+                <p className="font-black text-xl text-[#0066CC] leading-tight">{fmt(todayTotal)}</p>
+                <p className="text-[10px] text-[#00A651] font-medium">{fmt(monthlyTotalWithTax)}/mois après</p>
+              </div>
+              <span className="text-xs font-semibold text-[#0066CC] flex items-center gap-1">
+                {mobileSummaryOpen ? 'Masquer' : 'Voir le détail'}
+                <span className="text-base">{mobileSummaryOpen ? '▼' : '▲'}</span>
               </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#6B7280]">Étape {step} / 5</span>
-              <span className="text-[10px] text-[#00A651] font-medium">{fmt(monthlyTotalWithTax)}/mois après</span>
-            </div>
+            </button>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
