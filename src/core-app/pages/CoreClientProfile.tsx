@@ -29,6 +29,7 @@ import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
 import { ClientSupplierAccountSection } from "@/core-app/components/supplier-accounts/ClientSupplierAccountSection";
 import { ClientAdminNotesSection } from "@/core-app/components/admin-notes/ClientAdminNotesSection";
 import { ClientFullHistory } from "@/core-app/components/client-history/ClientFullHistory";
+import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 // ── Section wrapper ──
@@ -684,36 +685,11 @@ const CoreClientProfile = () => {
                 )}
               </Section>
 
-              <Section title={`Paiements${payments.length > 0 ? ` (${payments.length})` : ""}`} icon={CreditCard}>
-                {payments.length > 0 ? (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead><tr className="border-b border-[hsl(220,15%,14%)]">
-                          {["N° Paiement", "Montant", "Méthode", "Réf.", "Statut", "Date"].map(h => (
-                            <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
-                          ))}
-                        </tr></thead>
-                        <tbody>
-                          {payments.slice((pmtPage - 1) * PAGE_SIZE, pmtPage * PAGE_SIZE).map((p: any) => (
-                            <tr key={p.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
-                              <td className="px-2 py-2 font-mono text-white">{p.payment_number}</td>
-                              <td className="px-2 py-2 text-emerald-400 font-medium">{Number(p.amount).toFixed(2)} $</td>
-                              <td className="px-2 py-2 text-[#A1A1AA] capitalize">{p.method}</td>
-                              <td className="px-2 py-2 text-[#A1A1AA] font-mono text-[10px]">{p.reference || "—"}</td>
-                              <td className="px-2 py-2"><StatusBadge label={p.status || "confirmed"} variant={statusToVariant(p.status || "confirmed")} size="sm" /></td>
-                              <td className="px-2 py-2 text-[#A1A1AA]">{p.created_at ? format(new Date(p.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <Paginator page={pmtPage} total={payments.length} pageSize={PAGE_SIZE} onPage={setPmtPage} />
-                  </>
-                ) : (
-                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun paiement</p>
-                )}
-              </Section>
+              <ClientPaymentsHistory
+                billingCustomerId={billingCustomer?.id}
+                invoiceHref={(invoiceId) => corePath(`/invoices/${invoiceId}`)}
+                fallbackEmail={profile.email}
+              />
             </TabsContent>
 
             {/* ── Équipement ── */}
