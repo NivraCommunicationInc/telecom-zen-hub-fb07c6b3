@@ -56,6 +56,8 @@ interface CheckoutShippingAndActivationProps {
   installationDetails: InstallationDetailsData;
   onInstallationDetailsChange: (next: InstallationDetailsData) => void;
   showInstallationDetails?: boolean;
+  /** When false, hides the "Livraison" + "Date d'activation" cards (used to split the step). Default true. */
+  showShippingActivation?: boolean;
 }
 
 const MIN_DAYS_AHEAD = 3;
@@ -132,6 +134,7 @@ export const CheckoutShippingAndActivation = ({
   installationDetails,
   onInstallationDetailsChange,
   showInstallationDetails = true,
+  showShippingActivation = true,
 }: CheckoutShippingAndActivationProps) => {
   const updateShipping = <K extends keyof ShippingAddressData>(k: K, v: ShippingAddressData[K]) =>
     onShippingChange({ ...shipping, [k]: v });
@@ -140,6 +143,8 @@ export const CheckoutShippingAndActivation = ({
 
   return (
     <div className="space-y-6">
+      {showShippingActivation && (
+      <>
       {/* ── Shipping address ─────────────────────────────────────── */}
       <NivraCard
         title="Livraison de l'équipement"
@@ -308,6 +313,10 @@ export const CheckoutShippingAndActivation = ({
           </div>
         )}
       </NivraCard>
+      </>
+      )}
+
+
 
       {/* ── Installation details (optional bonus) ───────────────── */}
       {showInstallationDetails && (
