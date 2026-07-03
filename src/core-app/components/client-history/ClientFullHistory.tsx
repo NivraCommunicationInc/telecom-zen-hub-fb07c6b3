@@ -145,14 +145,19 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
     enabled: !!clientId,
   });
 
-  // ── All payments ──
+  // ── All payments (with processor + source + invoice link) ──
   const paymentsQ = useQuery({
     queryKey: ["client-history-payments", billingCustomerId],
     queryFn: async () => {
       if (!billingCustomerId) return [];
       const { data, error } = await supabase
         .from("billing_payments")
-        .select("id, payment_number, amount, method, reference, status, created_at, received_at")
+        .select(`
+          id, payment_number, amount, method, reference, status, created_at, received_at,
+          provider, provider_payment_id, source, nivra_reference, square_payment_id,
+          square_receipt_url, invoice_id,
+          invoice:billing_invoices(invoice_number)
+        `)
         .eq("customer_id", billingCustomerId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -160,6 +165,7 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
     },
     enabled: !!billingCustomerId,
   });
+
 
   // ── All KYC sessions ──
   const kycQ = useQuery({
