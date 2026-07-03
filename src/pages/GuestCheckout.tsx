@@ -2132,24 +2132,26 @@ const GuestCheckout = () => {
                       paymentMethod={paymentMethod || undefined}
                     />
 
-                    {/* Trust badges */}
-                    <div className="flex flex-wrap items-center justify-center gap-4 pt-4 pb-2 border-t border-border mt-4">
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Lock className="w-3.5 h-3.5 text-emerald-600" />
-                        SSL 256-bit
-                      </span>
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        Sans contrat
-                      </span>
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                        Remboursement 30 jours
-                      </span>
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        🇨🇦 Entreprise québécoise
-                      </span>
+                    {/* Trust row */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-4 border-t border-[#E5E7EB] mt-4">
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[#F5F7FA]">
+                        <Lock className="w-3.5 h-3.5 text-[#00A651]" />
+                        <span className="text-[11px] font-semibold text-[#1A1A2E]">SSL 256-bit</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[#F5F7FA]">
+                        <Shield className="w-3.5 h-3.5 text-[#00A651]" />
+                        <span className="text-[11px] font-semibold text-[#1A1A2E]">PCI-DSS L1</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[#F5F7FA]">
+                        <Check className="w-3.5 h-3.5 text-[#00A651]" />
+                        <span className="text-[11px] font-semibold text-[#1A1A2E]">Sans contrat</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[#F5F7FA]">
+                        <span className="text-xs leading-none">🇨🇦</span>
+                        <span className="text-[11px] font-semibold text-[#1A1A2E]">Québec</span>
+                      </div>
                     </div>
+
                   </CardContent>
                 </Card>
 
