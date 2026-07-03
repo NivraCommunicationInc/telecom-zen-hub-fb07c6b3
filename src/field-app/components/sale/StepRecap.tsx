@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
-import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
+import type { FieldSaleCustomer, FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
 import { saveQuoteAndEmail, sendPaymentLinkFromQuote } from "@/field-app/lib/fieldQuoteService";
 import { formatDiscountLabel } from "@/field-app/lib/fieldUtils";
 
@@ -43,6 +43,7 @@ interface Props {
   total: number;
   onNext: () => void;
   onBack: () => void;
+  onCustomerChange?: (customer: FieldSaleCustomer) => void;
 }
 
 const TPS_RATE = 0.05;
