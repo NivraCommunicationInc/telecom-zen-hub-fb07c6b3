@@ -2244,7 +2244,7 @@ const GuestCheckout = () => {
                 </Card>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1 h-14 rounded-xl" onClick={() => setStep(4)}>
+                  <Button variant="outline" className="flex-1 h-14 rounded-xl" onClick={() => setStep(5)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
