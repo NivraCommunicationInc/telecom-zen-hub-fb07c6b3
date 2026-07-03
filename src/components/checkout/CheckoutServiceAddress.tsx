@@ -67,7 +67,7 @@ export const CheckoutServiceAddress = ({
   };
 
   return (
-    <Card className="bg-card border-border">
+    <Card className="bg-white border-[#E5E7EB]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MapPin className="w-5 h-5 text-cyan-500" />
@@ -81,7 +81,7 @@ export const CheckoutServiceAddress = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2 space-y-2">
             <Label htmlFor="service-address" className="flex items-center gap-2">
-              <Home className="w-4 h-4 text-muted-foreground" />
+              <Home className="w-4 h-4 text-[#4B5563]" />
               Adresse (numéro + rue) <span className="text-destructive">*</span>
             </Label>
             <AddressAutocomplete
@@ -99,7 +99,7 @@ export const CheckoutServiceAddress = ({
 
           <div className="space-y-2">
             <Label htmlFor="service-apartment" className="flex items-center gap-2">
-              <Building className="w-4 h-4 text-muted-foreground" />
+              <Building className="w-4 h-4 text-[#4B5563]" />
               Appartement / Unité
             </Label>
             <Input
@@ -132,7 +132,7 @@ export const CheckoutServiceAddress = ({
             </Label>
             <select
               id="service-province"
-              className={`w-full h-10 px-3 rounded-md border bg-background text-foreground ${
+              className={`w-full h-10 px-3 rounded-md border bg-white text-[#1A1A2E] ${
                 errors.province ? "border-destructive" : "border-input"
               }`}
               value={address.province}
@@ -143,14 +143,14 @@ export const CheckoutServiceAddress = ({
             {errors.province && (
               <p className="text-xs text-destructive">{errors.province}</p>
             )}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#4B5563]">
               Services disponibles au Québec uniquement
             </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="service-postal-code" className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-muted-foreground" />
+              <Mail className="w-4 h-4 text-[#4B5563]" />
               Code postal <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -167,7 +167,7 @@ export const CheckoutServiceAddress = ({
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground pt-2">
+        <p className="text-xs text-[#4B5563] pt-2">
           Taxes calculées selon l'adresse de service (TPS 5% + TVQ 9.975% pour le Québec).
         </p>
       </CardContent>

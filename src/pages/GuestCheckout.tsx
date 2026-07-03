@@ -1418,7 +1418,7 @@ const GuestCheckout = () => {
                                       className={`text-left p-4 rounded-xl border-2 transition-all cursor-pointer ${
                                         selected
                                           ? "border-primary bg-primary/5"
-                                          : "border-border hover:border-primary/40 hover:bg-primary/5"
+                                          : "border-[#E5E7EB] hover:border-primary/40 hover:bg-primary/5"
                                       }`}
                                       style={selected ? { boxShadow: '0 0 0 2px rgba(124,58,237,0.25), 0 4px 16px rgba(124,58,237,0.15)' } : {}}
                                     >
@@ -1709,7 +1709,7 @@ const GuestCheckout = () => {
                           className={`text-left p-4 rounded-xl border-2 transition-all ${
                             simType === "physical"
                               ? "border-primary bg-primary/5 shadow-sm"
-                              : "border-border hover:border-primary/30 hover:shadow-sm"
+                              : "border-[#E5E7EB] hover:border-primary/30 hover:shadow-sm"
                           }`}
                         >
                           <div className="flex items-start justify-between">
@@ -1734,7 +1734,7 @@ const GuestCheckout = () => {
                           className={`text-left p-4 rounded-xl border-2 transition-all ${
                             simType === "esim"
                               ? "border-primary bg-primary/5 shadow-sm"
-                              : "border-border hover:border-primary/30 hover:shadow-sm"
+                              : "border-[#E5E7EB] hover:border-primary/30 hover:shadow-sm"
                           }`}
                         >
                           <div className="flex items-start justify-between">
@@ -1776,7 +1776,7 @@ const GuestCheckout = () => {
                         <button
                           type="button"
                           onClick={() => setWantsPortIn(false)}
-                          className={`p-4 rounded-xl border-2 text-left transition-all ${!wantsPortIn ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${!wantsPortIn ? "border-primary bg-primary/5" : "border-[#E5E7EB] hover:border-primary/30"}`}
                         >
                           <p className="font-semibold text-sm">Nouveau numéro</p>
                           <p className="text-xs text-[#4B5563] mt-1">Un numéro Nivra vous sera assigné</p>
@@ -1785,7 +1785,7 @@ const GuestCheckout = () => {
                         <button
                           type="button"
                           onClick={() => setWantsPortIn(true)}
-                          className={`p-4 rounded-xl border-2 text-left transition-all ${wantsPortIn ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${wantsPortIn ? "border-primary bg-primary/5" : "border-[#E5E7EB] hover:border-primary/30"}`}
                         >
                           <p className="font-semibold text-sm">Garder mon numéro</p>
                           <p className="text-xs text-[#4B5563] mt-1">Transférer depuis votre opérateur actuel</p>
@@ -1826,7 +1826,7 @@ const GuestCheckout = () => {
                             <select
                               value={portInCarrier}
                               onChange={e => setPortInCarrier(e.target.value)}
-                              className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm"
+                              className="w-full h-11 rounded-md border border-input bg-white px-3 text-sm"
                             >
                               {["Rogers", "Bell", "Telus", "Fido", "Koodo", "Vidéotron", "Fizz", "Public Mobile", "Autre"].map(c => (
                                 <option key={c} value={c}>{c}</option>
