@@ -373,6 +373,9 @@ export default function CoreAppointmentSlotsPage() {
         )}
       </div>
 
+      {/* Slot overrides — specific date+time closures / reduced capacity */}
+      <SlotOverridesManager />
+
       {/* Edit rule dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="bg-[hsl(220,20%,10%)] border-[hsl(220,15%,18%)] text-white max-w-md">
