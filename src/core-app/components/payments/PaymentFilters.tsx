@@ -26,7 +26,7 @@ interface Props {
 const selectCls = "appearance-none rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-2 pr-8 text-xs text-[#CBD5E1] outline-none cursor-pointer";
 
 export function PaymentFilters(props: Props) {
-  const hasFilters = props.search || props.status || props.method || props.dateFrom || props.dateTo || props.fraudOnly;
+  const hasFilters = props.search || props.status || props.method || props.source || props.dateFrom || props.dateTo || props.fraudOnly;
 
   return (
     <div className="space-y-2">
@@ -64,6 +64,17 @@ export function PaymentFilters(props: Props) {
           <Wallet className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#64748B] pointer-events-none" />
         </div>
 
+        {/* Source */}
+        <div className="relative">
+          <select value={props.source} onChange={e => props.onSource(e.target.value)} className={selectCls}>
+            <option value="">Toutes sources</option>
+            {Object.entries(PAYMENT_SOURCES).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+          <Radio className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#64748B] pointer-events-none" />
+        </div>
+
         {/* Date range */}
         <div className="flex items-center gap-1.5">
           <div className="relative">
@@ -95,6 +106,7 @@ export function PaymentFilters(props: Props) {
               props.onSearch("");
               props.onStatus("");
               props.onMethod("");
+              props.onSource("");
               props.onDateFrom("");
               props.onDateTo("");
               props.onFraudOnly(false);
