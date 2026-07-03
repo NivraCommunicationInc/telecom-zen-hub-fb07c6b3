@@ -264,7 +264,7 @@ export function InstallationScheduler({
     onInstallationTypeChange(fallback.installationType, fallback.technicianLevel);
     onDecisionMade?.(fallback);
     void fetchSlots(fallback);
-  }, [showSchedule, decision, distanceKm, fetchSlots, onInstallationTypeChange, onDecisionMade]);
+  }, [showSchedule, decision, distanceKm, fetchSlots]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recordInstallation = useCallback(async (answers: CablingData, targetDecision: InstallationDecision) => {
     const { data: authData } = await portalClient.auth.getUser();
