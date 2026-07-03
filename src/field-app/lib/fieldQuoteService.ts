@@ -64,6 +64,8 @@ export async function saveQuoteAndEmail({
       total,
       status: "draft",
       agent_gps_coords: agentGps ?? null,
+      install_date: draft.customer.install_date || null,
+      install_mode: draft.customer.install_mode || "technician",
     } as any)
     .select("id, valid_until")
     .single();
