@@ -813,6 +813,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
 
           {draft.step === "equipment" && (
             <StepEquipment
+              services={draft.services}
               selected={draft.equipment}
               onChange={(equipment) => setDraft((d) => ({ ...d, equipment }))}
               onNext={() => advance("equipment")}
