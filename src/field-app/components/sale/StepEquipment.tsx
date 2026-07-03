@@ -115,6 +115,12 @@ export default function StepEquipment({ services, selected, onChange, onNext, on
             const Icon = ICON_FOR_CATEGORY[item.category] || item.icon || Package;
             const lineTotal = qty * item.price;
             const active = qty > 0;
+            const kind = inferEquipmentKind(item.name);
+            const cartServices = services.map((s) => ({ id: s.id, category: s.category }));
+            const locked = isEquipmentLocked(kind, cartServices);
+            const bounds = equipmentBounds(kind, cartServices);
+            const effectiveMax = Math.min(item.maxQty, bounds.max || item.maxQty);
+            const effectiveMin = bounds.min;
 
             return (
               <div
@@ -132,9 +138,16 @@ export default function StepEquipment({ services, selected, onChange, onNext, on
                       <Icon className="h-5 w-5 text-[hsl(var(--field-accent-glow))]" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{item.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-semibold text-white truncate">{item.name}</p>
+                        {locked && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-violet-500/25 text-violet-100 border border-violet-400/40">
+                            <Lock className="h-2.5 w-2.5" /> Requis
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-[hsl(var(--field-text-dim))]">
-                        {item.price.toFixed(2)} $ · max {item.maxQty}
+                        {item.price.toFixed(2)} $ · {effectiveMin === effectiveMax ? `${effectiveMax} inclus` : `min ${effectiveMin} · max ${effectiveMax}`}
                       </p>
                     </div>
                   </div>
@@ -143,7 +156,7 @@ export default function StepEquipment({ services, selected, onChange, onNext, on
                     <button
                       type="button"
                       onClick={() => setQty(item, qty - 1)}
-                      disabled={qty === 0}
+                      disabled={qty <= effectiveMin}
                       aria-label="Diminuer"
                       className="h-9 w-9 rounded-lg bg-[hsl(var(--field-card-hover))] border border-[hsl(var(--field-border-subtle))] text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[hsl(var(--field-accent)/0.2)] transition-colors"
                     >
@@ -153,7 +166,7 @@ export default function StepEquipment({ services, selected, onChange, onNext, on
                     <button
                       type="button"
                       onClick={() => setQty(item, qty + 1)}
-                      disabled={qty >= item.maxQty}
+                      disabled={qty >= effectiveMax}
                       aria-label="Augmenter"
                       className="h-9 w-9 rounded-lg bg-[hsl(var(--field-card-hover))] border border-[hsl(var(--field-border-subtle))] text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[hsl(var(--field-accent)/0.2)] transition-colors"
                     >
