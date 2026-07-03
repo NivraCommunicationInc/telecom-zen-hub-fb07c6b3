@@ -3030,6 +3030,7 @@ export type Database = {
           referral_discount_active: boolean | null
           referral_discount_amount: number | null
           referral_discount_months_remaining: number | null
+          service_address_id: string | null
           service_category: string | null
           source_id: string | null
           source_type: string | null
@@ -3069,6 +3070,7 @@ export type Database = {
           referral_discount_active?: boolean | null
           referral_discount_amount?: number | null
           referral_discount_months_remaining?: number | null
+          service_address_id?: string | null
           service_category?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -3108,6 +3110,7 @@ export type Database = {
           referral_discount_active?: boolean | null
           referral_discount_amount?: number | null
           referral_discount_months_remaining?: number | null
+          service_address_id?: string | null
           service_category?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -3157,6 +3160,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
             referencedColumns: ["id"]
           },
         ]
@@ -3710,6 +3720,8 @@ export type Database = {
           appointment_id: string | null
           cart_items: Json | null
           created_at: string | null
+          draft_data: Json | null
+          draft_source: string | null
           expires_at: string | null
           id: string
           identity_data: Json | null
@@ -3726,6 +3738,8 @@ export type Database = {
           appointment_id?: string | null
           cart_items?: Json | null
           created_at?: string | null
+          draft_data?: Json | null
+          draft_source?: string | null
           expires_at?: string | null
           id?: string
           identity_data?: Json | null
@@ -3742,6 +3756,8 @@ export type Database = {
           appointment_id?: string | null
           cart_items?: Json | null
           created_at?: string | null
+          draft_data?: Json | null
+          draft_source?: string | null
           expires_at?: string | null
           id?: string
           identity_data?: Json | null
@@ -16777,6 +16793,7 @@ export type Database = {
           client_last_name: string | null
           client_phone: string | null
           client_request_id: string
+          coaxial_survey: Json | null
           confirmation_email_sent_at: string | null
           confirmation_number: string | null
           created_at: string
@@ -16847,6 +16864,7 @@ export type Database = {
           service_activated_at: string | null
           service_activated_by: string | null
           service_activation_source: string | null
+          service_address_id: string | null
           service_location_id: string | null
           service_type: string
           ship_to_different_address: boolean
@@ -16855,6 +16873,7 @@ export type Database = {
           shipping_address_line: string | null
           shipping_apartment: string | null
           shipping_city: string | null
+          shipping_fee_cents: number
           shipping_first_name: string | null
           shipping_instructions: string | null
           shipping_last_name: string | null
@@ -16904,6 +16923,7 @@ export type Database = {
           client_last_name?: string | null
           client_phone?: string | null
           client_request_id?: string
+          coaxial_survey?: Json | null
           confirmation_email_sent_at?: string | null
           confirmation_number?: string | null
           created_at?: string
@@ -16974,6 +16994,7 @@ export type Database = {
           service_activated_at?: string | null
           service_activated_by?: string | null
           service_activation_source?: string | null
+          service_address_id?: string | null
           service_location_id?: string | null
           service_type: string
           ship_to_different_address?: boolean
@@ -16982,6 +17003,7 @@ export type Database = {
           shipping_address_line?: string | null
           shipping_apartment?: string | null
           shipping_city?: string | null
+          shipping_fee_cents?: number
           shipping_first_name?: string | null
           shipping_instructions?: string | null
           shipping_last_name?: string | null
@@ -17031,6 +17053,7 @@ export type Database = {
           client_last_name?: string | null
           client_phone?: string | null
           client_request_id?: string
+          coaxial_survey?: Json | null
           confirmation_email_sent_at?: string | null
           confirmation_number?: string | null
           created_at?: string
@@ -17101,6 +17124,7 @@ export type Database = {
           service_activated_at?: string | null
           service_activated_by?: string | null
           service_activation_source?: string | null
+          service_address_id?: string | null
           service_location_id?: string | null
           service_type?: string
           ship_to_different_address?: boolean
@@ -17109,6 +17133,7 @@ export type Database = {
           shipping_address_line?: string | null
           shipping_apartment?: string | null
           shipping_city?: string | null
+          shipping_fee_cents?: number
           shipping_first_name?: string | null
           shipping_instructions?: string | null
           shipping_last_name?: string | null
@@ -17170,6 +17195,13 @@ export type Database = {
             columns: ["preauth_card_id"]
             isOneToOne: false
             referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
             referencedColumns: ["id"]
           },
           {
@@ -28140,6 +28172,10 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: Json
       }
+      compute_prorata_base30: {
+        Args: { p_days_remaining: number; p_monthly_price: number }
+        Returns: number
+      }
       confirm_appointment_hold: {
         Args: {
           p_appointment_id: string
@@ -28665,6 +28701,17 @@ export type Database = {
           event_version: string
           is_manual: boolean
           is_target: boolean
+        }[]
+      }
+      get_available_installation_slots: {
+        Args: { p_from_date: string; p_to_date: string }
+        Returns: {
+          available: number
+          booked: number
+          capacity: number
+          slot_date: string
+          status: string
+          time_slot: string
         }[]
       }
       get_client_balance: { Args: { p_client_id: string }; Returns: number }
@@ -29221,6 +29268,7 @@ export type Database = {
           client_last_name: string | null
           client_phone: string | null
           client_request_id: string
+          coaxial_survey: Json | null
           confirmation_email_sent_at: string | null
           confirmation_number: string | null
           created_at: string
@@ -29291,6 +29339,7 @@ export type Database = {
           service_activated_at: string | null
           service_activated_by: string | null
           service_activation_source: string | null
+          service_address_id: string | null
           service_location_id: string | null
           service_type: string
           ship_to_different_address: boolean
@@ -29299,6 +29348,7 @@ export type Database = {
           shipping_address_line: string | null
           shipping_apartment: string | null
           shipping_city: string | null
+          shipping_fee_cents: number
           shipping_first_name: string | null
           shipping_instructions: string | null
           shipping_last_name: string | null

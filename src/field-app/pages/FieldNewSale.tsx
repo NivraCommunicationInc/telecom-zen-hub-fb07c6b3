@@ -303,6 +303,15 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     [draft.equipment]
   );
 
+  // Shipping fee when the client chose self-installation.
+  // Reads `shipping_fee_cents` from field_sales_config (default $20).
+  const shippingFee = useMemo(() => {
+    if (draft.customer.install_mode !== "self") return 0;
+    const cfg = (fieldConfig as any)?.shipping_fee_cents ?? (fieldConfig as any)?.shippingFeeCents;
+    const cents = typeof cfg === "number" ? cfg : 2000;
+    return cents / 100;
+  }, [draft.customer.install_mode, fieldConfig]);
+
   // Centralized discount math (handles fixed_monthly, remove_fee, first_month_free, etc.).
   const discountBreakdown = useMemo(
     () => computeDiscountBreakdown(draft.discount, draft.services, activationFee),
@@ -322,7 +331,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   // First-month credit is a one-time credit on the first invoice only.
   const subtotal = Math.max(
     0,
-    monthlyAfterDiscount + equipmentTotal + effectiveActivation - firstMonthCredit,
+    monthlyAfterDiscount + equipmentTotal + effectiveActivation + shippingFee - firstMonthCredit,
   );
   const tps = Math.round(subtotal * TPS_RATE * 100) / 100;
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
@@ -813,6 +822,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
 
           {draft.step === "equipment" && (
             <StepEquipment
+              services={draft.services}
               selected={draft.equipment}
               onChange={(equipment) => setDraft((d) => ({ ...d, equipment }))}
               onNext={() => advance("equipment")}

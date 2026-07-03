@@ -22,6 +22,9 @@ export interface FieldConfig {
   max_terminal_qty: number;
   max_sim_qty: number;
   preauth_discount_amount: number;
+  shipping_fee_cents: number;
+  prorata_basis_days: number;
+  checkout_draft_ttl_days: number;
 }
 
 const DEFAULTS: FieldConfig = {
@@ -41,6 +44,9 @@ const DEFAULTS: FieldConfig = {
   max_terminal_qty: 5,
   max_sim_qty: 5,
   preauth_discount_amount: 5,
+  shipping_fee_cents: 2000,
+  prorata_basis_days: 30,
+  checkout_draft_ttl_days: 30,
 };
 
 export function useFieldConfig() {
