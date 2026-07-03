@@ -134,6 +134,7 @@ export const CheckoutShippingAndActivation = ({
   installationDetails,
   onInstallationDetailsChange,
   showInstallationDetails = true,
+  showShippingActivation = true,
 }: CheckoutShippingAndActivationProps) => {
   const updateShipping = <K extends keyof ShippingAddressData>(k: K, v: ShippingAddressData[K]) =>
     onShippingChange({ ...shipping, [k]: v });
@@ -142,6 +143,8 @@ export const CheckoutShippingAndActivation = ({
 
   return (
     <div className="space-y-6">
+      {showShippingActivation && (
+      <>
       {/* ── Shipping address ─────────────────────────────────────── */}
       <NivraCard
         title="Livraison de l'équipement"
