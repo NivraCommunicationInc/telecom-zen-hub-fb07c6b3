@@ -15,7 +15,9 @@ import {
   ChevronDown, ChevronRight, Loader2,
 } from "lucide-react";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { PAYMENT_SOURCES } from "@/core-app/components/payments/PaymentConstants";
 import { cn } from "@/lib/utils";
+
 
 // ── Action label translations (mirrors DashboardPage activity feed) ──
 const ACTION_LABELS: Record<string, string> = {
