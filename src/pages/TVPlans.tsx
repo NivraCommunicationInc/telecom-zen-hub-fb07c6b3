@@ -14,6 +14,7 @@ import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import { useTVPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 import CriticalInfoSummary from "@/components/CriticalInfoSummary";
+import { writePrecheckedAddress } from "@/lib/checkout/prechekedAddress";
 
 const BG = '#020209';
 const PURPLE = '#7C3AED';
