@@ -320,6 +320,15 @@ serve(async (req) => {
         ? `Paiement refusé par Square : ${code} — ${detail}`
         : `Paiement refusé par Square : ${code}`;
       console.error("[square-charge-invoice] Square error:", JSON.stringify(squareData.errors));
+      // Release the concurrency lock so the client can retry with the same intent
+      if (intent_id) {
+        await supabase.rpc("field_intent_release_lock" as never, { p_intent_id: intent_id }).then(undefined, () => {});
+        await supabase.rpc("log_field_order_event" as never, {
+          p_intent_id: intent_id,
+          p_event_type: "payment_failed",
+          p_payload: { code, detail, category } as never,
+        }).then(undefined, () => {});
+      }
       return json({
         ok: false,
         error: errMsg,
@@ -336,6 +345,16 @@ serve(async (req) => {
     const amountPaid = Number(payment.amount_money?.amount || 0) / 100;
 
     console.log("[square-charge-invoice] Charged:", paymentId, "CAD", amountPaid);
+
+    // Journal — payment_succeeded (intent flow)
+    if (intent_id) {
+      await supabase.rpc("log_field_order_event" as never, {
+        p_intent_id: intent_id,
+        p_event_type: "payment_succeeded",
+        p_payload: { square_payment_id: paymentId, amount: amountPaid } as never,
+      }).then(undefined, () => {});
+    }
+
 
     // ── Apply to invoice directly, no RPC ─────────────────────────────────
     if (invoiceData) {
