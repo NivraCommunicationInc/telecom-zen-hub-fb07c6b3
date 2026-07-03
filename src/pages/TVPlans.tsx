@@ -62,6 +62,14 @@ const TVPlans = () => {
 
   const handleGetStarted = (planId: string) => {
     trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "tv" } });
+    if (addressDetails) {
+      writePrecheckedAddress({
+        line1: addressDetails.line1,
+        city: addressDetails.city,
+        region: addressDetails.region || "QC",
+        postalCode: addressDetails.postalCode,
+      });
+    }
     navigate(`/commander?plan=${planId}`);
   };
 
