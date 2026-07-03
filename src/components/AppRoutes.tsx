@@ -308,7 +308,7 @@ const E2eInstallTest = lazy(() => import("@/pages/E2eInstallTest"));
 const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
 const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
 const Unsubscribe = lazy(() => import("@/pages/Unsubscribe"));
-const PayerCommande = lazy(() => import("@/pages/PayerCommande"));
+const ReviewOrderPage = lazy(() => import("@/pages/order-review/ReviewOrderPage"));
 const CommandeConfirmee = lazy(() => import("@/pages/CommandeConfirmee"));
 const PayerPublic = lazy(() => import("@/pages/public/PayerPublic"));
 const PayerPublicByToken = lazy(() => import("@/pages/public/PayerPublicByToken"));
@@ -649,8 +649,8 @@ const AppRoutes = () => {
       <Route path="/unsubscribe" element={<Unsubscribe />} />
       {/* Public Field-sale payment landing page — no auth required */}
       <Route path="/payer/lien/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerPublicByToken /></Suspense>} />
-      <Route path="/payer/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerCommande /></Suspense>} />
-      <Route path="/ma-commande/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerCommande /></Suspense>} />
+      <Route path="/payer/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><ReviewOrderPage /></Suspense>} />
+      <Route path="/ma-commande/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><ReviewOrderPage /></Suspense>} />
       <Route path="/commande/confirmee/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><CommandeConfirmee /></Suspense>} />
 
       <Route path="/payer" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerPublic /></Suspense>} />

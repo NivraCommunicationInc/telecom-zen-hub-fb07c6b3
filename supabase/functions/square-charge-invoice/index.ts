@@ -211,15 +211,44 @@ serve(async (req) => {
 
 
     } else {
-      // Field payment intent flow
+      // Field payment intent flow — atomic concurrency lock (pending -> processing)
+      const { data: lockRows } = await supabase.rpc(
+        "field_intent_lock_for_payment" as never,
+        { p_intent_id: intent_id },
+      );
+      const lock = Array.isArray(lockRows) ? (lockRows[0] as any) : (lockRows as any);
+      if (!lock?.locked) {
+        const status = lock?.current_status || "unknown";
+        if (status === "completed" || status === "paid") {
+          return json({ ok: false, error: "Cette commande a déjà été payée.", already_paid: true }, 409);
+        }
+        if (status === "cancelled") {
+          return json({ ok: false, error: "Cette commande a été annulée.", cancelled: true }, 409);
+        }
+        if (status === "processing") {
+          return json({ ok: false, error: "Un paiement est déjà en cours pour cette commande. Réessayez dans quelques secondes.", in_progress: true }, 409);
+        }
+        return json({ ok: false, error: "Ce lien n'est plus valide ou a expiré." }, 409);
+      }
+
       const { data: intent } = await supabase
         .from("field_payment_intents")
         .select("id, amount, status, customer_name, customer_email, converted_invoice_id, public_token, description, quote_id, agent_id")
         .eq("id", intent_id)
         .single();
 
-      if (!intent) return json({ ok: false, error: "Intention de paiement introuvable" }, 404);
-      if (intent.status === "completed") return json({ ok: false, error: "Déjà payé" }, 400);
+      if (!intent) {
+        await supabase.rpc("field_intent_release_lock" as never, { p_intent_id: intent_id });
+        return json({ ok: false, error: "Intention de paiement introuvable" }, 404);
+      }
+
+      // Journal — payment_attempted
+      await supabase.rpc("log_field_order_event" as never, {
+        p_intent_id: intent_id,
+        p_event_type: "payment_attempted",
+        p_payload: { amount: intent.amount } as never,
+      }).then(undefined, () => {});
+
 
       amountCents = Math.round(Number(intent.amount) * 100);
       customerName = intent.customer_name || "";
@@ -291,6 +320,15 @@ serve(async (req) => {
         ? `Paiement refusé par Square : ${code} — ${detail}`
         : `Paiement refusé par Square : ${code}`;
       console.error("[square-charge-invoice] Square error:", JSON.stringify(squareData.errors));
+      // Release the concurrency lock so the client can retry with the same intent
+      if (intent_id) {
+        await supabase.rpc("field_intent_release_lock" as never, { p_intent_id: intent_id }).then(undefined, () => {});
+        await supabase.rpc("log_field_order_event" as never, {
+          p_intent_id: intent_id,
+          p_event_type: "payment_failed",
+          p_payload: { code, detail, category } as never,
+        }).then(undefined, () => {});
+      }
       return json({
         ok: false,
         error: errMsg,
@@ -307,6 +345,16 @@ serve(async (req) => {
     const amountPaid = Number(payment.amount_money?.amount || 0) / 100;
 
     console.log("[square-charge-invoice] Charged:", paymentId, "CAD", amountPaid);
+
+    // Journal — payment_succeeded (intent flow)
+    if (intent_id) {
+      await supabase.rpc("log_field_order_event" as never, {
+        p_intent_id: intent_id,
+        p_event_type: "payment_succeeded",
+        p_payload: { square_payment_id: paymentId, amount: amountPaid } as never,
+      }).then(undefined, () => {});
+    }
+
 
     // ── Apply to invoice directly, no RPC ─────────────────────────────────
     if (invoiceData) {

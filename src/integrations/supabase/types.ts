@@ -9970,6 +9970,60 @@ export type Database = {
         }
         Relationships: []
       }
+      field_order_events: {
+        Row: {
+          actor: string | null
+          actor_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          intent_id: string | null
+          ip_address: string | null
+          payload: Json
+          quote_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          actor?: string | null
+          actor_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          intent_id?: string | null
+          ip_address?: string | null
+          payload?: Json
+          quote_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          actor?: string | null
+          actor_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          intent_id?: string | null
+          ip_address?: string | null
+          payload?: Json
+          quote_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_order_events_intent_id_fkey"
+            columns: ["intent_id"]
+            isOneToOne: false
+            referencedRelation: "field_payment_intents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_order_events_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "field_quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_order_notes: {
         Row: {
           content: string
@@ -28422,6 +28476,18 @@ export type Database = {
       expire_old_field_payment_intents: { Args: never; Returns: number }
       expire_stale_holds: { Args: never; Returns: number }
       extract_uuid_from_text: { Args: { p_text: string }; Returns: string }
+      field_intent_lock_for_payment: {
+        Args: { p_intent_id: string }
+        Returns: {
+          amount: number
+          current_status: string
+          locked: boolean
+        }[]
+      }
+      field_intent_release_lock: {
+        Args: { p_intent_id: string }
+        Returns: undefined
+      }
       flag_client_for_risk: {
         Args: {
           p_alert_level?: string
@@ -28871,6 +28937,10 @@ export type Database = {
       lock_crm_contact: {
         Args: { p_agent_id: string; p_contact_id: string }
         Returns: Json
+      }
+      log_field_order_event: {
+        Args: { p_event_type: string; p_intent_id: string; p_payload?: Json }
+        Returns: string
       }
       log_pdf_generation: {
         Args: {

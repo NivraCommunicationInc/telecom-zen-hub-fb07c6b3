@@ -104,7 +104,7 @@ interface IntentData {
   agent_name: string;
 }
 
-export default function PayerCommande() {
+export default function ReviewOrderPage() {
   const { intentId } = useParams<{ intentId: string }>();
   const navigate = useNavigate();
   const [data, setData] = useState<IntentData | null>(null);
@@ -168,6 +168,12 @@ export default function PayerCommande() {
           setConsentTerms(!!cf.terms);
           setConsentActivation(!!cf.activation);
         }
+        // Journal — link_opened (best-effort, fire-and-forget)
+        supabase.rpc("log_field_order_event" as never, {
+          p_intent_id: intentId,
+          p_event_type: "link_opened",
+          p_payload: { ua: navigator.userAgent.slice(0, 200) } as never,
+        }).then(undefined, () => {});
       }
       setLoading(false);
     })();
@@ -311,6 +317,20 @@ export default function PayerCommande() {
       });
       const d = await res.json();
       if (!d?.ok) {
+        if (d?.already_paid) {
+          toast.info("Cette commande a déjà été payée.");
+          navigate(`/commande/confirmee/${intentId}`, { replace: true });
+          return;
+        }
+        if (d?.cancelled) {
+          toast.error("Cette commande a été annulée.");
+          await refresh();
+          return;
+        }
+        if (d?.in_progress) {
+          toast.info("Un paiement est en cours de traitement. Merci de patienter quelques secondes.");
+          return;
+        }
         toast.error(d?.error || "Paiement refusé");
         return;
       }
@@ -351,7 +371,29 @@ export default function PayerCommande() {
     );
   }
 
-  if (isCancelled || isExpired) {
+  if (isCancelled) {
+    return (
+      <Page>
+        <Card>
+          <div className="text-center space-y-3 py-4">
+            <AlertCircle className="h-14 w-14 text-red-500 mx-auto" />
+            <h2 className="text-2xl font-bold text-white">Cette commande n'est plus disponible.</h2>
+            <p className="text-sm text-white/60">
+              Elle a été annulée. Contactez votre représentant Nivra pour repartir sur une nouvelle commande.
+            </p>
+            <Button
+              onClick={() => (window.location.href = "mailto:support@nivra-telecom.ca")}
+              className="mt-2 bg-violet-600 hover:bg-violet-500"
+            >
+              Contacter mon représentant
+            </Button>
+          </div>
+        </Card>
+      </Page>
+    );
+  }
+
+  if (isExpired) {
     return (
       <Page>
         <Card>
@@ -359,16 +401,21 @@ export default function PayerCommande() {
             <AlertCircle className="h-14 w-14 text-amber-500 mx-auto" />
             <h2 className="text-2xl font-bold text-white">Ce lien a expiré.</h2>
             <p className="text-sm text-white/60">
-              Contactez votre représentant ou écrivez à{" "}
-              <a className="text-violet-400 underline" href="mailto:support@nivra-telecom.ca">
-                support@nivra-telecom.ca
-              </a>
+              Pour des raisons de sécurité, ce lien de commande était valide 7 jours.
+              Contactez votre représentant pour en recevoir un nouveau.
             </p>
+            <Button
+              onClick={() => (window.location.href = "mailto:support@nivra-telecom.ca")}
+              className="mt-2 bg-violet-600 hover:bg-violet-500"
+            >
+              Contacter mon représentant
+            </Button>
           </div>
         </Card>
       </Page>
     );
   }
+
 
   const { intent, quote, agent_name } = data;
   const ci = quote?.client_info || {};

@@ -107,6 +107,13 @@ serve(async (req) => {
         return json({ ok: false, error: "Erreur création du lien de paiement" }, 500);
       }
       intentId = intent.id;
+
+      // Journal — link_created
+      await supabase.rpc("log_field_order_event" as never, {
+        p_intent_id: intentId,
+        p_event_type: "link_created",
+        p_payload: { quote_id: quote.id, amount: total, caller: callerId } as never,
+      }).then(undefined, () => {});
     }
 
     const paymentUrl = `${SITE_URL}/payer/${intentId}`;
@@ -158,7 +165,14 @@ serve(async (req) => {
         } as any);
 
         if (mailErr) console.warn("[field-payment-link-create] email enqueue failed:", mailErr);
-        else emailSent = true;
+        else {
+          emailSent = true;
+          await supabase.rpc("log_field_order_event" as never, {
+            p_intent_id: intentId,
+            p_event_type: "email_sent",
+            p_payload: { to: resolvedEmail } as never,
+          }).then(undefined, () => {});
+        }
 
         // Track link_sent on the quote (best-effort)
         await supabase
