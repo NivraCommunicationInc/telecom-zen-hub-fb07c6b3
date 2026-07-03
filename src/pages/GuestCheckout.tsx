@@ -1862,49 +1862,49 @@ const GuestCheckout = () => {
                 )}
 
                 {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
-                  <Card className="bg-emerald-500/10 border-emerald-500/30">
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <Star className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                          <div>
-                            <p className="font-semibold text-[#1A1A2E] text-sm">Rabais bienvenue appliqué !</p>
-                            <p className="text-xs text-muted-foreground">
-                              50% de rabais sur votre premier mois — appliqué automatiquement.
-                            </p>
-                          </div>
+                  <div className="rounded-xl border border-[#00A651]/30 bg-[#00A651]/[0.06] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-[#00A651]/15 flex items-center justify-center flex-shrink-0">
+                          <Star className="w-5 h-5 text-[#00A651]" />
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs text-muted-foreground hover:text-[#1A1A2E]"
-                          onClick={() => setWelcomeDiscountDismissed(true)}
-                        >
-                          Retirer
-                        </Button>
+                        <div>
+                          <p className="font-semibold text-[#1A1A2E] text-sm">Rabais bienvenue appliqué</p>
+                          <p className="text-xs text-[#6B7280]">
+                            50 % de rabais sur votre premier mois — appliqué automatiquement.
+                          </p>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-[#6B7280] hover:text-[#1A1A2E]"
+                        onClick={() => setWelcomeDiscountDismissed(true)}
+                      >
+                        Retirer
+                      </Button>
+                    </div>
+                  </div>
                 )}
 
                 {/* Auto-applied first-month-free banner */}
                 {autoAppliedPromo && appliedPromo?.code === "BIENVENUE2026" && (
-                  <Card className="bg-emerald-50 border-emerald-300">
-                    <CardContent className="py-4">
-                      <div className="flex items-start gap-3">
-                        <Gift className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold text-emerald-700 text-sm mb-1">
-                            🎉 Premier mois gratuit appliqué automatiquement!
-                          </p>
-                          <p className="text-xs text-emerald-800 leading-relaxed">
-                            Nous avons détecté que vous êtes un nouveau client Nivra Telecom.
-                            Votre premier mois de service est entièrement gratuit — aucun code requis.
-                          </p>
-                        </div>
+                  <div className="rounded-xl border border-[#00A651]/30 bg-[#00A651]/[0.06] p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[#00A651]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Gift className="w-5 h-5 text-[#00A651]" />
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div>
+                        <p className="font-semibold text-[#1A1A2E] text-sm mb-1">
+                          Premier mois gratuit appliqué automatiquement
+                        </p>
+                        <p className="text-xs text-[#6B7280] leading-relaxed">
+                          Nous avons détecté que vous êtes un nouveau client Nivra Telecom.
+                          Votre premier mois de service est entièrement gratuit — aucun code requis.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {/* ── Phase 2: Shipping override + activation date + installation details ── */}
