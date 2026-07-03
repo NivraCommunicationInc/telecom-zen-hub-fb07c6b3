@@ -1,7 +1,9 @@
 /**
  * AppointmentsPage — Nivra Core operational scheduling module.
- * Reuses the appointments table directly via supabase client.
- * Dark ops-grade list with filters, status, and links to related entities.
+ * List + Month calendar views over `appointments`. Row/day actions:
+ * déplacer, annuler (raison obligatoire), compléter, no-show, assigner tech.
+ * Every action writes an automatic system note to client_internal_notes,
+ * and DB triggers push the client email for status/date changes.
  */
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,14 +11,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { AppointmentActionsMenu } from "@/core-app/components/appointments/AppointmentActionsMenu";
+import { AppointmentCalendarView } from "@/core-app/components/appointments/AppointmentCalendarView";
 import {
   Calendar, Search, RefreshCw, ArrowRight,
-  MapPin, User, Clock, Wrench, Settings,
+  MapPin, User, Wrench, Settings, LayoutGrid, List,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
-import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
+import { CoreEnvironmentToggle } from "@/core-app/components/CoreEnvironmentToggle";
 
 const STATUS_FILTERS = [
   { label: "Tous", value: "" },
@@ -25,6 +29,7 @@ const STATUS_FILTERS = [
   { label: "En cours", value: "in_progress" },
   { label: "Terminé", value: "completed" },
   { label: "Annulé", value: "cancelled" },
+  { label: "No-show", value: "no_show" },
   { label: "Replanifié", value: "rescheduled" },
 ];
 
@@ -39,6 +44,7 @@ const AppointmentsPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [view, setView] = useState<"list" | "calendar">("list");
 
   const { data: appointments, isLoading, refetch } = useQuery({
     queryKey: ["core-appointments", statusFilter, envFilter],
@@ -47,7 +53,7 @@ const AppointmentsPage = () => {
         .from("appointments")
         .select("*")
         .order("scheduled_at", { ascending: false })
-        .limit(200);
+        .limit(500);
 
       if (envFilter !== 'all') query = query.eq("environment", envFilter);
       if (statusFilter) {
