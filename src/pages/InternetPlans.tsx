@@ -63,6 +63,16 @@ const InternetPlans = () => {
 
   const handleGetStarted = (planId: string) => {
     trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "internet" } });
+    // Hand off the validated service address to the checkout so the
+    // customer doesn't have to re-type it.
+    if (addressDetails) {
+      writePrecheckedAddress({
+        line1: addressDetails.line1,
+        city: addressDetails.city,
+        region: addressDetails.region || "QC",
+        postalCode: addressDetails.postalCode,
+      });
+    }
     navigate(`/commander?plan=${planId}`);
   };
 
