@@ -103,9 +103,12 @@ export interface PaymentLinkResult {
   email_sent: boolean;
 }
 
-export async function sendPaymentLinkFromQuote(quoteId: string): Promise<PaymentLinkResult> {
+export async function sendPaymentLinkFromQuote(
+  quoteId: string,
+  mode: "email" | "link_only" = "email",
+): Promise<PaymentLinkResult> {
   const { data, error } = await supabase.functions.invoke("field-payment-link-create", {
-    body: { quote_id: quoteId, mode: "email" },
+    body: { quote_id: quoteId, mode },
   });
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.error || "Échec de la création du lien de paiement.");
