@@ -1372,7 +1372,7 @@ const GuestCheckout = () => {
             <div className="md:hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wide">
-                  Étape {step === 4 && installationPhase === "schedule" ? "4b" : step} / 5
+                  Étape {step === 4 && installationPhase === "schedule" ? "4b" : step} / 6
                 </span>
                 <span className="text-sm font-bold text-[#0066CC]">
                   {step === 4 && installationPhase === "schedule" ? "Rendez-vous" : CHECKOUT_STEPS.find(s => s.id === step)?.labelFr}
@@ -1382,7 +1382,7 @@ const GuestCheckout = () => {
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
-                    width: `${Math.round(((step - 1) / 4) * 100)}%`,
+                    width: `${Math.round(((step - 1) / 5) * 100)}%`,
                     background: "#0066CC",
                   }}
                 />
