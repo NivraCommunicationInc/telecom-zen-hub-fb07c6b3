@@ -3645,42 +3645,43 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     case "field_payment_link": {
       const total = money(v.total ?? v.amount ?? v.total_amount);
       const approvalUrl = String(v.approval_url || v.approvalUrl || v.payment_url || "#");
-      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || v.invoice_number || orderNum || `SUB-${Date.now().toString(36).toUpperCase().slice(0, 8)}`);
+      const orderRef = esc(v.order_number || v.ORDER_NUMBER || v.order_id || v.invoice_number || orderNum || `NIV-${Date.now().toString(36).toUpperCase().slice(0, 8)}`);
       const agentName = esc(v.agent_name || "Votre conseiller Nivra");
+      const firstName = esc(v.first_name || v.client_first_name || "");
       const summary = esc(v.summary || v.services || v.plan_name || v.description || v.SERVICES_LIST || "Voir détails de la commande");
       const equipment = esc(v.equipment || "");
-      const validUntil = esc(v.valid_until || "24 heures à compter de ce courriel");
+      const validUntil = esc(v.valid_until || "7 jours à compter de ce courriel");
+      const monthly = v.monthly_after ?? v.monthly_price ?? v.monthly ?? null;
+      const installDate = v.install_date ? esc(String(v.install_date)) : null;
       const discountLabel = v.discount_label ? esc(String(v.discount_label)) : null;
       const rows: Array<[string, string]> = [
-        ["Numéro de référence", `#${String(orderRef).replace(/^#/, "")}`],
-        ["Détail", String(summary)],
+        ["Numéro de commande", `#${String(orderRef).replace(/^#/, "")}`],
+        ["Forfait", String(summary)],
       ];
+      if (monthly && Number(monthly) > 0) rows.push(["Prix mensuel après promo", money(monthly)]);
       if (equipment && equipment !== "Aucun équipement") rows.push(["Équipement", String(equipment)]);
-      if (discountLabel) rows.push(["Rabais appliqué", String(discountLabel)]);
-      else if (v.discount && Number(v.discount) > 0) rows.push(["Rabais appliqué", `-${money(v.discount)}`]);
-      if (v.subtotal) rows.push(["Sous-total", money(v.subtotal)]);
-      if (v.tps) rows.push(["TPS (5%)", money(v.tps)]);
-      if (v.tvq) rows.push(["TVQ (9,975%)", money(v.tvq)]);
-      rows.push(["Total à payer", String(total)]);
-      rows.push(["Méthode", "Carte de crédit"]);
-      rows.push(["Lien valide jusqu'au", String(validUntil)]);
-      rows.push(["Agent responsable", String(agentName)]);
+      if (discountLabel) rows.push(["Promotion", String(discountLabel)]);
+      if (installDate) rows.push(["Date d'installation prévue", String(installDate)]);
+      rows.push(["Total à payer aujourd'hui", String(total)]);
+      rows.push(["Représentant", String(agentName)]);
+      rows.push(["Lien valide", String(validUntil)]);
+      const bonjour = firstName ? `Bonjour ${firstName},` : "Bonjour,";
       return {
-        subject: `Votre lien de paiement — ${total}`,
+        subject: `${firstName ? firstName + ", v" : "V"}otre commande Nivra est prête (${total})`,
         html: shell({
-          preheader: `Finalisez votre commande Nivra de ${total} — paiement sécurisé par carte de crédit.`,
-          badge: "PAIEMENT EN ATTENTE",
-          heroTitle: "Votre lien de paiement est prêt",
-          heroSub: `Montant : ${total}`,
+          preheader: `${agentName} a préparé votre commande Nivra. Revoyez-la et confirmez en quelques minutes.`,
+          badge: "COMMANDE PRÊTE",
+          heroTitle: "Votre commande est prête",
+          heroSub: `Préparée par ${agentName}`,
           icon: "doc",
-          greeting,
-          bodyText: `${agentName} vient de préparer votre commande Nivra. Pour la finaliser, cliquez sur le bouton ci-dessous et réglez en toute sécurité par carte de crédit (Visa, Mastercard, Amex acceptées).`,
-          cardTitle: "Récapitulatif",
+          greeting: bonjour,
+          bodyText: `Votre représentant <strong style="color:#1a1a2e;">${agentName}</strong> a préparé votre commande. Il ne vous reste qu'à la revoir, la confirmer et finaliser le paiement sécurisé — moins de 2 minutes.`,
+          cardTitle: "Votre commande",
           cardRows: rows,
           ctaPrimaryUrl: approvalUrl,
-          ctaPrimaryLabel: "Payer par carte de crédit",
-          helpVariant: "warning",
-          helpHtml: `<strong>Lien valable 24 heures.</strong> Passé ce délai, contactez ${agentName} ou écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+          ctaPrimaryLabel: "Revoir ma commande",
+          helpVariant: "info",
+          helpHtml: `<strong>Lien sécurisé, valable 7 jours.</strong> Une question ? Écrivez à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a> ou contactez ${agentName}.`,
         }),
       };
     }
