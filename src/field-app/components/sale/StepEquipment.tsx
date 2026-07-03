@@ -12,13 +12,16 @@
  * Caps come from useFieldConfig (admin-configurable), with per-item overrides
  * for items not covered by the central config (eSIM uses the SIM cap).
  */
-import { ArrowLeft, ArrowRight, Loader2, Package, Plus, Minus, Wifi, Tv, Smartphone, AlertTriangle } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { ArrowLeft, ArrowRight, Loader2, Package, Plus, Minus, Wifi, Tv, Smartphone, AlertTriangle, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFieldConfig } from "@/field-app/lib/useFieldConfig";
 import { useEquipmentCatalog } from "@/field-app/lib/useEquipmentCatalog";
-import type { FieldSaleEquipment } from "@/field-app/lib/fieldSaleTypes";
+import type { FieldSaleEquipment, FieldSaleService } from "@/field-app/lib/fieldSaleTypes";
+import { reconcileEquipment, inferEquipmentKind, equipmentBounds, isEquipmentLocked } from "@/lib/orderRules";
 
 interface Props {
+  services: FieldSaleService[];
   selected: FieldSaleEquipment[];
   onChange: (equipment: FieldSaleEquipment[]) => void;
   onNext: () => void;
@@ -31,14 +34,38 @@ const ICON_FOR_CATEGORY: Record<string, typeof Package> = {
   mobile: Smartphone,
 };
 
-export default function StepEquipment({ selected, onChange, onNext, onBack }: Props) {
+export default function StepEquipment({ services, selected, onChange, onNext, onBack }: Props) {
   const { data: config } = useFieldConfig();
   const { data: catalog = [], isLoading, error } = useEquipmentCatalog(config);
+
+  // Auto-select/lock the mandatory equipment based on chosen services.
+  // Runs whenever services or the catalog changes.
+  const reconciledOnceRef = useRef<string>("");
+  useEffect(() => {
+    if (!catalog.length) return;
+    const key = services.map((s) => s.category).sort().join("|") + ":" + catalog.length;
+    if (reconciledOnceRef.current === key) return;
+    reconciledOnceRef.current = key;
+    const reconciled = reconcileEquipment(
+      services.map((s) => ({ id: s.id, category: s.category, monthlyPrice: s.monthlyPrice, name: s.name })),
+      selected.map((e) => ({ ...e, kind: inferEquipmentKind(e.name) })),
+      catalog.map((c) => ({ id: c.id, name: c.name, category: c.category, price: c.price })),
+    );
+    if (JSON.stringify(reconciled) !== JSON.stringify(selected)) {
+      onChange(reconciled.map(({ kind, ...e }) => e));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [services, catalog]);
 
   const getQty = (id: string) => selected.find((e) => e.id === id)?.quantity ?? 0;
 
   const setQty = (item: typeof catalog[number], qty: number) => {
-    const clamped = Math.max(0, Math.min(qty, item.maxQty));
+    const kind = inferEquipmentKind(item.name);
+    const cartServices = services.map((s) => ({ id: s.id, category: s.category }));
+    const bounds = equipmentBounds(kind, cartServices);
+    const hardMax = Math.min(item.maxQty, bounds.max || item.maxQty);
+    const hardMin = bounds.min;
+    const clamped = Math.max(hardMin, Math.min(qty, hardMax));
     const others = selected.filter((e) => e.id !== item.id);
     if (clamped === 0) {
       onChange(others);
