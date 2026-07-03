@@ -63,6 +63,7 @@ import {
   AlertCircle, Lock, Mail, Phone, Home, Star, CheckCircle2, Loader2, Zap, FileCheck
 } from "lucide-react";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 // ── Types ──
 interface Service {
