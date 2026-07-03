@@ -104,7 +104,7 @@ interface IntentData {
   agent_name: string;
 }
 
-export default function PayerCommande() {
+export default function ReviewOrderPage() {
   const { intentId } = useParams<{ intentId: string }>();
   const navigate = useNavigate();
   const [data, setData] = useState<IntentData | null>(null);
