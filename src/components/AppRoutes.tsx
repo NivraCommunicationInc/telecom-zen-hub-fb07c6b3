@@ -308,7 +308,7 @@ const E2eInstallTest = lazy(() => import("@/pages/E2eInstallTest"));
 const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
 const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
 const Unsubscribe = lazy(() => import("@/pages/Unsubscribe"));
-const PayerCommande = lazy(() => import("@/pages/PayerCommande"));
+const ReviewOrderPage = lazy(() => import("@/pages/order-review/ReviewOrderPage"));
 const CommandeConfirmee = lazy(() => import("@/pages/CommandeConfirmee"));
 const PayerPublic = lazy(() => import("@/pages/public/PayerPublic"));
 const PayerPublicByToken = lazy(() => import("@/pages/public/PayerPublicByToken"));
