@@ -526,7 +526,56 @@ serve(async (req) => {
       } catch (linkSyncErr) {
         console.warn("[square-charge-invoice] public payment link sync failed:", linkSyncErr);
       }
+
+      // ── Agent → client link: materialize field sale + credit commission ──
+      // If this intent came from a field_quote (agent-prepared order) and no
+      // invoice has been created yet, invoke field-sales-sync to build the
+      // field_sales_orders row with the original agent_id preserved. This
+      // triggers automatic commission attribution + installation workflow.
+      try {
+        const { data: intentPost } = await supabase
+          .from("field_payment_intents")
+          .select("quote_id, agent_id, converted_invoice_id, converted_field_order_id")
+          .eq("id", intent_id)
+          .maybeSingle();
+
+        if (
+          intentPost?.quote_id &&
+          !intentPost.converted_field_order_id &&
+          !intentPost.converted_invoice_id
+        ) {
+          console.log(
+            "[square-charge-invoice] materializing field order for quote",
+            intentPost.quote_id,
+            "agent",
+            intentPost.agent_id,
+          );
+          const { error: matErr } = await supabase.functions.invoke("field-sales-sync", {
+            body: {
+              action: "materialize_from_quote",
+              quote_id: intentPost.quote_id,
+              agent_id: intentPost.agent_id,
+              payment_method: "square",
+              payment_reference: paymentId,
+              paypal_capture_id: paymentId, // legacy field name (kept for backward compat)
+              paypal_amount: amountPaid,
+            },
+          });
+          if (matErr) {
+            console.error(
+              "[square-charge-invoice] materialize_from_quote failed (payment kept):",
+              matErr,
+            );
+          }
+        }
+      } catch (matEx) {
+        console.error(
+          "[square-charge-invoice] materialize invoke exception (non-fatal):",
+          matEx,
+        );
+      }
     }
+
 
     return json({
       ok: true,
