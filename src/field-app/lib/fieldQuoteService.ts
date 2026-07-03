@@ -73,7 +73,7 @@ export async function saveQuoteAndEmail({
   const validUntil = inserted.valid_until as string;
 
   // 2) Enqueue the Violet Bold "field_quote" email (best-effort).
-  if (draft.customer.email) {
+  if (!skipClientEmail && draft.customer.email) {
     const summary = draft.services.map((s) => s.name).join(", ") || "Services Nivra";
     const validUntilLabel = new Date(validUntil).toLocaleDateString("fr-CA", {
       day: "numeric",
