@@ -213,11 +213,16 @@ const AppointmentsPage = () => {
         {filtered.length} rendez-vous
       </div>
 
-      {/* ── Table ── */}
+      {/* ── Content: List or Calendar ── */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-[hsl(220,10%,40%)]">
           <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Chargement…
         </div>
+      ) : view === "calendar" ? (
+        <AppointmentCalendarView
+          appointments={filtered}
+          onSelect={(a) => { window.location.href = corePath(`/appointments/${a.id}`); }}
+        />
       ) : filtered.length === 0 ? (
         <p className="text-center py-12 text-[hsl(220,10%,40%)] text-sm">Aucun rendez-vous trouvé</p>
       ) : (
@@ -245,12 +250,9 @@ const AppointmentsPage = () => {
                     key={apt.id}
                     className={`hover:bg-[hsl(220,15%,12%)] transition-colors ${isPast ? "opacity-60" : ""}`}
                   >
-                    {/* Number */}
                     <td className="px-3 py-2.5 font-mono text-[hsl(220,10%,50%)]">
                       {apt.appointment_number || "—"}
                     </td>
-
-                    {/* Date */}
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {scheduled ? (
                         <div>
@@ -263,21 +265,15 @@ const AppointmentsPage = () => {
                         </div>
                       ) : "—"}
                     </td>
-
-                    {/* Title */}
                     <td className="px-3 py-2.5 text-[hsl(220,10%,80%)] max-w-[200px] truncate">
                       {apt.title}
                     </td>
-
-                    {/* Client */}
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1 text-[hsl(220,10%,65%)]">
                         <User className="h-3 w-3 shrink-0" />
                         <span className="truncate max-w-[160px]">{apt.client_email || "—"}</span>
                       </div>
                     </td>
-
-                    {/* Address */}
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1 text-[hsl(220,10%,55%)] max-w-[180px] truncate">
                         <MapPin className="h-3 w-3 shrink-0" />
@@ -287,8 +283,6 @@ const AppointmentsPage = () => {
                         </span>
                       </div>
                     </td>
-
-                    {/* Method */}
                     <td className="px-3 py-2.5">
                       {apt.installation_method === "technician" ? (
                         <span className="inline-flex items-center gap-1 text-amber-400">
@@ -300,24 +294,12 @@ const AppointmentsPage = () => {
                         <span className="text-[hsl(220,10%,40%)]">—</span>
                       )}
                     </td>
-
-                    {/* Status */}
                     <td className="px-3 py-2.5">
                       <StatusBadge label={statusLabel(apt.status || "scheduled")} variant={statusToVariant(apt.status || "scheduled")} />
                     </td>
-
-                    {/* Actions */}
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {apt.order_id && (
-                          <Link
-                            to={corePath(`/orders/${apt.order_id}`)}
-                            className="px-2 py-1 rounded text-[10px] font-medium bg-[hsl(220,15%,16%)] text-[hsl(220,10%,60%)] hover:text-emerald-400 hover:bg-emerald-600/10 transition-colors"
-                            title="Voir commande"
-                          >
-                            Commande
-                          </Link>
-                        )}
+                        <AppointmentActionsMenu appointment={apt} onRefresh={refetch} />
                         <Link
                           to={corePath(`/appointments/${apt.id}`)}
                           className="p-1 rounded text-[hsl(220,10%,45%)] hover:text-emerald-400 hover:bg-emerald-600/10 transition-colors"
