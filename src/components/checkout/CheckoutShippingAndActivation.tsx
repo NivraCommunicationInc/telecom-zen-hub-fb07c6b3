@@ -56,6 +56,8 @@ interface CheckoutShippingAndActivationProps {
   installationDetails: InstallationDetailsData;
   onInstallationDetailsChange: (next: InstallationDetailsData) => void;
   showInstallationDetails?: boolean;
+  /** When false, hides the "Livraison" + "Date d'activation" cards (used to split the step). Default true. */
+  showShippingActivation?: boolean;
 }
 
 const MIN_DAYS_AHEAD = 3;
