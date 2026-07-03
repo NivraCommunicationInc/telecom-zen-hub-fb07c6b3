@@ -129,7 +129,7 @@ export const ConfirmationSuccess = ({
       {/* Order Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Service Details */}
-        <Card className="bg-card border">
+        <Card className="bg-white border">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Package className="w-4 h-4 text-primary" />
@@ -138,9 +138,9 @@ export const ConfirmationSuccess = ({
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="font-semibold text-foreground">{serviceName}</p>
+              <p className="font-semibold text-[#1A1A2E]">{serviceName}</p>
               {serviceDescription && (
-                <p className="text-sm text-muted-foreground">{serviceDescription}</p>
+                <p className="text-sm text-[#4B5563]">{serviceDescription}</p>
               )}
             </div>
             
@@ -148,11 +148,11 @@ export const ConfirmationSuccess = ({
               <>
                 <Separator />
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">
+                  <p className="text-xs font-medium text-[#4B5563] uppercase">
                     {isFrench ? "Équipement" : "Equipment"}
                   </p>
                   {equipmentList.map((item, i) => (
-                    <p key={i} className="text-sm text-foreground">
+                    <p key={i} className="text-sm text-[#1A1A2E]">
                       {item.quantity && item.quantity > 1 ? `${item.quantity}x ` : ""}{item.name}
                       {item.fee !== undefined && ` ($${item.fee})`}
                     </p>
@@ -164,7 +164,7 @@ export const ConfirmationSuccess = ({
         </Card>
 
         {/* Payment Summary */}
-        <Card className="bg-card border">
+        <Card className="bg-white border">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="w-4 h-4 text-primary" />
@@ -174,12 +174,12 @@ export const ConfirmationSuccess = ({
           <CardContent className="space-y-3">
             <div className="bg-primary/5 rounded-lg p-4 text-center">
               <p className="text-3xl font-bold text-primary">${totalPaid.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-[#4B5563] mt-1">
                 {isFrench ? "Frais initiaux" : "Initial fees"}
               </p>
             </div>
             {monthlyAmount && monthlyAmount > 0 && (
-              <p className="text-sm text-center text-muted-foreground">
+              <p className="text-sm text-center text-[#4B5563]">
                 {isFrench 
                   ? `Mensualité: $${monthlyAmount.toFixed(2)}/mois (après activation)`
                   : `Monthly: $${monthlyAmount.toFixed(2)}/mo (after activation)`}
@@ -191,7 +191,7 @@ export const ConfirmationSuccess = ({
 
       {/* Installation Info */}
       {(installationAddress || installationDate) && (
-        <Card className="bg-card border">
+        <Card className="bg-white border">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               {installationMethod === "auto" ? (
@@ -208,23 +208,23 @@ export const ConfirmationSuccess = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {installationAddress && (
                 <div className="flex items-start gap-3">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <MapPin className="w-4 h-4 text-[#4B5563] mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[#4B5563]">
                       {isFrench ? "Adresse" : "Address"}
                     </p>
-                    <p className="text-sm font-medium text-foreground">{installationAddress}</p>
+                    <p className="text-sm font-medium text-[#1A1A2E]">{installationAddress}</p>
                   </div>
                 </div>
               )}
               {installationDate && (
                 <div className="flex items-start gap-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <Calendar className="w-4 h-4 text-[#4B5563] mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[#4B5563]">
                       {isFrench ? "Date prévue" : "Scheduled date"}
                     </p>
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-medium text-[#1A1A2E]">
                       {installationDate}
                       {installationTime && ` • ${installationTime}`}
                     </p>
@@ -256,8 +256,8 @@ export const ConfirmationSuccess = ({
                   <span className="text-sm font-bold">{step.step}</span>
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">{step.title}</p>
-                  <p className="text-sm text-muted-foreground">{step.description}</p>
+                  <p className="font-medium text-[#1A1A2E]">{step.title}</p>
+                  <p className="text-sm text-[#4B5563]">{step.description}</p>
                 </div>
               </div>
             ))}
@@ -300,10 +300,10 @@ export const ConfirmationSuccess = ({
       </div>
 
       {/* Contact Support — email only (no phone support at Nivra) */}
-      <Card className="bg-muted/50 border-border">
+      <Card className="bg-[#F5F7FA] border-[#E5E7EB]">
         <CardContent className="py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
-            <a href={getMailtoLink()} className="flex items-center gap-2 hover:text-foreground transition-colors">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-[#4B5563]">
+            <a href={getMailtoLink()} className="flex items-center gap-2 hover:text-[#1A1A2E] transition-colors">
               <Mail className="w-4 h-4" />
               {COMPANY_CONTACT.supportEmailDisplay}
             </a>

@@ -462,11 +462,11 @@ export function AddressAutocomplete({
             width: dropdownRect.width,
             zIndex: 99999,
           }}
-          className="rounded-lg border border-border bg-popover shadow-lg"
+          className="rounded-lg border border-[#E5E7EB] bg-white shadow-lg"
           role="listbox"
         >
           {errorMessage ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">{errorMessage}</div>
+            <div className="px-4 py-3 text-sm text-[#4B5563]">{errorMessage}</div>
           ) : suggestions.length > 0 ? (
             <div className="max-h-72 overflow-y-auto">
               {suggestions.map((suggestion, index) => (
@@ -474,8 +474,8 @@ export function AddressAutocomplete({
                   key={suggestion.mapbox_id}
                   type="button"
                   className={cn(
-                    "w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3",
-                    highlightedIndex === index && "bg-muted/50"
+                    "w-full px-4 py-3 text-left hover:bg-[#F5F7FA] transition-colors flex items-start gap-3",
+                    highlightedIndex === index && "bg-[#F5F7FA]"
                   )}
                   // CRITICAL: Use onPointerDownCapture to ensure we capture before blur
                   onPointerDownCapture={(e) => {
@@ -487,20 +487,20 @@ export function AddressAutocomplete({
                 >
                   <MapPin className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground text-sm truncate">{suggestion.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{suggestion.place_formatted}</p>
+                    <p className="font-medium text-[#1A1A2E] text-sm truncate">{suggestion.name}</p>
+                    <p className="text-xs text-[#4B5563] truncate">{suggestion.place_formatted}</p>
                   </div>
                 </button>
               ))}
             </div>
           ) : noResults ? (
             <div className="px-4 py-3 text-center">
-              <p className="text-sm text-muted-foreground">Aucun résultat — veuillez préciser</p>
+              <p className="text-sm text-[#4B5563]">Aucun résultat — veuillez préciser</p>
             </div>
           ) : null}
 
-          <div className="px-4 py-2 border-t border-border">
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <div className="px-4 py-2 border-t border-[#E5E7EB]">
+            <p className="text-xs text-[#4B5563] flex items-center gap-1">
               <MapPin className="w-3 h-3" />
               {restrictToQuebec ? "Service au Québec seulement" : "Canada"}
             </p>
@@ -513,7 +513,7 @@ export function AddressAutocomplete({
   return (
     <div ref={wrapperRef} className="relative w-full">
       <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#4B5563]" />
         <Input
           ref={inputRef}
           type="text"
@@ -527,7 +527,7 @@ export function AddressAutocomplete({
           autoComplete="off"
         />
         {isLoading && (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#4B5563] animate-spin" />
         )}
       </div>
 

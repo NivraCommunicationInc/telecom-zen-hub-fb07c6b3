@@ -186,7 +186,7 @@ export const ReferralCodeInput = ({
         <div className="space-y-2">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4B5563]" />
               <Input
                 placeholder="Code de parrainage"
                 value={code}

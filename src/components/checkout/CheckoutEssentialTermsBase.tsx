@@ -70,7 +70,7 @@ export const ETransferStatusInfo = ({ isFrench }: { isFrench: boolean }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[#4B5563]">
           {isFrench 
             ? "L'activation du service se fait uniquement après réception et vérification du virement. Statuts possibles :"
             : "Service activation occurs only after receipt and verification of the transfer. Possible statuses:"}
@@ -82,7 +82,7 @@ export const ETransferStatusInfo = ({ isFrench }: { isFrench: boolean }) => {
                 <status.icon className="w-3 h-3" />
                 {status.label}
               </Badge>
-              <span className="text-muted-foreground text-xs">{status.description}</span>
+              <span className="text-[#4B5563] text-xs">{status.description}</span>
             </div>
           ))}
         </div>
@@ -175,16 +175,16 @@ export const CheckoutEssentialTermsBase = ({
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-foreground text-sm mb-1">{prepaidNotice.title}</p>
-              <p className="text-sm text-muted-foreground">{prepaidNotice.line1}</p>
-              <p className="text-sm text-muted-foreground mt-1">{prepaidNotice.line2}</p>
+              <p className="font-semibold text-[#1A1A2E] text-sm mb-1">{prepaidNotice.title}</p>
+              <p className="text-sm text-[#4B5563]">{prepaidNotice.line1}</p>
+              <p className="text-sm text-[#4B5563] mt-1">{prepaidNotice.line2}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Essential Terms Card */}
-      <Card className="bg-muted/50 border-border">
+      <Card className="bg-[#F5F7FA] border-[#E5E7EB]">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="w-4 h-4 text-primary" />
@@ -192,7 +192,7 @@ export const CheckoutEssentialTermsBase = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <ul className="space-y-2 text-sm text-muted-foreground">
+          <ul className="space-y-2 text-sm text-[#4B5563]">
             {essentialTerms.map((term, index) => (
               <li key={index} className="flex items-start gap-2">
                 <span className="text-primary mt-0.5">•</span>
@@ -201,31 +201,31 @@ export const CheckoutEssentialTermsBase = ({
             ))}
           </ul>
           
-          <div className="pt-3 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-2">
+          <div className="pt-3 border-t border-[#E5E7EB]">
+            <p className="text-xs text-[#4B5563] mb-2">
               {isFrench ? "Documents légaux :" : "Legal documents:"}
             </p>
             <div className="flex flex-wrap gap-2">
               <Link to="/conditions-de-service" className="text-xs text-primary hover:underline">
                 {isFrench ? "Conditions de service" : "Terms of Service"}
               </Link>
-              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs text-[#4B5563]">•</span>
               <Link to="/conditions-de-service#contestations" className="text-xs text-primary hover:underline">
                 {isFrench ? "Contestations (10 jours)" : "Disputes (10 days)"}
               </Link>
-              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs text-[#4B5563]">•</span>
               <Link to="/modalites-paiement" className="text-xs text-primary hover:underline">
                 {isFrench ? "Modalités de paiement" : "Payment Terms"}
               </Link>
-              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs text-[#4B5563]">•</span>
               <Link to="/equipement-garantie" className="text-xs text-primary hover:underline">
                 {isFrench ? "Équipement & garantie" : "Equipment & Warranty"}
               </Link>
-              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs text-[#4B5563]">•</span>
               <Link to="/frais-possibles" className="text-xs text-primary hover:underline">
                 {isFrench ? "Frais possibles" : "Possible Fees"}
               </Link>
-              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs text-[#4B5563]">•</span>
               <Link to="/confidentialite-loi25" className="text-xs text-primary hover:underline">
                 {isFrench ? "Confidentialité" : "Privacy"}
               </Link>
@@ -256,7 +256,7 @@ export const CheckoutEssentialTermsBase = ({
               />
               <Label 
                 htmlFor={`checklist-${item.key}`} 
-                className="text-sm text-foreground cursor-pointer leading-relaxed"
+                className="text-sm text-[#1A1A2E] cursor-pointer leading-relaxed"
               >
                 {item.label}
               </Label>

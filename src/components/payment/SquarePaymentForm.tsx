@@ -175,7 +175,7 @@ export function SquarePaymentForm({
       <div ref={containerRef} id="sq-card-container" className="min-h-[90px]" />
 
       {loading && (
-        <div className="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 py-2 text-sm text-[#4B5563]">
           <Loader2 className="w-4 h-4 animate-spin" />
           Chargement du formulaire…
         </div>
