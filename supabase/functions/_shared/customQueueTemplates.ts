@@ -3992,12 +3992,16 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
         v.valid_until_iso || v.valid_until ||
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       );
-      const completeUrl = String(
-        v.complete_url ||
-          v.payment_url ||
+      const rawCompleteUrl = String(
+        v.payment_url ||
+          v.approval_url ||
+          v.complete_url ||
           v.quote_url ||
           `${APP_URL}/soumission/${esc(v.quote_id || v.public_token || "")}`,
       );
+      const completeUrl = rawCompleteUrl.includes("/commander")
+        ? String(v.payment_url || v.approval_url || `${APP_URL}/soumission/${esc(v.quote_id || v.public_token || "")}`)
+        : rawCompleteUrl;
       const discountLabel = v.discount_label ? esc(String(v.discount_label)) : null;
       const rows: Array<[string, string]> = [
         ["Numéro de soumission", `#${String(quoteNum).replace(/^#/, "")}`],
@@ -4023,11 +4027,11 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroSub: `Préparée par ${agentName}`,
           icon: "doc",
           greeting,
-          bodyText: `Votre conseiller <strong style="color:#1a1a2e;">${agentName}</strong> a préparé une soumission personnalisée pour vous. Pour compléter votre commande, cliquez le bouton ci-dessous.`,
+          bodyText: `Votre conseiller <strong style="color:#1a1a2e;">${agentName}</strong> a préparé votre commande personnalisée. Revoyez les détails, validez vos informations, puis finalisez le paiement sécurisé.`,
           cardTitle: "Résumé de la soumission",
           cardRows: rows,
           ctaPrimaryUrl: completeUrl,
-          ctaPrimaryLabel: "Compléter ma commande",
+          ctaPrimaryLabel: "Revoir ma commande",
           afterCardText: `Cette soumission est valide jusqu'au <strong style="color:#7c3aed;">${validUntil}</strong>.`,
         }),
       };

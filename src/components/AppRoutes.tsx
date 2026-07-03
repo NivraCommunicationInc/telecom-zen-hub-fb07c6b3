@@ -326,7 +326,7 @@ const Install = lazy(() => import("@/pages/Install"));
 const ComparePlans = lazy(() => import("@/pages/ComparePlans"));
 const TVConfigurator = lazy(() => import("@/pages/TVConfigurator"));
 const GrilleCanaux = lazy(() => import("@/pages/GrilleCanaux"));
-const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
+const OrderEntryRouter = lazy(() => import("@/pages/OrderEntryRouter"));
 const PayPalSubscriptionReturn = lazy(() => import("@/pages/PayPalSubscriptionReturn"));
 const ClientAutoPayLog = lazy(() => import("@/pages/client/ClientAutoPayLog"));
 const ClientAutoPayStatus = lazy(() => import("@/pages/client/ClientAutoPayStatus"));
@@ -683,7 +683,7 @@ const AppRoutes = () => {
       <Route path="/concours" element={<MaintenanceGuard><PublicLayout><Contest /></PublicLayout></MaintenanceGuard>} />
       <Route path="/track-order" element={<MaintenanceGuard><PublicLayout><TrackOrder /></PublicLayout></MaintenanceGuard>} />
       <Route path="/parrainage" element={<MaintenanceGuard><PublicLayout><Parrainage /></PublicLayout></MaintenanceGuard>} />
-      <Route path="/commander" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><GuestCheckout /></Suspense></MaintenanceGuard>} />
+      <Route path="/commander" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><OrderEntryRouter /></Suspense></MaintenanceGuard>} />
       <Route path="/commander/paypal-retour" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PayPalSubscriptionReturn /></Suspense>} />
       <Route path="/checkout/paypal-success" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PayPalSubscriptionReturn /></Suspense>} />
       <Route path="/install" element={<Install />} />

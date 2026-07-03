@@ -97,7 +97,7 @@ export default function StepRecap({
     }
     setSendingLink(true);
     try {
-      // 1) Persist the quote (no client email — the payment-link email is sent instead)
+      // 1) Persist the quote (no client email — the Review Order email is sent below)
       let quoteId = quoteSavedId;
       if (!quoteId) {
         const saved = await saveQuoteAndEmail({
@@ -113,12 +113,12 @@ export default function StepRecap({
         quoteId = saved.id;
         setQuoteSavedId(saved.id);
       }
-      // 2) Generate the secure Square payment link + email
+      // 2) Generate the secure Review Order/Square link + email
       const link = await sendPaymentLinkFromQuote(quoteId);
       setPaymentLinkUrl(link.payment_url);
       toast.success(
         link.email_sent
-          ? `Lien envoyé à ${draft.customer.email}. Commission préservée.`
+          ? `Lien Revoir ma commande envoyé à ${draft.customer.email}. Commission préservée.`
           : "Lien de paiement créé — le courriel n'a pas pu être envoyé.",
         { duration: 6000 },
       );
@@ -151,9 +151,16 @@ export default function StepRecap({
         tps,
         tvq,
         total,
+        skipClientEmail: true,
       });
       setQuoteSavedId(saved.id);
-      toast.success("Soumission enregistrée et envoyée au client.");
+      const link = await sendPaymentLinkFromQuote(saved.id);
+      setPaymentLinkUrl(link.payment_url);
+      toast.success(
+        link.email_sent
+          ? "Soumission enregistrée — lien Revoir ma commande envoyé au client."
+          : "Soumission enregistrée — lien créé, mais le courriel n'a pas pu être envoyé.",
+      );
     } catch (err: any) {
       console.warn("[field_quote] save failed", err);
       toast.error(err?.message || "Impossible d'enregistrer la soumission.");
