@@ -10,8 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { EditAppointmentDialog } from "@/core-app/components/account-actions/EditAppointmentDialog";
+import { AppointmentActionsMenu } from "@/core-app/components/appointments/AppointmentActionsMenu";
 import {
-  ArrowLeft, Calendar, MapPin, User, Clock, Wrench, Phone, Mail,
+  ArrowLeft, Calendar, MapPin, User, Wrench, Phone, Mail,
   FileText, Package, Loader2, AlertTriangle, Pencil,
 } from "lucide-react";
 import { format } from "date-fns";
