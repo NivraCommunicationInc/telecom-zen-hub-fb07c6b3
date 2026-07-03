@@ -34,6 +34,20 @@ interface SlotData {
 
 const ACTIVE_APPOINTMENT_STATUSES = new Set(["hold", "scheduled", "confirmed", "rescheduled", "in_progress"]);
 
+const minutesFromTime = (value?: string | null) => {
+  if (!value) return 0;
+  const [h = "0", m = "0"] = value.slice(0, 5).split(":");
+  return Number(h) * 60 + Number(m);
+};
+
+const compactTime = (value: string) => value.slice(0, 5).replace(":", "h").replace(/h00$/, "h");
+
+const slotLabelFromRule = (rule: any) => {
+  const explicit = String(rule?.label || "").trim();
+  if (explicit) return explicit;
+  return `${compactTime(rule.start_time)} - ${compactTime(rule.end_time)}`;
+};
+
 const makeLocalHold = (scheduledAt: string, timeSlot: string): AppointmentHold => ({
   appointmentId: `local-${crypto.randomUUID()}`,
   holdExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
@@ -138,11 +152,20 @@ export function InstallationScheduler({
       query = query.eq("region", "montreal");
     }
 
-    // Load Core admin overrides + appointment occupancy in the same window.
+    // Load Core admin recurring rules, one-off overrides + appointment occupancy in the same window.
     // IMPORTANT: Core-created/manual appointments and guest checkout holds consume capacity
     // even when technician_slots.booked was not incremented by legacy paths.
-    const [{ data: slotsData }, { data: overridesData }, { data: appointmentsData }] = await Promise.all([
+    const [{ data: slotsData }, { data: rulesData }, { data: blockedDatesData }, { data: overridesData }, { data: appointmentsData }] = await Promise.all([
       query,
+      portalClient
+        .from("appointment_slot_rules")
+        .select("id, weekday, start_time, end_time, capacity, is_active, label")
+        .eq("is_active", true),
+      portalClient
+        .from("appointment_blocked_dates")
+        .select("blocked_date")
+        .gte("blocked_date", fromDate)
+        .lte("blocked_date", toDate),
       portalClient
         .from("appointment_slot_overrides")
         .select("override_date, time_slot, status, capacity_override")
@@ -163,20 +186,56 @@ export function InstallationScheduler({
       });
     });
 
-    const appointmentOccupancy = new Map<string, number>();
-    (appointmentsData || []).forEach((a: any) => {
-      if (!a?.scheduled_at || !ACTIVE_APPOINTMENT_STATUSES.has(a.status || "")) return;
-      const dateKey = String(a.scheduled_at).slice(0, 10);
-      const slotKey = String(a.description || "").trim();
-      if (!slotKey) return;
-      const key = `${dateKey}|${slotKey}`;
-      appointmentOccupancy.set(key, (appointmentOccupancy.get(key) || 0) + 1);
-    });
+    const activeAppointments = (appointmentsData || []).filter((a: any) => (
+      !!a?.scheduled_at && ACTIVE_APPOINTMENT_STATUSES.has(a.status || "")
+    ));
 
-    const filtered = ((slotsData || []) as SlotData[])
+    const appointmentCountFor = (slotDate: string, slotLabel: string, startTime?: string, endTime?: string) => {
+      const start = minutesFromTime(startTime);
+      const end = minutesFromTime(endTime);
+      return activeAppointments.filter((a: any) => {
+        if (String(a.scheduled_at).slice(0, 10) !== slotDate) return false;
+        if (String(a.description || "").trim() === slotLabel) return true;
+        if (!startTime || !endTime) return false;
+        const at = minutesFromTime(String(a.scheduled_at).slice(11, 16));
+        return at >= start && at < end;
+      }).length;
+    };
+
+    const blockedDates = new Set((blockedDatesData || []).map((b: any) => b.blocked_date));
+    const recurringRules = ((rulesData || []) as any[]).filter((r) => r.is_active);
+
+    const generatedFromRules: SlotData[] = [];
+    if (recurringRules.length > 0) {
+      for (let i = startDay; i <= targetDecision.maxLeadDays; i += 1) {
+        const day = addDays(new Date(), i);
+        const slotDate = format(day, "yyyy-MM-dd");
+        if (blockedDates.has(slotDate)) continue;
+        const weekday = day.getDay();
+        recurringRules
+          .filter((r) => Number(r.weekday) === weekday)
+          .forEach((rule) => {
+            const label = slotLabelFromRule(rule);
+            const override = overrideMap.get(`${slotDate}|${label}`);
+            if (override?.status === "closed") return;
+            const capacity = override?.status === "reduced" && override.capacity_override != null
+              ? override.capacity_override
+              : Number(rule.capacity || 0);
+            generatedFromRules.push({
+              id: `${rule.id}-${slotDate}`,
+              slot_date: slotDate,
+              time_slot: label,
+              capacity,
+              booked: appointmentCountFor(slotDate, label, rule.start_time, rule.end_time),
+            });
+          });
+      }
+    }
+
+    const legacySlots = ((slotsData || []) as SlotData[])
       .map((s) => {
         const ov = overrideMap.get(`${s.slot_date}|${s.time_slot}`);
-        const occupancy = appointmentOccupancy.get(`${s.slot_date}|${s.time_slot}`) || 0;
+        const occupancy = appointmentCountFor(s.slot_date, s.time_slot);
         const withLiveBooked = { ...s, booked: Math.max(s.booked || 0, occupancy) };
         if (!ov) return withLiveBooked;
         if (ov.status === "closed") return null; // Core-closed → never shown publicly
@@ -187,8 +246,25 @@ export function InstallationScheduler({
       })
       .filter((s): s is SlotData => s !== null);
 
-    setAvailableSlots(filtered);
+    setAvailableSlots((generatedFromRules.length > 0 ? generatedFromRules : legacySlots).filter((s) => s.booked < s.capacity));
   }, []);
+
+  useEffect(() => {
+    if (!showSchedule) return;
+    if (decision) {
+      void fetchSlots(decision);
+      return;
+    }
+    const fallback = determineInstallation(distanceKm, {
+      hasCoaxial: "yes",
+      cableStatus: "yes",
+      previousService: "yes",
+    });
+    setDecision(fallback);
+    onInstallationTypeChange(fallback.installationType, fallback.technicianLevel);
+    onDecisionMade?.(fallback);
+    void fetchSlots(fallback);
+  }, [showSchedule, decision, distanceKm, fetchSlots, onInstallationTypeChange, onDecisionMade]);
 
   const recordInstallation = useCallback(async (answers: CablingData, targetDecision: InstallationDecision) => {
     const { data: authData } = await portalClient.auth.getUser();

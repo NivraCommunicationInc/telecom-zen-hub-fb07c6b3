@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Calendar, Clock, CheckCircle2, AlertTriangle, ChevronRight } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { format, addDays, isToday, isTomorrow, isWeekend } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
 import type { InstallationDecision } from "@/lib/installationLogic";
@@ -32,6 +32,21 @@ const TIME_SLOTS = [
   { value: "18h - 20h", startHour: 18, labelFr: "18h – 20h", labelEn: "6PM – 8PM", period: "Soir" },
 ];
 
+const dateKey = (date: Date) => format(date, "yyyy-MM-dd");
+
+const slotStartHour = (value: string, fallback: number) => {
+  const match = value.match(/(\d{1,2})\s*h/);
+  return match ? Number(match[1]) : fallback;
+};
+
+const periodLabel = (value: string) => {
+  const hour = slotStartHour(value, 12);
+  if (hour < 12) return "Matin";
+  if (hour < 16) return "Après-midi";
+  if (hour < 18) return "Fin d'après-midi";
+  return "Soir";
+};
+
 export function SmartSlotPicker({
   decision,
   isFrench,
@@ -41,7 +56,7 @@ export function SmartSlotPicker({
   onSelect,
 }: Props) {
   const [now, setNow] = useState(() => new Date());
-  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [activeDate, setActiveDate] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
@@ -59,20 +74,33 @@ export function SmartSlotPicker({
   }, [decision, now]);
 
   const getTimeSlotsForDate = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
+    const dateStr = dateKey(date);
+
+    if (availableSlots && availableSlots.length > 0) {
+      return availableSlots
+        .filter((slot) => slot.slot_date === dateStr)
+        .filter((slot) => slot.booked < slot.capacity)
+        .filter((slot) => {
+          if (!isToday(date)) return true;
+          const currentHour = now.getHours() + now.getMinutes() / 60;
+          return slotStartHour(slot.time_slot, 9) > currentHour + LEAD_TIME_HOURS;
+        })
+        .map((slot) => ({
+          value: slot.time_slot,
+          labelFr: slot.time_slot,
+          labelEn: slot.time_slot,
+          period: periodLabel(slot.time_slot),
+          dbSlot: slot,
+        }));
+    }
+
     return TIME_SLOTS.filter((slot) => {
       if (isToday(date)) {
         const currentHour = now.getHours() + now.getMinutes() / 60;
         if (slot.startHour <= currentHour + LEAD_TIME_HOURS) return false;
       }
-      if (availableSlots && availableSlots.length > 0) {
-        const match = availableSlots.find(
-          (s) => s.slot_date === dateStr && s.time_slot === slot.value
-        );
-        return match ? match.booked < match.capacity : false;
-      }
       return true;
-    });
+    }).map((slot) => ({ ...slot, dbSlot: undefined as SlotData | undefined }));
   };
 
   const formatDateLabel = (date: Date) => {
@@ -89,17 +117,20 @@ export function SmartSlotPicker({
   };
 
   useEffect(() => {
-    if (!expandedDate && dates.length > 0) {
+    if (!activeDate && dates.length > 0) {
       const firstAvailable = dates.find(d => getTimeSlotsForDate(d).length > 0);
-      if (firstAvailable) setExpandedDate(firstAvailable.toISOString());
+      if (firstAvailable) setActiveDate(firstAvailable.toISOString());
     }
-  }, [dates]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dates, activeDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const availableDates = dates.filter(d => getTimeSlotsForDate(d).length > 0);
+  const selectedDateKey = selectedDate ? dateKey(new Date(selectedDate)) : "";
+  const activeDateObj = activeDate ? new Date(activeDate) : availableDates[0];
+  const activeSlots = activeDateObj ? getTimeSlotsForDate(activeDateObj) : [];
 
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
-      <div className="px-5 sm:px-6 py-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
+    <div className="bg-white border border-[#D7E4F2] rounded-xl shadow-sm overflow-hidden">
+      <div className="px-5 sm:px-6 py-4 border-b border-[#D7E4F2]" style={{ background: '#F0F6FC' }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#0066CC]/10 flex items-center justify-center flex-shrink-0">
             <Calendar className="w-5 h-5 text-[#0066CC]" />
@@ -117,7 +148,7 @@ export function SmartSlotPicker({
         </div>
       </div>
 
-      <div className="p-5 sm:p-6 space-y-3">
+      <div className="p-5 sm:p-6 space-y-5">
         {availableDates.length === 0 ? (
           <div className="flex items-center gap-3 p-4 rounded-xl bg-[#FFFBEB] border border-[#FCD34D]">
             <AlertTriangle className="w-5 h-5 text-[#D97706] shrink-0" />
@@ -129,31 +160,29 @@ export function SmartSlotPicker({
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {availableDates.slice(0, 10).map((date) => {
               const dateStr = date.toISOString();
               const slots = getTimeSlotsForDate(date);
-              const isExpanded = expandedDate === dateStr;
-              const isSelectedDate = selectedDate === dateStr;
+              const isActiveDate = activeDate === dateStr;
+              const isSelectedDate = selectedDateKey === dateKey(date);
               const dateBadge = getDateBadge(date);
 
               return (
-                <div
+                <button
                   key={dateStr}
-                  className={`rounded-xl border transition-all ${
-                    isSelectedDate
-                      ? "border-[#0066CC] bg-[#0066CC]/[0.04]"
-                      : "border-[#E5E7EB] bg-white hover:border-[#0066CC]/40"
+                  type="button"
+                  onClick={() => setActiveDate(dateStr)}
+                  className={`rounded-xl border p-3 text-left transition-all ${
+                    isActiveDate || isSelectedDate
+                      ? "border-[#0066CC] bg-[#0066CC] text-white shadow-sm"
+                      : "border-[#D7E4F2] bg-white text-[#1A1A2E] hover:border-[#0066CC]/50 hover:bg-[#F0F6FC]"
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setExpandedDate(isExpanded ? null : dateStr)}
-                    className="w-full flex items-center justify-between p-3.5 text-left"
-                  >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
                       <div className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center text-center shrink-0 ${
-                        isSelectedDate ? "bg-[#0066CC] text-white" : "bg-[#F5F7FA] text-[#1A1A2E] border border-[#E5E7EB]"
+                        isActiveDate || isSelectedDate ? "bg-white/15 text-white" : "bg-[#F5F7FA] text-[#1A1A2E] border border-[#E5E7EB]"
                       }`}>
                         <span className="text-[10px] font-semibold uppercase leading-none">
                           {format(date, "MMM", { locale: frLocale })}
@@ -162,54 +191,55 @@ export function SmartSlotPicker({
                           {format(date, "d")}
                         </span>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-[#1A1A2E] capitalize">
+                      <div className="min-w-0">
+                        <p className={`text-sm font-semibold capitalize truncate ${isActiveDate || isSelectedDate ? "text-white" : "text-[#1A1A2E]"}`}>
                           {formatDateLabel(date)}
                         </p>
-                        <p className="text-xs text-[#4B5563]">
+                        <p className={`text-xs ${isActiveDate || isSelectedDate ? "text-white/85" : "text-[#4B5563]"}`}>
                           {slots.length} créneau{slots.length > 1 ? "x" : ""} disponible{slots.length > 1 ? "s" : ""}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
                       {dateBadge && (
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${dateBadge.className}`}>
+                        <span className={`inline-flex mt-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${isActiveDate || isSelectedDate ? "bg-white/15 text-white" : dateBadge.className}`}>
                           {dateBadge.label}
                         </span>
                       )}
-                      <ChevronRight className={`w-4 h-4 text-[#6B7280] transition-transform ${
-                        isExpanded ? "rotate-90" : ""
-                      }`} />
-                    </div>
-                  </button>
+                </button>
+              );
+            })}
+            </div>
 
-                  <AnimatePresence>
-                    {isExpanded && (
+            <AnimatePresence mode="wait">
+              {activeDateObj && (
                       <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
+                        key={dateKey(activeDateObj)}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
                         transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
+                        className="rounded-xl border border-[#D7E4F2] bg-[#F8FBFF] p-3.5"
                       >
-                        <div className="px-3.5 pb-3.5 pt-0">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {slots.map((slot) => {
-                              const isActive = isSelectedDate && selectedTime === slot.value;
-                              const dbSlot = availableSlots?.find(
-                                (s) => s.slot_date === format(date, "yyyy-MM-dd") && s.time_slot === slot.value
-                              );
-                              const spotsLeft = dbSlot ? dbSlot.capacity - dbSlot.booked : null;
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                          <p className="text-sm font-semibold text-[#1A1A2E] capitalize">
+                            {formatDateLabel(activeDateObj)}
+                          </p>
+                          <span className="text-xs font-medium text-[#4B5563]">Places restantes</span>
+                        </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                            {activeSlots.map((slot) => {
+                              const isActive = selectedDateKey === dateKey(activeDateObj) && selectedTime === slot.value;
+                              const spotsLeft = slot.dbSlot ? slot.dbSlot.capacity - slot.dbSlot.booked : null;
 
                               return (
                                 <button
-                                  key={`${dateStr}-${slot.value}`}
+                                  key={`${dateKey(activeDateObj)}-${slot.value}`}
                                   type="button"
-                                  onClick={() => onSelect(dateStr, slot.value, dbSlot?.id)}
-                                  className={`relative flex flex-col items-center gap-1 p-3 rounded-lg border-2 text-sm transition-all ${
+                                  onClick={() => onSelect(activeDateObj.toISOString(), slot.value, slot.dbSlot?.id)}
+                                  className={`relative flex min-h-[92px] flex-col items-start justify-between gap-2 p-3 rounded-lg border-2 text-sm transition-all ${
                                     isActive
                                       ? "border-[#0066CC] bg-[#0066CC] text-white shadow-sm"
-                                      : "border-[#E5E7EB] bg-white hover:border-[#0066CC]/50 hover:bg-[#0066CC]/[0.03] text-[#1A1A2E]"
+                                      : "border-[#D7E4F2] bg-white hover:border-[#0066CC]/50 hover:bg-[#0066CC]/[0.03] text-[#1A1A2E]"
                                   }`}
                                 >
                                   <div className="flex items-center gap-1.5">
@@ -226,28 +256,24 @@ export function SmartSlotPicker({
                                     {slot.period}
                                   </span>
                                   {spotsLeft !== null && (
-                                    <span className={`text-[10px] font-medium ${
+                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                       isActive
-                                        ? "text-white/90"
+                                        ? "bg-white/15 text-white"
                                         : spotsLeft <= 2
-                                          ? "text-[#D93025]"
-                                          : "text-[#6B7280]"
+                                          ? "bg-[#FEE2E2] text-[#D93025]"
+                                          : "bg-[#EEF2F7] text-[#4B5563]"
                                     }`}>
-                                      {spotsLeft === 1 ? "Dernière place" : `${spotsLeft} places`}
+                                      {spotsLeft === 1 ? "Dernière place" : `${spotsLeft} places restantes`}
                                     </span>
                                   )}
                                 </button>
                               );
                             })}
                           </div>
-                        </div>
                       </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
+              )}
+            </AnimatePresence>
+          </>
         )}
 
         {selectedDate && selectedTime && (
