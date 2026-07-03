@@ -317,6 +317,20 @@ export default function ReviewOrderPage() {
       });
       const d = await res.json();
       if (!d?.ok) {
+        if (d?.already_paid) {
+          toast.info("Cette commande a déjà été payée.");
+          navigate(`/commande/confirmee/${intentId}`, { replace: true });
+          return;
+        }
+        if (d?.cancelled) {
+          toast.error("Cette commande a été annulée.");
+          await refresh();
+          return;
+        }
+        if (d?.in_progress) {
+          toast.info("Un paiement est en cours de traitement. Merci de patienter quelques secondes.");
+          return;
+        }
         toast.error(d?.error || "Paiement refusé");
         return;
       }
