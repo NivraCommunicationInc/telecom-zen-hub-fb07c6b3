@@ -531,7 +531,11 @@ export default function EmployeeAccountDetail() {
       </div>
 
       {/* ═══ Historique des paiements ═══ */}
-      <ClientPaymentsHistory billingCustomerId={billingCustomerId} />
+      <ClientPaymentsHistory
+        billingCustomerId={billingCustomerId}
+        userId={account.client_id}
+        fallbackEmail={profile?.email}
+      />
 
 
 
