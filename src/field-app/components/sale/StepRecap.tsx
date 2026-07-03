@@ -67,6 +67,7 @@ export default function StepRecap({
   total,
   onNext,
   onBack,
+  onCustomerChange,
 }: Props) {
   const { user } = useStaffUser();
   const [savingQuote, setSavingQuote] = useState(false);
