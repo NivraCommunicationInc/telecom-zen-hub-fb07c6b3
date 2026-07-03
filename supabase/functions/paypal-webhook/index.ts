@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 import { nextAnchoredDate } from "../_shared/billing-utils.ts";
+import { writePaymentAutoNote } from "../_shared/paymentAutoNote.ts";
+
 
 /**
  * ============================================================================
@@ -663,9 +665,26 @@ serve(async (req) => {
               max_attempts: 5,
             });
           }
+
+          // ── Auto-note: paiement reçu (autopay PayPal) ──
+          if (!rpcResult?.already_processed) {
+            await writePaymentAutoNote({
+              supabase,
+              billingCustomerId: sub.customer_id,
+              amount,
+              method: "paypal",
+              provider: "paypal",
+              invoiceNumber: rpcResult?.invoice_number || invoice.invoice_number,
+              invoiceId: invoice.id,
+              nivraReference: rpcResult?.nivra_reference || null,
+              paymentNumber: rpcResult?.payment_number || null,
+              channel: "Autopay PayPal (legacy)",
+            });
+          }
         }
         break;
       }
+
 
       // ═══════════════════════════════════════════════════════════════
       // PAYMENT.CAPTURE.COMPLETED — One-time invoice payment safety net
@@ -867,7 +886,24 @@ serve(async (req) => {
                 console.log(`[PayPal Webhook] ✓ Auto-reactivated subscription ${rpcResult.subscription_id}`);
               }
             }
+
+            // ── Auto-note: paiement reçu (capture PayPal one-time) ──
+            if (!rpcResult?.already_processed) {
+              await writePaymentAutoNote({
+                supabase,
+                billingCustomerId: rpcResult?.customer_id || null,
+                amount: captureAmount,
+                method: "paypal",
+                provider: "paypal",
+                invoiceNumber: rpcResult?.invoice_number || null,
+                invoiceId: v2Check.id,
+                nivraReference: rpcResult?.nivra_reference || null,
+                paymentNumber: rpcResult?.payment_number || null,
+                channel: "PayPal (capture)",
+              });
+            }
           }
+
         } else if (v2Check?.status === "paid") {
           console.log(`[PayPal Webhook] Invoice ${customId} already paid — skipping`);
         } else {

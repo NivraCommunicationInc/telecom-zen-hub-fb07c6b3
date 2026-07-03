@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writePaymentAutoNote } from "../_shared/paymentAutoNote.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,11 +91,35 @@ Deno.serve(async (req) => {
       .eq("status", "pending");
 
     // Mark invoice as paid
-    await supabase.from("billing_invoices")
+    const { data: invRow } = await supabase.from("billing_invoices")
       .update({ status: "paid", balance_due: 0, paid_at: new Date().toISOString() })
-      .eq("id", invoice_id);
+      .eq("id", invoice_id)
+      .select("id, invoice_number")
+      .maybeSingle();
+
+    // Recover payment_number/nivra_reference for the note
+    const { data: pmtRow } = await supabase.from("billing_payments")
+      .select("payment_number, nivra_reference")
+      .eq("invoice_id", invoice_id)
+      .eq("square_payment_id", squarePaymentId)
+      .maybeSingle();
+
+    // ── Auto-note: paiement reçu (autopay Square) ──
+    await writePaymentAutoNote({
+      supabase,
+      billingCustomerId: sub.customer_id,
+      amount,
+      method: "card",
+      provider: "square",
+      invoiceNumber: invRow?.invoice_number || null,
+      invoiceId: invoice_id,
+      nivraReference: pmtRow?.nivra_reference || null,
+      paymentNumber: pmtRow?.payment_number || null,
+      channel: "Autopay Square",
+    });
 
     console.log(`[square-charge-subscription] ✅ Charged ${amount} CAD for invoice ${invoice_id}, Square payment ${squarePaymentId}`);
+
 
     return new Response(JSON.stringify({
       ok: true,

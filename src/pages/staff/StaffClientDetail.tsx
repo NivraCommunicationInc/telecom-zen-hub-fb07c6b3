@@ -29,6 +29,8 @@ import StaffClientServicesSection from "@/components/staff/StaffClientServicesSe
 import StaffClientEquipmentSection from "@/components/staff/StaffClientEquipmentSection";
 import StaffClientFinancialSection from "@/components/staff/StaffClientFinancialSection";
 import StaffClientInternalNotes from "@/components/staff/StaffClientInternalNotes";
+import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
+
 
 const creditClassColors: Record<string, { label: string; className: string; description: string }> = {
   A: { label: "Classe A", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", description: "Excellent - Aucun retard" },
@@ -138,18 +140,18 @@ export default function StaffClientDetail() {
     enabled: !!clientId && hasVerifiedAccess,
   });
 
-  // Fetch client billing from canonical billing_invoices
+  // Fetch client billing from canonical billing_invoices (+ expose billingCustomerId)
   const { data: billing } = useQuery({
     queryKey: ["staff-client-billing", clientId],
     queryFn: async () => {
-      if (!clientId) return [];
+      if (!clientId) return { invoices: [], billingCustomerId: null as string | null };
       // Resolve billing_customer
       const { data: customer } = await supabase
         .from("billing_customers")
         .select("id")
         .eq("user_id", clientId)
         .maybeSingle();
-      if (!customer) return [];
+      if (!customer) return { invoices: [], billingCustomerId: null as string | null };
       const { data, error } = await supabase
         .from("billing_invoices")
         .select("id, invoice_number, total, balance_due, status, due_date, created_at, paid_at")
@@ -158,7 +160,7 @@ export default function StaffClientDetail() {
         .limit(20);
       if (error) throw error;
       // Map to legacy shape used by template
-      return (data || []).map((inv: any) => ({
+      const invoices = (data || []).map((inv: any) => ({
         id: inv.id,
         invoice_number: inv.invoice_number,
         amount: inv.total,
@@ -168,9 +170,13 @@ export default function StaffClientDetail() {
         created_at: inv.created_at,
         paid_at: inv.paid_at,
       }));
+      return { invoices, billingCustomerId: customer.id as string };
     },
     enabled: !!clientId && hasVerifiedAccess,
   });
+  const billingInvoices = billing?.invoices ?? [];
+  const staffBillingCustomerId = billing?.billingCustomerId ?? null;
+
 
   // Fetch client tickets
   const { data: tickets } = useQuery({
@@ -629,15 +635,15 @@ export default function StaffClientDetail() {
           <TabsContent value="billing" className="mt-4">
             <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle className="text-white">Facturation ({billing?.length || 0})</CardTitle>
+                <CardTitle className="text-white">Facturation ({billingInvoices.length})</CardTitle>
               </CardHeader>
-              <CardContent>
-                {!billing?.length ? (
+              <CardContent className="space-y-4">
+                {!billingInvoices.length ? (
                   <p className="text-slate-400 text-center py-8">Aucune facture</p>
                 ) : (
                   <ScrollArea className="max-h-[400px]">
                     <div className="space-y-3">
-                      {billing.map((bill: any) => (
+                      {billingInvoices.map((bill: any) => (
                         <Link
                           key={bill.id}
                           to={`/staff/billing/${bill.id}`}
@@ -662,9 +668,16 @@ export default function StaffClientDetail() {
                     </div>
                   </ScrollArea>
                 )}
+
+                {/* ═══ Historique des paiements (staff — vrai processeur visible) ═══ */}
+                <ClientPaymentsHistory
+                  billingCustomerId={staffBillingCustomerId}
+                  invoiceHref={(invoiceId) => `/staff/billing/${invoiceId}`}
+                />
               </CardContent>
             </Card>
           </TabsContent>
+
 
           <TabsContent value="tickets" className="mt-4">
             <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">

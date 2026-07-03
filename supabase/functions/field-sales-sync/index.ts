@@ -1,6 +1,8 @@
 ﻿import { createClient } from "npm:@supabase/supabase-js@2.89.0";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
+import { writePaymentAutoNote } from "../_shared/paymentAutoNote.ts";
+
 
 /**
  * Field Sales Sync Edge Function
@@ -861,8 +863,23 @@ Deno.serve(async (req) => {
               } else {
                 paymentId = newPayment.id;
                 console.log(`[field-sales-sync] Created payment ${paymentNumber} for invoice ${invoiceNum}`);
+
+                // ── Auto-note: paiement reçu (vente terrain) ──
+                await writePaymentAutoNote({
+                  supabase: supabaseAdmin,
+                  billingCustomerId,
+                  clientAuthUserId: clientUserId,
+                  amount: totalAmount,
+                  method: billingPaymentMethod,
+                  provider: sale.payment_method || "manual",
+                  invoiceNumber: invoiceNum,
+                  invoiceId,
+                  paymentNumber,
+                  channel: "Vente terrain (Field)",
+                });
               }
             }
+
 
             // Ensure a canonical contract exists for this canonical order
             const { data: existingContract } = await supabaseAdmin

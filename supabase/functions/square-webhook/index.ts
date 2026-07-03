@@ -8,6 +8,8 @@
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writePaymentAutoNote } from "../_shared/paymentAutoNote.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,7 +73,7 @@ serve(async (req) => {
       if (status === "FAILED") {
         const { data: bp } = await supabase
           .from("billing_payments")
-          .select("id, invoice_id, customer_id, amount")
+          .select("id, invoice_id, customer_id, amount, method, provider, payment_number, nivra_reference, invoice:billing_invoices(invoice_number)")
           .eq("provider_payment_id", paymentId)
           .maybeSingle();
 
@@ -89,10 +91,26 @@ serve(async (req) => {
             details: { payment_id: paymentId, invoice_id: bp.invoice_id, amount: bp.amount, square_status: status },
           });
 
+          // ── Auto-note: paiement invalidé (Square webhook) ──
+          await writePaymentAutoNote({
+            supabase,
+            billingCustomerId: bp.customer_id,
+            amount: bp.amount,
+            method: bp.method || "card",
+            provider: bp.provider || "square",
+            invoiceNumber: (bp as any).invoice?.invoice_number || null,
+            invoiceId: bp.invoice_id,
+            nivraReference: bp.nivra_reference || null,
+            paymentNumber: bp.payment_number || null,
+            channel: "Webhook Square (échec)",
+            event: "payment_invalid",
+          });
+
           console.log(`[square-webhook] Payment ${paymentId} marked FAILED`);
         }
       }
     }
+
 
     if (eventType === "dispute.created" || eventType === "dispute.state.changed") {
       const dispute = event.data?.object?.dispute;

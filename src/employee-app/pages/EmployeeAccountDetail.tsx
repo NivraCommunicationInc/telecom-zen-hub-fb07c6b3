@@ -28,6 +28,8 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
+
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
@@ -150,9 +152,11 @@ export default function EmployeeAccountDetail() {
         equipment,
         appointments: appointmentsRes.data ?? [],
         locations: locationsRes.data ?? [],
+        billingCustomerId: customerIds[0] ?? null,
       };
     },
   });
+
 
   if (!accountId) {
     return (
@@ -181,7 +185,7 @@ export default function EmployeeAccountDetail() {
     );
   }
 
-  const { account, profile, orders, invoices, subscriptions, equipment, appointments, locations } = data;
+  const { account, profile, orders, invoices, subscriptions, equipment, appointments, locations, billingCustomerId } = data;
   const fmtMoney = (v: number | null | undefined) => (v != null ? `${v.toFixed(2)} $` : "—");
 
   const unpaidInvoices = invoices.filter((i: any) => i.status !== "paid" && i.status !== "void" && (i.balance_due ?? 0) > 0);
@@ -525,6 +529,11 @@ export default function EmployeeAccountDetail() {
           </div>
         </div>
       </div>
+
+      {/* ═══ Historique des paiements ═══ */}
+      <ClientPaymentsHistory billingCustomerId={billingCustomerId} />
+
+
 
       {showEscalation && (
         <EscalationRequestDialog
