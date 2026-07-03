@@ -150,9 +150,11 @@ export default function EmployeeAccountDetail() {
         equipment,
         appointments: appointmentsRes.data ?? [],
         locations: locationsRes.data ?? [],
+        billingCustomerId: customerIds[0] ?? null,
       };
     },
   });
+
 
   if (!accountId) {
     return (
