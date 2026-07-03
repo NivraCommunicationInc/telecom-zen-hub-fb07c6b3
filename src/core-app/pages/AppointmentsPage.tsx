@@ -120,11 +120,25 @@ const AppointmentsPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
+          <div className="flex items-center gap-1 rounded-md border border-[hsl(220,15%,18%)] p-0.5 bg-[hsl(220,20%,10%)]">
+            <button
+              onClick={() => setView("list")}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition ${view === "list" ? "bg-emerald-600/20 text-emerald-300" : "text-slate-400 hover:text-slate-200"}`}
+            >
+              <List className="h-3 w-3" /> Liste
+            </button>
+            <button
+              onClick={() => setView("calendar")}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition ${view === "calendar" ? "bg-emerald-600/20 text-emerald-300" : "text-slate-400 hover:text-slate-200"}`}
+            >
+              <LayoutGrid className="h-3 w-3" /> Calendrier
+            </button>
+          </div>
           <Link
-            to="/core/appointments/slots"
+            to={corePath("/appointments/slots")}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-emerald-300 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-800/50 transition"
           >
-            <Settings className="h-3 w-3" /> Gérer les créneaux
+            <Settings className="h-3 w-3" /> Disponibilités
           </Link>
           <button
             onClick={() => refetch()}
