@@ -1291,100 +1291,83 @@ const GuestCheckout = () => {
   );
 
   return (
-    <div style={{ background: '#F5F7FA' }} className="relative min-h-screen overflow-hidden">
-      <Header />
-
-      <div className="relative container mx-auto px-4 sm:px-6 max-w-[1200px] py-8 lg:py-12">
-        {/* Trust banner — telecom style */}
-        <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 rounded-xl bg-white border border-[#E5E7EB] shadow-sm text-xs sm:text-sm font-medium text-[#1A1A2E]">
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans contrat</span>
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans vérification de crédit</span>
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Activation rapide</span>
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Support québécois</span>
-        </div>
-
-        <div className="mb-6">
-          <div className="flex flex-wrap items-center gap-3 mb-1.5">
-            <h1 className="text-3xl lg:text-4xl font-bold text-[#1A1A2E]">Commander</h1>
-            {step < 6 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0" style={{ background: '#00A651', color: '#fff' }}>
-                <Gift className="w-3 h-3" /> 1er mois GRATUIT
-              </span>
-            )}
-          </div>
-          <p className="text-[#6B7280] text-sm">Aucun compte requis — commandez en quelques minutes</p>
-        </div>
-
-        {/* Mobile only: horizontal stepper + gradient bar */}
-        <div className="lg:hidden">
-          <CheckoutProgress currentStep={step} steps={CHECKOUT_STEPS} isFrench onStepClick={(s) => s < step && step < 6 && setStep(s)} />
-          <div className="h-[3px] w-full rounded-full overflow-hidden -mt-6 mb-8" style={{ background: '#E5E7EB' }}>
-            <div
-              className="h-full rounded-full transition-all duration-700 ease-out"
-              style={{
-                width: `${step >= 6 ? 100 : Math.round(((step - 1) / (CHECKOUT_STEPS.length - 1)) * 100)}%`,
-                background: '#0066CC',
-              }}
-            />
+    <div className="min-h-screen bg-[#F5F7FA] flex flex-col">
+      {/* ═══ CHECKOUT HEADER — slim, focus purchase ═══ */}
+      <header className="sticky top-0 z-50 bg-white border-b border-[#E5E7EB] shadow-sm">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 group"
+            aria-label="Retour à l'accueil Nivra"
+          >
+            <span className="text-2xl font-black tracking-tight text-[#0066CC] group-hover:text-[#0052A3] transition-colors">nivra</span>
+            <span className="hidden sm:inline text-[10px] font-bold text-[#6B7280] uppercase tracking-widest mt-1">Telecom</span>
+          </button>
+          <div className="flex items-center gap-4">
+            <span className="hidden sm:flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#00A651]">
+              <Lock className="w-4 h-4" /> Commande sécurisée
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate("/aide")}
+              className="text-xs sm:text-sm text-[#6B7280] hover:text-[#1A1A2E] font-medium"
+            >
+              Besoin d'aide ?
+            </button>
           </div>
         </div>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-
-          {/* ── VERTICAL STEPPER — desktop left column ── */}
-          {step < 6 && (
-            <div className="hidden lg:block lg:col-span-2">
-              <div className="sticky top-6 pt-1">
-                {CHECKOUT_STEPS.filter(s => s.id <= 5).map((s, index) => {
-                  const isCompleted = step > s.id;
-                  const isCurrent = step === s.id;
-                  return (
-                    <div key={s.id} className="flex items-start">
-                      <div className="flex flex-col items-center mr-3 shrink-0">
-                        <button
-                          onClick={() => isCompleted && setStep(s.id)}
-                          disabled={!isCompleted}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${isCompleted ? 'cursor-pointer hover:scale-105' : 'cursor-default'}`}
-                          style={
-                            isCompleted
-                              ? { background: '#10B981', borderColor: '#10B981', color: '#fff' }
-                              : isCurrent
-                                ? { background: '#0066CC', borderColor: '#7C3AED', color: '#fff', boxShadow: '0 0 0 3px rgba(124,58,237,0.25), 0 4px 12px rgba(124,58,237,0.4)' }
-                                : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.28)' }
-                          }
-                        >
-                          {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.id}
-                        </button>
-                        {index < 4 && (
-                          <div
-                            className="w-0.5 rounded-full my-1 transition-all duration-500"
-                            style={{
-                              height: '2.5rem',
-                              background: isCompleted ? '#00A651' : '#E5E7EB',
-                            }}
-                          />
-                        )}
-                      </div>
-                      <div className="pt-0.5 pb-9">
-                        <p className={`text-sm font-semibold leading-tight transition-colors ${isCompleted ? 'text-[#00A651]' : isCurrent ? 'text-[#1A1A2E]' : 'text-slate-400'}`}>
-                          {s.labelFr}
-                        </p>
-                        {isCurrent && (
-                          <p className="text-[10px] text-[#0066CC] mt-0.5 font-medium">En cours</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+      {/* ═══ BELL-STYLE PROGRESS BAR ═══ */}
+      {step < 6 && (
+        <div className="bg-white border-b border-[#E5E7EB]">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            {renderDesktopProgress()}
+            {/* Mobile compact */}
+            <div className="md:hidden">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wide">Étape {step} / 5</span>
+                <span className="text-sm font-bold text-[#0066CC]">
+                  {CHECKOUT_STEPS.find(s => s.id === step)?.labelFr}
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full overflow-hidden bg-[#E5E7EB]">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.round(((step - 1) / 4) * 100)}%`,
+                    background: "#0066CC",
+                  }}
+                />
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
-          {/* ── CENTER COLUMN — form ── */}
-          <div className={step < 6 ? "lg:col-span-6 pb-28 lg:pb-0" : "lg:col-span-12"}>
+      <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+        {/* Trust signals bar */}
+        {step < 6 && (
+          <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs sm:text-sm font-medium text-[#374151]">
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans contrat</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans vérification de crédit</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Activation rapide</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Support québécois</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ml-auto" style={{ background: '#00A651', color: '#fff' }}>
+              <Gift className="w-3 h-3" /> 1er mois GRATUIT
+            </span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+
+          {/* ── LEFT COLUMN — accordion form ── */}
+          <div className={step < 6 ? "lg:col-span-3 space-y-4 pb-40 lg:pb-0" : "lg:col-span-5"}>
 
             {/* ═══ STEP 1: FORFAIT ═══ */}
-            {step === 1 && (
+            {step < 6 && renderStepShell(1, step === 1 && (
+
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
