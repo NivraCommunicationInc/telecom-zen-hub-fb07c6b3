@@ -29,6 +29,8 @@ import StaffClientServicesSection from "@/components/staff/StaffClientServicesSe
 import StaffClientEquipmentSection from "@/components/staff/StaffClientEquipmentSection";
 import StaffClientFinancialSection from "@/components/staff/StaffClientFinancialSection";
 import StaffClientInternalNotes from "@/components/staff/StaffClientInternalNotes";
+import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
+
 
 const creditClassColors: Record<string, { label: string; className: string; description: string }> = {
   A: { label: "Classe A", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", description: "Excellent - Aucun retard" },
