@@ -335,7 +335,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     setSubmitMessage("Préparation du paiement…");
     try {
       const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
-      const quote = await saveQuoteAndEmail({ draft, agentName, activationFee, subtotal, tps, tvq, total, agentGps });
+      const quote = await saveQuoteAndEmail({ draft, agentName, activationFee, subtotal, tps, tvq, total, agentGps, skipClientEmail: true });
       const customerName = `${draft.customer.first_name} ${draft.customer.last_name}`.trim();
       const { data: intentData, error: intentErr } = await supabase
         .from("field_payment_intents" as any)
@@ -455,82 +455,27 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
 
     try {
       // 1) Save the quote (no order/invoice yet)
-      const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
+      const { saveQuoteAndEmail, sendPaymentLinkFromQuote } = await import("@/field-app/lib/fieldQuoteService");
       const quote = await saveQuoteAndEmail({
         draft, agentName, activationFee,
         subtotal, tps, tvq, total, agentGps,
+        skipClientEmail: true,
       });
 
-      // 2) Create Square payment intent directly (no external API call needed)
+      // 2) Create/reuse the Review Order/Square payment intent.
+      // The client must land on /payer/:intentId, never /commander/GuestCheckout.
       setSubmitMessage("Génération du lien de paiement…");
-      const intentCustomerName = `${draft.customer.first_name} ${draft.customer.last_name}`.trim();
-      const { data: _intentRow, error: _intentErr } = await supabase
-        .from("field_payment_intents" as any)
-        .insert({
-          quote_id: quote.id,
-          agent_id: user.id,
-          amount: total,
-          currency: "CAD",
-          status: "pending",
-          payment_method: draft.payment.method === "square_email" ? "square_email" : "square_onsite",
-          customer_email: draft.customer.email || null,
-          customer_name: intentCustomerName || null,
-        })
-        .select("id")
-        .single();
-      if (_intentErr || !_intentRow) throw _intentErr ?? new Error("Erreur création du lien de paiement");
-      const data = { intent_id: (_intentRow as any).id };
-      const approvalUrl: string = `https://nivra-telecom.ca/payer/${(_intentRow as any).id}`;
+      const link = await sendPaymentLinkFromQuote(
+        quote.id,
+        draft.payment.method === "square_email" ? "email" : "link_only",
+      );
+      const data = { intent_id: link.intent_id };
+      const approvalUrl: string = link.payment_url;
 
-      // 3) Email mode — enqueue Violet Bold "payment_link_employee" template (with retry)
+      // 3) Email mode — already sent by field-payment-link-create.
       if (draft.payment.method === "square_email") {
-        setSubmitMessage("Envoi du lien au client…");
-        const servicesList = buildServicesList(draft);
-        const equipmentList = buildEquipmentList(draft);
-        const discountLabel = buildDiscountLabel(draft);
-        const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
-        const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
-        const discountAmount = Math.max(0, monthlyBeforeDiscount - monthlyAfterDiscount) + firstMonthCredit;
-        const orderNumber = `SUB-${String(data.intent_id).slice(0, 8).toUpperCase()}`;
-        const emailPayload = {
-          event_key: `payment_link_employee_${data.intent_id}`,
-          to_email: draft.customer.email,
-          template_key: "payment_link_employee",
-          template_vars: {
-            client_name: fullName,
-            client_email: draft.customer.email,
-            first_name: draft.customer.first_name || "Client",
-            order_number: orderNumber,
-            services: servicesList,
-            summary: servicesList,
-            equipment: equipmentList,
-            discount: discountAmount.toFixed(2),
-            discount_label: discountLabel,
-            subtotal: subtotal.toFixed(2),
-            tps: tps.toFixed(2),
-            tvq: tvq.toFixed(2),
-            total: total.toFixed(2),
-            approval_url: approvalUrl,
-            payment_url: `https://nivra-telecom.ca/payer/${data.intent_id}`,
-            valid_until: validUntil,
-            agent_name: agentName,
-          },
-          status: "queued",
-        };
-        // Retry insert up to 3 times with 2s backoff
-        console.log('[EMAIL] Attempting to queue email for:', draft.customer.email);
-        let emailErr: any = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          const { error: e } = await supabase.from("email_queue").insert(emailPayload as any);
-          if (!e) { emailErr = null; break; }
-          emailErr = e;
-          if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
-        }
-        console.log('[EMAIL] Queue result:', emailErr ? emailErr.message : 'SUCCESS');
-        if (emailErr) {
-          const payerUrl = `https://nivra-telecom.ca/payer/${data.intent_id}`;
-          logger.warn("field_payment_link enqueue failed after 3 attempts", emailErr);
-          toast.warning(`Commande créée mais l'email n'a pas pu être envoyé. Le client peut payer via: ${payerUrl}`, { duration: 15000 });
+        if (!link.email_sent) {
+          toast.warning(`Lien créé, mais l'email n'a pas pu être envoyé. Le client peut payer via: ${approvalUrl}`, { duration: 15000 });
         }
 
         setDraft((d) => ({
@@ -541,7 +486,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
         }));
-        toast.success("Lien Square envoyé au client.");
+        toast.success("Lien Revoir ma commande envoyé au client.");
         clearDraft();
       } else {
         setDraft((d) => ({
