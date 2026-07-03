@@ -309,6 +309,7 @@ const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
 const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
 const Unsubscribe = lazy(() => import("@/pages/Unsubscribe"));
 const PayerCommande = lazy(() => import("@/pages/PayerCommande"));
+const CommandeConfirmee = lazy(() => import("@/pages/CommandeConfirmee"));
 const PayerPublic = lazy(() => import("@/pages/public/PayerPublic"));
 const PayerPublicByToken = lazy(() => import("@/pages/public/PayerPublicByToken"));
 
