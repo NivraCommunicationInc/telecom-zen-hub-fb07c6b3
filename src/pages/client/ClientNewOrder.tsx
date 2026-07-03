@@ -1959,7 +1959,7 @@ const ClientNewOrder = () => {
         ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
            deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : 
            DELIVERY_CONFIG.standard.fee)
-        : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
+        : 0; // Auto-installation is always free
 
       // Determine installation type for the order
       const orderInstallationType = isDeliveryOnlyOrder 
@@ -3278,8 +3278,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       if (deliveryChoice === "standard") return DELIVERY_CONFIG.standard.fee;
       return 0;
     }
-    // For Internet, TV, Security - use installation choice (canonical fee)
-    return installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0;
+    // For Internet, TV, Security — auto-installation is always free.
+    return 0;
   };
   
   const deliveryFee = calculateDeliveryFee();

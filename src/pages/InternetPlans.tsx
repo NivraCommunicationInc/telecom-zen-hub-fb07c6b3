@@ -15,6 +15,7 @@ import { ItemListSchema } from "@/components/seo";
 import { useInternetPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useAutoTranslatePlans } from "@/hooks/useAutoTranslatePlans";
 import CriticalInfoSummary from "@/components/CriticalInfoSummary";
+import { writePrecheckedAddress } from "@/lib/checkout/prechekedAddress";
 
 const BG = '#020209';
 const PURPLE = '#7C3AED';
@@ -63,6 +64,16 @@ const InternetPlans = () => {
 
   const handleGetStarted = (planId: string) => {
     trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "internet" } });
+    // Hand off the validated service address to the checkout so the
+    // customer doesn't have to re-type it.
+    if (addressDetails) {
+      writePrecheckedAddress({
+        line1: addressDetails.line1,
+        city: addressDetails.city,
+        region: addressDetails.region || "QC",
+        postalCode: addressDetails.postalCode,
+      });
+    }
     navigate(`/commander?plan=${planId}`);
   };
 

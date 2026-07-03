@@ -54,6 +54,7 @@ import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMone
 import { estimateTaxes as estimateMonthlyTaxes } from "@/lib/pricing/serverTaxEngine";
 import { submitNivraCheckout, type NivraFullCheckoutPayload, type NivraFullCheckoutResponse } from "@/lib/api/nivraApi";
 import { fallbackCheckout } from "@/lib/checkoutFallback";
+import { readPrecheckedAddress, clearPrecheckedAddress } from "@/lib/checkout/prechekedAddress";
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { toast } from "sonner";
 import {
@@ -213,6 +214,20 @@ const GuestCheckout = () => {
       if (s.portInCarrier)     setPortInCarrier(s.portInCarrier);
       if (s.portInAccountNumber) setPortInAccountNumber(s.portInAccountNumber);
       if (s.paypalCaptureId)   { setPaypalCaptureId(s.paypalCaptureId); setPaymentComplete(true); }
+    } catch {}
+
+    // ── Hydrate service address from the pre-checkout coverage step ──
+    // (customer already validated their address on /internet or /tv-plus)
+    try {
+      const pre = readPrecheckedAddress();
+      if (pre) {
+        // Only pre-fill fields the customer hasn't already touched in a saved draft.
+        setAddressStreet(prev => prev || pre.line1);
+        setAddressCity(prev => prev || pre.city);
+        setAddressProvince(prev => prev || (pre.region || "QC"));
+        setAddressPostalCode(prev => prev || pre.postalCode);
+        clearPrecheckedAddress();
+      }
     } catch {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -446,7 +461,8 @@ const GuestCheckout = () => {
   const simFee = hasMobileService ? (simType === "esim" ? ESIM_PRICE : SIM_PRICE) : 0;
   const terminalFee = hasTVService ? (terminalPrice ?? 0) * Math.min(Math.max(tvTerminalQty, 1), 4) : 0;
   const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 10);
-  const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
+  // Auto-installation is always free — no delivery/shipping fee charged to customer for self-install.
+  const deliveryFee = 0;
   const installationFee = isStreamingOnlyOrder ? 0 : (installationChoice === "technician" ? (canonicalFees.installationTechnician || 25) : 0);
   const oneTimeFees = routerFee + simFee + terminalFee + activationFee + deliveryFee + installationFee;
 
@@ -1846,49 +1862,49 @@ const GuestCheckout = () => {
                 )}
 
                 {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
-                  <Card className="bg-emerald-500/10 border-emerald-500/30">
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <Star className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                          <div>
-                            <p className="font-semibold text-[#1A1A2E] text-sm">Rabais bienvenue appliqué !</p>
-                            <p className="text-xs text-muted-foreground">
-                              50% de rabais sur votre premier mois — appliqué automatiquement.
-                            </p>
-                          </div>
+                  <div className="rounded-xl border border-[#00A651]/30 bg-[#00A651]/[0.06] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-[#00A651]/15 flex items-center justify-center flex-shrink-0">
+                          <Star className="w-5 h-5 text-[#00A651]" />
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs text-muted-foreground hover:text-[#1A1A2E]"
-                          onClick={() => setWelcomeDiscountDismissed(true)}
-                        >
-                          Retirer
-                        </Button>
+                        <div>
+                          <p className="font-semibold text-[#1A1A2E] text-sm">Rabais bienvenue appliqué</p>
+                          <p className="text-xs text-[#6B7280]">
+                            50 % de rabais sur votre premier mois — appliqué automatiquement.
+                          </p>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-[#6B7280] hover:text-[#1A1A2E]"
+                        onClick={() => setWelcomeDiscountDismissed(true)}
+                      >
+                        Retirer
+                      </Button>
+                    </div>
+                  </div>
                 )}
 
                 {/* Auto-applied first-month-free banner */}
                 {autoAppliedPromo && appliedPromo?.code === "BIENVENUE2026" && (
-                  <Card className="bg-emerald-50 border-emerald-300">
-                    <CardContent className="py-4">
-                      <div className="flex items-start gap-3">
-                        <Gift className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold text-emerald-700 text-sm mb-1">
-                            🎉 Premier mois gratuit appliqué automatiquement!
-                          </p>
-                          <p className="text-xs text-emerald-800 leading-relaxed">
-                            Nous avons détecté que vous êtes un nouveau client Nivra Telecom.
-                            Votre premier mois de service est entièrement gratuit — aucun code requis.
-                          </p>
-                        </div>
+                  <div className="rounded-xl border border-[#00A651]/30 bg-[#00A651]/[0.06] p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[#00A651]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Gift className="w-5 h-5 text-[#00A651]" />
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div>
+                        <p className="font-semibold text-[#1A1A2E] text-sm mb-1">
+                          Premier mois gratuit appliqué automatiquement
+                        </p>
+                        <p className="text-xs text-[#6B7280] leading-relaxed">
+                          Nous avons détecté que vous êtes un nouveau client Nivra Telecom.
+                          Votre premier mois de service est entièrement gratuit — aucun code requis.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {/* ── Phase 2: Shipping override + activation date + installation details ── */}
@@ -1941,19 +1957,28 @@ const GuestCheckout = () => {
                 </Card>
 
                 {/* Notes */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Notes (optionnel)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+                <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-5 sm:px-6 py-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[#0066CC]/10 flex items-center justify-center flex-shrink-0">
+                        <Info className="w-5 h-5 text-[#0066CC]" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-semibold text-[#1A1A2E]">Notes</h3>
+                        <p className="text-xs text-[#6B7280] mt-0.5">Optionnel — instructions particulières pour votre commande</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-5 sm:p-6">
                     <Textarea
                       placeholder="Instructions spéciales, commentaires..."
                       value={notes}
                       onChange={e => setNotes(e.target.value)}
                       rows={3}
+                      className="border-[#E5E7EB] focus-visible:ring-[#0066CC]/40 focus-visible:border-[#0066CC]"
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setStep(3)}>
