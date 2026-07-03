@@ -665,9 +665,26 @@ serve(async (req) => {
               max_attempts: 5,
             });
           }
+
+          // ── Auto-note: paiement reçu (autopay PayPal) ──
+          if (!rpcResult?.already_processed) {
+            await writePaymentAutoNote({
+              supabase,
+              billingCustomerId: sub.customer_id,
+              amount,
+              method: "paypal",
+              provider: "paypal",
+              invoiceNumber: rpcResult?.invoice_number || invoice.invoice_number,
+              invoiceId: invoice.id,
+              nivraReference: rpcResult?.nivra_reference || null,
+              paymentNumber: rpcResult?.payment_number || null,
+              channel: "Autopay PayPal (legacy)",
+            });
+          }
         }
         break;
       }
+
 
       // ═══════════════════════════════════════════════════════════════
       // PAYMENT.CAPTURE.COMPLETED — One-time invoice payment safety net
