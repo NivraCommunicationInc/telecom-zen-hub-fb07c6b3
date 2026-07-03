@@ -60,7 +60,7 @@ import { toast } from "sonner";
 import {
   ShoppingCart, ArrowRight, ArrowLeft, Check, Wifi, Tv, Smartphone, Shield,
   Package, MonitorPlay, User, MapPin, CreditCard, Calendar, Gift, Info,
-  AlertCircle, Lock, Mail, Phone, Home, Star, CheckCircle2, Loader2
+  AlertCircle, Lock, Mail, Phone, Home, Star, CheckCircle2, Loader2, Zap, FileCheck
 } from "lucide-react";
 import Header from "@/components/Header";
 
