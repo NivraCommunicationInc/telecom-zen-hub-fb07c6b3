@@ -2062,18 +2062,20 @@ const GuestCheckout = () => {
                         </ul>
                       </div>
 
-                      {/* Reassurance box */}
-                      <div className="rounded-xl border p-4 mb-4 flex items-start gap-3" style={{ background: '#F0F7FF', borderColor: '#BFDBFE' }}>
-                        <div className="text-xl shrink-0">💳</div>
-                        <div>
-                          <div className="text-sm font-bold mb-1" style={{ color: '#1E40AF' }}>
-                            Payez par carte de crédit ou débit
+                      {/* Square security strip */}
+                      <div className="rounded-xl border border-[#E5E7EB] bg-white p-3 mb-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-lg bg-[#0F172A] flex items-center justify-center shrink-0">
+                            <Lock className="w-4 h-4 text-white" />
                           </div>
-                          <div className="text-[13px] leading-relaxed" style={{ color: '#3B82F6' }}>
-                            Notre système de paiement sécurisé accepte Visa et Mastercard directement.
+                          <div className="leading-tight">
+                            <p className="text-[13px] font-bold text-[#1A1A2E]">Traitement sécurisé par Square</p>
+                            <p className="text-[11px] text-[#6B7280]">Aucune donnée bancaire conservée sur nos serveurs</p>
                           </div>
                         </div>
+                        <Shield className="w-5 h-5 text-[#00A651] shrink-0 hidden sm:block" />
                       </div>
+
 
                       {/* Square payment widget */}
                       {!paypalCaptureId && (
