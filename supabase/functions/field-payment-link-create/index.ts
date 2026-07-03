@@ -165,7 +165,14 @@ serve(async (req) => {
         } as any);
 
         if (mailErr) console.warn("[field-payment-link-create] email enqueue failed:", mailErr);
-        else emailSent = true;
+        else {
+          emailSent = true;
+          await supabase.rpc("log_field_order_event" as never, {
+            p_intent_id: intentId,
+            p_event_type: "email_sent",
+            p_payload: { to: resolvedEmail } as never,
+          }).then(undefined, () => {});
+        }
 
         // Track link_sent on the quote (best-effort)
         await supabase
