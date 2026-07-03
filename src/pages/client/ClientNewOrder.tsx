@@ -3278,8 +3278,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       if (deliveryChoice === "standard") return DELIVERY_CONFIG.standard.fee;
       return 0;
     }
-    // For Internet, TV, Security - use installation choice (canonical fee)
-    return installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0;
+    // For Internet, TV, Security — auto-installation is always free.
+    return 0;
   };
   
   const deliveryFee = calculateDeliveryFee();
