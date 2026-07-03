@@ -1405,7 +1405,7 @@ const GuestCheckout = () => {
                           const Icon = categoryIcons[category] || Package;
                           return (
                             <div key={category}>
-                              <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                              <h3 className="flex items-center gap-2 text-sm font-semibold text-[#4B5563] uppercase tracking-wider mb-3">
                                 <Icon className="w-4 h-4" /> {category}
                               </h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1425,11 +1425,11 @@ const GuestCheckout = () => {
                                       <div className="flex items-start justify-between">
                                         <div className="flex-1 min-w-0">
                                           <p className="font-semibold text-[#1A1A2E] text-sm">{service.name}</p>
-                                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{service.description}</p>
+                                          <p className="text-xs text-[#4B5563] mt-1 line-clamp-2">{service.description}</p>
                                         </div>
                                         <div className="flex flex-col items-end ml-3">
                                           <span className="text-lg font-bold text-[#0066CC]">{service.price.toFixed(0)}$</span>
-                                          <span className="text-xs text-muted-foreground">/mois</span>
+                                          <span className="text-xs text-[#4B5563]">/mois</span>
                                         </div>
                                       </div>
                                       {selected && (
@@ -1474,7 +1474,7 @@ const GuestCheckout = () => {
                   </CardHeader>
                   <CardContent className="space-y-4 pt-5">
                     <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Adresse</Label>
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Adresse</Label>
                       <AddressAutocomplete
                         placeholder="Commencez à taper votre adresse..."
                         value={addressStreet}
@@ -1489,7 +1489,7 @@ const GuestCheckout = () => {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Appartement (optionnel)</Label>
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Appartement (optionnel)</Label>
                       <Input
                         placeholder="Apt 4B"
                         value={addressApartment}
@@ -1499,7 +1499,7 @@ const GuestCheckout = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Ville</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Ville</Label>
                         <Input
                           placeholder="Montréal"
                           value={addressCity}
@@ -1508,7 +1508,7 @@ const GuestCheckout = () => {
                         />
                       </div>
                       <div>
-                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Code postal</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Code postal</Label>
                         <Input
                           placeholder="H1A 1A1"
                           value={addressPostalCode}
@@ -1519,8 +1519,8 @@ const GuestCheckout = () => {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Province</Label>
-                      <Input value="Québec" disabled className="bg-muted h-12" />
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Province</Label>
+                      <Input value="Québec" disabled className="bg-[#F5F7FA] h-12 text-[#1A1A2E]" />
                     </div>
                   </CardContent>
                 </Card>
@@ -1556,20 +1556,20 @@ const GuestCheckout = () => {
                   <CardContent className="space-y-4 pt-5">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Prénom *</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Prénom *</Label>
                         <Input placeholder="Jean" value={firstName} onChange={e => setFirstName(e.target.value)} className="h-12" />
                       </div>
                       <div>
-                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Nom *</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Nom *</Label>
                         <Input placeholder="Tremblay" value={lastName} onChange={e => setLastName(e.target.value)} className="h-12" />
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Courriel *</Label>
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Courriel *</Label>
                       <Input type="email" placeholder="jean@exemple.com" value={email} onChange={e => setEmail(e.target.value)} className="h-12" />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Téléphone *</Label>
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Téléphone *</Label>
                       <Input
                         type="tel"
                         placeholder="514-555-1234"
@@ -1579,7 +1579,7 @@ const GuestCheckout = () => {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Date de naissance *</Label>
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-[#4B5563] mb-1.5 block">Date de naissance *</Label>
                       <Input
                         type="date"
                         value={dateOfBirth}
@@ -1587,7 +1587,7 @@ const GuestCheckout = () => {
                         max={new Date(new Date().setFullYear(new Date().getFullYear() - MIN_AGE_TELECOM)).toISOString().split("T")[0]}
                         className="h-12"
                       />
-                      <p className="text-xs text-muted-foreground mt-1.5">
+                      <p className="text-xs text-[#4B5563] mt-1.5">
                         Requis par la réglementation CRTC. Vous devez avoir {MIN_AGE_TELECOM} ans ou plus.
                       </p>
                     </div>
@@ -1645,7 +1645,7 @@ const GuestCheckout = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-[#1A1A2E]">Borne WiFi 6</p>
-                          <p className="text-xs text-muted-foreground">Maximum 1 par adresse • {fmt(ROUTER_PRICE)}</p>
+                          <p className="text-xs text-[#4B5563]">Maximum 1 par adresse • {fmt(ROUTER_PRICE)}</p>
                         </div>
                         <Badge variant="secondary">1</Badge>
                       </div>
@@ -1655,7 +1655,7 @@ const GuestCheckout = () => {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-medium text-[#1A1A2E]">Terminal TV</p>
-                            <p className="text-xs text-muted-foreground">Min 1 avec service TV • Max 4 par adresse • {fmt(terminalPrice ?? 0)}/unité</p>
+                            <p className="text-xs text-[#4B5563]">Min 1 avec service TV • Max 4 par adresse • {fmt(terminalPrice ?? 0)}/unité</p>
                           </div>
                           <div className="flex items-center gap-2">
                             <Button
@@ -1679,7 +1679,7 @@ const GuestCheckout = () => {
                             <p className="text-sm font-medium text-[#1A1A2E]">
                               {simType === "esim" ? "eSIM" : "Carte SIM physique"}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-[#4B5563]">
                               {simType === "esim" ? `${fmt(ESIM_PRICE)}` : `${fmt(SIM_PRICE)}`}
                             </p>
                           </div>
@@ -1715,7 +1715,7 @@ const GuestCheckout = () => {
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-[#1A1A2E] text-sm">SIM physique</p>
-                              <p className="text-xs text-muted-foreground mt-1">
+                              <p className="text-xs text-[#4B5563] mt-1">
                                 Pour la majorité des appareils — Android, iPhone 13 et versions antérieures.
                               </p>
                             </div>
@@ -1740,7 +1740,7 @@ const GuestCheckout = () => {
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-[#1A1A2E] text-sm">eSIM</p>
-                              <p className="text-xs text-muted-foreground mt-1">
+                              <p className="text-xs text-[#4B5563] mt-1">
                                 Pour les appareils compatibles — iPhone 14+, Pixel 6+, Samsung Galaxy S21+ et plus récents.
                               </p>
                             </div>
@@ -1753,7 +1753,7 @@ const GuestCheckout = () => {
                           )}
                         </button>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-3">
+                      <p className="text-[11px] text-[#4B5563] mt-3">
                         Vérifiez la compatibilité dans les réglages de votre appareil avant de choisir l'eSIM.
                       </p>
                     </CardContent>
@@ -1779,7 +1779,7 @@ const GuestCheckout = () => {
                           className={`p-4 rounded-xl border-2 text-left transition-all ${!wantsPortIn ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
                         >
                           <p className="font-semibold text-sm">Nouveau numéro</p>
-                          <p className="text-xs text-muted-foreground mt-1">Un numéro Nivra vous sera assigné</p>
+                          <p className="text-xs text-[#4B5563] mt-1">Un numéro Nivra vous sera assigné</p>
                           {!wantsPortIn && <p className="text-xs text-primary font-medium mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> Sélectionné</p>}
                         </button>
                         <button
@@ -1788,7 +1788,7 @@ const GuestCheckout = () => {
                           className={`p-4 rounded-xl border-2 text-left transition-all ${wantsPortIn ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
                         >
                           <p className="font-semibold text-sm">Garder mon numéro</p>
-                          <p className="text-xs text-muted-foreground mt-1">Transférer depuis votre opérateur actuel</p>
+                          <p className="text-xs text-[#4B5563] mt-1">Transférer depuis votre opérateur actuel</p>
                           {wantsPortIn && <p className="text-xs text-primary font-medium mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> Sélectionné</p>}
                         </button>
                       </div>
@@ -1812,7 +1812,7 @@ const GuestCheckout = () => {
                                 inputMode="numeric"
                               />
                               {portInCarrierLoading && (
-                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#4B5563]" />
                               )}
                             </div>
                             {portInCarrierDetected && !portInCarrierLoading && (
@@ -1843,7 +1843,7 @@ const GuestCheckout = () => {
                             />
                           </div>
                           <div>
-                            <Label className="text-xs font-medium mb-1.5 block">NIP / PIN de transfert <span className="text-muted-foreground font-normal">(si requis par votre opérateur)</span></Label>
+                            <Label className="text-xs font-medium mb-1.5 block">NIP / PIN de transfert <span className="text-[#4B5563] font-normal">(si requis par votre opérateur)</span></Label>
                             <Input
                               value={portInPin}
                               onChange={e => setPortInPin(e.target.value)}
@@ -1852,7 +1852,7 @@ const GuestCheckout = () => {
                               className="h-11"
                             />
                           </div>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-[11px] text-[#4B5563]">
                             Le transfert de numéro prend généralement 1-3 jours ouvrables. Votre service actuel reste actif jusqu'à la complétion du transfert.
                           </p>
                         </div>
@@ -2026,7 +2026,7 @@ const GuestCheckout = () => {
                   <CardContent className="space-y-6">
                     {/* ── Card payment via Square ── */}
                     <div>
-                      <div className="text-[10px] tracking-[2px] uppercase text-muted-foreground mb-3">
+                      <div className="text-[10px] tracking-[2px] uppercase text-[#4B5563] mb-3">
                         Méthode de paiement
                       </div>
 
