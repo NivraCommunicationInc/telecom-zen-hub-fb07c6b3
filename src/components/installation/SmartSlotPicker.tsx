@@ -225,11 +225,15 @@ export function SmartSlotPicker({
                                   <span className={`text-[10px] font-medium ${isActive ? "text-white/90" : "text-[#4B5563]"}`}>
                                     {slot.period}
                                   </span>
-                                  {spotsLeft !== null && spotsLeft <= 2 && (
-                                    <span className={`absolute -top-1.5 -right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                                      isActive ? "bg-white text-[#0066CC]" : "bg-[#D93025] text-white"
+                                  {spotsLeft !== null && (
+                                    <span className={`text-[10px] font-medium ${
+                                      isActive
+                                        ? "text-white/90"
+                                        : spotsLeft <= 2
+                                          ? "text-[#D93025]"
+                                          : "text-[#6B7280]"
                                     }`}>
-                                      {spotsLeft === 1 ? "Dernier" : `${spotsLeft} pl.`}
+                                      {spotsLeft === 1 ? "Dernière place" : `${spotsLeft} places`}
                                     </span>
                                   )}
                                 </button>
