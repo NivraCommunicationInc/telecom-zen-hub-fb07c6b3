@@ -2197,161 +2197,161 @@ const GuestCheckout = () => {
           {/* ── RIGHT COLUMN: ORDER SUMMARY (sticky) ── */}
           {step < 6 && (
             <aside className="hidden lg:block lg:col-span-2">
-              <div className="sticky top-32 space-y-4">
+              <div className="sticky top-32 space-y-3">
 
-
-                {/* Order Summary Panel */}
+                {/* Devis header */}
                 <div className="rounded-2xl overflow-hidden bg-white border border-[#E5E7EB] shadow-sm">
-
-                  {/* Header */}
-                  <div className="px-5 py-4 bg-[#F0F6FC] border-b border-[#E5E7EB]">
-                    <div className="flex items-center gap-2 mb-3">
-                      <ShoppingCart className="w-4 h-4 text-[#0066CC]" />
-                      <span className="font-bold text-[#0066CC] text-sm tracking-wide uppercase">Votre commande</span>
+                  <div className="px-5 py-3 bg-[#1A1A2E] flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileCheck className="w-4 h-4 text-white" />
+                      <span className="text-[11px] font-bold text-white tracking-widest uppercase">Votre devis Nivra</span>
                     </div>
-                    {selectedServices.length > 0 ? (
-                      <div className="space-y-1.5">
+                    <span className="text-[10px] font-semibold text-white/70 tracking-wide">N° {new Date().getFullYear()}-{String(Date.now()).slice(-5)}</span>
+                  </div>
+
+                  {selectedServices.length === 0 ? (
+                    <div className="px-5 py-6 text-center">
+                      <ShoppingCart className="w-8 h-8 text-[#E5E7EB] mx-auto mb-2" />
+                      <p className="text-sm text-[#6B7280]">Aucun forfait sélectionné</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* ── Hero forfait ── */}
+                      <div className="px-5 py-4 bg-gradient-to-b from-[#F0F6FC] to-white border-b border-[#E5E7EB]">
                         {selectedServices.map(s => {
                           const Icon = categoryIcons[s.category] || Package;
+                          const speedMatch = s.category === "Internet" ? s.name.match(/(\d{2,4})\s*Mbps/i) : null;
                           return (
-                            <div key={s.id} className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Icon className="w-3.5 h-3.5 text-[#6B7280]" />
-                                <span className="text-sm font-semibold text-[#1A1A2E]">{s.name}</span>
+                            <div key={s.id} className="mb-3 last:mb-0">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div className="w-6 h-6 rounded-md bg-[#0066CC] flex items-center justify-center">
+                                  <Icon className="w-3.5 h-3.5 text-white" />
+                                </div>
+                                <span className="text-[10px] font-bold text-[#0066CC] uppercase tracking-widest">{s.category}</span>
                               </div>
-                              <span className="text-sm font-bold text-[#1A1A2E]">{fmt(s.price)}<span className="text-[#6B7280] text-xs font-normal">/mois</span></span>
+                              <p className="text-lg font-black text-[#1A1A2E] leading-tight">{s.name}</p>
+                              {speedMatch && (
+                                <div className="mt-2 inline-flex items-baseline gap-1 text-[#0066CC]">
+                                  <Zap className="w-4 h-4 fill-[#0066CC]" />
+                                  <span className="text-2xl font-black leading-none">{speedMatch[1]}</span>
+                                  <span className="text-sm font-bold">Mbps</span>
+                                </div>
+                              )}
+                              <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-dashed border-[#E5E7EB]">
+                                <span className="text-xs text-[#6B7280]">Prix mensuel</span>
+                                <span className="text-base font-bold text-[#1A1A2E]">{fmt(s.price)}<span className="text-xs text-[#6B7280] font-normal">/mois</span></span>
+                              </div>
                             </div>
                           );
                         })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-[#6B7280]">Aucun forfait sélectionné</p>
-                    )}
 
-                    {/* 1er mois GRATUIT badge */}
-                    {selectedServices.length > 0 && !isStreamingOnlyOrder && (
-                      <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[#00A651]/15 border border-[#00A651]/30 text-[#00A651]">
-                        <Gift className="w-3 h-3" />
-                        1er mois 100% GRATUIT
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Pricing breakdown */}
-                  {selectedServices.length > 0 && (
-                    <div className="px-5 py-4 space-y-3 bg-white">
-
-                      {/* Monthly recurring */}
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-xs text-[#6B7280] uppercase tracking-wider font-semibold">Mensuel (taxes incl.)</span>
-                        <span className="font-bold text-[#1A1A2E] text-sm">{fmt(monthlyTotalWithTax)}</span>
-                      </div>
-
-                      <div className="h-px bg-[#E5E7EB]" />
-
-                      {/* One-time fees */}
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest">Frais une fois</p>
-                        {activationFee > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-[#6B7280]">Activation</span>
-                            <span className="text-[#1A1A2E]">{fmt(activationFee)}</span>
-                          </div>
-                        )}
-                        {routerFee > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-[#6B7280]">Routeur WiFi 6</span>
-                            <span className="text-[#1A1A2E]">{fmt(routerFee)}</span>
-                          </div>
-                        )}
-                        {terminalFee > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-[#6B7280]">Terminal TV ×{tvTerminalQty}</span>
-                            <span className="text-[#1A1A2E]">{fmt(terminalFee)}</span>
-                          </div>
-                        )}
-                        {simFee > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-[#6B7280]">Carte SIM</span>
-                            <span className="text-[#1A1A2E]">{fmt(simFee)}</span>
-                          </div>
-                        )}
-                        {deliveryFee > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-[#6B7280]">Livraison</span>
-                            <span className="text-[#1A1A2E]">{fmt(deliveryFee)}</span>
-                          </div>
-                        )}
-                        {installationFee > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-[#6B7280]">Installation</span>
-                            <span className="text-[#1A1A2E]">{fmt(installationFee)}</span>
+                        {!isStreamingOnlyOrder && (
+                          <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#00A651]/15 border border-[#00A651]/30 text-[#00A651]">
+                            <Gift className="w-3 h-3" />
+                            1ER MOIS 100% GRATUIT
                           </div>
                         )}
                       </div>
 
-                      {/* Discounts */}
-                      {normalizedPricing && toNonNegativeMoney(normalizedPricing.discount_total_combined) > 0 && (
-                        <div className="flex justify-between text-xs font-semibold text-[#00A651]">
-                          <span className="flex items-center gap-1"><Star className="w-3 h-3" /> Rabais</span>
-                          <span>-{fmt(toNonNegativeMoney(normalizedPricing.discount_total_combined))}</span>
-                        </div>
-                      )}
-                      {enableAutoBilling && (
-                        <div className="flex justify-between text-xs text-[#00A651]">
-                          <span>Rabais pré-autorisé (mensuel)</span>
-                          <span>-{fmt(AUTOPAY_DISCOUNT)}/mois</span>
+                      {/* ── Équipements & frais uniques ── */}
+                      {(routerFee > 0 || terminalFee > 0 || simFee > 0 || activationFee > 0 || deliveryFee > 0 || installationFee > 0) && (
+                        <div className="px-5 py-3 border-b border-[#E5E7EB]">
+                          <p className="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest mb-2">Frais uniques (aujourd'hui)</p>
+                          <div className="space-y-1.5">
+                            {routerFee > 0 && (
+                              <div className="flex justify-between text-xs"><span className="text-[#374151] flex items-center gap-1.5"><Wifi className="w-3 h-3 text-[#6B7280]" />Borne WiFi 6</span><span className="text-[#1A1A2E] font-medium">{fmt(routerFee)}</span></div>
+                            )}
+                            {terminalFee > 0 && (
+                              <div className="flex justify-between text-xs"><span className="text-[#374151] flex items-center gap-1.5"><Tv className="w-3 h-3 text-[#6B7280]" />Terminal TV ×{tvTerminalQty}</span><span className="text-[#1A1A2E] font-medium">{fmt(terminalFee)}</span></div>
+                            )}
+                            {simFee > 0 && (
+                              <div className="flex justify-between text-xs"><span className="text-[#374151] flex items-center gap-1.5"><Smartphone className="w-3 h-3 text-[#6B7280]" />{simType === "esim" ? "eSIM" : "Carte SIM"}</span><span className="text-[#1A1A2E] font-medium">{fmt(simFee)}</span></div>
+                            )}
+                            {activationFee > 0 && (
+                              <div className="flex justify-between text-xs"><span className="text-[#374151]">Activation</span><span className="text-[#1A1A2E] font-medium">{fmt(activationFee)}</span></div>
+                            )}
+                            {deliveryFee > 0 && (
+                              <div className="flex justify-between text-xs"><span className="text-[#374151]">Livraison</span><span className="text-[#1A1A2E] font-medium">{fmt(deliveryFee)}</span></div>
+                            )}
+                            {installationFee > 0 && (
+                              <div className="flex justify-between text-xs"><span className="text-[#374151]">Installation technicien</span><span className="text-[#1A1A2E] font-medium">{fmt(installationFee)}</span></div>
+                            )}
+                          </div>
                         </div>
                       )}
 
-                      {/* Taxes */}
+                      {/* ── Rabais ── */}
+                      {((normalizedPricing && toNonNegativeMoney(normalizedPricing.discount_total_combined) > 0) || enableAutoBilling) && (
+                        <div className="px-5 py-2.5 border-b border-[#E5E7EB] bg-[#00A651]/5">
+                          {normalizedPricing && toNonNegativeMoney(normalizedPricing.discount_total_combined) > 0 && (
+                            <div className="flex justify-between text-xs font-semibold text-[#00A651]">
+                              <span className="flex items-center gap-1"><Star className="w-3 h-3" /> Rabais appliqués</span>
+                              <span>-{fmt(toNonNegativeMoney(normalizedPricing.discount_total_combined))}</span>
+                            </div>
+                          )}
+                          {enableAutoBilling && (
+                            <div className="flex justify-between text-xs text-[#00A651] mt-1">
+                              <span>Rabais pré-autorisé</span>
+                              <span>-{fmt(AUTOPAY_DISCOUNT)}/mois</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ── Taxes ── */}
                       {normalizedPricing && (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] text-[#6B7280]">
-                            <span>TPS (5%)</span>
-                            <span>{fmt(normalizedPricing.tps_amount)}</span>
-                          </div>
-                          <div className="flex justify-between text-[11px] text-[#6B7280]">
-                            <span>TVQ (9,975%)</span>
-                            <span>{fmt(normalizedPricing.tvq_amount)}</span>
-                          </div>
+                        <div className="px-5 py-2.5 border-b border-[#E5E7EB]">
+                          <div className="flex justify-between text-[11px] text-[#6B7280]"><span>TPS (5%)</span><span>{fmt(normalizedPricing.tps_amount)}</span></div>
+                          <div className="flex justify-between text-[11px] text-[#6B7280] mt-0.5"><span>TVQ (9,975%)</span><span>{fmt(normalizedPricing.tvq_amount)}</span></div>
                         </div>
                       )}
 
-                      <div className="h-px bg-[#E5E7EB]" />
-
-                      {/* Grand total */}
-                      <div className="flex items-baseline justify-between pt-1">
-                        <span className="text-sm font-bold text-[#1A1A2E]">Total aujourd'hui</span>
-                        {isServerPricingLoading ? (
-                          <Skeleton className="h-7 w-24" />
-                        ) : (
-                          <span className="text-2xl font-black text-[#0066CC]">
-                            {fmt(todayTotal)}
-                          </span>
-                        )}
+                      {/* ── Total aujourd'hui — hero ── */}
+                      <div className="px-5 py-4 bg-[#0066CC] text-white">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">Total aujourd'hui</p>
+                            <p className="text-[10px] text-white/70 mt-0.5">Paiement unique</p>
+                          </div>
+                          {isServerPricingLoading ? (
+                            <Skeleton className="h-8 w-24 bg-white/20" />
+                          ) : (
+                            <span className="text-3xl font-black leading-none">{fmt(todayTotal)}</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
+
+                      {/* ── Mensuel après premier mois ── */}
+                      <div className="px-5 py-3 bg-[#F5F7FA] border-t border-[#E5E7EB]">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#6B7280]">Puis chaque mois</p>
+                            <p className="text-[10px] text-[#6B7280] mt-0.5">Taxes incluses · Sans engagement</p>
+                          </div>
+                          <span className="text-xl font-bold text-[#1A1A2E]">{fmt(monthlyTotalWithTax)}<span className="text-xs text-[#6B7280] font-normal">/mois</span></span>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
 
-                {/* Trust badges */}
-                <div className="rounded-xl p-4 space-y-2.5 bg-[#00A651]/5 border border-[#00A651]/20">
-                  <div className="flex items-center gap-2.5 text-xs text-[#00A651]">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span className="font-medium">Premier mois 100% gratuit pour les nouveaux clients</span>
+                {/* Trust pills */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-white border border-[#E5E7EB] px-3 py-2.5 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-[#00A651] shrink-0" />
+                    <span className="text-[11px] font-semibold text-[#1A1A2E] leading-tight">Aucun contrat</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-xs text-[#00A651]">
-                    <Shield className="w-4 h-4 shrink-0" />
-                    <span className="font-medium">Garantie satisfait ou remboursé 30 jours</span>
+                  <div className="rounded-lg bg-white border border-[#E5E7EB] px-3 py-2.5 flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-[#00A651] shrink-0" />
+                    <span className="text-[11px] font-semibold text-[#1A1A2E] leading-tight">Paiement sécurisé</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-xs text-[#6B7280]">
-                    <Lock className="w-4 h-4 shrink-0" />
-                    <span>Paiement sécurisé SSL 256-bit · Sans contrat</span>
+                  <div className="rounded-lg bg-white border border-[#E5E7EB] px-3 py-2.5 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#00A651] shrink-0" />
+                    <span className="text-[11px] font-semibold text-[#1A1A2E] leading-tight">Satisfait 30 jours</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-xs text-[#6B7280]">
-                    <Star className="w-4 h-4 shrink-0" />
-                    <span>Entreprise québécoise 🇨🇦</span>
+                  <div className="rounded-lg bg-white border border-[#E5E7EB] px-3 py-2.5 flex items-center gap-2">
+                    <span className="text-base leading-none">🇨🇦</span>
+                    <span className="text-[11px] font-semibold text-[#1A1A2E] leading-tight">Entreprise québécoise</span>
                   </div>
                 </div>
 
@@ -2360,6 +2360,7 @@ const GuestCheckout = () => {
           )}
         </div>
       </main>
+
 
       {/* ═══ MOBILE FIXED BOTTOM SUMMARY ═══ */}
       {step < 6 && selectedServices.length > 0 && (
