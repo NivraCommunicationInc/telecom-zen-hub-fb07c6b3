@@ -633,15 +633,15 @@ export default function StaffClientDetail() {
           <TabsContent value="billing" className="mt-4">
             <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle className="text-white">Facturation ({billing?.length || 0})</CardTitle>
+                <CardTitle className="text-white">Facturation ({billingInvoices.length})</CardTitle>
               </CardHeader>
-              <CardContent>
-                {!billing?.length ? (
+              <CardContent className="space-y-4">
+                {!billingInvoices.length ? (
                   <p className="text-slate-400 text-center py-8">Aucune facture</p>
                 ) : (
                   <ScrollArea className="max-h-[400px]">
                     <div className="space-y-3">
-                      {billing.map((bill: any) => (
+                      {billingInvoices.map((bill: any) => (
                         <Link
                           key={bill.id}
                           to={`/staff/billing/${bill.id}`}
@@ -666,9 +666,16 @@ export default function StaffClientDetail() {
                     </div>
                   </ScrollArea>
                 )}
+
+                {/* ═══ Historique des paiements (staff — vrai processeur visible) ═══ */}
+                <ClientPaymentsHistory
+                  billingCustomerId={staffBillingCustomerId}
+                  invoiceHref={(invoiceId) => `/staff/billing/${invoiceId}`}
+                />
               </CardContent>
             </Card>
           </TabsContent>
+
 
           <TabsContent value="tickets" className="mt-4">
             <Card className="border-slate-700/50 bg-slate-900/60 backdrop-blur-xl">
