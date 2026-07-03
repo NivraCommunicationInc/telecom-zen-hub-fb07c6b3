@@ -1408,7 +1408,7 @@ const GuestCheckout = () => {
                                     >
                                       <div className="flex items-start justify-between">
                                         <div className="flex-1 min-w-0">
-                                          <p className="font-semibold text-foreground text-sm">{service.name}</p>
+                                          <p className="font-semibold text-[#1A1A2E] text-sm">{service.name}</p>
                                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{service.description}</p>
                                         </div>
                                         <div className="flex flex-col items-end ml-3">
@@ -1621,14 +1621,14 @@ const GuestCheckout = () => {
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Package className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-base font-bold text-foreground">Équipement</span>
+                        <span className="text-base font-bold text-[#1A1A2E]">Équipement</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {/* WiFi Router — max 1 */}
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-foreground">Borne WiFi 6</p>
+                          <p className="text-sm font-medium text-[#1A1A2E]">Borne WiFi 6</p>
                           <p className="text-xs text-muted-foreground">Maximum 1 par adresse • {fmt(ROUTER_PRICE)}</p>
                         </div>
                         <Badge variant="secondary">1</Badge>
@@ -1638,7 +1638,7 @@ const GuestCheckout = () => {
                       {hasTVService && (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-foreground">Terminal TV</p>
+                            <p className="text-sm font-medium text-[#1A1A2E]">Terminal TV</p>
                             <p className="text-xs text-muted-foreground">Min 1 avec service TV • Max 4 par adresse • {fmt(terminalPrice ?? 0)}/unité</p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1647,7 +1647,7 @@ const GuestCheckout = () => {
                               disabled={tvTerminalQty <= 1}
                               onClick={() => setTvTerminalQty(q => Math.max(1, q - 1))}
                             >−</Button>
-                            <span className="w-8 text-center font-semibold text-foreground">{tvTerminalQty}</span>
+                            <span className="w-8 text-center font-semibold text-[#1A1A2E]">{tvTerminalQty}</span>
                             <Button
                               size="sm" variant="outline"
                               disabled={tvTerminalQty >= 4}
@@ -1660,7 +1660,7 @@ const GuestCheckout = () => {
                       {hasMobileService && (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-foreground">
+                            <p className="text-sm font-medium text-[#1A1A2E]">
                               {simType === "esim" ? "eSIM" : "Carte SIM physique"}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -1682,7 +1682,7 @@ const GuestCheckout = () => {
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Smartphone className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-base font-bold text-foreground">Type de SIM</span>
+                        <span className="text-base font-bold text-[#1A1A2E]">Type de SIM</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -1698,12 +1698,12 @@ const GuestCheckout = () => {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-foreground text-sm">SIM physique</p>
+                              <p className="font-semibold text-[#1A1A2E] text-sm">SIM physique</p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 Pour la majorité des appareils — Android, iPhone 13 et versions antérieures.
                               </p>
                             </div>
-                            <span className="text-sm font-bold text-foreground ml-3">{fmt(SIM_PRICE)}</span>
+                            <span className="text-sm font-bold text-[#1A1A2E] ml-3">{fmt(SIM_PRICE)}</span>
                           </div>
                           {simType === "physical" && (
                             <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
@@ -1723,12 +1723,12 @@ const GuestCheckout = () => {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-foreground text-sm">eSIM</p>
+                              <p className="font-semibold text-[#1A1A2E] text-sm">eSIM</p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 Pour les appareils compatibles — iPhone 14+, Pixel 6+, Samsung Galaxy S21+ et plus récents.
                               </p>
                             </div>
-                            <span className="text-sm font-bold text-foreground ml-3">{fmt(ESIM_PRICE)}</span>
+                            <span className="text-sm font-bold text-[#1A1A2E] ml-3">{fmt(ESIM_PRICE)}</span>
                           </div>
                           {simType === "esim" && (
                             <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
@@ -1752,7 +1752,7 @@ const GuestCheckout = () => {
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Phone className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-base font-bold text-foreground">Conserver votre numéro ?</span>
+                        <span className="text-base font-bold text-[#1A1A2E]">Conserver votre numéro ?</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -1852,7 +1852,7 @@ const GuestCheckout = () => {
                         <div className="flex items-center gap-3">
                           <Star className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                           <div>
-                            <p className="font-semibold text-foreground text-sm">Rabais bienvenue appliqué !</p>
+                            <p className="font-semibold text-[#1A1A2E] text-sm">Rabais bienvenue appliqué !</p>
                             <p className="text-xs text-muted-foreground">
                               50% de rabais sur votre premier mois — appliqué automatiquement.
                             </p>
@@ -1861,7 +1861,7 @@ const GuestCheckout = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-muted-foreground hover:text-foreground"
+                          className="text-xs text-muted-foreground hover:text-[#1A1A2E]"
                           onClick={() => setWelcomeDiscountDismissed(true)}
                         >
                           Retirer
@@ -1909,7 +1909,7 @@ const GuestCheckout = () => {
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#00A651' }}>
                         <Gift className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-base font-bold text-foreground">Promotions</span>
+                      <span className="text-base font-bold text-[#1A1A2E]">Promotions</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
