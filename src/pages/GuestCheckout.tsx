@@ -86,8 +86,9 @@ const CHECKOUT_STEPS = [
   { id: 2, labelFr: "Adresse", labelEn: "Address" },
   { id: 3, labelFr: "Informations", labelEn: "Info" },
   { id: 4, labelFr: "Installation", labelEn: "Installation" },
-  { id: 5, labelFr: "Paiement", labelEn: "Payment" },
-  { id: 6, labelFr: "Confirmation", labelEn: "Confirmation" },
+  { id: 5, labelFr: "Options & Livraison", labelEn: "Options & Delivery" },
+  { id: 6, labelFr: "Paiement", labelEn: "Payment" },
+  { id: 7, labelFr: "Confirmation", labelEn: "Confirmation" },
 ];
 
 const CHECKOUT_DRAFT_KEY = "nivra_checkout_draft";
