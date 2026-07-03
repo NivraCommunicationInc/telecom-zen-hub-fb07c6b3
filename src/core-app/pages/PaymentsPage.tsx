@@ -55,6 +55,7 @@ const PaymentsPage = () => {
     return payments.filter(p => {
       if (statusFilter && p.status !== statusFilter) return false;
       if (methodFilter && p.method !== methodFilter) return false;
+      if (sourceFilter && p.source !== sourceFilter) return false;
       if (fraudOnly && p.status !== "fraud") return false;
       if (dateFrom) {
         const pDate = (p.received_at || p.created_at || "").slice(0, 10);
@@ -67,14 +68,51 @@ const PaymentsPage = () => {
       if (!q) return true;
       return (
         p.payment_number?.toLowerCase().includes(q) ||
+        p.nivra_reference?.toLowerCase().includes(q) ||
         p.customer_name?.toLowerCase().includes(q) ||
         p.customer_email?.toLowerCase().includes(q) ||
         p.account_number?.toLowerCase().includes(q) ||
         p.invoice_number?.toLowerCase().includes(q) ||
-        p.reference?.toLowerCase().includes(q)
+        p.reference?.toLowerCase().includes(q) ||
+        p.provider_payment_id?.toLowerCase().includes(q) ||
+        p.square_payment_id?.toLowerCase().includes(q)
       );
     });
-  }, [payments, search, statusFilter, methodFilter, dateFrom, dateTo, fraudOnly]);
+  }, [payments, search, statusFilter, methodFilter, sourceFilter, dateFrom, dateTo, fraudOnly]);
+
+  const handleExport = () => {
+    const rows = filtered.map(p => {
+      const methodKey = p.method === "paypal" ? "card" : p.method;
+      return {
+        date: p.received_at || p.created_at || "",
+        client: p.customer_name || "",
+        email: p.customer_email || "",
+        compte: p.account_number || "",
+        facture: p.invoice_number || "",
+        montant: (p.amount ?? 0).toFixed(2),
+        methode: PAYMENT_METHODS[methodKey as keyof typeof PAYMENT_METHODS] || methodKey,
+        source: p.source ? (PAYMENT_SOURCES[p.source] || p.source) : "",
+        ref_nvr: p.nivra_reference || p.payment_number || "",
+        ref_processeur: p.square_payment_id || (p.provider === "paypal" ? "" : (p.provider_payment_id || "")) || p.reference || "",
+        statut: PAYMENT_STATUSES[p.status as keyof typeof PAYMENT_STATUSES] || p.status || "",
+        agent: p.confirmed_by || p.created_by_name || "",
+      };
+    });
+    exportToCSV(rows, "paiements", [
+      { key: "date", label: "Date" },
+      { key: "client", label: "Client" },
+      { key: "email", label: "Email" },
+      { key: "compte", label: "Compte" },
+      { key: "facture", label: "Facture" },
+      { key: "montant", label: "Montant" },
+      { key: "methode", label: "Méthode" },
+      { key: "source", label: "Source" },
+      { key: "ref_nvr", label: "Réf NVR" },
+      { key: "ref_processeur", label: "Réf processeur" },
+      { key: "statut", label: "Statut" },
+      { key: "agent", label: "Agent" },
+    ]);
+  };
 
   const pendingVerification = payments.filter(
     p => (p.method === "interac" || p.method === "manual") && (p.status === "pending" || p.status === "in_verification")
@@ -109,6 +147,13 @@ const PaymentsPage = () => {
           )}
           <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
           <button
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[#94A3B8] hover:text-[#F8FAFC] hover:border-emerald-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download className="h-3.5 w-3.5" /> Exporter CSV
+          </button>
+          <button
             onClick={() => refetch()}
             className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[#94A3B8] hover:text-[#F8FAFC] hover:border-emerald-500/30 transition-colors"
           >
@@ -133,6 +178,7 @@ const PaymentsPage = () => {
             search={search} onSearch={setSearch}
             status={statusFilter} onStatus={setStatusFilter}
             method={methodFilter} onMethod={setMethodFilter}
+            source={sourceFilter} onSource={setSourceFilter}
             dateFrom={dateFrom} onDateFrom={setDateFrom}
             dateTo={dateTo} onDateTo={setDateTo}
             fraudOnly={fraudOnly} onFraudOnly={setFraudOnly}
