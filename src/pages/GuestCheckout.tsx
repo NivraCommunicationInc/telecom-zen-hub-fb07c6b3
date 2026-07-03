@@ -2423,18 +2423,24 @@ const GuestCheckout = () => {
             <button
               type="button"
               onClick={() => setMobileSummaryOpen(v => !v)}
-              className="w-full px-4 py-3 flex items-center justify-between text-left"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left min-h-[64px] active:bg-[#F5F7FA]"
             >
-              <div>
-                <p className="text-[11px] text-[#6B7280] uppercase tracking-wide font-semibold">Total aujourd'hui</p>
-                <p className="font-black text-xl text-[#0066CC] leading-tight">{fmt(todayTotal)}</p>
-                <p className="text-[10px] text-[#00A651] font-medium">{fmt(monthlyTotalWithTax)}/mois après</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 flex items-center justify-center shrink-0">
+                  <ShoppingCart className="w-5 h-5 text-[#0066CC]" />
+                </div>
+                <div className="leading-tight">
+                  <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-bold">Total aujourd'hui</p>
+                  <p className="font-black text-xl text-[#0066CC]">{fmt(todayTotal)}</p>
+                  <p className="text-[10px] text-[#6B7280] font-medium">puis {fmt(monthlyTotalWithTax)}/mois</p>
+                </div>
               </div>
-              <span className="text-xs font-semibold text-[#0066CC] flex items-center gap-1">
-                {mobileSummaryOpen ? 'Masquer' : 'Voir le détail'}
-                <span className="text-base">{mobileSummaryOpen ? '▼' : '▲'}</span>
+              <span className="text-[11px] font-bold text-[#0066CC] flex items-center gap-1 px-3 py-2 rounded-full bg-[#0066CC]/10">
+                {mobileSummaryOpen ? 'Masquer' : 'Détail'}
+                <span className="text-xs">{mobileSummaryOpen ? '▼' : '▲'}</span>
               </span>
             </button>
+
           </div>
         </>
       )}
