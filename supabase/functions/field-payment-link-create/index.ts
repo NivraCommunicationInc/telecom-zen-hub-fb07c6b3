@@ -54,7 +54,7 @@ serve(async (req) => {
     // Load quote
     const { data: quote, error: qErr } = await supabase
       .from("field_quotes")
-      .select("id, agent_id, agent_name, client_info, services, equipment, total, status")
+      .select("id, agent_id, agent_name, client_info, services, equipment, discount, total, status, install_date, install_mode, subtotal, tps, tvq, activation_fee")
       .eq("id", quote_id)
       .maybeSingle();
 
