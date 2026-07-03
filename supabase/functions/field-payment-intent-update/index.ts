@@ -171,6 +171,13 @@ serve(async (req) => {
         .from("field_payment_intents")
         .update({ signature: payload, consent_flags: cf } as never)
         .eq("id", intent_id);
+
+      await supabase.rpc("log_field_order_event" as never, {
+        p_intent_id: intent_id,
+        p_event_type: "signature_saved",
+        p_payload: { name: payload.name, method: payload.method, ip: payerIp } as never,
+      }).then(undefined, () => {});
+
       return json({ ok: true, signed_at: payload.signed_at });
     }
 
