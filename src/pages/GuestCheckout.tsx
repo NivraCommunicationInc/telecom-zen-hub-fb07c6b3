@@ -215,6 +215,20 @@ const GuestCheckout = () => {
       if (s.portInAccountNumber) setPortInAccountNumber(s.portInAccountNumber);
       if (s.paypalCaptureId)   { setPaypalCaptureId(s.paypalCaptureId); setPaymentComplete(true); }
     } catch {}
+
+    // ── Hydrate service address from the pre-checkout coverage step ──
+    // (customer already validated their address on /internet or /tv-plus)
+    try {
+      const pre = readPrecheckedAddress();
+      if (pre) {
+        // Only pre-fill fields the customer hasn't already touched in a saved draft.
+        setAddressStreet(prev => prev || pre.line1);
+        setAddressCity(prev => prev || pre.city);
+        setAddressProvince(prev => prev || (pre.region || "QC"));
+        setAddressPostalCode(prev => prev || pre.postalCode);
+        clearPrecheckedAddress();
+      }
+    } catch {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sauvegarder le state dans sessionStorage à chaque changement ──
