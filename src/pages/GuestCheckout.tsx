@@ -446,7 +446,8 @@ const GuestCheckout = () => {
   const simFee = hasMobileService ? (simType === "esim" ? ESIM_PRICE : SIM_PRICE) : 0;
   const terminalFee = hasTVService ? (terminalPrice ?? 0) * Math.min(Math.max(tvTerminalQty, 1), 4) : 0;
   const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 10);
-  const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
+  // Auto-installation is always free — no delivery/shipping fee charged to customer for self-install.
+  const deliveryFee = 0;
   const installationFee = isStreamingOnlyOrder ? 0 : (installationChoice === "technician" ? (canonicalFees.installationTechnician || 25) : 0);
   const oneTimeFees = routerFee + simFee + terminalFee + activationFee + deliveryFee + installationFee;
 
