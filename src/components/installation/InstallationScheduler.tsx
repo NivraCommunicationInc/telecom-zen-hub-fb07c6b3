@@ -48,6 +48,8 @@ interface Props {
   onDecisionMade?: (decision: InstallationDecision) => void;
   confirmedAppointment?: boolean;
   onAppointmentConfirmedChange?: (confirmed: boolean) => void;
+  /** "choice" = show questionnaire + verdict only; "schedule" = show verdict recap + calendar */
+  phase?: "choice" | "schedule";
 }
 
 export function InstallationScheduler({
@@ -62,7 +64,10 @@ export function InstallationScheduler({
   onDecisionMade,
   confirmedAppointment,
   onAppointmentConfirmedChange,
+  phase = "choice",
 }: Props) {
+  const showQuestionnaire = phase === "choice";
+  const showSchedule = phase === "schedule";
   const [cablingAnswers, setCablingAnswers] = useState<CablingData | null>(null);
   const [decision, setDecision] = useState<InstallationDecision | null>(null);
   const [overrideToTech, setOverrideToTech] = useState(false);
