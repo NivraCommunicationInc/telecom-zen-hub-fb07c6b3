@@ -28,6 +28,7 @@ const CorePOSPage = lazy(() => import("./pages/CorePOSPage"));
 const CoreKYCPage = lazy(() => import("./pages/CoreKYCPage"));
 const AppointmentsPage = lazy(() => import("./pages/AppointmentsPage"));
 const CoreAppointmentSlotsPage = lazy(() => import("./pages/CoreAppointmentSlotsPage"));
+const CoreAppointmentDetail = lazy(() => import("./pages/CoreAppointmentDetail"));
 const CoreRequestsPage = lazy(() => import("./pages/CoreRequestsPage"));
 const CoreWifiRequestsPage = lazy(() => import("./pages/CoreActivationRequestsPage"));
 const CoreReturnsPage = lazy(() => import("./pages/CoreReturnsPage"));
@@ -171,6 +172,7 @@ const CoreApp = () => {
                 <Route path="kyc" element={<S><CoreKYCPage /></S>} />
                 <Route path="appointments" element={<S><AppointmentsPage /></S>} />
                 <Route path="appointments/slots" element={<S><CoreAppointmentSlotsPage /></S>} />
+                <Route path="appointments/:id" element={<S><CoreAppointmentDetail /></S>} />
                 <Route path="requests" element={<S><CoreRequestsPage /></S>} />
                 <Route path="wifi-requests" element={<S><CoreWifiRequestsPage /></S>} />
                 <Route path="activations" element={<Navigate to="wifi-requests" replace />} />
