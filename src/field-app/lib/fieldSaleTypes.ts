@@ -16,6 +16,8 @@ export interface FieldSaleCustomer {
   province: string;
   notes: string;
   serviceability_status: "unknown" | "checking" | "available" | "unavailable";
+  install_date?: string | null;
+  install_mode?: "technician" | "self";
 }
 
 /** Concatenates address + apartment for downstream consumers (orders, invoices). */
@@ -135,6 +137,8 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     province: "QC",
     notes: "",
     serviceability_status: "unknown",
+    install_date: null,
+    install_mode: "technician",
   },
   services: [],
   equipment: [],

@@ -54,7 +54,7 @@ serve(async (req) => {
     // Load quote
     const { data: quote, error: qErr } = await supabase
       .from("field_quotes")
-      .select("id, agent_id, agent_name, client_info, services, equipment, total, status")
+      .select("id, agent_id, agent_name, client_info, services, equipment, discount, total, status, install_date, install_mode, subtotal, tps, tvq, activation_fee")
       .eq("id", quote_id)
       .maybeSingle();
 
@@ -119,6 +119,19 @@ serve(async (req) => {
           .filter(Boolean)
           .join(", ") || "Services Nivra";
 
+      const monthlyTotal = (Array.isArray(quote.services) ? (quote.services as any[]) : [])
+        .reduce((s: number, x: any) => s + Number(x?.monthlyPrice || 0), 0);
+      const discountAmt = Number((quote as any).discount?.monthly_amount || (quote as any).discount?.amount || 0);
+      const monthlyAfter = Math.max(0, monthlyTotal - discountAmt).toFixed(2);
+      const installDateLabel = quote.install_date
+        ? new Date(quote.install_date as string).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" })
+        : null;
+      const equipmentLabel =
+        (Array.isArray(quote.equipment) ? (quote.equipment as any[]) : [])
+          .map((e: any) => `${e?.name}${e?.quantity > 1 ? ` ×${e.quantity}` : ""}`)
+          .filter(Boolean)
+          .join(", ") || null;
+
       try {
         const { error: mailErr } = await supabase.from("email_queue").insert({
           event_key: `field_payment_link_${intentId}`,
@@ -130,6 +143,10 @@ serve(async (req) => {
             agent_name: quote.agent_name || "Votre représentant Nivra",
             order_number: intentId,
             total: total.toFixed(2),
+            monthly_after: monthlyAfter,
+            install_date: installDateLabel,
+            equipment: equipmentLabel,
+            discount_label: (quote as any).discount?.name || (quote as any).discount?.label || null,
             summary,
             services: summary,
             payment_url: paymentUrl,

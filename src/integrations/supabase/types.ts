@@ -10115,6 +10115,8 @@ export type Database = {
         Row: {
           agent_id: string
           amount: number
+          client_edits: Json | null
+          consent_flags: Json | null
           converted_field_order_id: string | null
           converted_invoice_id: string | null
           converted_order_id: string | null
@@ -10132,6 +10134,7 @@ export type Database = {
           paypal_order_id: string | null
           public_token: string | null
           quote_id: string | null
+          signature: Json | null
           source: string | null
           status: string
           updated_at: string
@@ -10139,6 +10142,8 @@ export type Database = {
         Insert: {
           agent_id: string
           amount: number
+          client_edits?: Json | null
+          consent_flags?: Json | null
           converted_field_order_id?: string | null
           converted_invoice_id?: string | null
           converted_order_id?: string | null
@@ -10156,6 +10161,7 @@ export type Database = {
           paypal_order_id?: string | null
           public_token?: string | null
           quote_id?: string | null
+          signature?: Json | null
           source?: string | null
           status?: string
           updated_at?: string
@@ -10163,6 +10169,8 @@ export type Database = {
         Update: {
           agent_id?: string
           amount?: number
+          client_edits?: Json | null
+          consent_flags?: Json | null
           converted_field_order_id?: string | null
           converted_invoice_id?: string | null
           converted_order_id?: string | null
@@ -10180,6 +10188,7 @@ export type Database = {
           paypal_order_id?: string | null
           public_token?: string | null
           quote_id?: string | null
+          signature?: Json | null
           source?: string | null
           status?: string
           updated_at?: string
@@ -10207,6 +10216,8 @@ export type Database = {
           email_sent_at: string | null
           equipment: Json
           id: string
+          install_date: string | null
+          install_mode: string | null
           services: Json
           status: string
           subtotal: number
@@ -10228,6 +10239,8 @@ export type Database = {
           email_sent_at?: string | null
           equipment?: Json
           id?: string
+          install_date?: string | null
+          install_mode?: string | null
           services?: Json
           status?: string
           subtotal?: number
@@ -10249,6 +10262,8 @@ export type Database = {
           email_sent_at?: string | null
           equipment?: Json
           id?: string
+          install_date?: string | null
+          install_mode?: string | null
           services?: Json
           status?: string
           subtotal?: number
@@ -10441,6 +10456,8 @@ export type Database = {
           gps_latitude: number | null
           gps_longitude: number | null
           id: string
+          install_date: string | null
+          install_mode: string | null
           internal_notes: string | null
           local_id: string | null
           location_photo_url: string | null
@@ -10482,6 +10499,8 @@ export type Database = {
           gps_latitude?: number | null
           gps_longitude?: number | null
           id?: string
+          install_date?: string | null
+          install_mode?: string | null
           internal_notes?: string | null
           local_id?: string | null
           location_photo_url?: string | null
@@ -10523,6 +10542,8 @@ export type Database = {
           gps_latitude?: number | null
           gps_longitude?: number | null
           id?: string
+          install_date?: string | null
+          install_mode?: string | null
           internal_notes?: string | null
           local_id?: string | null
           location_photo_url?: string | null

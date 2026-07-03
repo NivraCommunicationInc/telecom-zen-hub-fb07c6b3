@@ -901,6 +901,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               total={total}
               onNext={() => advance("recap")}
               onBack={() => goBack("recap")}
+              onCustomerChange={(customer) => setDraft((d) => ({ ...d, customer }))}
             />
           )}
 
