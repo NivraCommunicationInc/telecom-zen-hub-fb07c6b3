@@ -28,6 +28,8 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
+
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
