@@ -1196,12 +1196,20 @@ const GuestCheckout = () => {
           : "";
       case 4:
         return [
-          hasMobileService ? (simType === "esim" ? "eSIM" : "SIM physique") : null,
-          hasMobileService ? (wantsPortIn ? `Transfert (${portInCarrier})` : "Nouveau numéro") : null,
           (hasInternetService || hasTVService)
             ? (installationChoice === "technician" ? "Installation par technicien" : "Auto-installation")
             : null,
           selectedDate ? `${selectedDate} ${selectedTime || ""}`.trim() : null,
+        ].filter(Boolean).join(" · ");
+      case 5:
+        return [
+          hasMobileService ? (simType === "esim" ? "eSIM" : "SIM physique") : null,
+          hasMobileService ? (wantsPortIn ? `Transfert (${portInCarrier})` : "Nouveau numéro") : null,
+          shippingData.shipToDifferentAddress ? "Livraison alternative" : null,
+          activationData.activationPreference === "SCHEDULED" && activationData.requestedActivationDate
+            ? `Activation ${activationData.requestedActivationDate.toLocaleDateString("fr-CA")}`
+            : "Activation dès que possible",
+          appliedPromo ? `Code ${appliedPromo.code}` : null,
         ].filter(Boolean).join(" · ");
       default:
         return "";
