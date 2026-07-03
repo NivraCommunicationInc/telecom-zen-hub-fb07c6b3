@@ -237,7 +237,7 @@ const GuestCheckout = () => {
 
   // ── Sauvegarder le state dans sessionStorage à chaque changement ──
   useEffect(() => {
-    if (step === 6) { sessionStorage.removeItem(CHECKOUT_DRAFT_KEY); return; }
+    if (step === 7) { sessionStorage.removeItem(CHECKOUT_DRAFT_KEY); return; }
     if (step < 2) return;
     try {
       sessionStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify({
@@ -716,7 +716,7 @@ const GuestCheckout = () => {
           paymentOnly: true,
         });
         cancelAbandonmentEmail();
-        setStep(6);
+        setStep(7);
         sessionStorage.removeItem("nivra_pending_payment");
         toast.success("Paiement confirmé ! Notre équipe va compléter votre commande sous peu.");
         return;
@@ -1140,7 +1140,7 @@ const GuestCheckout = () => {
         orderId: response.order_id,
         isNewAccount: false,
       });
-      setStep(6);
+      setStep(7);
       toast.success("Commande confirmée !");
 
     } catch (error: any) {
@@ -1266,7 +1266,7 @@ const GuestCheckout = () => {
 
   // ── Bell-style horizontal progress bar (desktop) — inserts a virtual "Rendez-vous" chip after step 4 when technician install is required ──
   const renderDesktopProgress = () => {
-    const base = CHECKOUT_STEPS.filter(s => s.id <= 5);
+    const base = CHECKOUT_STEPS.filter(s => s.id <= 6);
     type Chip = { id: number; virtualPhase?: "schedule"; labelFr: string };
     const chips: Chip[] = [];
     base.forEach(s => {
@@ -1364,7 +1364,7 @@ const GuestCheckout = () => {
       </header>
 
       {/* ═══ BELL-STYLE PROGRESS BAR ═══ */}
-      {step < 6 && (
+      {step < 7 && (
         <div className="bg-white border-b border-[#E5E7EB]">
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
             {renderDesktopProgress()}
@@ -1394,7 +1394,7 @@ const GuestCheckout = () => {
 
       <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
         {/* Trust signals bar */}
-        {step < 6 && (
+        {step < 7 && (
           <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs sm:text-sm font-medium text-[#374151]">
             <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans contrat</span>
             <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans vérification de crédit</span>
@@ -1409,10 +1409,10 @@ const GuestCheckout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
 
           {/* ── LEFT COLUMN — accordion form ── */}
-          <div className={step < 6 ? "lg:col-span-3 space-y-4 pb-40 lg:pb-0" : "lg:col-span-5"}>
+          <div className={step < 7 ? "lg:col-span-3 space-y-4 pb-40 lg:pb-0" : "lg:col-span-5"}>
 
             {/* ═══ STEP 1: FORFAIT ═══ */}
-            {step < 6 && renderStepShell(1, step === 1 && (
+            {step < 7 && renderStepShell(1, step === 1 && (
 
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
@@ -1491,7 +1491,7 @@ const GuestCheckout = () => {
             ))}
 
             {/* ═══ STEP 2: ADRESSE ═══ */}
-            {step < 6 && renderStepShell(2, step === 2 && (
+            {step < 7 && renderStepShell(2, step === 2 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1572,7 +1572,7 @@ const GuestCheckout = () => {
             ))}
 
             {/* ═══ STEP 3: INFORMATIONS CLIENT ═══ */}
-            {step < 6 && renderStepShell(3, step === 3 && (
+            {step < 7 && renderStepShell(3, step === 3 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1644,7 +1644,7 @@ const GuestCheckout = () => {
             ))}
 
             {/* ═══ STEP 4: OPTIONS ═══ */}
-            {step < 6 && renderStepShell(4, step === 4 && (
+            {step < 7 && renderStepShell(4, step === 4 && (
               <div className="space-y-6">
                 {/* Installation */}
                 {(hasInternetService || hasTVService) && (
@@ -2069,7 +2069,7 @@ const GuestCheckout = () => {
             ))}
 
             {/* ═══ STEP 5: PAIEMENT ═══ */}
-            {step < 6 && renderStepShell(5, step === 5 && (
+            {step < 7 && renderStepShell(5, step === 5 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -2242,7 +2242,7 @@ const GuestCheckout = () => {
             ))}
 
             {/* ═══ STEP 6: CONFIRMATION ═══ */}
-            {step === 6 && orderResult && (
+            {step === 7 && orderResult && (
               <ConfirmationSuccess
                 isFrench
                 orderNumber={orderResult.orderNumber}
@@ -2261,7 +2261,7 @@ const GuestCheckout = () => {
           </div>
 
           {/* ── RIGHT COLUMN: ORDER SUMMARY (sticky) ── */}
-          {step < 6 && (
+          {step < 7 && (
             <aside className="hidden lg:block lg:col-span-2">
               <div className="sticky top-32 space-y-3">
 
@@ -2429,7 +2429,7 @@ const GuestCheckout = () => {
 
 
       {/* ═══ MOBILE FIXED BOTTOM SUMMARY ═══ */}
-      {step < 6 && selectedServices.length > 0 && (
+      {step < 7 && selectedServices.length > 0 && (
         <>
           {mobileSummaryOpen && (
             <div
