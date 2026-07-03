@@ -24,17 +24,15 @@ const PaymentsPage = () => {
   const [envFilter, setEnvFilter] = useState<EnvironmentFilter>("all");
   const { data: payments = [], isLoading, refetch } = useAdminPayments(envFilter);
 
-  // Realtime: refetch on any billing_payments change
+  // Near-realtime: financial tables are excluded from supabase_realtime broadcast
+  // per Realtime Broadcast Policy. Poll every 20s + invalidate on window focus.
   useEffect(() => {
-    const channel = supabase
-      .channel("core-payments-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "billing_payments" },
-        () => { queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] }); },
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const id = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] });
+    }, 20000);
+    const onFocus = () => queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] });
+    window.addEventListener("focus", onFocus);
+    return () => { clearInterval(id); window.removeEventListener("focus", onFocus); };
   }, [queryClient]);
 
   // Filters
