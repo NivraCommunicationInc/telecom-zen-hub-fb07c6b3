@@ -1135,101 +1135,239 @@ const GuestCheckout = () => {
   // ── Format currency ──
   const fmt = (v: number) => v.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
 
-  return (
-    <div style={{ background: '#F5F7FA' }} className="relative min-h-screen overflow-hidden">
-      <Header />
+  // ── Auto-scroll to active step on step change ──
+  useEffect(() => {
+    if (step >= 6) return;
+    const el = document.getElementById(`step-${step}`);
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.scrollY - 140;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    }
+  }, [step]);
 
-      <div className="relative container mx-auto px-4 sm:px-6 max-w-[1200px] py-8 lg:py-12">
-        {/* Trust banner — telecom style */}
-        <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 rounded-xl bg-white border border-[#E5E7EB] shadow-sm text-xs sm:text-sm font-medium text-[#1A1A2E]">
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans contrat</span>
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans vérification de crédit</span>
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Activation rapide</span>
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Support québécois</span>
+  // ── Mobile summary sheet ──
+  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
+
+  // ── Step accordion metadata ──
+  const stepTitles: Record<number, { title: string; icon: any }> = {
+    1: { title: "Choisissez votre forfait", icon: ShoppingCart },
+    2: { title: "Adresse de service", icon: MapPin },
+    3: { title: "Vos informations", icon: User },
+    4: { title: "Options et livraison", icon: Package },
+    5: { title: "Paiement sécurisé", icon: CreditCard },
+  };
+
+  const stepSummary = (id: number): string => {
+    switch (id) {
+      case 1:
+        return selectedServices.length > 0 ? selectedServices.map(s => s.name).join(", ") : "";
+      case 2:
+        return addressStreet
+          ? `${addressStreet}${addressApartment ? " apt " + addressApartment : ""}, ${addressCity} ${addressPostalCode}`.trim()
+          : "";
+      case 3:
+        return (firstName || lastName || email)
+          ? [
+              `${firstName} ${lastName}`.trim(),
+              email,
+              phone,
+            ].filter(Boolean).join(" · ")
+          : "";
+      case 4:
+        return [
+          hasMobileService ? (simType === "esim" ? "eSIM" : "SIM physique") : null,
+          hasMobileService ? (wantsPortIn ? `Transfert (${portInCarrier})` : "Nouveau numéro") : null,
+          (hasInternetService || hasTVService)
+            ? (installationChoice === "technician" ? "Installation par technicien" : "Auto-installation")
+            : null,
+          selectedDate ? `${selectedDate} ${selectedTime || ""}`.trim() : null,
+        ].filter(Boolean).join(" · ");
+      default:
+        return "";
+    }
+  };
+
+  const renderStepShell = (id: number, content: React.ReactNode) => {
+    const meta = stepTitles[id];
+    const Icon = meta.icon;
+    const isOpen = step === id;
+    const isDone = step > id;
+    if (isOpen) {
+      return (
+        <div id={`step-${id}`} key={id} className="scroll-mt-32 animate-fade-in">
+          {content}
         </div>
+      );
+    }
+    if (isDone) {
+      return (
+        <div
+          id={`step-${id}`}
+          key={id}
+          className="scroll-mt-32 bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-4 py-3.5 flex items-center justify-between gap-3 transition-all duration-300"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-full bg-[#00A651] text-white flex items-center justify-center shrink-0">
+              <Check className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold text-[#00A651] uppercase tracking-wide">Étape {id} · Complétée</p>
+              <p className="text-sm font-semibold text-[#1A1A2E] truncate">
+                {meta.title}
+                {stepSummary(id) ? <span className="font-normal text-[#6B7280]"> — {stepSummary(id)}</span> : null}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStep(id)}
+            className="text-sm font-semibold text-[#0066CC] hover:text-[#0052A3] hover:underline shrink-0"
+          >
+            Modifier
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div
+        id={`step-${id}`}
+        key={id}
+        className="scroll-mt-32 bg-white/70 rounded-xl border border-dashed border-[#E5E7EB] px-4 py-3.5 flex items-center gap-3 opacity-70 transition-all"
+      >
+        <div className="w-9 h-9 rounded-full bg-[#F3F4F6] text-[#6B7280] flex items-center justify-center text-sm font-bold shrink-0">{id}</div>
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-[#9CA3AF]" />
+          <p className="text-sm font-semibold text-[#6B7280]">{meta.title}</p>
+        </div>
+      </div>
+    );
+  };
 
-        <div className="mb-6">
-          <div className="flex flex-wrap items-center gap-3 mb-1.5">
-            <h1 className="text-3xl lg:text-4xl font-bold text-[#1A1A2E]">Commander</h1>
-            {step < 6 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0" style={{ background: '#00A651', color: '#fff' }}>
-                <Gift className="w-3 h-3" /> 1er mois GRATUIT
+  // ── Bell-style horizontal progress bar (desktop) ──
+  const renderDesktopProgress = () => (
+    <div className="hidden md:flex items-center">
+      {CHECKOUT_STEPS.filter(s => s.id <= 5).map((s, idx, arr) => {
+        const isDone = step > s.id;
+        const isCurrent = step === s.id;
+        return (
+          <div key={s.id} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={() => isDone && setStep(s.id)}
+                disabled={!isDone}
+                className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all shrink-0 ${isDone ? "cursor-pointer hover:scale-105" : "cursor-default"}`}
+                style={
+                  isDone
+                    ? { background: "#00A651", borderColor: "#00A651", color: "#fff" }
+                    : isCurrent
+                      ? { background: "#0066CC", borderColor: "#0066CC", color: "#fff", boxShadow: "0 0 0 5px rgba(0,102,204,0.15)" }
+                      : { background: "#fff", borderColor: "#E5E7EB", color: "#9CA3AF" }
+                }
+              >
+                {isDone ? <Check className="w-5 h-5" /> : s.id}
+              </button>
+              <span
+                className={`text-xs font-semibold whitespace-nowrap ${isDone ? "text-[#00A651]" : isCurrent ? "text-[#0066CC]" : "text-[#9CA3AF]"}`}
+              >
+                {s.labelFr}
               </span>
+            </div>
+            {idx < arr.length - 1 && (
+              <div className="flex-1 h-[3px] mx-2 lg:mx-3 rounded-full overflow-hidden bg-[#E5E7EB] mb-6">
+                <div
+                  className="h-full transition-all duration-500 rounded-full"
+                  style={{
+                    width: isDone ? "100%" : "0%",
+                    background: "#00A651",
+                  }}
+                />
+              </div>
             )}
           </div>
-          <p className="text-[#6B7280] text-sm">Aucun compte requis — commandez en quelques minutes</p>
-        </div>
+        );
+      })}
+    </div>
+  );
 
-        {/* Mobile only: horizontal stepper + gradient bar */}
-        <div className="lg:hidden">
-          <CheckoutProgress currentStep={step} steps={CHECKOUT_STEPS} isFrench onStepClick={(s) => s < step && step < 6 && setStep(s)} />
-          <div className="h-[3px] w-full rounded-full overflow-hidden -mt-6 mb-8" style={{ background: '#E5E7EB' }}>
-            <div
-              className="h-full rounded-full transition-all duration-700 ease-out"
-              style={{
-                width: `${step >= 6 ? 100 : Math.round(((step - 1) / (CHECKOUT_STEPS.length - 1)) * 100)}%`,
-                background: '#0066CC',
-              }}
-            />
+  return (
+    <div className="min-h-screen bg-[#F5F7FA] flex flex-col">
+      {/* ═══ CHECKOUT HEADER — slim, focus purchase ═══ */}
+      <header className="sticky top-0 z-50 bg-white border-b border-[#E5E7EB] shadow-sm">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 group"
+            aria-label="Retour à l'accueil Nivra"
+          >
+            <span className="text-2xl font-black tracking-tight text-[#0066CC] group-hover:text-[#0052A3] transition-colors">nivra</span>
+            <span className="hidden sm:inline text-[10px] font-bold text-[#6B7280] uppercase tracking-widest mt-1">Telecom</span>
+          </button>
+          <div className="flex items-center gap-4">
+            <span className="hidden sm:flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#00A651]">
+              <Lock className="w-4 h-4" /> Commande sécurisée
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate("/aide")}
+              className="text-xs sm:text-sm text-[#6B7280] hover:text-[#1A1A2E] font-medium"
+            >
+              Besoin d'aide ?
+            </button>
           </div>
         </div>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-
-          {/* ── VERTICAL STEPPER — desktop left column ── */}
-          {step < 6 && (
-            <div className="hidden lg:block lg:col-span-2">
-              <div className="sticky top-6 pt-1">
-                {CHECKOUT_STEPS.filter(s => s.id <= 5).map((s, index) => {
-                  const isCompleted = step > s.id;
-                  const isCurrent = step === s.id;
-                  return (
-                    <div key={s.id} className="flex items-start">
-                      <div className="flex flex-col items-center mr-3 shrink-0">
-                        <button
-                          onClick={() => isCompleted && setStep(s.id)}
-                          disabled={!isCompleted}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${isCompleted ? 'cursor-pointer hover:scale-105' : 'cursor-default'}`}
-                          style={
-                            isCompleted
-                              ? { background: '#10B981', borderColor: '#10B981', color: '#fff' }
-                              : isCurrent
-                                ? { background: '#0066CC', borderColor: '#7C3AED', color: '#fff', boxShadow: '0 0 0 3px rgba(124,58,237,0.25), 0 4px 12px rgba(124,58,237,0.4)' }
-                                : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.28)' }
-                          }
-                        >
-                          {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.id}
-                        </button>
-                        {index < 4 && (
-                          <div
-                            className="w-0.5 rounded-full my-1 transition-all duration-500"
-                            style={{
-                              height: '2.5rem',
-                              background: isCompleted ? '#00A651' : '#E5E7EB',
-                            }}
-                          />
-                        )}
-                      </div>
-                      <div className="pt-0.5 pb-9">
-                        <p className={`text-sm font-semibold leading-tight transition-colors ${isCompleted ? 'text-[#00A651]' : isCurrent ? 'text-[#1A1A2E]' : 'text-slate-400'}`}>
-                          {s.labelFr}
-                        </p>
-                        {isCurrent && (
-                          <p className="text-[10px] text-[#0066CC] mt-0.5 font-medium">En cours</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+      {/* ═══ BELL-STYLE PROGRESS BAR ═══ */}
+      {step < 6 && (
+        <div className="bg-white border-b border-[#E5E7EB]">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            {renderDesktopProgress()}
+            {/* Mobile compact */}
+            <div className="md:hidden">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wide">Étape {step} / 5</span>
+                <span className="text-sm font-bold text-[#0066CC]">
+                  {CHECKOUT_STEPS.find(s => s.id === step)?.labelFr}
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full overflow-hidden bg-[#E5E7EB]">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.round(((step - 1) / 4) * 100)}%`,
+                    background: "#0066CC",
+                  }}
+                />
               </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
-          {/* ── CENTER COLUMN — form ── */}
-          <div className={step < 6 ? "lg:col-span-6 pb-28 lg:pb-0" : "lg:col-span-12"}>
+      <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+        {/* Trust signals bar */}
+        {step < 6 && (
+          <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs sm:text-sm font-medium text-[#374151]">
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans contrat</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Sans vérification de crédit</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Activation rapide</span>
+            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#00A651]" /> Support québécois</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ml-auto" style={{ background: '#00A651', color: '#fff' }}>
+              <Gift className="w-3 h-3" /> 1er mois GRATUIT
+            </span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+
+          {/* ── LEFT COLUMN — accordion form ── */}
+          <div className={step < 6 ? "lg:col-span-3 space-y-4 pb-40 lg:pb-0" : "lg:col-span-5"}>
 
             {/* ═══ STEP 1: FORFAIT ═══ */}
-            {step === 1 && (
+            {step < 6 && renderStepShell(1, step === 1 && (
+
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1270,7 +1408,7 @@ const GuestCheckout = () => {
                                     >
                                       <div className="flex items-start justify-between">
                                         <div className="flex-1 min-w-0">
-                                          <p className="font-semibold text-foreground text-sm">{service.name}</p>
+                                          <p className="font-semibold text-[#1A1A2E] text-sm">{service.name}</p>
                                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{service.description}</p>
                                         </div>
                                         <div className="flex flex-col items-end ml-3">
@@ -1304,10 +1442,10 @@ const GuestCheckout = () => {
                   Continuer <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 2: ADRESSE ═══ */}
-            {step === 2 && (
+            {step < 6 && renderStepShell(2, step === 2 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1385,10 +1523,10 @@ const GuestCheckout = () => {
                   </Button>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 3: INFORMATIONS CLIENT ═══ */}
-            {step === 3 && (
+            {step < 6 && renderStepShell(3, step === 3 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -1457,10 +1595,10 @@ const GuestCheckout = () => {
                   </Button>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 4: OPTIONS ═══ */}
-            {step === 4 && (
+            {step < 6 && renderStepShell(4, step === 4 && (
               <div className="space-y-6">
                 {/* Installation */}
                 {(hasInternetService || hasTVService) && (
@@ -1483,14 +1621,14 @@ const GuestCheckout = () => {
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Package className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-base font-bold text-foreground">Équipement</span>
+                        <span className="text-base font-bold text-[#1A1A2E]">Équipement</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {/* WiFi Router — max 1 */}
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-foreground">Borne WiFi 6</p>
+                          <p className="text-sm font-medium text-[#1A1A2E]">Borne WiFi 6</p>
                           <p className="text-xs text-muted-foreground">Maximum 1 par adresse • {fmt(ROUTER_PRICE)}</p>
                         </div>
                         <Badge variant="secondary">1</Badge>
@@ -1500,7 +1638,7 @@ const GuestCheckout = () => {
                       {hasTVService && (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-foreground">Terminal TV</p>
+                            <p className="text-sm font-medium text-[#1A1A2E]">Terminal TV</p>
                             <p className="text-xs text-muted-foreground">Min 1 avec service TV • Max 4 par adresse • {fmt(terminalPrice ?? 0)}/unité</p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1509,7 +1647,7 @@ const GuestCheckout = () => {
                               disabled={tvTerminalQty <= 1}
                               onClick={() => setTvTerminalQty(q => Math.max(1, q - 1))}
                             >−</Button>
-                            <span className="w-8 text-center font-semibold text-foreground">{tvTerminalQty}</span>
+                            <span className="w-8 text-center font-semibold text-[#1A1A2E]">{tvTerminalQty}</span>
                             <Button
                               size="sm" variant="outline"
                               disabled={tvTerminalQty >= 4}
@@ -1522,7 +1660,7 @@ const GuestCheckout = () => {
                       {hasMobileService && (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-foreground">
+                            <p className="text-sm font-medium text-[#1A1A2E]">
                               {simType === "esim" ? "eSIM" : "Carte SIM physique"}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -1544,7 +1682,7 @@ const GuestCheckout = () => {
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Smartphone className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-base font-bold text-foreground">Type de SIM</span>
+                        <span className="text-base font-bold text-[#1A1A2E]">Type de SIM</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -1560,12 +1698,12 @@ const GuestCheckout = () => {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-foreground text-sm">SIM physique</p>
+                              <p className="font-semibold text-[#1A1A2E] text-sm">SIM physique</p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 Pour la majorité des appareils — Android, iPhone 13 et versions antérieures.
                               </p>
                             </div>
-                            <span className="text-sm font-bold text-foreground ml-3">{fmt(SIM_PRICE)}</span>
+                            <span className="text-sm font-bold text-[#1A1A2E] ml-3">{fmt(SIM_PRICE)}</span>
                           </div>
                           {simType === "physical" && (
                             <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
@@ -1585,12 +1723,12 @@ const GuestCheckout = () => {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-foreground text-sm">eSIM</p>
+                              <p className="font-semibold text-[#1A1A2E] text-sm">eSIM</p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 Pour les appareils compatibles — iPhone 14+, Pixel 6+, Samsung Galaxy S21+ et plus récents.
                               </p>
                             </div>
-                            <span className="text-sm font-bold text-foreground ml-3">{fmt(ESIM_PRICE)}</span>
+                            <span className="text-sm font-bold text-[#1A1A2E] ml-3">{fmt(ESIM_PRICE)}</span>
                           </div>
                           {simType === "esim" && (
                             <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
@@ -1614,7 +1752,7 @@ const GuestCheckout = () => {
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0066CC' }}>
                           <Phone className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-base font-bold text-foreground">Conserver votre numéro ?</span>
+                        <span className="text-base font-bold text-[#1A1A2E]">Conserver votre numéro ?</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -1714,7 +1852,7 @@ const GuestCheckout = () => {
                         <div className="flex items-center gap-3">
                           <Star className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                           <div>
-                            <p className="font-semibold text-foreground text-sm">Rabais bienvenue appliqué !</p>
+                            <p className="font-semibold text-[#1A1A2E] text-sm">Rabais bienvenue appliqué !</p>
                             <p className="text-xs text-muted-foreground">
                               50% de rabais sur votre premier mois — appliqué automatiquement.
                             </p>
@@ -1723,7 +1861,7 @@ const GuestCheckout = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-muted-foreground hover:text-foreground"
+                          className="text-xs text-muted-foreground hover:text-[#1A1A2E]"
                           onClick={() => setWelcomeDiscountDismissed(true)}
                         >
                           Retirer
@@ -1771,7 +1909,7 @@ const GuestCheckout = () => {
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#00A651' }}>
                         <Gift className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-base font-bold text-foreground">Promotions</span>
+                      <span className="text-base font-bold text-[#1A1A2E]">Promotions</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -1841,10 +1979,10 @@ const GuestCheckout = () => {
                   </Button>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 5: PAIEMENT ═══ */}
-            {step === 5 && (
+            {step < 6 && renderStepShell(5, step === 5 && (
               <div className="space-y-6">
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
@@ -2010,7 +2148,7 @@ const GuestCheckout = () => {
                   </Button>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* ═══ STEP 6: CONFIRMATION ═══ */}
             {step === 6 && orderResult && (
@@ -2033,8 +2171,9 @@ const GuestCheckout = () => {
 
           {/* ── RIGHT COLUMN: ORDER SUMMARY (sticky) ── */}
           {step < 6 && (
-            <div className="hidden lg:block lg:col-span-4">
-              <div className="sticky top-6 space-y-4">
+            <aside className="hidden lg:block lg:col-span-2">
+              <div className="sticky top-32 space-y-4">
+
 
                 {/* Order Summary Panel */}
                 <div className="rounded-2xl overflow-hidden bg-white border border-[#E5E7EB] shadow-sm">
@@ -2191,34 +2330,84 @@ const GuestCheckout = () => {
                   </div>
                 </div>
 
-                <div className="mt-2"><SecurityTrustBox isFrench /></div>
               </div>
-            </div>
+            </aside>
           )}
         </div>
+      </main>
 
-        {/* ═══ MOBILE FIXED BOTTOM BAR ═══ */}
-        {step < 6 && selectedServices.length > 0 && (
+      {/* ═══ MOBILE FIXED BOTTOM SUMMARY ═══ */}
+      {step < 6 && selectedServices.length > 0 && (
+        <>
+          {mobileSummaryOpen && (
+            <div
+              className="lg:hidden fixed inset-0 z-40 bg-black/40 animate-fade-in"
+              onClick={() => setMobileSummaryOpen(false)}
+              aria-hidden
+            />
+          )}
           <div
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-4 py-3 bg-white border-t border-[#E5E7EB]"
+            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#E5E7EB] transition-all duration-300"
             style={{
               paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-              boxShadow: '0 -4px 20px rgba(0,0,0,0.06)',
+              boxShadow: '0 -8px 24px rgba(0,0,0,0.08)',
+              maxHeight: mobileSummaryOpen ? '85vh' : 'auto',
+              overflowY: mobileSummaryOpen ? 'auto' : 'visible',
             }}
           >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-[#6B7280]">Total aujourd'hui</span>
-              <span className="font-black text-lg text-[#0066CC]">
-                {fmt(todayTotal)}
+            {mobileSummaryOpen && (
+              <div className="px-4 pt-4 pb-2 border-b border-[#E5E7EB] bg-[#F5F7FA]">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-bold text-[#1A1A2E] uppercase tracking-wide">Détail de la commande</p>
+                  <button
+                    type="button"
+                    onClick={() => setMobileSummaryOpen(false)}
+                    className="text-xs font-semibold text-[#0066CC]"
+                  >
+                    Fermer ✕
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {selectedServices.map(s => (
+                    <div key={s.id} className="flex justify-between">
+                      <span className="text-[#1A1A2E] font-medium">{s.name}</span>
+                      <span className="text-[#1A1A2E] font-bold">{fmt(s.price)}<span className="text-[#6B7280] text-xs font-normal">/mois</span></span>
+                    </div>
+                  ))}
+                  <div className="h-px bg-[#E5E7EB] my-2" />
+                  {activationFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Activation</span><span>{fmt(activationFee)}</span></div>)}
+                  {routerFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Routeur WiFi 6</span><span>{fmt(routerFee)}</span></div>)}
+                  {terminalFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Terminal TV ×{tvTerminalQty}</span><span>{fmt(terminalFee)}</span></div>)}
+                  {simFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Carte SIM</span><span>{fmt(simFee)}</span></div>)}
+                  {deliveryFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Livraison</span><span>{fmt(deliveryFee)}</span></div>)}
+                  {installationFee > 0 && (<div className="flex justify-between text-xs"><span className="text-[#6B7280]">Installation</span><span>{fmt(installationFee)}</span></div>)}
+                  {normalizedPricing && (
+                    <>
+                      <div className="flex justify-between text-[11px] text-[#6B7280]"><span>TPS (5%)</span><span>{fmt(normalizedPricing.tps_amount)}</span></div>
+                      <div className="flex justify-between text-[11px] text-[#6B7280]"><span>TVQ (9,975%)</span><span>{fmt(normalizedPricing.tvq_amount)}</span></div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setMobileSummaryOpen(v => !v)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left"
+            >
+              <div>
+                <p className="text-[11px] text-[#6B7280] uppercase tracking-wide font-semibold">Total aujourd'hui</p>
+                <p className="font-black text-xl text-[#0066CC] leading-tight">{fmt(todayTotal)}</p>
+                <p className="text-[10px] text-[#00A651] font-medium">{fmt(monthlyTotalWithTax)}/mois après</p>
+              </div>
+              <span className="text-xs font-semibold text-[#0066CC] flex items-center gap-1">
+                {mobileSummaryOpen ? 'Masquer' : 'Voir le détail'}
+                <span className="text-base">{mobileSummaryOpen ? '▼' : '▲'}</span>
               </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#6B7280]">Étape {step} / 5</span>
-              <span className="text-[10px] text-[#00A651] font-medium">{fmt(monthlyTotalWithTax)}/mois après</span>
-            </div>
+            </button>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
