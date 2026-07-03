@@ -147,13 +147,15 @@ export function AppointmentCalendarView({ appointments, onSelect }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-7 border-b border-[hsl(220,15%,16%)]">
-        {["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"].map((d, i) => (
-          <div key={d} className={`px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider border-r border-[hsl(220,15%,16%)] last:border-r-0 ${i === 0 ? "text-red-400" : "text-slate-400"}`}>
-            {d}
-          </div>
-        ))}
-      </div>
+      {mode !== "day" && (
+        <div className="grid grid-cols-7 border-b border-[hsl(220,15%,16%)]">
+          {["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"].map((d, i) => (
+            <div key={d} className={`px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider border-r border-[hsl(220,15%,16%)] last:border-r-0 ${i === 0 ? "text-red-400" : "text-slate-400"}`}>
+              {d}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className={`grid ${mode === "day" ? "grid-cols-1" : "grid-cols-7"}`}>
         {days.map((d, i) => {
