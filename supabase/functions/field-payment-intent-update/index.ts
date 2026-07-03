@@ -137,6 +137,13 @@ serve(async (req) => {
         } as never)
         .eq("id", intent_id);
 
+      // Journal
+      await supabase.rpc("log_field_order_event" as never, {
+        p_intent_id: intent_id,
+        p_event_type: "client_edited",
+        p_payload: { edits: allowed, ip: payerIp } as never,
+      }).then(undefined, () => {});
+
       return json({ ok: true, applied: allowed });
     }
 
