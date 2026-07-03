@@ -19,6 +19,8 @@ export interface SaveQuotePayload {
   tvq: number;
   total: number;
   agentGps?: { lat: number; lng: number; accuracy: number } | null;
+  /** When true, the `field_quote` email is NOT sent (used by the payment-link flow which sends its own email). */
+  skipClientEmail?: boolean;
 }
 
 export interface SavedQuote {
