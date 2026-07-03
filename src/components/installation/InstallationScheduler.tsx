@@ -245,21 +245,21 @@ export function InstallationScheduler({
       {decision && (decision.installationType === "technician" || overrideToTech) && (
         <>
           {activeHold && !holdLoading && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/30">
-              <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-sm font-medium text-primary">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-[#0066CC]/[0.06] border border-[#0066CC]/25">
+              <CheckCircle2 className="w-4 h-4 text-[#0066CC] shrink-0" />
+              <span className="text-sm font-semibold text-[#1A1A2E]">
                 {isFrench ? "Plage réservée pendant 30 minutes" : "Slot held for 30 minutes"}
               </span>
-              <Badge variant="outline" className="ml-auto text-xs">
-                <Clock className="w-3 h-3 mr-1" />
-                {isFrench ? "En attente de confirmation" : "Pending confirmation"}
-              </Badge>
+              <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-white text-[#374151] border border-[#E5E7EB]">
+                <Clock className="w-3 h-3" />
+                {isFrench ? "En attente" : "Pending"}
+              </span>
             </div>
           )}
           {holdLoading && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
-              <Clock className="w-4 h-4 text-muted-foreground animate-pulse" />
-              <span className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F5F7FA] border border-[#E5E7EB]">
+              <Clock className="w-4 h-4 text-[#0066CC] animate-pulse" />
+              <span className="text-sm text-[#374151]">
                 {isFrench ? "Réservation en cours..." : "Reserving slot..."}
               </span>
             </div>
@@ -272,20 +272,20 @@ export function InstallationScheduler({
             selectedTime={selectedTime}
             onSelect={handleSlotSelect}
           />
-          {/* Confirmed state */}
           {appointmentConfirmed && activeHold && !holdLoading && (
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10 border border-primary/30">
-              <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-[#ECFDF5] border border-[#10B981]">
+              <CheckCircle2 className="w-5 h-5 text-[#047857] shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-primary">
+                <p className="text-sm font-semibold text-[#065F46]">
                   {isFrench ? "Rendez-vous confirmé ✓" : "Appointment confirmed ✓"}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#047857]">
                   {isFrench ? "Votre plage horaire est réservée." : "Your time slot is reserved."}
                 </p>
               </div>
             </div>
           )}
+
           {/* Confirm button — only when hold exists but not yet confirmed */}
           {selectedDate && selectedTime && activeHold && !holdLoading && !appointmentConfirmed && (
             <div className="pt-2">
