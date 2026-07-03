@@ -25,6 +25,8 @@ interface Props {
   appointmentConfirmed: boolean;
   onAppointmentConfirmedChange: (confirmed: boolean) => void;
   onDecisionMade?: (decision: InstallationDecision) => void;
+  /** Which phase to render — "choice" (tiles + cabling questionnaire) or "schedule" (calendar) */
+  phase?: "choice" | "schedule";
 }
 
 const AUTO_INSTALL_FEATURES = [
@@ -50,7 +52,10 @@ export function InstallationSection({
   appointmentConfirmed,
   onAppointmentConfirmedChange,
   onDecisionMade,
+  phase = "choice",
 }: Props) {
+  const showChoice = phase === "choice";
+  const showSchedule = phase === "schedule";
   return (
     <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
       {/* Header — matches Nivra checkout shell */}
