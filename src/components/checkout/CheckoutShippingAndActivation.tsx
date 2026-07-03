@@ -313,6 +313,10 @@ export const CheckoutShippingAndActivation = ({
           </div>
         )}
       </NivraCard>
+      </>
+      )}
+
+
 
       {/* ── Installation details (optional bonus) ───────────────── */}
       {showInstallationDetails && (
