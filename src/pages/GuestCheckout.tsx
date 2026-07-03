@@ -1623,12 +1623,17 @@ const GuestCheckout = () => {
                 {(hasInternetService || hasTVService) && (
                   <InstallationSection
                     installationChoice={installationChoice}
-                    onInstallationChoiceChange={c => setInstallationChoice(c)}
+                    onInstallationChoiceChange={c => {
+                      setInstallationChoice(c);
+                      // If user re-picks auto, reset phase back to choice
+                      if (c === "auto") setInstallationPhase("choice");
+                    }}
                     selectedDate={selectedDate}
                     selectedTime={selectedTime}
                     onDateTimeChange={(d, t) => { setSelectedDate(d); setSelectedTime(t); }}
                     appointmentConfirmed={appointmentConfirmed}
                     onAppointmentConfirmedChange={setAppointmentConfirmed}
+                    phase={installationPhase}
                   />
                 )}
 
@@ -1984,26 +1989,53 @@ const GuestCheckout = () => {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setStep(3)}>
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-12 rounded-xl"
+                    onClick={() => {
+                      // If we're on the "schedule" sub-phase of step 4, go back to "choice" phase (not step 3)
+                      if (installationPhase === "schedule" && requiresInstallation) {
+                        setInstallationPhase("choice");
+                      } else {
+                        setStep(3);
+                      }
+                    }}
+                  >
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
                     className="flex-1 h-12 font-bold rounded-xl"
-                    disabled={
-                      (requiresInstallation && (!selectedDate || !selectedTime)) ||
-                      !!validateShipping(shippingData) ||
-                      !!validateActivation(activationData)
-                    }
+                    disabled={(() => {
+                      // Common blocking: shipping/activation validation always required
+                      if (validateShipping(shippingData)) return true;
+                      if (validateActivation(activationData)) return true;
+                      // No installation required (streaming-only, mobile-only) → nothing else to block
+                      if (!requiresInstallation) return !installationChoice;
+                      // Choice sub-phase: need a choice made (auto works instantly)
+                      if (installationPhase === "choice") return !installationChoice;
+                      // Schedule sub-phase: need a confirmed appointment
+                      return !appointmentConfirmed || !selectedDate || !selectedTime;
+                    })()}
                     onClick={() => {
                       const shipErr = validateShipping(shippingData);
                       if (shipErr) { toast.error(shipErr); return; }
                       const actErr = validateActivation(activationData);
                       if (actErr) { toast.error(actErr); return; }
+                      // Technician + still on choice phase → advance to schedule sub-phase (stay on step 4)
+                      if (requiresInstallation && installationPhase === "choice") {
+                        setInstallationPhase("schedule");
+                        // Scroll to top of installation card
+                        setTimeout(() => document.getElementById("step-4")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                        return;
+                      }
+                      // Otherwise → advance to payment
                       setStep(5);
                     }}
                     style={{ background: '#0066CC', boxShadow: '0 4px 20px rgba(0,102,204,0.30)' }}
                   >
-                    Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
+                    {requiresInstallation && installationPhase === "choice"
+                      ? <>Choisir le rendez-vous <ArrowRight className="w-4 h-4 ml-2" /></>
+                      : <>Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" /></>}
                   </Button>
                 </div>
               </div>
