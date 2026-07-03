@@ -168,6 +168,12 @@ export default function ReviewOrderPage() {
           setConsentTerms(!!cf.terms);
           setConsentActivation(!!cf.activation);
         }
+        // Journal — link_opened (best-effort, fire-and-forget)
+        supabase.rpc("log_field_order_event" as never, {
+          p_intent_id: intentId,
+          p_event_type: "link_opened",
+          p_payload: { ua: navigator.userAgent.slice(0, 200) } as never,
+        }).then(undefined, () => {});
       }
       setLoading(false);
     })();
