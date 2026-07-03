@@ -863,8 +863,23 @@ Deno.serve(async (req) => {
               } else {
                 paymentId = newPayment.id;
                 console.log(`[field-sales-sync] Created payment ${paymentNumber} for invoice ${invoiceNum}`);
+
+                // ── Auto-note: paiement reçu (vente terrain) ──
+                await writePaymentAutoNote({
+                  supabase: supabaseAdmin,
+                  billingCustomerId,
+                  clientAuthUserId: clientUserId,
+                  amount: totalAmount,
+                  method: billingPaymentMethod,
+                  provider: sale.payment_method || "manual",
+                  invoiceNumber: invoiceNum,
+                  invoiceId,
+                  paymentNumber,
+                  channel: "Vente terrain (Field)",
+                });
               }
             }
+
 
             // Ensure a canonical contract exists for this canonical order
             const { data: existingContract } = await supabaseAdmin
