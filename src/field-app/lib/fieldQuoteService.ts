@@ -113,3 +113,29 @@ export async function saveQuoteAndEmail({
 
   return { id: quoteId, valid_until: validUntil };
 }
+
+/**
+ * Agent → Client secure Square payment link.
+ * Calls the `field-payment-link-create` edge function which creates a
+ * `field_payment_intents` row and emails the client the /payer/{id} URL.
+ */
+export interface PaymentLinkResult {
+  intent_id: string;
+  payment_url: string;
+  expires_at: string;
+  email_sent: boolean;
+}
+
+export async function sendPaymentLinkFromQuote(quoteId: string): Promise<PaymentLinkResult> {
+  const { data, error } = await supabase.functions.invoke("field-payment-link-create", {
+    body: { quote_id: quoteId, mode: "email" },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || "Échec de la création du lien de paiement.");
+  return {
+    intent_id: data.intent_id,
+    payment_url: data.payment_url,
+    expires_at: data.expires_at,
+    email_sent: !!data.email_sent,
+  };
+}
