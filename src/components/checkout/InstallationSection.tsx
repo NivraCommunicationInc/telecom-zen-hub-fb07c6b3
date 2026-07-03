@@ -254,21 +254,23 @@ export function InstallationSection({
               transition={{ duration: 0.25, ease: "easeInOut" }}
             >
               <div className="space-y-4">
-                <div className="rounded-xl border border-[#0066CC]/20 bg-[#0066CC]/[0.04] p-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {TECH_INSTALL_FEATURES.map((f, i) => {
-                      const Icon = f.icon;
-                      return (
-                        <div key={i} className="flex items-center gap-2.5 text-sm">
-                          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-[#E5E7EB]">
-                            <Icon className="w-4 h-4 text-[#0066CC]" />
+                {showChoice && (
+                  <div className="rounded-xl border border-[#0066CC]/20 bg-[#0066CC]/[0.04] p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {TECH_INSTALL_FEATURES.map((f, i) => {
+                        const Icon = f.icon;
+                        return (
+                          <div key={i} className="flex items-center gap-2.5 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-[#E5E7EB]">
+                              <Icon className="w-4 h-4 text-[#0066CC]" />
+                            </div>
+                            <span className="text-[#1A1A2E]">{f.text}</span>
                           </div>
-                          <span className="text-[#1A1A2E]">{f.text}</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <InstallationScheduler
                   isFrench={true}
@@ -282,18 +284,29 @@ export function InstallationSection({
                   onDecisionMade={onDecisionMade}
                   confirmedAppointment={appointmentConfirmed}
                   onAppointmentConfirmedChange={onAppointmentConfirmedChange}
+                  phase={phase}
                 />
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {!installationChoice && (
+        {showChoice && !installationChoice && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F5F7FA] border border-[#E5E7EB]">
             <Info className="w-4 h-4 text-[#6B7280]" />
             <p className="text-sm text-[#6B7280]">
               Veuillez sélectionner un mode d'installation pour continuer.
             </p>
+          </div>
+        )}
+
+        {showSchedule && installationChoice === "auto" && (
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-[#ECFDF5] border border-[#10B981]">
+            <CheckCircle2 className="w-5 h-5 text-[#047857] shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-[#065F46]">Aucun rendez-vous nécessaire</p>
+              <p className="text-xs text-[#047857]">Votre auto-installation ne requiert pas de passage technicien.</p>
+            </div>
           </div>
         )}
       </div>
