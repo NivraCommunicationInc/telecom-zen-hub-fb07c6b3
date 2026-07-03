@@ -1173,8 +1173,9 @@ const GuestCheckout = () => {
     1: { title: "Choisissez votre forfait", icon: ShoppingCart },
     2: { title: "Adresse de service", icon: MapPin },
     3: { title: "Vos informations", icon: User },
-    4: { title: "Options et livraison", icon: Package },
-    5: { title: "Paiement sécurisé", icon: CreditCard },
+    4: { title: "Installation", icon: Package },
+    5: { title: "Options et livraison", icon: Gift },
+    6: { title: "Paiement sécurisé", icon: CreditCard },
   };
 
   const stepSummary = (id: number): string => {
