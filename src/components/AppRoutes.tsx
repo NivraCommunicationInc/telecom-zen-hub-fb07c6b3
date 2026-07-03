@@ -650,6 +650,8 @@ const AppRoutes = () => {
       {/* Public Field-sale payment landing page — no auth required */}
       <Route path="/payer/lien/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerPublicByToken /></Suspense>} />
       <Route path="/payer/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerCommande /></Suspense>} />
+      <Route path="/ma-commande/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerCommande /></Suspense>} />
+      <Route path="/commande/confirmee/:intentId" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><CommandeConfirmee /></Suspense>} />
 
       <Route path="/payer" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerPublic /></Suspense>} />
       <Route path="/pay" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" /></div>}><PayerPublic /></Suspense>} />
