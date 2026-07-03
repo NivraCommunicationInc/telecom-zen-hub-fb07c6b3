@@ -17,7 +17,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Truck, CalendarIcon, Wrench, Info } from "lucide-react";
+import { Truck, CalendarIcon, Wrench, Info, Cable, X, HelpCircle, Home, DoorClosed, Check } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { format } from "date-fns";
@@ -316,38 +316,65 @@ export const CheckoutShippingAndActivation = ({
           description="Ces informations aident notre équipe à préparer votre installation et réduire les délais."
           icon={Wrench}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel htmlFor="coax">Câble coaxial disponible ?</FieldLabel>
-              <Select
-                value={installationDetails.coaxAvailable || undefined}
-                onValueChange={(v) => updateInstall("coaxAvailable", v as InstallationDetailsData["coaxAvailable"])}
-              >
-                <SelectTrigger id="coax" className="border-[#E5E7EB]">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">Oui, déjà installé</SelectItem>
-                  <SelectItem value="no">Non</SelectItem>
-                  <SelectItem value="unknown">Je ne sais pas</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* Câble coaxial */}
+          <div>
+            <FieldLabel htmlFor="coax">Câble coaxial disponible ?</FieldLabel>
+            <div id="coax" className="grid grid-cols-3 gap-2 sm:gap-3">
+              {[
+                { v: "yes", label: "Oui", Icon: Check, tint: "#00A651" },
+                { v: "no", label: "Non", Icon: X, tint: "#D93025" },
+                { v: "unknown", label: "Je ne sais pas", Icon: HelpCircle, tint: "#6B7280" },
+              ].map(({ v, label, Icon, tint }) => {
+                const selected = installationDetails.coaxAvailable === v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => updateInstall("coaxAvailable", v as InstallationDetailsData["coaxAvailable"])}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 text-sm font-semibold transition-all min-h-[80px]",
+                      selected
+                        ? "border-[#0066CC] bg-[#0066CC] text-white shadow-sm"
+                        : "border-[#E5E7EB] bg-white text-[#1A1A2E] hover:border-[#0066CC]/50 hover:bg-[#0066CC]/[0.03]"
+                    )}
+                  >
+                    <Icon className="w-5 h-5" style={{ color: selected ? "#fff" : tint }} />
+                    <span className="text-xs sm:text-sm text-center leading-tight">{label}</span>
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            <div>
-              <FieldLabel htmlFor="occupancy">Statut du logement</FieldLabel>
-              <Select
-                value={installationDetails.occupancyStatus || undefined}
-                onValueChange={(v) => updateInstall("occupancyStatus", v as InstallationDetailsData["occupancyStatus"])}
-              >
-                <SelectTrigger id="occupancy" className="border-[#E5E7EB]">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="occupied">Occupé</SelectItem>
-                  <SelectItem value="vacant">Vacant</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* Statut du logement */}
+          <div>
+            <FieldLabel htmlFor="occupancy">Statut du logement</FieldLabel>
+            <div id="occupancy" className="grid grid-cols-2 gap-2 sm:gap-3">
+              {[
+                { v: "occupied", label: "Occupé", Icon: Home, desc: "Vous ou un occupant sera présent" },
+                { v: "vacant", label: "Vacant", Icon: DoorClosed, desc: "Logement inoccupé" },
+              ].map(({ v, label, Icon, desc }) => {
+                const selected = installationDetails.occupancyStatus === v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => updateInstall("occupancyStatus", v as InstallationDetailsData["occupancyStatus"])}
+                    className={cn(
+                      "flex flex-col items-start gap-1.5 p-3.5 rounded-xl border-2 text-left transition-all",
+                      selected
+                        ? "border-[#0066CC] bg-[#0066CC] text-white shadow-sm"
+                        : "border-[#E5E7EB] bg-white text-[#1A1A2E] hover:border-[#0066CC]/50 hover:bg-[#0066CC]/[0.03]"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-4 h-4" />
+                      <span className="text-sm font-semibold">{label}</span>
+                    </div>
+                    <span className={cn("text-[11px] leading-tight", selected ? "text-white/85" : "text-[#6B7280]")}>{desc}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

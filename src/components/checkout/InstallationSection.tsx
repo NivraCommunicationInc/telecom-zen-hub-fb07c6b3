@@ -25,6 +25,8 @@ interface Props {
   appointmentConfirmed: boolean;
   onAppointmentConfirmedChange: (confirmed: boolean) => void;
   onDecisionMade?: (decision: InstallationDecision) => void;
+  /** Which phase to render — "choice" (tiles + cabling questionnaire) or "schedule" (calendar) */
+  phase?: "choice" | "schedule";
 }
 
 const AUTO_INSTALL_FEATURES = [
@@ -50,21 +52,26 @@ export function InstallationSection({
   appointmentConfirmed,
   onAppointmentConfirmedChange,
   onDecisionMade,
+  phase = "choice",
 }: Props) {
+  const showChoice = phase === "choice";
+  const showSchedule = phase === "schedule";
   return (
     <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
       {/* Header — matches Nivra checkout shell */}
       <div className="px-5 sm:px-6 py-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#0066CC]/10 flex items-center justify-center flex-shrink-0">
-            <Wrench className="w-5 h-5 text-[#0066CC]" />
+            {showSchedule ? <Calendar className="w-5 h-5 text-[#0066CC]" /> : <Wrench className="w-5 h-5 text-[#0066CC]" />}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-[#1A1A2E] leading-tight">
-              Mode d'installation
+              {showSchedule ? "Choisissez votre rendez-vous" : "Mode d'installation"}
             </h3>
             <p className="text-sm text-[#6B7280] mt-0.5">
-              Choisissez comment activer vos services Internet et TV
+              {showSchedule
+                ? "Sélectionnez la date et la plage horaire du passage du technicien"
+                : "Choisissez comment activer vos services Internet et TV"}
             </p>
           </div>
           {installationChoice && (
@@ -77,7 +84,8 @@ export function InstallationSection({
       </div>
 
       <div className="p-5 sm:p-6 space-y-5">
-        {/* ── Choice tiles ── */}
+        {/* ── Choice tiles (phase=choice only) ── */}
+        {showChoice && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Auto-installation */}
           <button
@@ -191,10 +199,11 @@ export function InstallationSection({
             </div>
           </button>
         </div>
+        )}
 
         {/* ── Expanded panels ── */}
         <AnimatePresence mode="wait">
-          {installationChoice === "auto" && (
+          {showChoice && installationChoice === "auto" && (
             <motion.div
               key="auto"
               initial={{ opacity: 0, height: 0 }}
@@ -245,21 +254,23 @@ export function InstallationSection({
               transition={{ duration: 0.25, ease: "easeInOut" }}
             >
               <div className="space-y-4">
-                <div className="rounded-xl border border-[#0066CC]/20 bg-[#0066CC]/[0.04] p-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {TECH_INSTALL_FEATURES.map((f, i) => {
-                      const Icon = f.icon;
-                      return (
-                        <div key={i} className="flex items-center gap-2.5 text-sm">
-                          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-[#E5E7EB]">
-                            <Icon className="w-4 h-4 text-[#0066CC]" />
+                {showChoice && (
+                  <div className="rounded-xl border border-[#0066CC]/20 bg-[#0066CC]/[0.04] p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {TECH_INSTALL_FEATURES.map((f, i) => {
+                        const Icon = f.icon;
+                        return (
+                          <div key={i} className="flex items-center gap-2.5 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-[#E5E7EB]">
+                              <Icon className="w-4 h-4 text-[#0066CC]" />
+                            </div>
+                            <span className="text-[#1A1A2E]">{f.text}</span>
                           </div>
-                          <span className="text-[#1A1A2E]">{f.text}</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <InstallationScheduler
                   isFrench={true}
@@ -273,18 +284,29 @@ export function InstallationSection({
                   onDecisionMade={onDecisionMade}
                   confirmedAppointment={appointmentConfirmed}
                   onAppointmentConfirmedChange={onAppointmentConfirmedChange}
+                  phase={phase}
                 />
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {!installationChoice && (
+        {showChoice && !installationChoice && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F5F7FA] border border-[#E5E7EB]">
             <Info className="w-4 h-4 text-[#6B7280]" />
             <p className="text-sm text-[#6B7280]">
               Veuillez sélectionner un mode d'installation pour continuer.
             </p>
+          </div>
+        )}
+
+        {showSchedule && installationChoice === "auto" && (
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-[#ECFDF5] border border-[#10B981]">
+            <CheckCircle2 className="w-5 h-5 text-[#047857] shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-[#065F46]">Aucun rendez-vous nécessaire</p>
+              <p className="text-xs text-[#047857]">Votre auto-installation ne requiert pas de passage technicien.</p>
+            </div>
           </div>
         )}
       </div>

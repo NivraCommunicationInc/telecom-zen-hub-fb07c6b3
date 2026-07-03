@@ -85,7 +85,7 @@ const CHECKOUT_STEPS = [
   { id: 1, labelFr: "Forfait", labelEn: "Plan" },
   { id: 2, labelFr: "Adresse", labelEn: "Address" },
   { id: 3, labelFr: "Informations", labelEn: "Info" },
-  { id: 4, labelFr: "Options", labelEn: "Options" },
+  { id: 4, labelFr: "Installation", labelEn: "Installation" },
   { id: 5, labelFr: "Paiement", labelEn: "Payment" },
   { id: 6, labelFr: "Confirmation", labelEn: "Confirmation" },
 ];
@@ -135,6 +135,8 @@ const GuestCheckout = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
+  // Sub-phase inside step 4: "choice" (installation type + questionnaire) → "schedule" (calendar)
+  const [installationPhase, setInstallationPhase] = useState<"choice" | "schedule">("choice");
   const [notes, setNotes] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
@@ -1260,52 +1262,75 @@ const GuestCheckout = () => {
     );
   };
 
-  // ── Bell-style horizontal progress bar (desktop) ──
-  const renderDesktopProgress = () => (
-    <div className="hidden md:flex items-center">
-      {CHECKOUT_STEPS.filter(s => s.id <= 5).map((s, idx, arr) => {
-        const isDone = step > s.id;
-        const isCurrent = step === s.id;
-        return (
-          <div key={s.id} className="flex items-center flex-1 last:flex-none">
-            <div className="flex flex-col items-center gap-2 min-w-0">
-              <button
-                type="button"
-                onClick={() => isDone && setStep(s.id)}
-                disabled={!isDone}
-                className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all shrink-0 ${isDone ? "cursor-pointer hover:scale-105" : "cursor-default"}`}
-                style={
-                  isDone
-                    ? { background: "#00A651", borderColor: "#00A651", color: "#fff" }
-                    : isCurrent
-                      ? { background: "#0066CC", borderColor: "#0066CC", color: "#fff", boxShadow: "0 0 0 5px rgba(0,102,204,0.15)" }
-                      : { background: "#fff", borderColor: "#E5E7EB", color: "#9CA3AF" }
-                }
-              >
-                {isDone ? <Check className="w-5 h-5" /> : s.id}
-              </button>
-              <span
-                className={`text-xs font-semibold whitespace-nowrap ${isDone ? "text-[#00A651]" : isCurrent ? "text-[#0066CC]" : "text-[#9CA3AF]"}`}
-              >
-                {s.labelFr}
-              </span>
-            </div>
-            {idx < arr.length - 1 && (
-              <div className="flex-1 h-[3px] mx-2 lg:mx-3 rounded-full overflow-hidden bg-[#E5E7EB] mb-6">
-                <div
-                  className="h-full transition-all duration-500 rounded-full"
-                  style={{
-                    width: isDone ? "100%" : "0%",
-                    background: "#00A651",
+  // ── Bell-style horizontal progress bar (desktop) — inserts a virtual "Rendez-vous" chip after step 4 when technician install is required ──
+  const renderDesktopProgress = () => {
+    const base = CHECKOUT_STEPS.filter(s => s.id <= 5);
+    type Chip = { id: number; virtualPhase?: "schedule"; labelFr: string };
+    const chips: Chip[] = [];
+    base.forEach(s => {
+      chips.push({ id: s.id, labelFr: s.id === 4 ? "Installation" : s.labelFr });
+      if (s.id === 4 && requiresInstallation) {
+        chips.push({ id: 4, virtualPhase: "schedule", labelFr: "Rendez-vous" });
+      }
+    });
+    return (
+      <div className="hidden md:flex items-center">
+        {chips.map((c, idx, arr) => {
+          const isSchedulePhase = c.virtualPhase === "schedule";
+          // Done logic: step passed OR (still on step 4 and past the choice phase for the schedule chip)
+          const isDone = isSchedulePhase
+            ? step > 4 || (step === 4 && installationPhase === "schedule" && appointmentConfirmed)
+            : c.id === 4
+              ? step > 4 || (step === 4 && installationPhase === "schedule")
+              : step > c.id;
+          const isCurrent = isSchedulePhase
+            ? step === 4 && installationPhase === "schedule"
+            : c.id === 4
+              ? step === 4 && installationPhase === "choice"
+              : step === c.id;
+          return (
+            <div key={`${c.id}-${c.virtualPhase || "main"}`} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isDone) return;
+                    if (isSchedulePhase) { setStep(4); setInstallationPhase("schedule"); }
+                    else if (c.id === 4) { setStep(4); setInstallationPhase("choice"); }
+                    else setStep(c.id);
                   }}
-                />
+                  disabled={!isDone}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all shrink-0 ${isDone ? "cursor-pointer hover:scale-105" : "cursor-default"}`}
+                  style={
+                    isDone
+                      ? { background: "#00A651", borderColor: "#00A651", color: "#fff" }
+                      : isCurrent
+                        ? { background: "#0066CC", borderColor: "#0066CC", color: "#fff", boxShadow: "0 0 0 5px rgba(0,102,204,0.15)" }
+                        : { background: "#fff", borderColor: "#E5E7EB", color: "#9CA3AF" }
+                  }
+                >
+                  {isDone ? <Check className="w-5 h-5" /> : (idx + 1)}
+                </button>
+                <span
+                  className={`text-xs font-semibold whitespace-nowrap ${isDone ? "text-[#00A651]" : isCurrent ? "text-[#0066CC]" : "text-[#9CA3AF]"}`}
+                >
+                  {c.labelFr}
+                </span>
               </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+              {idx < arr.length - 1 && (
+                <div className="flex-1 h-[3px] mx-2 lg:mx-3 rounded-full overflow-hidden bg-[#E5E7EB] mb-6">
+                  <div
+                    className="h-full transition-all duration-500 rounded-full"
+                    style={{ width: isDone ? "100%" : "0%", background: "#00A651" }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] flex flex-col">
@@ -1344,9 +1369,11 @@ const GuestCheckout = () => {
             {/* Mobile compact */}
             <div className="md:hidden">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wide">Étape {step} / 5</span>
+                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wide">
+                  Étape {step === 4 && installationPhase === "schedule" ? "4b" : step} / 5
+                </span>
                 <span className="text-sm font-bold text-[#0066CC]">
-                  {CHECKOUT_STEPS.find(s => s.id === step)?.labelFr}
+                  {step === 4 && installationPhase === "schedule" ? "Rendez-vous" : CHECKOUT_STEPS.find(s => s.id === step)?.labelFr}
                 </span>
               </div>
               <div className="h-2 w-full rounded-full overflow-hidden bg-[#E5E7EB]">
@@ -1621,12 +1648,17 @@ const GuestCheckout = () => {
                 {(hasInternetService || hasTVService) && (
                   <InstallationSection
                     installationChoice={installationChoice}
-                    onInstallationChoiceChange={c => setInstallationChoice(c)}
+                    onInstallationChoiceChange={c => {
+                      setInstallationChoice(c);
+                      // If user re-picks auto, reset phase back to choice
+                      if (c === "auto") setInstallationPhase("choice");
+                    }}
                     selectedDate={selectedDate}
                     selectedTime={selectedTime}
                     onDateTimeChange={(d, t) => { setSelectedDate(d); setSelectedTime(t); }}
                     appointmentConfirmed={appointmentConfirmed}
                     onAppointmentConfirmedChange={setAppointmentConfirmed}
+                    phase={installationPhase}
                   />
                 )}
 
@@ -1982,26 +2014,53 @@ const GuestCheckout = () => {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setStep(3)}>
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-12 rounded-xl"
+                    onClick={() => {
+                      // If we're on the "schedule" sub-phase of step 4, go back to "choice" phase (not step 3)
+                      if (installationPhase === "schedule" && requiresInstallation) {
+                        setInstallationPhase("choice");
+                      } else {
+                        setStep(3);
+                      }
+                    }}
+                  >
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
                     className="flex-1 h-12 font-bold rounded-xl"
-                    disabled={
-                      (requiresInstallation && (!selectedDate || !selectedTime)) ||
-                      !!validateShipping(shippingData) ||
-                      !!validateActivation(activationData)
-                    }
+                    disabled={(() => {
+                      // Common blocking: shipping/activation validation always required
+                      if (validateShipping(shippingData)) return true;
+                      if (validateActivation(activationData)) return true;
+                      // No installation required (streaming-only, mobile-only) → nothing else to block
+                      if (!requiresInstallation) return !installationChoice;
+                      // Choice sub-phase: need a choice made (auto works instantly)
+                      if (installationPhase === "choice") return !installationChoice;
+                      // Schedule sub-phase: need a confirmed appointment
+                      return !appointmentConfirmed || !selectedDate || !selectedTime;
+                    })()}
                     onClick={() => {
                       const shipErr = validateShipping(shippingData);
                       if (shipErr) { toast.error(shipErr); return; }
                       const actErr = validateActivation(activationData);
                       if (actErr) { toast.error(actErr); return; }
+                      // Technician + still on choice phase → advance to schedule sub-phase (stay on step 4)
+                      if (requiresInstallation && installationPhase === "choice") {
+                        setInstallationPhase("schedule");
+                        // Scroll to top of installation card
+                        setTimeout(() => document.getElementById("step-4")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                        return;
+                      }
+                      // Otherwise → advance to payment
                       setStep(5);
                     }}
                     style={{ background: '#0066CC', boxShadow: '0 4px 20px rgba(0,102,204,0.30)' }}
                   >
-                    Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
+                    {requiresInstallation && installationPhase === "choice"
+                      ? <>Choisir le rendez-vous <ArrowRight className="w-4 h-4 ml-2" /></>
+                      : <>Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" /></>}
                   </Button>
                 </div>
               </div>
