@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 import { nextAnchoredDate } from "../_shared/billing-utils.ts";
+import { writePaymentAutoNote } from "../_shared/paymentAutoNote.ts";
+
 
 /**
  * ============================================================================
