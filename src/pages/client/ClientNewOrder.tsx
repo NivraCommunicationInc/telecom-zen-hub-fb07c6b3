@@ -1959,7 +1959,7 @@ const ClientNewOrder = () => {
         ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
            deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : 
            DELIVERY_CONFIG.standard.fee)
-        : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
+        : 0; // Auto-installation is always free
 
       // Determine installation type for the order
       const orderInstallationType = isDeliveryOnlyOrder 
