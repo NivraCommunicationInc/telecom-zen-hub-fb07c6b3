@@ -1229,13 +1229,13 @@ Deno.serve(async (req) => {
           customer_date_of_birth: ci.date_of_birth || ci.dob || null,
           services: fieldServices,
           total_amount: Number(body.paypal_amount || quote.total || 0),
-          payment_method: 'paypal',
-          payment_reference: body.paypal_capture_id || null,
+          payment_method: body.payment_method || 'paypal',
+          payment_reference: body.payment_reference || body.paypal_capture_id || null,
           payment_status: 'confirmed',
           sync_status: 'pending',
           discount_data: quote.discount || null,
           source_quote_id: quote.id,
-          internal_notes: `Field quote ${quote.id} matérialisée automatiquement après paiement PayPal`,
+          internal_notes: `Field quote ${quote.id} matérialisée automatiquement après paiement ${body.payment_method || 'paypal'}`,
         })
         .select('*')
         .single();
