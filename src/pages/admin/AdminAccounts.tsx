@@ -263,12 +263,15 @@ const AdminAccounts = () => {
   // Add service location
   const addLocationMutation = useMutation({
     mutationFn: async (data: typeof newLocation & { account_id: string }) => {
-      const { error } = await supabase.from("account_service_locations").insert({
-        account_id: data.account_id,
-        label: data.label,
-        service_address: data.service_address,
-        service_city: data.service_city,
-        service_postal_code: data.service_postal_code,
+      // R1 canonical write: use RPC (INSERTs into account_service_locations are blocked)
+      const { error } = await supabase.rpc("resolve_or_create_service_address", {
+        p_account_id: data.account_id,
+        p_address: data.service_address,
+        p_city: data.service_city,
+        p_province: "QC",
+        p_postal: data.service_postal_code,
+        p_created_via: "admin",
+        p_label: data.label || null,
       });
       if (error) throw error;
     },
