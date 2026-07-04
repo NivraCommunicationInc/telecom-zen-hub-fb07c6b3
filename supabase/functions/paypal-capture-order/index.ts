@@ -202,21 +202,92 @@ serve(async (req) => {
     {
       const { data: fieldIntent } = await supabase
         .from("field_payment_intents")
-        .select("id, quote_id, agent_id, amount, status, converted_field_order_id, customer_email, customer_name")
+        .select("id, quote_id, agent_id, amount, status, converted_field_order_id, converted_order_id, converted_invoice_id, customer_email, customer_name")
         .eq("paypal_order_id", body.paypal_order_id)
         .maybeSingle();
 
       if (fieldIntent) {
-        console.log("[PayPal Capture] â–¶ Field-sale bridge: intent=", fieldIntent.id);
+        console.log("[PayPal Capture] ▶ Field-sale bridge: intent=", fieldIntent.id);
 
-        // Idempotency â€” already processed
+        // Idempotency — already processed
         if (fieldIntent.status === "completed" && fieldIntent.converted_field_order_id) {
-          console.log("[PayPal Capture] âœ“ Field intent already completed, skipping");
+          console.log("[PayPal Capture] ✓ Field intent already completed, skipping");
           return new Response(JSON.stringify({
             success: true, capture_id: captureId, amount, currency: currencyCode,
             status: "COMPLETED", already_processed: true, field_intent_id: fieldIntent.id,
           }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+
+        // ────────────────────────────────────────────────────────────────
+        // NEW PATH: Shell order was pre-materialized at intent creation.
+        // Just apply the payment to the existing invoice — no re-materialization.
+        // ────────────────────────────────────────────────────────────────
+        if (fieldIntent.converted_order_id && fieldIntent.converted_invoice_id) {
+          try {
+            console.log("[PayPal Capture] ✓ Shell order exists — applying payment to invoice", fieldIntent.converted_invoice_id);
+
+            const { data: rpcResult, error: rpcError } = await supabase.rpc(
+              "apply_payment_to_invoice" as any,
+              {
+                p_invoice_id: fieldIntent.converted_invoice_id,
+                p_amount: amount,
+                p_method: "paypal",
+                p_provider: "paypal",
+                p_provider_payment_id: captureId,
+                p_provider_order_id: body.paypal_order_id,
+                p_source: "field_agent",
+                p_created_by_name: "PayPal Capture (Field)",
+                p_created_by_role: "system",
+                p_customer_id: null,
+              } as any,
+            );
+
+            if (rpcError) throw new Error(`apply_payment_to_invoice: ${rpcError.message}`);
+
+            // Mark intent completed
+            await supabase.from("field_payment_intents").update({
+              status: "completed",
+              paid_at: new Date().toISOString(),
+            }).eq("id", fieldIntent.id);
+
+            // Flip field_sales_orders.payment_status → confirmed (unlocks commission)
+            if (fieldIntent.converted_field_order_id) {
+              await supabase.from("field_sales_orders").update({
+                payment_status: "confirmed",
+                payment_reference: captureId,
+                updated_at: new Date().toISOString(),
+              }).eq("id", fieldIntent.converted_field_order_id);
+            }
+
+            // Flip Core order → validated
+            await supabase.from("orders").update({
+              payment_status: "paid",
+              status: "validated",
+              updated_at: new Date().toISOString(),
+            }).eq("id", fieldIntent.converted_order_id);
+
+            await supabase.from("activity_logs").insert({
+              user_id: fieldIntent.agent_id,
+              entity_type: "field_payment_intent",
+              entity_id: fieldIntent.id,
+              action: "paypal_captured_shell",
+              details: { ...captureProof, order_id: fieldIntent.converted_order_id, invoice_id: fieldIntent.converted_invoice_id, rpc: rpcResult },
+            });
+
+            return new Response(JSON.stringify({
+              success: true, capture_id: captureId, amount, currency: currencyCode,
+              status: "COMPLETED",
+              field_intent_id: fieldIntent.id,
+              order_id: fieldIntent.converted_order_id,
+              invoice_id: fieldIntent.converted_invoice_id,
+              shell_path: true,
+            }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          } catch (shellErr) {
+            console.error("[PayPal Capture] ✗ Shell payment path error — falling back:", shellErr);
+            // fall through to legacy materialization below
+          }
+        }
+
 
         try {
           // Load quote

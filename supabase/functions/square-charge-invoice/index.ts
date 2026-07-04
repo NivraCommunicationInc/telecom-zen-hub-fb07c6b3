@@ -523,6 +523,35 @@ serve(async (req) => {
         .update({ status: "completed", paid_at: new Date().toISOString() })
         .eq("id", intent_id);
 
+      // NEW: if shell order was pre-materialized, flip Core order → paid/validated
+      try {
+        const { data: intentShell } = await supabase
+          .from("field_payment_intents")
+          .select("converted_order_id, converted_field_order_id")
+          .eq("id", intent_id)
+          .maybeSingle();
+
+        if (intentShell?.converted_order_id) {
+          await supabase.from("orders").update({
+            payment_status: "paid",
+            status: "validated",
+            updated_at: new Date().toISOString(),
+          }).eq("id", intentShell.converted_order_id);
+
+          if (intentShell.converted_field_order_id) {
+            await supabase.from("field_sales_orders").update({
+              payment_status: "confirmed",
+              payment_reference: paymentId,
+              updated_at: new Date().toISOString(),
+            }).eq("id", intentShell.converted_field_order_id);
+          }
+          console.log("[square-charge-invoice] shell order flipped to paid:", intentShell.converted_order_id);
+        }
+      } catch (shellFlipErr) {
+        console.warn("[square-charge-invoice] shell order flip failed (non-fatal):", shellFlipErr);
+      }
+
+
       try {
         const { data: intentForLink } = await supabase
           .from("field_payment_intents")

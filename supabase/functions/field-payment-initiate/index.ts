@@ -161,6 +161,29 @@ Deno.serve(async (req) => {
       })
       .eq("id", intent.id);
 
+    // Materialize the Core shell order immediately (best-effort, non-blocking).
+    // Ensures Core sees a full 10-step workflow while the client pays.
+    try {
+      const matResp = await fetch(`${supabaseUrl}/functions/v1/field-order-engine`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+        },
+        body: JSON.stringify({ action: "materialize_pending_from_quote", intent_id: intent.id }),
+      });
+      const matData = await matResp.json().catch(() => null);
+      if (!matResp.ok || !matData?.success) {
+        console.warn("[field-payment-initiate] shell materialization failed (non-fatal):", matData?.error || matResp.status);
+      } else {
+        console.log("[field-payment-initiate] shell order:", matData.order_id);
+      }
+    } catch (e) {
+      console.warn("[field-payment-initiate] shell materialization exception:", e);
+    }
+
+
     return new Response(JSON.stringify({
       success: true,
       intent_id: intent.id,
