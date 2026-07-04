@@ -938,31 +938,35 @@ Deno.serve(async (req) => {
           }
         : undefined);
 
-    // Generate full HTML email
-    const htmlBody = generateOrderConfirmationHtml({
-      clientFirstName: client_first_name || "Client",
-      orderNumber: order_number,
-      orderDate,
-      paymentReference: effectivePaymentRef || undefined,
-      paymentMethod: effectivePaymentMethod || undefined,
-      services: finalServices,
+    // CANONICAL: render the corporate blue shell via renderQueueTemplate.
+    // Bug 4 fix — no more custom HTML that bypasses the official template.
+    const servicesLabel = finalServices.length > 0
+      ? finalServices.map((s: any) => `${s.name} — ${Number(s.price || 0).toFixed(2)} $/${s.period || "mois"}`).join(" · ")
+      : "Voir détails de la commande";
+    const equipmentLabel = finalOneTimeFees.length > 0
+      ? finalOneTimeFees.map((f: any) => `${f.label} — ${Number(f.amount || 0).toFixed(2)} $`).join(" · ")
+      : "Aucun équipement";
+    // Read discount lines directly so the corporate template's discount row renders correctly.
+    const discountLinesForTemplate = canonicalInvoiceLines.filter((l) => (l.line_type || "").toLowerCase() === "discount");
+
+    const rendered = renderQueueTemplate("order_confirmation", {
+      client_name: `${client_first_name || "Client"}`,
+      first_name: client_first_name || "Client",
+      order_number: order_number,
+      services: servicesLabel,
+      equipment: equipmentLabel,
       subtotal: canonicalSubtotal,
-      tpsAmount: canonicalTps,
-      tvqAmount: canonicalTvq,
-      totalWithTax: canonicalTotalPayable,
-      oneTimeFees: finalOneTimeFees,
-      oneTimeTotal: finalOneTimeTotal,
-      deliveryMethod: delivery_method ? getDeliveryMethodLabel(delivery_method) : undefined,
-      deliveryAddress: delivery_address,
-      installation: installation,
-      portalLink: `${siteBaseUrl}/portal/orders/${order_id}`,
-      supportEmail: "support@nivra-telecom.ca",
-      promoCode: effectivePromoCode || undefined,
-      alternativeShipping: finalAltShipping,
-      activationPreference: finalActivationPref,
-      requestedActivationDate: finalRequestedDate,
-      installationDetails: finalInstallDetails,
-    });
+      tps: canonicalTps,
+      tvq: canonicalTvq,
+      total: canonicalTotalPayable,
+      payment_status: effectivePaymentRef ? "Payé" : "En traitement",
+      payment_url: `${siteBaseUrl}/portal/orders/${order_id}`,
+      portal_url: `${siteBaseUrl}/portal/orders/${order_id}`,
+      invoice_lines: canonicalInvoiceLines,
+      discount_lines: discountLinesForTemplate,
+    }, "fr");
+    const htmlBody = rendered?.html || "";
+    const finalSubject = rendered?.subject || emailSubject;
 
     const attachments = (await Promise.all([
       latestInvoice?.id ? buildInvoicePdfAttachment(latestInvoice.id, "facture") : null,
@@ -973,9 +977,9 @@ Deno.serve(async (req) => {
     // Enqueue main email via pgmq (actually delivered by process-email-queue)
     const enqueueResult = await enqueueEmail({
       to: client_email,
-      templateKey: "order_submitted",
+      templateKey: "order_confirmation",
       eventKey,
-      subject: emailSubject,
+      subject: finalSubject,
       html: htmlBody,
       fromEmail: "Nivra Telecom <noreply@nivra-telecom.ca>",
       messageType: "order_confirmation",
