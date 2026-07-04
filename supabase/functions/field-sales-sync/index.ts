@@ -1260,6 +1260,9 @@ Deno.serve(async (req) => {
       }
 
       const ci: any = quote.client_info || {};
+      const staffTunnelTag = ci.existing_account_id
+        ? `[STAFF_TUNNEL account_id=${ci.existing_account_id}${ci.existing_service_address_id ? ` service_address_id=${ci.existing_service_address_id}` : ""} ] `
+        : "";
       const customerName = `${ci.first_name || ci.firstName || ''} ${ci.last_name || ci.lastName || ''}`.trim() || body.customer_name || 'Client Field';
       const fieldServices = [
         ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
@@ -1285,7 +1288,7 @@ Deno.serve(async (req) => {
           sync_status: 'pending',
           discount_data: quote.discount || null,
           source_quote_id: quote.id,
-          internal_notes: `Field quote ${quote.id} matérialisée automatiquement après paiement ${body.payment_method || 'paypal'}`,
+          internal_notes: `${staffTunnelTag}Field quote ${quote.id} matérialisée automatiquement après paiement ${body.payment_method || 'paypal'}`.trim(),
         })
         .select('*')
         .single();
