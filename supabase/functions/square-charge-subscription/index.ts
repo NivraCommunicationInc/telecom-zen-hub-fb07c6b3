@@ -25,10 +25,23 @@ Deno.serve(async (req) => {
       throw new Error("subscription_id, invoice_id et amount requis");
     }
 
+    // Idempotence stricte: si la facture est déjà payée, ne pas facturer 2x.
+    const { data: existingInv } = await supabase
+      .from("billing_invoices")
+      .select("id, status, balance_due, invoice_number")
+      .eq("id", invoice_id)
+      .maybeSingle();
+    if (existingInv?.status === "paid" || Number(existingInv?.balance_due || 0) <= 0) {
+      return new Response(
+        JSON.stringify({ ok: true, already_paid: true, invoice_number: existingInv?.invoice_number }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get subscription + customer info
     const { data: sub, error: subErr } = await supabase
       .from("billing_subscriptions")
-      .select("id, customer_id, plan_name, billing_customers(id, email, square_customer_id, square_card_id)")
+      .select("id, customer_id, plan_name, billing_customers(id, email, first_name, last_name, square_customer_id, square_card_id, square_card_brand, square_card_last4)")
       .eq("id", subscription_id)
       .single();
     if (subErr || !sub) throw new Error("Subscription introuvable");
