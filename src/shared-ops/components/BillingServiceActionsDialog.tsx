@@ -70,10 +70,10 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
 
 export function BillingServiceActionsDialog({
-  open, onClose, clientUserId, clientName, accountId,
+  open, onClose, clientUserId, clientName, accountId, customerId,
 }: Props) {
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"methods" | "autopay" | "plan" | "prefs" | "refund">("methods");
+  const [tab, setTab] = useState<"square" | "methods" | "autopay" | "plan" | "prefs" | "refund">(customerId ? "square" : "methods");
 
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [loadingMethods, setLoadingMethods] = useState(false);
