@@ -316,13 +316,29 @@ export function BillingServiceActionsDialog({
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className={`grid w-full ${customerId ? "grid-cols-6" : "grid-cols-5"}`}>
+            {customerId && (
+              <TabsTrigger value="square"><ShieldCheck className="h-4 w-4 mr-1" />Square PPA</TabsTrigger>
+            )}
             <TabsTrigger value="methods"><CreditCard className="h-4 w-4 mr-1" />Méthodes</TabsTrigger>
             <TabsTrigger value="autopay"><RefreshCw className="h-4 w-4 mr-1" />Auto-pay</TabsTrigger>
             <TabsTrigger value="plan"><CalendarClock className="h-4 w-4 mr-1" />Plan</TabsTrigger>
             <TabsTrigger value="prefs"><Settings2 className="h-4 w-4 mr-1" />Préfs</TabsTrigger>
             <TabsTrigger value="refund"><Wallet className="h-4 w-4 mr-1" />Remb.</TabsTrigger>
           </TabsList>
+
+          {/* ===== SQUARE PPA (staff-registered card) ===== */}
+          {customerId && (
+            <TabsContent value="square" className="space-y-3 pt-4">
+              <div className="rounded border border-violet-500/30 bg-violet-500/5 p-2 text-[11px] text-violet-200">
+                Inscription du client au paiement automatique Square avec sa carte (avec autorisation verbale).
+                La carte est tokenisée par Square (PCI-DSS) — Nivra ne stocke jamais le numéro complet.
+                Un courriel officiel de confirmation est envoyé au client automatiquement.
+              </div>
+              <CoreAutopayPanel billingCustomerId={customerId} channel="core" />
+            </TabsContent>
+          )}
+
 
           {/* ===== METHODS ===== */}
           <TabsContent value="methods" className="space-y-4 pt-4">
