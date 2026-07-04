@@ -873,74 +873,7 @@ const AdminAccounts = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add Location Dialog */}
-      <Dialog open={addLocationOpen} onOpenChange={setAddLocationOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ajouter une adresse de service</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Libellé *</Label>
-              <Input
-                value={newLocation.label}
-                onChange={(e) => setNewLocation({ ...newLocation, label: e.target.value })}
-                placeholder="ex: Bureau, Chalet, Triplex B"
-              />
-            </div>
-            <div>
-              <Label>Adresse *</Label>
-              <AddressAutocomplete
-                value={newLocation.service_address}
-                onValueChange={(value) => setNewLocation({ ...newLocation, service_address: value })}
-                onSelect={(details: AddressValue) => {
-                  // Defense-in-depth: also call setter with formatted address
-                  const addressText = details.formatted || details.line1;
-                  setNewLocation({
-                    ...newLocation,
-                    service_address: addressText,
-                    service_city: details.city || newLocation.service_city,
-                    service_postal_code: details.postalCode || newLocation.service_postal_code,
-                  });
-                }}
-                placeholder="Rechercher une adresse..."
-                restrictToQuebec={true}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Ville</Label>
-                <Input
-                  value={newLocation.service_city}
-                  onChange={(e) => setNewLocation({ ...newLocation, service_city: e.target.value })}
-                  placeholder="Montréal"
-                />
-              </div>
-              <div>
-                <Label>Code postal</Label>
-                <Input
-                  value={newLocation.service_postal_code}
-                  onChange={(e) => setNewLocation({ ...newLocation, service_postal_code: e.target.value })}
-                  placeholder="H2X 1Y4"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddLocationOpen(false)}>Annuler</Button>
-            <Button
-              onClick={() => {
-                if (selectedAccount && newLocation.label && newLocation.service_address) {
-                  addLocationMutation.mutate({ ...newLocation, account_id: selectedAccount.id });
-                }
-              }}
-              disabled={addLocationMutation.isPending || !newLocation.label || !newLocation.service_address}
-            >
-              Ajouter
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add Location Dialog — retiré (Pass 3A: création via AccountAddressesTab + ServiceAddressPicker) */}
 
       {/* Change Status Dialog */}
       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
