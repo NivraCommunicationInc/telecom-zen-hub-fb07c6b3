@@ -11,7 +11,7 @@
  * map the new payment method enum to the engine's contract.
  */
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { submitNewSale } from "@/field-app/lib/fieldServices";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
@@ -45,6 +45,9 @@ interface FieldNewSaleProps {
 export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const prefillAccountId = searchParams.get("client") || searchParams.get("account") || null;
+  const prefillAddressId = searchParams.get("adresse") || searchParams.get("address") || searchParams.get("service_address_id") || null;
   const _exitPath = exitRedirect ?? fieldPath("/dashboard");
   const resumeIntentId = (location.state as any)?.resumeIntentId as string | undefined;
   const resumeQuoteId = (location.state as any)?.resumeQuoteId as string | undefined;
@@ -52,6 +55,8 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const DRAFT_KEY = user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
+  const [prefillContext, setPrefillContext] = useState<string | null>(null);
+  const [prefillLoading, setPrefillLoading] = useState<boolean>(Boolean(prefillAccountId));
   const [agentGps, setAgentGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
 
   const [draft, setDraft] = useState<FieldSaleDraft>({
@@ -247,6 +252,91 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     })();
   }, [resumeIntentId, resumeQuoteId, user?.id]);
 
+  // ── Prefill mode: staff opens tunnel from a known account + address ──
+  // Query params: ?client=<account_id>&adresse=<service_address_id>
+  // When present: pre-fill customer + lock identity/address fields; final
+  // submission attaches the resulting order to the existing account and
+  // service_address_id (no new user/account is ever created).
+  const hasPrefilledRef = useRef(false);
+  useEffect(() => {
+    if (!prefillAccountId || hasPrefilledRef.current) {
+      if (!prefillAccountId) setPrefillLoading(false);
+      return;
+    }
+    hasPrefilledRef.current = true;
+    (async () => {
+      try {
+        const { data: acct, error: acctErr } = await supabase
+          .from("accounts")
+          .select("id, account_number, account_name, client_id, primary_service_address, primary_service_city, primary_service_postal_code, primary_service_province, billing_address, billing_city, billing_postal_code, billing_province")
+          .eq("id", prefillAccountId)
+          .maybeSingle();
+        if (acctErr || !acct) {
+          toast.error("Compte introuvable — vérifiez le lien.");
+          setPrefillLoading(false);
+          return;
+        }
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("full_name, first_name, last_name, email, phone, date_of_birth")
+          .eq("user_id", (acct as any).client_id)
+          .maybeSingle();
+
+        let addr: any = null;
+        if (prefillAddressId) {
+          const { data: a } = await supabase
+            .from("service_addresses")
+            .select("id, address_line, city, province, postal_code, label")
+            .eq("id", prefillAddressId)
+            .maybeSingle();
+          addr = a;
+        }
+
+        // Fallback to account primary address if no service address id
+        const address_line = addr?.address_line || (acct as any).primary_service_address || (acct as any).billing_address || "";
+        const city = addr?.city || (acct as any).primary_service_city || (acct as any).billing_city || "";
+        const postal_code = addr?.postal_code || (acct as any).primary_service_postal_code || (acct as any).billing_postal_code || "";
+        const province = addr?.province || (acct as any).primary_service_province || (acct as any).billing_province || "QC";
+
+        const nameParts = (prof?.full_name || "").split(" ");
+        const first_name = (prof as any)?.first_name || nameParts[0] || "";
+        const last_name = (prof as any)?.last_name || nameParts.slice(1).join(" ") || "";
+
+        setDraft((d) => ({
+          ...d,
+          existing_account_id: (acct as any).id,
+          existing_service_address_id: addr?.id || null,
+          customer: {
+            ...d.customer,
+            first_name,
+            last_name,
+            email: prof?.email || "",
+            phone: prof?.phone || "",
+            date_of_birth: (prof as any)?.date_of_birth || "",
+            address: address_line,
+            city,
+            postal_code,
+            province,
+            serviceability_status: "unknown",
+          },
+        }));
+        const ctxLabel = `Compte ${(acct as any).account_number || "—"} · ${(acct as any).account_name || prof?.full_name || "Client"}`
+          + (addr ? ` · Adresse : ${addr.address_line}${addr.city ? ", " + addr.city : ""}` : "");
+        setPrefillContext(ctxLabel);
+        // Skip any restored draft — prefill takes priority
+        hasCheckedRestoreRef.current = true;
+        setRestoreDialogOpen(false);
+        setPendingRestore(null);
+      } catch (e: any) {
+        console.error("[FieldNewSale] prefill error", e);
+        toast.error("Erreur de pré-remplissage : " + (e?.message || "inconnue"));
+      } finally {
+        setPrefillLoading(false);
+      }
+    })();
+  }, [prefillAccountId, prefillAddressId]);
+
+
   // ── Email payload helpers (services / equipment / discount) ──
   const buildServicesList = useCallback((d: FieldSaleDraft) => {
     const list = (d.services || [])
@@ -336,6 +426,39 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const tps = Math.round(subtotal * TPS_RATE * 100) / 100;
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
   const total = Math.round((subtotal + tps + tvq) * 100) / 100;
+
+  // ── Prefill mode: build internal-notes marker + post-sync order patch ──
+  // Ensures Core admins see the origin and the resulting orders row is
+  // linked to service_addresses.id (account_id is already handled by
+  // field-sales-sync via email match).
+  const prefillNoteTag = useCallback((): string => {
+    if (!draft.existing_account_id) return "";
+    const parts = [`[STAFF_TUNNEL account_id=${draft.existing_account_id}`];
+    if (draft.existing_service_address_id) parts.push(`service_address_id=${draft.existing_service_address_id}`);
+    parts.push("]");
+    return parts.join(" ");
+  }, [draft.existing_account_id, draft.existing_service_address_id]);
+
+  const linkOrderToServiceAddress = useCallback(async (saleId: string | null | undefined) => {
+    if (!saleId || !draft.existing_service_address_id) return;
+    try {
+      const { data: fsFinal } = await supabase
+        .from("field_sales_orders")
+        .select("converted_order_id")
+        .eq("id", saleId)
+        .maybeSingle();
+      const coreOrderId = (fsFinal as any)?.converted_order_id;
+      if (coreOrderId) {
+        await supabase
+          .from("orders")
+          .update({ service_address_id: draft.existing_service_address_id } as any)
+          .eq("id", coreOrderId);
+      }
+    } catch (e) {
+      logger.warn("linkOrderToServiceAddress failed", e);
+    }
+  }, [draft.existing_service_address_id]);
+
 
   // ── Submit inline (square_inline): create quote + intent, then Square widget charges ──
   const handleSquareInlineInit = async () => {
@@ -428,7 +551,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               monthly_amount: Number(monthlyDiscountAmount || 0),
               monthly_price: Number(monthlyBeforeDiscount || 0),
             } : null,
-            internal_notes: `Square paiement immédiat — ${paymentId}\nCommission: ${commissionAmount.toFixed(2)}$`,
+            internal_notes: `${prefillNoteTag()}Square paiement immédiat — ${paymentId}\nCommission: ${commissionAmount.toFixed(2)}$`.trim(),
           } as any)
           .select("id")
           .single();
@@ -454,6 +577,8 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               }
             } catch (mirrorErr) { logger.warn("coaxial_survey mirror failed", mirrorErr); }
           }
+          // Attach the resulting Core order to the selected service_address_id (staff tunnel).
+          await linkOrderToServiceAddress(saleId);
         }
       } catch (syncErr: any) {
         logger.warn("[square-inline] order creation failed (non-blocking)", syncErr);
@@ -689,7 +814,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               monthly_amount: Number(monthlyDiscountAmount || 0),
               monthly_price: Number(monthlyBeforeDiscount || 0),
             } : null,
-            internal_notes: `Carte saisie en personne — intent ${intentId} • ••${last4}\nCommission: ${commissionAmount.toFixed(2)}$ = 30% récurrent (${monthlyBeforeDiscount.toFixed(2)}$) + 5% équipement (${equipmentTotal.toFixed(2)}$)`,
+            internal_notes: `${prefillNoteTag()}Carte saisie en personne — intent ${intentId} • ••${last4}\nCommission: ${commissionAmount.toFixed(2)}$ = 30% récurrent (${monthlyBeforeDiscount.toFixed(2)}$) + 5% équipement (${equipmentTotal.toFixed(2)}$)`.trim(),
           } as any)
           .select("id")
           .single();
@@ -727,6 +852,8 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               }
             } catch (mirrorErr) { logger.warn("coaxial_survey mirror failed", mirrorErr); }
           }
+          // Attach the resulting Core order to the selected service_address_id (staff tunnel).
+          await linkOrderToServiceAddress(saleId);
         }
       } catch (syncCatch: any) {
         console.error("[field_sales_orders] catch", syncCatch);
@@ -849,6 +976,8 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               onChange={(customer) => setDraft((d) => ({ ...d, customer }))}
               onNext={() => advance("customer")}
               onCancel={() => { clearDraft(); navigate(_exitPath); }}
+              locked={Boolean(draft.existing_account_id)}
+              lockedContext={prefillContext || undefined}
             />
           )}
 

@@ -182,8 +182,8 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
             </div>
             {/* Barre d'actions unifiée */}
             <div className="flex flex-wrap gap-1.5 border-t border-[hsl(220,15%,14%)] px-3 py-2">
-              <ActionBtn icon={ShoppingCart} label="Commander ici" onClick={() => navigate(corePath(`/pos?${q}`))} />
-              <ActionBtn icon={Wifi} label="Ajouter service" onClick={() => navigate(corePath(`/pos?${q}`))} />
+              <ActionBtn icon={ShoppingCart} label="Commander ici" onClick={() => navigate(corePath(`/nouvelle-commande?client=${accountId}${selected ? `&adresse=${selected.id}` : ""}`))} />
+              <ActionBtn icon={Wifi} label="Ajouter service" onClick={() => navigate(corePath(`/nouvelle-commande?client=${accountId}${selected ? `&adresse=${selected.id}` : ""}`))} />
               <ActionBtn icon={Calendar} label="Nouveau RDV" onClick={() => navigate(corePath(`/appointments?${q}`))} />
               <ActionBtn icon={Ticket} label="Ouvrir ticket" onClick={() => navigate(corePath(`/support?${q}`))} />
               <ActionBtn icon={Package} label="Équipement" onClick={() => navigate(corePath(`/equipment?${q}`))} />

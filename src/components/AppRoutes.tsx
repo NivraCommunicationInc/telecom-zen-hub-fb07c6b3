@@ -994,6 +994,7 @@ const AppRoutes = () => {
           <Route path="crm" element={<Suspense fallback={null}><CoreCrm /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
           <Route path="orders/manual" element={<Suspense fallback={null}><FieldNewSale exitRedirect="/core/orders" /></Suspense>} />
+          <Route path="nouvelle-commande" element={<Suspense fallback={null}><FieldNewSale exitRedirect="/core/orders" /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
           <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
           <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
@@ -1154,6 +1155,7 @@ const AppRoutes = () => {
           <Route path="academy" element={<Suspense fallback={null}><AcademyPortal portal="cs" /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
           <Route path="orders/new" element={<Suspense fallback={null}><CertificationGate portal="cs"><FieldNewSale exitRedirect="/employee/orders" /></CertificationGate></Suspense>} />
+          <Route path="nouvelle-commande" element={<Suspense fallback={null}><CertificationGate portal="cs"><FieldNewSale exitRedirect="/employee/orders" /></CertificationGate></Suspense>} />
           <Route path="crm" element={<Suspense fallback={null}><EmployeeCrm /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><EmployeeOrderDetail /></Suspense>} />
           <Route path="clients" element={<Suspense fallback={null}><EmployeeClients /></Suspense>} />

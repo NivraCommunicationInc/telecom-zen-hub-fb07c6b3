@@ -128,6 +128,14 @@ export interface FieldSaleDraft {
   payment: FieldSalePayment;
   agentId: string;
   createdAt: string;
+  /**
+   * When set (staff-initiated order for an existing account), the tunnel
+   * pre-fills + locks the client identity step and, at submission time,
+   * skips new-account creation — the resulting order is attached to this
+   * account_id / service_address_id.
+   */
+  existing_account_id?: string | null;
+  existing_service_address_id?: string | null;
 }
 
 export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {

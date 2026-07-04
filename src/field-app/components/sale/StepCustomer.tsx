@@ -15,6 +15,14 @@ interface Props {
   onChange: (c: FieldSaleCustomer) => void;
   onNext: () => void;
   onCancel: () => void;
+  /**
+   * When true (staff opened the tunnel from a known account + address),
+   * hide the "choose/search" modes, land directly on the form, and lock
+   * the identity + address fields. Serviceability check still runs.
+   */
+  locked?: boolean;
+  /** Optional label shown when locked, e.g. "Compte #200756 — Adresse principale". */
+  lockedContext?: string;
 }
 
 interface SearchResult {
@@ -30,13 +38,13 @@ interface SearchResult {
 
 type Mode = "choose" | "search" | "new" | "form";
 
-export default function StepCustomer({ customer, onChange, onNext, onCancel }: Props) {
-  const [mode, setMode] = useState<Mode>(customer.first_name ? "form" : "choose");
+export default function StepCustomer({ customer, onChange, onNext, onCancel, locked = false, lockedContext }: Props) {
+  const [mode, setMode] = useState<Mode>(locked || customer.first_name ? "form" : "choose");
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchDone, setSearchDone] = useState(false);
-  const [isExisting, setIsExisting] = useState(false);
+  const [isExisting, setIsExisting] = useState(locked);
   const [coverageDetail, setCoverageDetail] = useState<ServiceabilityResult | null>(null);
   const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
 
@@ -236,34 +244,51 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
   }
 
   // ── Mode: Form ──
+  const lockedInputClass = `${inputClass} opacity-70 cursor-not-allowed`;
+  const lockedCls = (base: string) => (locked ? `${base} opacity-70 cursor-not-allowed` : base);
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-gray-50">{isExisting ? "Client existant — Vérifiez et modifiez" : "Nouveau client"}</h2>
+        <h2 className="text-lg font-bold text-gray-50">
+          {locked ? "Commande pour un client existant" : (isExisting ? "Client existant — Vérifiez et modifiez" : "Nouveau client")}
+        </h2>
         <p className="text-sm text-gray-400 mt-0.5">
-          {isExisting ? "Informations pré-remplies. Modifiez au besoin." : "Renseignez les informations du client."}
+          {locked
+            ? "Identité et adresse verrouillées — la commande sera rattachée au compte existant."
+            : (isExisting ? "Informations pré-remplies. Modifiez au besoin." : "Renseignez les informations du client.")}
         </p>
       </div>
+
+      {locked && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/30 text-sm text-violet-200">
+          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Client existant sélectionné</p>
+            {lockedContext && <p className="text-xs mt-0.5 opacity-90">{lockedContext}</p>}
+            <p className="text-xs mt-0.5 opacity-75">Aucun nouveau compte ne sera créé.</p>
+          </div>
+        </div>
+      )}
 
       <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1"><User className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold text-gray-50">Contact</h3></div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelClass}>Prénom *</label><input value={customer.first_name} onChange={(e) => update("first_name", e.target.value)} className={inputClass} required /></div>
-          <div><label className={labelClass}>Nom *</label><input value={customer.last_name} onChange={(e) => update("last_name", e.target.value)} className={inputClass} required /></div>
+          <div><label className={labelClass}>Prénom *</label><input value={customer.first_name} onChange={(e) => update("first_name", e.target.value)} readOnly={locked} className={lockedCls(inputClass)} required /></div>
+          <div><label className={labelClass}>Nom *</label><input value={customer.last_name} onChange={(e) => update("last_name", e.target.value)} readOnly={locked} className={lockedCls(inputClass)} required /></div>
         </div>
         <div>
           <label className={labelClass}>Téléphone *</label>
-          <input type="tel" value={customer.phone} onChange={(e) => update("phone", e.target.value)} className={inputClass} placeholder="514-555-0123" />
+          <input type="tel" value={customer.phone} onChange={(e) => update("phone", e.target.value)} readOnly={locked} className={lockedCls(inputClass)} placeholder="514-555-0123" />
           {customer.phone && !isValidPhone && <p className="text-[10px] text-destructive mt-0.5">Minimum 10 chiffres</p>}
         </div>
         <div>
           <label className={labelClass}>Courriel *</label>
-          <input type="email" value={customer.email} onChange={(e) => update("email", e.target.value)} className={inputClass} placeholder="client@example.com" />
+          <input type="email" value={customer.email} onChange={(e) => update("email", e.target.value)} readOnly={locked} className={lockedCls(inputClass)} placeholder="client@example.com" />
           {customer.email && !isValidEmail && <p className="text-[10px] text-destructive mt-0.5">Courriel invalide</p>}
         </div>
         <div>
           <label className={labelClass}>Date de naissance *</label>
-          <input type="date" value={customer.date_of_birth} onChange={(e) => update("date_of_birth", e.target.value)} className={inputClass} max={new Date().toISOString().split("T")[0]} />
+          <input type="date" value={customer.date_of_birth} onChange={(e) => update("date_of_birth", e.target.value)} readOnly={locked} className={lockedCls(inputClass)} max={new Date().toISOString().split("T")[0]} />
           {customer.date_of_birth && !isValidDOB && <p className="text-[10px] text-destructive mt-0.5">Date invalide</p>}
         </div>
       </div>
@@ -271,19 +296,20 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
       <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1"><MapPin className="h-4 w-4 text-primary" /><h3 className="text-sm font-semibold text-gray-50">Adresse de service</h3></div>
         <div className="grid grid-cols-[1fr_140px] gap-3">
-          <div><label className={labelClass}>Adresse *</label><input value={customer.address} onChange={(e) => update("address", e.target.value)} className={inputClass} placeholder="123 rue Principale" /></div>
-          <div><label className={labelClass}>App. <span className="text-gray-400 font-normal">(optionnel)</span></label><input value={customer.apartment || ""} onChange={(e) => update("apartment" as any, e.target.value)} className={inputClass} placeholder="Ex. 3B" /></div>
+          <div><label className={labelClass}>Adresse *</label><input value={customer.address} onChange={(e) => update("address", e.target.value)} readOnly={locked} className={lockedCls(inputClass)} placeholder="123 rue Principale" /></div>
+          <div><label className={labelClass}>App. <span className="text-gray-400 font-normal">(optionnel)</span></label><input value={customer.apartment || ""} onChange={(e) => update("apartment" as any, e.target.value)} readOnly={locked} className={lockedCls(inputClass)} placeholder="Ex. 3B" /></div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelClass}>Ville *</label><input value={customer.city} onChange={(e) => update("city", e.target.value)} className={inputClass} /></div>
-          <div><label className={labelClass}>Code postal *</label><input value={customer.postal_code} onChange={(e) => update("postal_code", e.target.value)} className={inputClass} placeholder="H1A 1A1" /></div>
+          <div><label className={labelClass}>Ville *</label><input value={customer.city} onChange={(e) => update("city", e.target.value)} readOnly={locked} className={lockedCls(inputClass)} /></div>
+          <div><label className={labelClass}>Code postal *</label><input value={customer.postal_code} onChange={(e) => update("postal_code", e.target.value)} readOnly={locked} className={lockedCls(inputClass)} placeholder="H1A 1A1" /></div>
         </div>
         <div>
           <label className={labelClass}>Province</label>
-          <select value={customer.province} onChange={(e) => update("province", e.target.value)} className={inputClass}>
+          <select value={customer.province} onChange={(e) => update("province", e.target.value)} disabled={locked} className={lockedCls(inputClass)}>
             <option value="QC">Québec</option><option value="ON">Ontario</option>
           </select>
         </div>
+
 
         {customer.serviceability_status === "unknown" && customer.postal_code.trim() && (
           <button type="button" onClick={runServiceabilityCheck}
@@ -386,7 +412,9 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
       )}
 
       <div className="flex gap-3">
-        <button type="button" onClick={() => setMode("choose")} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-gray-50 hover:bg-secondary transition-colors">← Retour</button>
+        {!locked && (
+          <button type="button" onClick={() => setMode("choose")} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-gray-50 hover:bg-secondary transition-colors">← Retour</button>
+        )}
         <button type="button" onClick={() => { runDuplicateCheck(); onNext(); }} disabled={!canContinue}
           className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2">
           Continuer <ArrowRight className="h-4 w-4" />
