@@ -298,6 +298,7 @@ export function InstallationScheduler({
   const handleQuestionnaireComplete = useCallback(
     async (answers: CablingData) => {
       setCablingAnswers(answers);
+      onCablingAnswered?.(answers);
       const result = determineInstallation(distanceKm, answers);
       setDecision(result);
       onInstallationTypeChange(result.installationType, result.technicianLevel);
