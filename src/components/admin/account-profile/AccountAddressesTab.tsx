@@ -21,7 +21,7 @@ export function AccountAddressesTab({ account, subscriptions, equipment = [], ap
     clientSupabase.functions.invoke("account-ops-actions", {
       body: {
         action: "notify_address_change",
-        client_user_id: account.user_id || account.client_id,
+        client_user_id: account?.user_id || account?.client_id,
         new_address: addr.address_line,
         new_city: addr.city,
         new_postal: addr.postal_code,
