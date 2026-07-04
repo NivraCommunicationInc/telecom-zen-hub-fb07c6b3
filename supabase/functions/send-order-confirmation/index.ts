@@ -741,17 +741,49 @@ Deno.serve(async (req) => {
     }
 
     // ── PAYMENT GATE ─────────────────────────────────────────────
-    // Do NOT send order confirmation (contract + invoice + summary PDFs)
-    // until payment is actually confirmed. The client must never receive
-    // official documents for an unpaid order. `force=true` bypasses this
-    // gate for legitimate admin re-sends only.
-    const paidStatuses = new Set(["paid", "confirmed", "completed"]);
+    // HARD RULE: no confirmation email, contract, invoice, receipt, or summary
+    // can be sent/persisted until the order AND the billing record prove payment.
+    // `force=true` may only bypass the "already sent" check below; it can never
+    // bypass payment confirmation.
+    const paidStatuses = new Set(["paid", "confirmed", "completed", "captured", "succeeded"]);
     const currentPaymentStatus = String((orderData as any)?.payment_status || "").toLowerCase();
-    if (!force && !paidStatuses.has(currentPaymentStatus)) {
-      console.log(`[${requestId}] SKIP — order not paid (payment_status=${currentPaymentStatus})`);
-      logResult("skipped_already_sent", { reason: "payment_not_confirmed", payment_status: currentPaymentStatus, order_id });
+    const { data: gateInvoice } = await supabase
+      .from("billing_invoices")
+      .select("id, status, total, amount_paid, balance_due")
+      .eq("order_id", order_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    let gatePaymentConfirmed = false;
+    if ((gateInvoice as any)?.id) {
+      const { data: gatePayments } = await supabase
+        .from("billing_payments")
+        .select("status, amount, received_at, captured_at")
+        .eq("invoice_id", (gateInvoice as any).id);
+      gatePaymentConfirmed = (gatePayments || []).some((p: any) =>
+        paidStatuses.has(String(p.status || "").toLowerCase())
+        && Number(p.amount || 0) > 0
+        && Boolean(p.received_at || p.captured_at || p.status),
+      );
+    }
+    const gateInvoiceStatus = String((gateInvoice as any)?.status || "").toLowerCase();
+    const gateTotal = Number((gateInvoice as any)?.total ?? (orderData as any)?.total_amount ?? 0);
+    const gateAmountPaid = Number((gateInvoice as any)?.amount_paid ?? 0);
+    const gateBalanceDue = Number((gateInvoice as any)?.balance_due ?? Math.max(gateTotal - gateAmountPaid, 0));
+    const gateInvoicePaid = paidStatuses.has(gateInvoiceStatus) && (gateBalanceDue <= 0.01 || gateAmountPaid >= gateTotal || gateTotal <= 0);
+    const gateOrderPaid = paidStatuses.has(currentPaymentStatus);
+    const canSendOfficialDocuments = gateOrderPaid && (gatePaymentConfirmed || gateInvoicePaid || (gateTotal <= 0 && gateInvoicePaid));
+    if (!canSendOfficialDocuments) {
+      console.log(`[${requestId}] SKIP — payment not confirmed (order=${currentPaymentStatus}, invoice=${gateInvoiceStatus || "missing"}, payment=${gatePaymentConfirmed})`);
+      logResult("skipped_already_sent", {
+        reason: "payment_not_confirmed",
+        payment_status: currentPaymentStatus,
+        invoice_status: gateInvoiceStatus || null,
+        payment_confirmed: gatePaymentConfirmed,
+        order_id,
+      });
       return new Response(
-        JSON.stringify({ ok: true, skipped: true, reason: "payment_not_confirmed", payment_status: currentPaymentStatus }),
+        JSON.stringify({ ok: true, skipped: true, reason: "payment_not_confirmed", payment_status: currentPaymentStatus, invoice_status: gateInvoiceStatus || null }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -975,7 +1007,7 @@ Deno.serve(async (req) => {
       tps: canonicalTps,
       tvq: canonicalTvq,
       total: canonicalTotalPayable,
-      payment_status: effectivePaymentRef ? "Payé" : "En traitement",
+      payment_status: "Payé",
       payment_url: `${siteBaseUrl}/portal/orders/${order_id}`,
       portal_url: `${siteBaseUrl}/portal/orders/${order_id}`,
       invoice_lines: canonicalInvoiceLines,
