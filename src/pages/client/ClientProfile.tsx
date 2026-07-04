@@ -78,13 +78,7 @@ const ClientProfile = () => {
     new: false,
     confirm: false,
   });
-  const [addLocationDialogOpen, setAddLocationDialogOpen] = useState(false);
-  const [newLocation, setNewLocation] = useState({
-    label: "",
-    service_address: "",
-    service_city: "",
-    service_postal_code: "",
-  });
+  // Pass 3A: état "addLocation" retiré — création gérée par <ServiceAddressPicker />.
   // PIN confirmation dialog for sensitive actions
   const [pinConfirmOpen, setPinConfirmOpen] = useState(false);
   const [pendingProfileUpdate, setPendingProfileUpdate] = useState<typeof formData | null>(null);
