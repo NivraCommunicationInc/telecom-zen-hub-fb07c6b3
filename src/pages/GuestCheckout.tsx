@@ -2278,20 +2278,27 @@ const GuestCheckout = () => {
                           customerEmail={email}
                           customerName={`${firstName} ${lastName}`.trim()}
                           onBeforeCharge={async () => {
-                            const { data, error } = await supabase
-                              .from("field_payment_intents" as any)
-                              .insert({
-                                amount: todayTotal,
-                                currency: "CAD",
-                                status: "pending",
-                                payment_method: "square_checkout",
-                                customer_email: email || null,
-                                customer_name: `${firstName} ${lastName}`.trim() || null,
-                              })
-                              .select("id")
-                              .single();
-                            if (error || !data) throw error ?? new Error("Erreur initialisation paiement");
-                            return { intent_id: (data as any).id };
+                            // Guest (anon) cannot insert into field_payment_intents directly
+                            // (RLS is authenticated-only). Route through the public
+                            // pos-square-intent edge function which uses the service role.
+                            const { data, error } = await supabase.functions.invoke(
+                              "pos-square-intent",
+                              {
+                                body: {
+                                  amount: todayTotal,
+                                  customer_email: email || null,
+                                  customer_name: `${firstName} ${lastName}`.trim() || null,
+                                  description: `Checkout web — ${email || "invité"}`,
+                                  mode: "inline",
+                                },
+                              },
+                            );
+                            if (error || !data?.ok || !data?.intent_id) {
+                              throw new Error(
+                                (data as any)?.error || error?.message || "Erreur initialisation paiement",
+                              );
+                            }
+                            return { intent_id: data.intent_id as string };
                           }}
                           onSuccess={(_receiptUrl, paymentId) => {
                             setPaypalCaptureId(paymentId || "");
