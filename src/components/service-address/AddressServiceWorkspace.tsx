@@ -2,7 +2,7 @@
  * AddressServiceWorkspace — dossier cliquable par adresse de service.
  * Affiche l'adresse, ses services, équipements, rendez-vous, tickets et actions.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,7 +90,7 @@ function Metric({ icon: Icon, label, value }: { icon: any; label: string; value:
   );
 }
 
-function Row({ title, meta, badge, action }: { title: string; meta?: string; badge?: string; action?: React.ReactNode }) {
+function Row({ title, meta, badge, action }: { title: string; meta?: string; badge?: string; action?: ReactNode }) {
   return (
     <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-md border border-border bg-background/60 px-3 py-2">
       <div className="min-w-0">
@@ -105,7 +105,7 @@ function Row({ title, meta, badge, action }: { title: string; meta?: string; bad
   );
 }
 
-function DataSection({ title, icon: Icon, count, children, empty }: { title: string; icon: any; count: number; children: React.ReactNode; empty: string }) {
+function DataSection({ title, icon: Icon, count, children, empty }: { title: string; icon: any; count: number; children: ReactNode; empty: string }) {
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between border-b border-border pb-2">
