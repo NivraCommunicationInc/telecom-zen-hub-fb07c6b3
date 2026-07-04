@@ -4971,7 +4971,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             .map((s) => ({
                               key: s.id,
                               label: s.name,
-                              monthlyPriceCents: Math.round(Number(s.monthly_price || 0) * 100),
+                              monthlyPriceCents: Math.round(Number(s.price || 0) * 100),
                             }))}
                         />
                       </>
