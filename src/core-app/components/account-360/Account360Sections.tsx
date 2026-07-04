@@ -19,6 +19,7 @@ import { EquipmentActionMenu } from "@/core-app/components/account-actions/Equip
 import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
 import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
 import { CoreSquarePaymentDialog } from "@/core-app/components/account-360/CoreSquarePaymentDialog";
+import { CoreAutopayPanel } from "@/core-app/components/account-360/CoreAutopayPanel";
 import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
 import { AdminDocumentsPanel } from "@/components/admin/AdminDocumentsPanel";
 import { EquipmentDetailDialog, KycDetailDialog } from "./Account360DetailDialogs";
