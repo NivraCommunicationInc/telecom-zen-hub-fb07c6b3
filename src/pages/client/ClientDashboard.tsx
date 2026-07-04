@@ -16,7 +16,7 @@ import { getCycleDisplay } from "@/lib/billingCycleDisplay";
 import {
   Wifi, Smartphone, Tv, Copy, FileText, CreditCard,
   AlertCircle, Package, ArrowRight, ChevronRight,
-  CheckCircle2, Clock, Zap, Settings, LifeBuoy, Gift, PhoneForwarded,
+  CheckCircle2, Clock, Zap, Settings, LifeBuoy, Gift, PhoneForwarded, MapPin,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -153,7 +153,43 @@ const ClientDashboard = () => {
       cycle_end_date:       s.cycle_end_date,
       next_renewal_at:      s.next_renewal_at,
       billing_cycle_anchor: s.billing_cycle_anchor,
+      service_address_id:   s.service_address_id || s.address_id,
     }));
+
+  const serviceAddresses = (() => {
+    const canonical = (canon?.serviceAddresses ?? []).map((a: any) => ({
+      id: a.id,
+      address_line: a.address_line || a.service_address || a.address || "Adresse de service",
+      city: a.city || a.service_city,
+      province: a.province || a.service_province || "QC",
+      postal_code: a.postal_code || a.service_postal_code,
+    })).filter((a: any) => a.id || a.address_line);
+    if (canonical.length > 0) return canonical;
+    const legacy = (canon?.accountServiceLocations ?? []).map((a: any) => ({
+      id: a.id,
+      address_line: a.service_address || a.address_line || "Adresse de service",
+      city: a.service_city || a.city,
+      province: a.service_province || a.province || "QC",
+      postal_code: a.service_postal_code || a.postal_code,
+    })).filter((a: any) => a.id || a.address_line);
+    if (legacy.length > 0) return legacy;
+    if ((account as any)?.primary_service_address) {
+      return [{
+        id: "primary",
+        address_line: (account as any).primary_service_address,
+        city: (account as any).primary_service_city,
+        province: (account as any).primary_service_province || "QC",
+        postal_code: (account as any).primary_service_postal_code,
+      }];
+    }
+    return [];
+  })();
+
+  const serviceCountByAddress = new Map<string, number>();
+  for (const s of subs) {
+    if (!s.service_address_id) continue;
+    serviceCountByAddress.set(s.service_address_id, (serviceCountByAddress.get(s.service_address_id) ?? 0) + 1);
+  }
 
   const firstName   = profile?.full_name?.split(" ")[0] || user?.user_metadata?.full_name?.split(" ")[0] || "Client";
   const acctNum     = account?.account_number || accountIdentity?.accountNumber || "—";
@@ -375,12 +411,52 @@ const ClientDashboard = () => {
               <QBtn icon={<LifeBuoy size={20} />}     label="Support"         to="/portal/tickets" color="#F59E0B" />
               <QBtn icon={<Gift size={20} />}         label="Parrainage"      to="/portal/referrals" color="#A78BFA" />
               <QBtn icon={<Package size={20} />}      label="Commandes"       to="/portal/orders" color="#34D399" />
+              <QBtn icon={<MapPin size={20} />}       label="Adresses"        to="/portal/service-addresses" color="#14B8A6" />
               <QBtn icon={<PhoneForwarded size={20} />} label="Transférer #"  to="/portal/port-in" color="#06B6D4" />
             </div>
           </motion.div>
 
-          {/* ════ MES SERVICES ═══════════════════════════════════════ */}
+          {/* ════ ADRESSES DE SERVICE ═══════════════════════════════ */}
           <motion.div initial="hidden" animate="visible" custom={3} variants={up} style={{ marginBottom: 32 }}>
+            <GCard hover={false}>
+              <div style={{ padding: "18px 24px", borderBottom: "1px solid rgba(20,184,166,0.16)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Adresses de service</span>
+                <Link to="/portal/service-addresses" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 600, color: "#5eead4", textDecoration: "none" }}>
+                  Gérer / ajouter <ChevronRight size={14} />
+                </Link>
+              </div>
+              {serviceAddresses.length > 0 ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, padding: 20 }}>
+                  {serviceAddresses.map((addr: any, i: number) => (
+                    <div key={addr.id || `${addr.address_line}-${i}`} style={{ border: "1px solid rgba(20,184,166,0.22)", borderRadius: 16, padding: 16, background: "rgba(20,184,166,0.05)" }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(20,184,166,0.12)", border: "1px solid rgba(20,184,166,0.28)", display: "flex", alignItems: "center", justifyContent: "center", color: "#5eead4", flexShrink: 0 }}>
+                          <MapPin size={16} />
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.35 }}>{addr.address_line}</p>
+                          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", marginBottom: 10 }}>{[addr.city, addr.province, addr.postal_code].filter(Boolean).join(", ") || "Québec"}</p>
+                          <span style={{ display: "inline-flex", border: "1px solid rgba(20,184,166,0.3)", borderRadius: 999, padding: "4px 10px", color: "#5eead4", fontSize: 11, fontWeight: 700 }}>
+                            {serviceCountByAddress.get(addr.id) ?? 0} service{(serviceCountByAddress.get(addr.id) ?? 0) > 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                  <p style={{ color: "rgba(255,255,255,0.48)", fontSize: 14 }}>Aucune adresse de service enregistrée dans ce compte.</p>
+                  <Link to="/portal/service-addresses" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.3)", borderRadius: 12, padding: "10px 18px", color: "#5eead4", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                    Ajouter une adresse <ArrowRight size={14} />
+                  </Link>
+                </div>
+              )}
+            </GCard>
+          </motion.div>
+
+          {/* ════ MES SERVICES ═══════════════════════════════════════ */}
+          <motion.div initial="hidden" animate="visible" custom={4} variants={up} style={{ marginBottom: 32 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Mes abonnements</span>
               <Link to="/portal/services" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 600, color: "#a78bfa", textDecoration: "none" }}>
@@ -450,7 +526,7 @@ const ClientDashboard = () => {
           </motion.div>
 
           {/* ════ PAIEMENT + COUNTDOWN ═══════════════════════════════ */}
-          <motion.div initial="hidden" animate="visible" custom={4} variants={up} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, marginBottom: 32 }}>
+          <motion.div initial="hidden" animate="visible" custom={5} variants={up} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, marginBottom: 32 }}>
             <GCard hover={false}>
               <div style={{ padding: "18px 20px 8px", borderBottom: "1px solid rgba(124,58,237,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Mode de paiement</span>
@@ -469,7 +545,7 @@ const ClientDashboard = () => {
 
           {/* ════ COMMANDES ══════════════════════════════════════════ */}
           {orders.length > 0 && (
-            <motion.div initial="hidden" animate="visible" custom={5} variants={up} style={{ marginBottom: 32 }}>
+            <motion.div initial="hidden" animate="visible" custom={6} variants={up} style={{ marginBottom: 32 }}>
               <GCard hover={false}>
                 <div style={{ padding: "18px 24px", borderBottom: "1px solid rgba(124,58,237,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Commandes récentes</span>
@@ -499,7 +575,7 @@ const ClientDashboard = () => {
           )}
 
           {/* ════ PLAINTE ════════════════════════════════════════════ */}
-          <motion.div initial="hidden" animate="visible" custom={6} variants={up}>
+          <motion.div initial="hidden" animate="visible" custom={7} variants={up}>
             <GCard hover={false} style={{ borderColor: "rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.04)" }}>
               <div style={{ padding: "18px 24px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
