@@ -338,6 +338,34 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
         </div>
       )}
 
+      {/* ── Installation slot + coaxial survey (shared components) ── */}
+      {customer.serviceability_status === "available" && (
+        <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-50">Créneau d'installation (optionnel)</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Réserve un passage technicien si nécessaire.</p>
+          </div>
+          <InstallSlotPicker
+            variant="compact"
+            value={customer.install_slot ?? null}
+            onChange={(slot) => onChange({
+              ...customer,
+              install_slot: slot,
+              install_date: slot?.date ?? null,
+              install_mode: slot ? "technician" : customer.install_mode,
+            })}
+          />
+          <div className="pt-3 border-t border-white/10">
+            <h3 className="text-sm font-semibold text-gray-50 mb-2">Câblage coaxial</h3>
+            <CoaxialSurvey
+              variant="compact"
+              value={customer.coaxial_survey ?? initialCoaxialAnswers()}
+              onChange={(answers) => onChange({ ...customer, coaxial_survey: answers })}
+            />
+          </div>
+        </div>
+      )}
+
       {customer.notes !== undefined && (
         <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-2">
           <label className={labelClass}>Notes internes</label>
