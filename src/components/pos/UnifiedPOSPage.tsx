@@ -246,6 +246,14 @@ export default function UnifiedPOSPage({
   };
 
   const handleCustomerSubmit = (data: CustomerData | AdminCustomerData) => {
+    if (requiresCoax && !coaxComplete) {
+      toast.error("Veuillez compléter le questionnaire coaxial");
+      return;
+    }
+    if (requiresInstall && !installComplete) {
+      toast.error("Veuillez choisir un créneau d'installation");
+      return;
+    }
     setCustomerData(data);
     setStep("payment");
   };
