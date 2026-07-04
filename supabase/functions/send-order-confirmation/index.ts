@@ -727,7 +727,7 @@ Deno.serve(async (req) => {
 
     const { data: orderData, error: checkError } = await supabase
       .from("orders")
-      .select("confirmation_email_sent_at, client_email, client_first_name, client_last_name, client_phone, order_number, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot, promo_code, ship_to_different_address, shipping_first_name, shipping_last_name, shipping_address_line, shipping_apartment, shipping_city, shipping_province, shipping_postal_code, shipping_instructions, activation_preference, requested_activation_date, installation_details")
+      .select("confirmation_email_sent_at, client_email, client_first_name, client_last_name, client_phone, order_number, user_id, created_at, payment_method, payment_reference, payment_status, total_amount, pricing_snapshot, promo_code, ship_to_different_address, shipping_first_name, shipping_last_name, shipping_address_line, shipping_apartment, shipping_city, shipping_province, shipping_postal_code, shipping_instructions, activation_preference, requested_activation_date, installation_details")
       .eq("id", order_id)
       .single();
 
@@ -738,6 +738,22 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ── PAYMENT GATE ─────────────────────────────────────────────
+    // Do NOT send order confirmation (contract + invoice + summary PDFs)
+    // until payment is actually confirmed. The client must never receive
+    // official documents for an unpaid order. `force=true` bypasses this
+    // gate for legitimate admin re-sends only.
+    const paidStatuses = new Set(["paid", "confirmed", "completed"]);
+    const currentPaymentStatus = String((orderData as any)?.payment_status || "").toLowerCase();
+    if (!force && !paidStatuses.has(currentPaymentStatus)) {
+      console.log(`[${requestId}] SKIP — order not paid (payment_status=${currentPaymentStatus})`);
+      logResult("skipped_already_sent", { reason: "payment_not_confirmed", payment_status: currentPaymentStatus, order_id });
+      return new Response(
+        JSON.stringify({ ok: true, skipped: true, reason: "payment_not_confirmed", payment_status: currentPaymentStatus }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // Hydrate missing fields from DB so callers can invoke with just order_id
