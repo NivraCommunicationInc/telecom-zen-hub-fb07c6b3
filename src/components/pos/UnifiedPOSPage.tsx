@@ -474,7 +474,19 @@ export default function UnifiedPOSPage({
         <div className="flex-1 overflow-hidden">
           {step === "catalog" && (
             <div className={cn("h-full flex", isMobile ? "flex-col" : "")}>
-              {/* Product Area */}
+              {hasDraft && pos.isEmpty && !draftDismissed && (
+                <div className="absolute top-2 left-2 right-2 z-20 md:left-4 md:right-4">
+                  <CartResumeBanner
+                    itemCount={
+                      (savedDraft?.services?.length || 0) +
+                      (savedDraft?.equipment?.length || 0) +
+                      (savedDraft?.adjustments?.length || 0)
+                    }
+                    onResume={handleResumeDraft}
+                    onDismiss={handleDismissDraft}
+                  />
+                </div>
+              )}
               <div className={cn("flex-1 flex flex-col", !isMobile && "border-r border-slate-700/50")}>
                 {/* Catalog Tabs */}
                 <div className="border-b border-slate-700/50 bg-slate-900/30">
