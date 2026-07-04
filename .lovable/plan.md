@@ -1,130 +1,118 @@
-## Contexte
+## Passe 3A + 3C — Multi-adresses complet + Prorata immédiat
 
-Tu demandes 4 gros chantiers différents à appliquer partout où une commande est créée (Nivra Core, Field, OneView, portail client). Avant de coder, je veux valider le plan complet parce que ça touche : le tunnel de commande, la facturation multi-adresses, le calendrier d'installation, et la persistance du panier.
-
----
-
-## Chantier 1 — Tunnel de commande unifié (Core / Field / OneView / Client)
-
-Créer un **flux de commande commun** utilisé par tous les portails, avec ces étapes obligatoires :
-
-1. **Sélection forfait** (Internet / TV / Mobile)
-2. **Équipements auto-sélectionnés** selon règles ci-dessous
-3. **Questionnaire câble coaxial** (Oui/Non, prise fonctionnelle, nombre de prises)
-4. **Choix installation** : Technicien OU Auto-installation
-5. **Choix date** — connecté au vrai calendrier `appointment_slot_rules` + `appointment_slot_overrides` + `appointment_blocked_dates`
-6. **Adresse de service** (nouvelle OU adresse existante du compte si ≤ 2)
-7. **Récapitulatif + paiement**
-
-### Règles équipement auto-sélectionné (non négociables)
-
-| Forfait choisi        | Équipement forcé                                 | Min | Max |
-|-----------------------|--------------------------------------------------|-----|-----|
-| Internet              | 1× Borne WiFi (60 $)                             | 1   | 1   |
-| TV                    | 1× Borne WiFi (60 $) + 1× Terminal TV (50 $)     | 1   | 4 terminaux |
-| Mobile                | 1× SIM (30 $)                                    | 1   | 1   |
-
-- Impossible de décocher les équipements obligatoires.
-- Terminal TV : bouton +/− limité entre 1 et 4.
-
-### Règle auto-installation → expédition automatique
-
-Si le client choisit **Auto-installation** :
-- La commande passe automatiquement en workflow `shipping_required`
-- Les **frais d'expédition** sont ajoutés à la facture (montant à confirmer avec toi, valeur par défaut : à définir)
-- Aucune date de rendez-vous demandée, mais on demande une adresse d'expédition
-- Le statut Core devient `awaiting_shipment` au lieu de `awaiting_installation`
-
-### Questionnaire coaxial
-
-Affiché uniquement pour Internet et TV. Champs :
-- Avez-vous une prise coaxiale ? (Oui/Non)
-- Fonctionne-t-elle ? (Oui / Ne sais pas)
-- Nombre de prises actives dans le logement (1-8)
-
-Réponses stockées dans `orders.coaxial_survey` (jsonb) et remontées au technicien.
+Template PDF `invoiceTemplateV3.ts` **NON touché** cette passe (verrou respecté).
 
 ---
 
-## Chantier 2 — Persistance du panier (fix "refresh remet à 0")
+### 0. Fondations DB (migration unique)
 
-Aujourd'hui, un refresh vide tout. Correctif :
+**`account_service_locations` — enrichissement en entité complète**
 
-- Sauvegarder l'état du tunnel dans `checkout_sessions` (table qui existe déjà) toutes les fois qu'une étape est validée
-- **Côté Field/Core** : `field_quotes` déjà persisté → charger le brouillon au reload via `quote_id` en URL
-- **Côté client public** : sauvegarder sous une clé `checkout_draft` dans `localStorage` + rangée `checkout_sessions` liée à l'email si fourni
-- Reprise automatique : au mount de la page, si un draft existe (< 24 h), demander "Reprendre votre commande en cours ?" avec option "Recommencer"
+Ajout des colonnes de traçabilité + métadonnées :
+- `created_by_user_id uuid` (auth.users) — qui a ajouté
+- `created_via text` — `guest_checkout | portal | field | core | pos | employee`
+- `created_from_order_id uuid` (orders)
+- `created_by_employee_id uuid` (employees)
+- `created_by_field_agent_id uuid` (profiles)
+- `deleted_at timestamptz` (soft-delete, jamais de purge)
+- `notes text`, `contact_name text`, `contact_phone text`
+- Index composite `(account_id, is_active)` + unique partiel `(account_id, service_address, service_postal_code) WHERE deleted_at IS NULL`
 
----
+**Cohérence `service_location_id` partout**
+- `billing_subscriptions` : déjà `service_address_id` + `address_id` → on ajoute `service_location_id uuid REFERENCES account_service_locations` (nullable pour rétrocompat, mais NOT NULL enforced côté code sur nouvelles créations)
+- `billing_invoice_lines` : ajout `service_location_id uuid` + index
+- `equipment_inventory` : déjà `address_id` — on ajoute `service_location_id` + backfill
+- `installations` : ajout `service_location_id`
+- `appointments` : ajout `service_location_id`
+- `support_tickets` : ajout `service_location_id` (optionnel — un ticket peut être compte-level)
+- `service_incidents` : ajout `service_location_id`
+- `technician_assignments` : ajout `service_location_id`
 
-## Chantier 3 — Multi-adresses de service (max 2 par compte)
+**Backfill (idempotent, dans la même migration)**
+1. Pour chaque `accounts` sans `account_service_locations` mais avec adresse : créer 1 location "Adresse principale" à partir de `accounts.service_address/city/postal_code`.
+2. Backfill `orders.service_location_id` par match adresse normalisée.
+3. Backfill descendant : `billing_subscriptions`, `installations`, `appointments`, `equipment_inventory`, `service_incidents` héritent du `service_location_id` de leur `order_id` parent.
+4. Log dans `security_audit_log` du nombre de rows backfillées par table.
 
-### Règle métier
+**Nouvelle table `service_location_history`** (audit immuable)
+- `id, service_location_id, event_type, actor_user_id, actor_role, portal_source, order_id, metadata jsonb, created_at`
+- Trigger `AFTER INSERT/UPDATE/DELETE` sur `account_service_locations` → enregistre l'événement.
+- RLS : lecture par admin + owner du compte, écriture service_role uniquement.
 
-- Un compte = **maximum 2 adresses de service**
-- Chaque adresse peut avoir ses propres services (Internet, TV, Mobile), forfaits, promos indépendants
-- **1 seule facture par compte**, peu importe le nombre d'adresses
-- Cycle de facturation du compte ne change JAMAIS quand on ajoute une 2ᵉ adresse
-- La nouvelle adresse est **facturée au prorata** jusqu'au prochain cycle
-
-### Nouveau parcours "Activer un service à une autre adresse"
-
-Ajouté dans :
-- Portail client (`/portal/services` → bouton "Ajouter un service à une nouvelle adresse")
-- Portail Nivra Secure Hub / Core (fiche client → onglet Services → bouton "Ajouter adresse")
-- Field app (fiche client existante)
-
-Écran :
-1. Choisir "Nouvelle adresse" ou une des 2 adresses existantes
-2. Vérifier serviciabilité
-3. Passer par le tunnel Chantier 1 (mêmes règles équipement, coaxial, installation)
-4. Confirmation avec pro-rata affiché
-
-### Facturation
-
-- Table `service_addresses` : marquer laquelle est primary/secondary
-- Table `billing_subscriptions` : rattacher chaque abonnement à un `service_address_id`
-- Rendu facture : **section par adresse** avec sous-total, puis total global
-- Nouvelle fonction `compute_prorata(start_date, cycle_day, monthly_price)` qui retourne le montant à facturer sur la facture en cours
-
-### Exemple prorata (que tu as donné)
-
-Compte cycle = 10 du mois. Client active le 1er du mois :
-- Facturer 9 jours au prorata (1 → 10)
-- Formule : `monthly_price × (days_before_cycle / 30)`
-- Prochain cycle (le 10) : facturation normale du mois complet
+**RPC `resolve_or_create_service_location(account_id, address, city, province, postal, created_via, actor_id, order_id)`**
+- SECURITY DEFINER. Match par postal_code + street normalisée. Retourne UUID. Utilisé partout côté serveur pour éviter les doublons.
 
 ---
 
-## Chantier 4 — Calendrier d'installation unifié
+### 3A — Multi-adresses UI (4 tunnels + portail)
 
-Aujourd'hui, le calendrier RDV du site marketing n'est pas branché au tunnel commande. Correctif :
+**Composant partagé `<ServiceLocationPicker>`**
+- Props : `accountId`, `value`, `onChange`, `mode: 'existing-or-new' | 'new-only'`
+- Affiche : liste des adresses actives + bouton "Ajouter une nouvelle adresse de service"
+- Formulaire adresse identique partout (validation postal QC, `address-qualify` edge function).
 
-- Nouvelle RPC `get_available_installation_slots(from_date, to_date, service_type)` qui lit :
-  - `appointment_slot_rules` (horaires récurrents)
-  - `appointment_slot_overrides` (exceptions)
-  - `appointment_blocked_dates` (jours bloqués)
-  - `installation_appointments` (déjà réservés) pour capacité
-- Composant `<InstallSlotPicker />` réutilisé dans **tous les tunnels** (Core, Field, OneView, Client)
-- À la sélection, on pré-réserve le slot dans `installation_appointments` avec statut `pending`
-- Si la commande est abandonnée, un job nettoie les `pending > 30 min`
+**Intégration dans les 4 tunnels + 1 nouveau :**
+1. `GuestCheckout` — après création compte, résout la première location (created_via=`guest_checkout`).
+2. `UnifiedPOSPage` (Core POS) — sélecteur obligatoire si compte existant multi-adresses, sinon création (created_via=`pos`).
+3. `FieldNewSale` (Field) — StepCustomer étendu avec sélecteur/création (created_via=`field`).
+4. `EmployeePOS` — sélecteur/création (created_via=`employee`).
+5. **Nouveau `/portal/nouvelle-adresse`** — tunnel dédié client authentifié pour ajouter une adresse + commander un nouveau service dessus (created_via=`portal`).
+
+**Portail client `/portal` — restructuration lecture**
+- Nouveau hook `useAccountServiceLocations(accountId)` retourne : `[{ location, subscriptions[], equipment[], invoices[], tickets[], appointments[] }]`.
+- Composant `<AccountLocationsView>` : accordéon par adresse, avec sous-sections **Services / Équipements / Factures / Support**.
+- Fallback compte mono-adresse : accordéon replié auto = comportement identique visuel actuel (aucune régression UX).
+
+**Aucune limite codée à N=2** — tout est `.map()` sur array.
 
 ---
 
-## Ordre d'exécution proposé
+### 3C — Prorata immédiat (activation d'un service sur 2ᵉ+ adresse)
 
-1. **Chantier 4** — Calendrier RPC + composant partagé
-2. **Chantier 1** — Tunnel unifié (règles équipement + coaxial + auto-install + expédition)
-3. **Chantier 2** — Persistance panier
-4. **Chantier 3** — Multi-adresses + prorata + facture unique
+**Edge function `billing-create-prorata-invoice`** (nouvelle)
+- Input : `{ order_id, subscription_id, activation_date, cycle_anchor_date }`
+- Utilise `_shared/prorationMath.ts` (existant, 30j) : `montant = (prix_mensuel / 30) × jours_restants`
+- Crée `billing_invoices` avec `type='prorata_activation'`, `notes` = FR/EN mention explicite "Facturation au prorata — Activation du <date> jusqu'à la fin du cycle <date_fin>. Le prochain cycle complet démarrera le <cycle_anchor>."
+- Crée `billing_invoice_lines` avec `line_type='prorata_service'`, `description` préfixée `"[Adresse: <label>] <service_name> — Prorata <n> jours"`, `service_location_id` renseigné.
+- Application TPS 5% + TVQ 9.975% via `compute_invoice_breakdown` (existant, inchangé).
+- Aligne `billing_subscriptions.cycle_start_date` sur `cycle_anchor_date` (cycle principal du compte) → prochaine facture = 1 seule pour toutes les adresses.
+
+**Email prorata** — template bleu corporate existant (`baseStyles.ts`, `renderQueueTemplate`), sujet : "Facture de prorata — Activation nouvelle adresse". Aucun nouveau design.
+
+**Trigger** : appelée par
+- `billing-confirm-payment` quand `order.type='additional_location'`
+- Webhook PayPal on `PAYMENT.SALE.COMPLETED` pour orders `additional_location`
+
+**Prochain cycle** : `billing-subscription-cycle` (existant) génère naturellement 1 facture par `customer_id` regroupant toutes les `billing_subscriptions` du compte → les 2 adresses apparaissent en lignes préfixées `[Adresse: X]`. Template PDF inchangé, lisibilité assurée par le préfixe.
 
 ---
 
-## Questions à valider AVANT que je commence
+### Tests avant publication (rapport fourni)
 
-1. **Frais d'expédition auto-install** : quel montant ? (ex. 15 $ ? 25 $ ?)
-2. **Formule prorata** : sur base 30 jours fixes, ou sur nombre réel de jours du mois en cours ?
-3. **Reprise panier** : durée de vie du brouillon (24 h ? 7 jours ?)
-4. **2ᵉ adresse** : cycle facturation **reste identique** = confirmé. Mais le premier mois prorata apparaît sur la **prochaine facture** (pas une facture séparée), correct ?
+Script Playwright + assertions psql couvrant :
+1. Compte mono-adresse existant : portail affiche sans accordéon (aucune régression).
+2. Création compte via `GuestCheckout` → 1 location créée, `created_via='guest_checkout'`.
+3. Ajout 2ᵉ adresse via `/portal/nouvelle-adresse` → location #2 créée, history log présent.
+4. Nouveau service sur adresse #2 → order + subscription + invoice_line ont `service_location_id` #2.
+5. Facture prorata générée avec bon montant (13/30 × prix par ex.), notes explicites, préfixe adresse dans les lignes.
+6. Rollover cycle : 1 seule facture mensuelle regroupant les 2 adresses.
+7. Portail client, portail Core (admin > client), Employee, Field : chaque adresse affiche ses propres services/équipements/factures/tickets.
+8. Compte à 3 adresses (test synthétique) : aucune limite atteinte.
 
-Réponds à ces 4 points et je commence dans l'ordre. Ne pas commencer avant validation — c'est un chantier qui touche 4 portails, je ne veux pas refaire.
+Rapport livré en markdown : `docs/PASS_3A_3C_TEST_REPORT.md`.
+
+---
+
+### Ordre d'exécution
+
+1. Migration DB (schéma + backfill + trigger history + RPC).
+2. Types regénérés → composants partagés (`ServiceLocationPicker`, `useAccountServiceLocations`).
+3. Intégration 4 tunnels + création `/portal/nouvelle-adresse`.
+4. Refonte lecture portail client (accordéon par adresse).
+5. Edge function prorata + hooks paiement/webhook + email.
+6. Tests Playwright + assertions DB → rapport.
+7. Publish.
+
+**Estimation** : 1 grosse migration + ~15 fichiers frontend + 1 edge function + 1 script de test. Aucun toucher au template PDF, aucun toucher aux invariants financiers `compute_invoice_breakdown`.
+
+Confirme et j'enchaîne.
