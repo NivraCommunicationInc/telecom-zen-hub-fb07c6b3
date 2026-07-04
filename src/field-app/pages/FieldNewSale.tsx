@@ -571,8 +571,8 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             appointment_date: draft.customer.install_slot?.date || null,
             appointment_notes: draft.customer.install_slot?.time_slot || null,
             services: [
-              ...draft.services.map((s) => ({ ...s, quantity: 1, price_monthly: s.monthlyPrice, monthly_price: s.monthlyPrice, price_setup: 0 })),
-              ...draft.equipment.map((e) => ({ ...e, quantity: e.quantity, price_monthly: 0, monthly_price: 0, price_setup: e.price })),
+              ...draft.services.map((s) => ({ ...s, kind: 'service', quantity: 1, price_monthly: s.monthlyPrice, monthly_price: s.monthlyPrice, price_setup: 0 })),
+              ...draft.equipment.map((e) => ({ ...e, kind: 'equipment', quantity: e.quantity, price_monthly: 0, monthly_price: 0, price_setup: e.price })),
             ] as any,
             total_amount: total,
             payment_method: "square",
