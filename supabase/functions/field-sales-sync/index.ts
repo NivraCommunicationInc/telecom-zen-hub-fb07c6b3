@@ -398,52 +398,93 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Calculate totals from services
-        const services = Array.isArray(sale.services) ? sale.services : [];
-        let monthlyTotal = 0;
-        let oneTimeFeesTotal = 0;
+        // Structured line breakdown — service, equipment, activation, shipping.
+        // Each item carries kind='service' | 'equipment' from FieldNewSale.
+        const rawItems = Array.isArray(sale.services) ? sale.services : [];
+        const isEquipment = (x: any) =>
+          String(x?.kind || "").toLowerCase() === "equipment"
+          || String(x?.type || "").toLowerCase() === "equipment"
+          || String(x?.category || "").toLowerCase() === "equipment"
+          || (Number(x?.price_monthly ?? x?.monthly_price ?? 0) === 0 && Number(x?.price_setup ?? x?.price ?? 0) > 0);
 
+        const serviceItems = rawItems.filter((x: any) => !isEquipment(x));
+        const equipmentItems = rawItems.filter((x: any) => isEquipment(x));
+
+        let monthlyTotal = 0;
+        let equipmentTotal = 0;
         const lineItems: any[] = [];
-        for (const svc of services) {
+
+        // 1) Recurring service lines (1 per forfait)
+        for (const svc of serviceItems) {
           const qty = Number(svc?.quantity ?? 1) || 1;
           const monthly = Number(svc?.price_monthly ?? svc?.monthly_price ?? 0) || 0;
-          const setup = Number(svc?.price_setup ?? svc?.setup_fee ?? 0) || 0;
+          if (monthly <= 0) continue;
+          const rawName = String(svc?.name || svc?.plan_name || svc?.label || "Service");
+          monthlyTotal += monthly * qty;
+          lineItems.push({
+            category: "service",
+            type: mapLineItemType(svc?.type || svc?.category),
+            name: `${rawName} — 30 jours`,
+            qty,
+            unit_price: monthly,
+            period: "monthly",
+            taxable: true,
+          });
+        }
 
-          const itemName = String(svc?.name || svc?.plan_name || svc?.label || svc?.category || "Service");
-          const itemType = mapLineItemType(svc?.type || svc?.category);
+        // 2) Equipment lines (1 par équipement, prix unique)
+        for (const eq of equipmentItems) {
+          const qty = Number(eq?.quantity ?? 1) || 1;
+          const price = Number(eq?.price_setup ?? eq?.price ?? 0) || 0;
+          if (price <= 0) continue;
+          const rawName = String(eq?.name || eq?.plan_name || eq?.label || "Équipement");
+          equipmentTotal += price * qty;
+          lineItems.push({
+            category: "equipment",
+            type: "equipment",
+            name: rawName,
+            qty,
+            unit_price: price,
+            period: "one_time",
+            taxable: true,
+          });
+        }
 
-          if (monthly > 0) {
-            monthlyTotal += monthly * qty;
-            lineItems.push({
-              category: "service",
-              type: itemType,
-              name: itemName,
-              qty,
-              unit_price: monthly,
-              period: "monthly",
-              taxable: true,
-            });
-          }
+        // 3) Canonical activation fee — 10$ (1 service) / 45$ (multi)
+        const serviceCount = serviceItems.length;
+        const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
+        if (activationFee > 0) {
+          lineItems.push({
+            category: "fee",
+            type: "activation",
+            name: serviceCount === 1 ? "Frais d'activation (1 service)" : "Frais d'activation (multi-services)",
+            qty: 1,
+            unit_price: activationFee,
+            period: "one_time",
+            taxable: true,
+          });
+        }
 
-          if (setup > 0) {
-            oneTimeFeesTotal += setup * qty;
-            lineItems.push({
-              category: "fee",
-              type: "activation",
-              name: `Frais de mise en service - ${itemName}`,
-              qty,
-              unit_price: setup,
-              period: "one_time",
-              taxable: true,
-            });
-          }
+        // 4) Shipping fee — 20$ if auto-installation
+        const installMode = String((sale as any)?.install_mode || "").toLowerCase();
+        const shippingFee = installMode === "self" ? 20 : 0;
+        if (shippingFee > 0) {
+          lineItems.push({
+            category: "fee",
+            type: "shipping",
+            name: "Frais de livraison",
+            qty: 1,
+            unit_price: shippingFee,
+            period: "one_time",
+            taxable: true,
+          });
         }
 
         // Base fees model aligned to orders schema
-        let subtotal = monthlyTotal;
-        let activationFee = oneTimeFeesTotal;
-        const deliveryFee = 0;
+        let subtotal = monthlyTotal + equipmentTotal;
+        const deliveryFee = shippingFee;
         const installationFee = 0;
+
 
         // Taxes (Quebec) â€” canonical tax module
         const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
