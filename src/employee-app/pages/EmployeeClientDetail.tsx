@@ -68,6 +68,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const [escalationPreset, setEscalationPreset] = useState<{ category: string; subject: string; desc: string } | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [showKycRequest, setShowKycRequest] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
 
   // Realtime: keep client 360 in sync with Core changes
   usePortalRealtime(
