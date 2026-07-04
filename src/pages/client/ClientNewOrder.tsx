@@ -85,6 +85,7 @@ import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
 import { CheckoutAddressStep } from "@/components/checkout/CheckoutAddressStep";
+import { CheckoutProrataSection } from "@/components/billing/CheckoutProrataSection";
 import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
@@ -4950,18 +4951,32 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </h4>
 
                     {hasResidentialService && user?.id && (
-                      <CheckoutAddressStep
-                        userId={user.id}
-                        category={checkoutAddressCategory}
-                        selectedAddressId={selectedAddressId}
-                        onAddressSelected={(addressId, addressLine, city, postalCode) => {
-                          setSelectedAddressId(addressId);
-                          setServiceAddressStreet(addressLine || "");
-                          setServiceAddressCity(city || "");
-                          setServiceAddressPostalCode(postalCode || "");
-                        }}
-                      />
+                      <>
+                        <CheckoutAddressStep
+                          userId={user.id}
+                          category={checkoutAddressCategory}
+                          selectedAddressId={selectedAddressId}
+                          onAddressSelected={(addressId, addressLine, city, postalCode) => {
+                            setSelectedAddressId(addressId);
+                            setServiceAddressStreet(addressLine || "");
+                            setServiceAddressCity(city || "");
+                            setServiceAddressPostalCode(postalCode || "");
+                          }}
+                        />
+                        <CheckoutProrataSection
+                          userId={user.id}
+                          serviceAddressId={selectedAddressId}
+                          services={selectedServices
+                            .filter((s) => ["Internet", "TV", "Mobile", "Sécurité"].includes(s.category))
+                            .map((s) => ({
+                              key: s.id,
+                              label: s.name,
+                              monthlyPriceCents: Math.round(Number(s.price || 0) * 100),
+                            }))}
+                        />
+                      </>
                     )}
+                    
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2 space-y-2">

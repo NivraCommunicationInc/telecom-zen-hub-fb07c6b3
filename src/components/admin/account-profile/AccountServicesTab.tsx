@@ -31,6 +31,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ProratePreviewCard } from "@/components/billing/ProratePreviewCard";
 
 interface AccountServicesTabProps {
   subscriptions: any[];
@@ -526,6 +527,14 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
                 <Label>Raison du changement</Label>
                 <Textarea value={changePlanReason} onChange={e => setChangePlanReason(e.target.value)} rows={2} placeholder="Upgrade demandé par le client..." />
               </div>
+              {account?.id && (changePlanSub.address_id || changePlanSub.service_address_id) && Number(newPlanPrice) > 0 && (
+                <ProratePreviewCard
+                  accountId={account.id}
+                  serviceAddressId={changePlanSub.address_id || changePlanSub.service_address_id}
+                  monthlyPriceCents={Math.round(Number(newPlanPrice) * 100)}
+                  serviceLabel={newPlanName || "Nouveau forfait"}
+                />
+              )}
             </div>
           )}
           <DialogFooter>
