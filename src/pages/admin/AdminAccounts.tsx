@@ -342,9 +342,10 @@ const AdminAccounts = () => {
   // Delete service location
   const deleteLocationMutation = useMutation({
     mutationFn: async (locationId: string) => {
+      // R1: soft-delete on canonical service_addresses (preserves history)
       const { error } = await supabase
-        .from("account_service_locations")
-        .delete()
+        .from("service_addresses")
+        .update({ is_active: false, deleted_at: new Date().toISOString() })
         .eq("id", locationId);
       if (error) throw error;
     },
