@@ -644,7 +644,19 @@ export default function UnifiedPOSPage({
 
           {step === "customer" && (
             <div className="h-full overflow-auto">
-              <div className={cn("p-4 mx-auto", isAdminPortal ? "max-w-2xl" : "max-w-lg")}>
+              <div className={cn("p-4 mx-auto space-y-4", isAdminPortal ? "max-w-2xl" : "max-w-lg")}>
+                {requiresCoax && (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <h3 className="text-sm font-semibold text-white mb-3">Questionnaire câble coaxial</h3>
+                    <CoaxialSurvey value={coaxSurvey} onChange={setCoaxSurvey} variant="compact" />
+                  </div>
+                )}
+                {requiresInstall && (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <h3 className="text-sm font-semibold text-white mb-3">Rendez-vous d'installation</h3>
+                    <InstallSlotPicker value={installSlot} onChange={setInstallSlot} variant="compact" />
+                  </div>
+                )}
                 {isAdminPortal ? (
                   <POSCustomerFormAdmin
                     onSubmit={handleCustomerSubmit}
