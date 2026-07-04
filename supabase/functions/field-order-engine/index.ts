@@ -606,6 +606,9 @@ Deno.serve(async (req) => {
       if (!quote) return new Response(JSON.stringify({ error: "Soumission introuvable" }), { status: 404, headers });
 
       const ci: any = quote.client_info || {};
+      const staffTunnelTag = ci.existing_account_id
+        ? `[STAFF_TUNNEL account_id=${ci.existing_account_id}${ci.existing_service_address_id ? ` service_address_id=${ci.existing_service_address_id}` : ""} ] `
+        : "";
       const customerName = [ci.first_name, ci.last_name].filter(Boolean).join(" ").trim()
         || intent.customer_name || "Client";
       const fieldServices = [
@@ -638,7 +641,7 @@ Deno.serve(async (req) => {
           discount_data: quote.discount || null,
           source_quote_id: quote.id,
           source_field_payment_intent_id: intent.id,
-          internal_notes: `Shell Core créée depuis intent ${intent.id} — en attente de paiement client`,
+          internal_notes: `${staffTunnelTag}Shell Core créée depuis intent ${intent.id} — en attente de paiement client`.trim(),
         } as any)
         .select("id")
         .single();
