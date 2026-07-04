@@ -401,6 +401,7 @@ Deno.serve(async (req) => {
         // Structured line breakdown — service, equipment, activation, shipping.
         // Each item carries kind='service' | 'equipment' from FieldNewSale.
         const rawItems = Array.isArray(sale.services) ? sale.services : [];
+        const services = rawItems; // backward-compat alias for downstream refs
         const isEquipment = (x: any) =>
           String(x?.kind || "").toLowerCase() === "equipment"
           || String(x?.type || "").toLowerCase() === "equipment"
