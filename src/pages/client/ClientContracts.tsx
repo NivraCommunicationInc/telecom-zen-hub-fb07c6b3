@@ -58,10 +58,27 @@ const ClientContracts = () => {
   const profile = canonicalData?.profile;
   const isLoading = canonicalLoading;
 
-  // Sign contract mutation
+  // Sign contract mutation — routes through sign-contract-public edge fn
+  // when a signature_token exists, so IP + user-agent + PDF regen + notes
+  // are captured server-side (identical mechanic to public /sign?token=...).
+  // Fallback to direct table update only when no token is present.
   const signContractMutation = useMutation({
     mutationFn: async ({ contractId, signature, signatureType }: { contractId: string; signature: string; signatureType: "text" | "canvas" }) => {
       const signedAt = new Date().toISOString();
+      const contract = contracts.find((c: any) => c.id === contractId);
+      const token = contract?.signature_token as string | undefined;
+
+      if (token) {
+        // Canonical inline signing → server captures IP, regenerates PDF, notifies.
+        const { data, error } = await portalSupabase.functions.invoke("sign-contract-public", {
+          body: { token, name: signature, consent: true },
+        });
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || "Signature refusée");
+        return { contractId, signedAt, signature, signatureType };
+      }
+
+      // Fallback (legacy contracts with no token)
       const { error } = await portalSupabase
         .from("contracts")
         .update({
@@ -72,7 +89,6 @@ const ClientContracts = () => {
         } as any)
         .eq("id", contractId)
         .eq("user_id", user?.id);
-
       if (error) throw error;
       return { contractId, signedAt, signature, signatureType };
     },
@@ -110,9 +126,9 @@ const ClientContracts = () => {
       setCanvasSignature(null);
       setSignatureError(null);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Contract sign error:", error);
-      toast({ title: "Erreur lors de la signature", variant: "destructive" });
+      toast({ title: "Erreur lors de la signature", description: error?.message, variant: "destructive" });
     },
   });
 
