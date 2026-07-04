@@ -378,6 +378,14 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
           : []);
 
     let totalPromo = 0;
+    let totalPromoFirstMonth = 0;
+    let totalPromoRecurring = 0;
+    const isFirstMonthOnly = (dl: any) => {
+      const dur = String(dl?.duration_label || "").toLowerCase();
+      const desc = String(dl?.description || "").toLowerCase();
+      return /1er\s*mois|premier\s*mois|first\s*month|^1\s*cycle$/.test(dur)
+        || (/1er\s+mois|premier\s+mois|first\s+month|gratuit/.test(desc) && !/\/\s*mois/.test(desc));
+    };
     if (promos.length === 0) {
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8);
@@ -404,6 +412,8 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
         const amt = dl.unit_price < 0 ? dl.unit_price : -Math.abs(dl.unit_price);
         doc.text(fmt(amt), pw - 17, y + 3.8, { align: "right" });
         totalPromo += amt;
+        if (isFirstMonthOnly(dl)) totalPromoFirstMonth += amt;
+        else totalPromoRecurring += amt;
         y += 5.5;
         altRow = !altRow;
       }
