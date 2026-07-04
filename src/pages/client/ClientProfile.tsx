@@ -108,32 +108,7 @@ const ClientProfile = () => {
   // V2 Ledger Balance - Single source of truth for balance/credit
   const { data: ledgerBalance } = useLedgerBalance(user?.id, portalSupabase);
 
-  // Add service location mutation
-  const addLocationMutation = useMutation({
-    mutationFn: async (data: typeof newLocation) => {
-      if (!accounts || accounts.length === 0) throw new Error("No account found");
-      // R1 canonical write via RPC (account_service_locations INSERTs are blocked)
-      const { error } = await portalSupabase.rpc("resolve_or_create_service_address" as any, {
-        p_account_id: accounts[0].id,
-        p_address: data.service_address,
-        p_city: data.service_city,
-        p_province: "QC",
-        p_postal: data.service_postal_code,
-        p_created_via: "portal",
-        p_label: data.label || null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refetchLocations();
-      toast({ title: "Adresse ajoutée avec succès" });
-      setAddLocationDialogOpen(false);
-      setNewLocation({ label: "", service_address: "", service_city: "", service_postal_code: "" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Erreur", description: sanitizePortalAuthError(error), variant: "destructive" });
-    },
-  });
+  // Pass 3A: mutation d'ajout d'adresse retirée — le ServiceAddressPicker gère la création via useAccountAddresses.
 
   useEffect(() => {
     if (profile) {
