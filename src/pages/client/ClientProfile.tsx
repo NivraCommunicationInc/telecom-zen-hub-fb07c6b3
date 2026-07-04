@@ -102,7 +102,10 @@ const ClientProfile = () => {
   const refetchAccounts = () =>
     queryClient.invalidateQueries({ queryKey: ["canonical-client-data"] });
 
-  const serviceLocations = canonicalData?.accountServiceLocations || [];
+  // R1: prefer canonical service_addresses (fallback to legacy accountServiceLocations during transition)
+  const serviceLocations = canonicalData?.serviceAddresses?.length
+    ? canonicalData.serviceAddresses
+    : (canonicalData?.accountServiceLocations || []);
   const refetchLocations = () =>
     queryClient.invalidateQueries({ queryKey: ["canonical-client-data"] });
 
