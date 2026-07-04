@@ -116,7 +116,10 @@ export type AutoDocType =
   | "complaint_acknowledgment"
   | "preauthorization_confirmation"
   | "credit_note"
-  | "reactivation_notice";
+  | "reactivation_notice"
+  | "order_contract"
+  | "order_invoice"
+  | "order_summary";
 
 export interface DispatchResult {
   blob: Blob;
