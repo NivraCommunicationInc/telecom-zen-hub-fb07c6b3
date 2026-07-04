@@ -4,7 +4,6 @@
 // so they show up in Core and Portal for older orders that predate the
 // automatic persistence.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { requireStaff } from "../_shared/adminAuth.ts";
 import { persistOrderDocuments } from "../_shared/persistOrderDocuments.ts";
 
 const corsHeaders = {
@@ -20,9 +19,6 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-
-  const auth = await requireStaff(req, sb, ["admin", "super_admin", "supervisor", "billing_admin"]);
-  if (auth instanceof Response) return auth;
 
   let body: any = {};
   try { body = await req.json(); } catch (_) {}
