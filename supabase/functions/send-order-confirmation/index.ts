@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend, enqueueEmail } from "../_shared/ResendProxy.ts";
 import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { buildInvoicePdfAttachment, buildContractPdfAttachment, buildSummaryPdfAttachment } from "../_shared/pdfFromDb.ts";
+import { persistOrderDocuments } from "../_shared/persistOrderDocuments.ts";
 import { renderQueueTemplate } from "../_shared/customQueueTemplates.ts";
 import {
   emailDocument, header, statusBanner, contentWrapper, footer, button,
@@ -968,11 +968,12 @@ Deno.serve(async (req) => {
     const htmlBody = rendered?.html || "";
     const finalSubject = rendered?.subject || emailSubject;
 
-    const attachments = (await Promise.all([
-      latestInvoice?.id ? buildInvoicePdfAttachment(latestInvoice.id, "facture") : null,
-      buildContractPdfAttachment(order_id, { filenamePrefix: "contrat" }),
-      buildSummaryPdfAttachment(order_id, "sommaire_commande"),
-    ])).filter((a): a is NonNullable<typeof a> => !!a);
+    // Generate PDFs (locked V3 templates), persist them to storage +
+    // client_auto_documents so they appear in Core & Portal, then attach
+    // the SAME bytes to the confirmation email. Byte-identical everywhere.
+    const persisted = await persistOrderDocuments(order_id);
+    console.log(`[${requestId}] Order documents persisted:`, JSON.stringify(persisted.results));
+    const attachments = persisted.attachments;
 
     // Enqueue main email via pgmq (actually delivered by process-email-queue)
     const enqueueResult = await enqueueEmail({

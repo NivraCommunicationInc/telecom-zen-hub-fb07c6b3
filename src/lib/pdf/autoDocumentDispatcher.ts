@@ -116,7 +116,10 @@ export type AutoDocType =
   | "complaint_acknowledgment"
   | "preauthorization_confirmation"
   | "credit_note"
-  | "reactivation_notice";
+  | "reactivation_notice"
+  | "order_contract"
+  | "order_invoice"
+  | "order_summary";
 
 export interface DispatchResult {
   blob: Blob;
@@ -343,4 +346,7 @@ export const DOC_TYPE_LABELS: Record<AutoDocType, string> = {
   preauthorization_confirmation: "Confirmation de préautorisation",
   credit_note: "Note de crédit",
   reactivation_notice: "Avis de réactivation",
+  order_contract: "Contrat de service",
+  order_invoice: "Facture",
+  order_summary: "Sommaire de commande",
 };
