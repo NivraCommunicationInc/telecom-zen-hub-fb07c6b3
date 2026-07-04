@@ -55,6 +55,7 @@ export function InstallationSection({
   onAppointmentConfirmedChange,
   onDecisionMade,
   phase = "choice",
+  onCablingAnswered,
 }: Props) {
   const showChoice = phase === "choice";
   const showSchedule = phase === "schedule";
