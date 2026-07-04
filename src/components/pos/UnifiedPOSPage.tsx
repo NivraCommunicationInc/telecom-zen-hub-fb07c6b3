@@ -116,6 +116,42 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [draftDismissed, setDraftDismissed] = useState(false);
+
+  // Cart persistence — per portal
+  const draftSource = `pos_${portalType}`;
+  const {
+    draft: savedDraft,
+    hasDraft,
+    save: saveDraft,
+    clear: clearDraft,
+  } = useCheckoutDraft<{
+    services: SelectedService[];
+    equipment: EquipmentItem[];
+    adjustments: AdjustmentItem[];
+  }>(draftSource);
+
+  // Autosave whenever cart changes (skip empty)
+  const skipNextSaveRef = useRef(true);
+  useEffect(() => {
+    if (skipNextSaveRef.current) { skipNextSaveRef.current = false; return; }
+    if (pos.isEmpty) return;
+    saveDraft({ services: pos.services, equipment: pos.equipment, adjustments: pos.adjustments });
+  }, [pos.services, pos.equipment, pos.adjustments, pos.isEmpty, saveDraft]);
+
+  const handleResumeDraft = () => {
+    if (!savedDraft) return;
+    pos.setServices(savedDraft.services || []);
+    pos.setEquipment(savedDraft.equipment || []);
+    pos.setAdjustments(savedDraft.adjustments || []);
+    setDraftDismissed(true);
+    toast.success("Panier restauré");
+  };
+
+  const handleDismissDraft = () => {
+    clearDraft();
+    setDraftDismissed(true);
+  };
   
   
   // Is this the admin portal with full features?
