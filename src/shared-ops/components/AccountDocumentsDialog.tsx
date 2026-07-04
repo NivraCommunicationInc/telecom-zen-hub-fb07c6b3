@@ -21,6 +21,10 @@ interface Props {
   clientName: string;
   accountId?: string | null;
   initialData?: any;
+  /** true when caller is a Nivra Core admin — enables upload/delete controls */
+  isAdmin?: boolean;
+  /** true when caller is any staff (agent/admin) — enables "resend signature" */
+  isStaff?: boolean;
 }
 
 interface DocItem {
