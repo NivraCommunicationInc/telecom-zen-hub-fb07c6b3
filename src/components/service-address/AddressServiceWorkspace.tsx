@@ -372,9 +372,9 @@ export function AddressServiceWorkspace({
                   {selectedData.incidents.map((incident) => (
                     <Row
                       key={incident.id}
-                      title={incident.title || incident.name || incident.incident_number || "Incident service"}
+                      title={incident.incident_title || incident.title || incident.service_display_name || incident.service_name || "Incident service"}
                       meta={dateLabel(incident.created_at || incident.started_at)}
-                      badge={statusLabel(incident.status || incident.severity)}
+                      badge={statusLabel(incident.status || incident.status_at_incident || incident.incident_type)}
                     />
                   ))}
                 </DataSection>

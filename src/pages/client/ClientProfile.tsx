@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,17 +18,13 @@ import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 
-import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Settings, ArrowRight, MapPin, Plus, CheckCircle2, XCircle, Bell } from "lucide-react";
+import { User, Save, Loader2, Lock, CreditCard, Calendar, Eye, EyeOff, Settings, ArrowRight, MapPin, CheckCircle2, XCircle, Bell } from "lucide-react";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ClientPinManagement } from "@/components/client/ClientPinManagement";
 import ClientAuthorizedContacts from "@/components/client/ClientAuthorizedContacts";
-import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
-import { ServiceAddressPicker } from "@/components/service-address/ServiceAddressPicker";
-import { AddressBlock } from "@/components/service-address/AddressBlock";
-import { useAccountAddresses } from "@/hooks/useAccountAddresses";
 import { AddressServiceWorkspace } from "@/components/service-address/AddressServiceWorkspace";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
@@ -52,8 +47,6 @@ import ClientLanguagePreference from "@/components/client/ClientLanguagePreferen
 import ClientAccountDeletion from "@/components/client/ClientAccountDeletion";
 import ClientNumberDisplay from "@/components/client/ClientNumberDisplay";
 import ClientCommunicationPreferences from "@/components/client/ClientCommunicationPreferences";
-import { Trash2 } from "lucide-react";
-import { toast as sonnerToast } from "sonner";
 
 /**
  * ClientAddressesList — Multi-adresses côté portail client.
