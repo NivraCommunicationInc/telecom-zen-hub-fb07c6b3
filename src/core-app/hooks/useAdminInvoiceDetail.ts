@@ -130,7 +130,7 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
 
       const { data: lines } = await supabase
         .from("billing_invoice_lines")
-        .select("id, description, unit_price, quantity, line_total, line_type")
+        .select("id, description, unit_price, quantity, line_total, line_type, service_address_id, service_address:service_addresses(id, address_line, city, province, postal_code)")
         .eq("invoice_id", invoiceId)
         .order("created_at", { ascending: true });
 
