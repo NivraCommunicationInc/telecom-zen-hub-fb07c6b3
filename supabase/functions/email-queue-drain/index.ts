@@ -169,8 +169,24 @@ Deno.serve(async (req) => {
       }
 
       if (!html) {
-        html = fallbackHtml(subject, row.template_key, vars);
+        const fb = fallbackHtml(subject, row.template_key, vars);
+        if (!fb) {
+          // Ghost template — refuse to send a content-free email to a real
+          // client. Send row to DLQ with a clear reason so ops can add a
+          // proper case or remove the trigger.
+          await supabase
+            .from("email_queue")
+            .update({
+              status: "dlq",
+              last_error: `template_not_defined:${row.template_key}`,
+            })
+            .eq("id", row.id);
+          results.push({ id: row.id, status: "dlq", reason: `template_not_defined:${row.template_key}` });
+          continue;
+        }
+        html = fb;
       }
+
 
       const sendResult = await sendViaResend(resendApiKey, row.to_email, subject, html, row.from_email, row.attachments);
 
