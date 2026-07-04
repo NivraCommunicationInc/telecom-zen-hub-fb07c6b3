@@ -23,10 +23,11 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Loader2, CreditCard, RefreshCw, CalendarClock, Settings2, Wallet, Plus, Trash2, Star,
+  Loader2, CreditCard, RefreshCw, CalendarClock, Settings2, Wallet, Plus, Trash2, Star, ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { CoreAutopayPanel } from "@/core-app/components/account-360/CoreAutopayPanel";
 
 interface Props {
   open: boolean;
@@ -34,6 +35,8 @@ interface Props {
   clientUserId: string;
   clientName?: string;
   accountId?: string | null;
+  /** Square billing customer ID — enables the "Square PPA" tab. */
+  customerId?: string | null;
 }
 
 interface PaymentMethod {
