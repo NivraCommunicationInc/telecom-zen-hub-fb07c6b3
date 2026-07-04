@@ -578,35 +578,26 @@ const ClientProfile = () => {
             </CardContent>
           </Card>
 
-          {/* Service Locations */}
+          {/* Service Locations — Pass 3A: composant partagé */}
           <Card className="bg-white border border-slate-200 rounded-lg overflow-hidden border-l-4 border-l-teal-600">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-primary" />
                 Adresses de service
               </CardTitle>
-              <Button size="sm" variant="outline" onClick={() => setAddLocationDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-1" /> Ajouter
-              </Button>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {accounts && accounts.length > 0 && accounts[0] && (
-                <div className="p-3 border rounded-lg bg-secondary">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge>Principal</Badge>
-                    <span className="text-xs text-muted-foreground">{accounts[0].account_number}</span>
-                  </div>
-                  <p className="text-sm">{accounts[0].primary_service_address}, {accounts[0].primary_service_city}</p>
-                </div>
-              )}
-              {serviceLocations?.map((loc: any) => (
-                <div key={loc.id} className="p-3 border rounded-lg">
-                  <Badge variant="outline" className="mb-1">{loc.label}</Badge>
-                  <p className="text-sm">{loc.service_address}, {loc.service_city}</p>
-                </div>
-              ))}
-              {(!accounts || accounts.length === 0) && (!serviceLocations || serviceLocations.length === 0) && (
-                <p className="text-sm text-muted-foreground text-center py-4">Aucune adresse de service</p>
+            <CardContent>
+              {accounts?.[0]?.id ? (
+                <ServiceAddressPicker
+                  accountId={accounts[0].id}
+                  value={undefined}
+                  mode="cards"
+                  allowCreate
+                  onChange={() => refetchLocations()}
+                  emptyLabel="Aucune adresse de service"
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucun compte actif</p>
               )}
             </CardContent>
           </Card>
