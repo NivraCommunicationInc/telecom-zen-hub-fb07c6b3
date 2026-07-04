@@ -300,6 +300,200 @@ function buildEnrichedDescription(
   return label || baseDescription;
 }
 
+type CanonicalPdfLine = {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  line_type: string;
+  metadata?: Record<string, any> | null;
+};
+
+type PdfSectionLines = {
+  services: Array<{ type: string; name: string; description?: string; monthly_price: number; quantity?: number }>;
+  equipment: Array<{ name: string; quantity: number; unit_price: number }>;
+  fees: Array<{ label: string; amount: number }>;
+  discounts: Array<{ description: string; unit_price: number; duration_label?: string; code?: string }>;
+};
+
+function canonicalLineKind(line: CanonicalPdfLine): "service" | "equipment" | "fee" | "discount" | "other" {
+  const lt = String(line.line_type || "").toLowerCase();
+  const desc = String(line.description || "").toLowerCase();
+  if (lt === "discount" || desc.includes("rabais") || desc.includes("crédit") || desc.includes("credit") || desc.includes("promotion")) return "discount";
+  if (["service", "recurring", "subscription", "plan"].includes(lt)) return "service";
+  if (["equipment", "phone", "hardware"].includes(lt)) return "equipment";
+  if (["fee", "fees", "frais", "activation", "shipping", "delivery", "onetime", "one_time", "one-time"].includes(lt)) return "fee";
+  if (desc.includes("borne") || desc.includes("terminal") || desc.includes("sim")) return "equipment";
+  if (desc.includes("frais") || desc.includes("livraison") || desc.includes("expédition") || desc.includes("activation")) return "fee";
+  return "other";
+}
+
+function cleanServiceName(description: string): string {
+  return String(description || "Service").replace(/\s+[—-]\s+30\s+jours\s*$/i, "").trim() || "Service";
+}
+
+function durationFromPromotionLabel(description: string): string | undefined {
+  const d = String(description || "");
+  const months = d.match(/(\d+)\s*mois/i)?.[1];
+  if (months) return `${months} mois`;
+  if (/1er\s+mois|premier\s+mois/i.test(d)) return "1er mois";
+  return undefined;
+}
+
+function splitDiscountLineForPdf(
+  line: CanonicalPdfLine,
+  monthlyServiceSubtotal: number,
+): Array<{ description: string; unit_price: number; duration_label?: string; code?: string }> {
+  const rawDescription = String(line.description || "Rabais").trim() || "Rabais";
+  const rawAmount = Math.abs(Number(line.line_total ?? line.unit_price ?? 0));
+  const meta: any = line.metadata || {};
+  const code = meta.code || meta.promo_code || meta.discount_code || undefined;
+
+  if (Array.isArray(meta.lines) || Array.isArray(meta.discount_lines) || Array.isArray(meta.promotions)) {
+    const nested = (meta.lines || meta.discount_lines || meta.promotions) as any[];
+    return nested.map((p: any) => ({
+      description: String(p.description || p.label || p.name || rawDescription),
+      unit_price: Math.abs(Number(p.amount ?? p.unit_price ?? p.line_total ?? 0)),
+      duration_label: p.duration_label || p.duration || durationFromPromotionLabel(String(p.description || p.label || p.name || "")),
+      code: p.code || p.promo_code || code,
+    })).filter((p) => p.unit_price > 0);
+  }
+
+  const hasCombinedFirstMonth = /1er\s+mois|premier\s+mois|first\s+month/i.test(rawDescription)
+    && rawDescription.includes("+")
+    && monthlyServiceSubtotal > 0
+    && rawAmount > monthlyServiceSubtotal;
+
+  if (hasCombinedFirstMonth) {
+    const parts = rawDescription.split(/\s+\+\s+/).map((p) => p.trim()).filter(Boolean);
+    const firstMonthPart = parts.find((p) => /1er\s+mois|premier\s+mois|first\s+month/i.test(p)) || "Crédit promotionnel — 1er mois";
+    const recurringPart = parts.find((p) => !/1er\s+mois|premier\s+mois|first\s+month/i.test(p)) || rawDescription;
+    const remainder = Math.max(0, Math.round((rawAmount - monthlyServiceSubtotal) * 100) / 100);
+    return [
+      {
+        description: firstMonthPart,
+        unit_price: monthlyServiceSubtotal,
+        duration_label: "1er mois",
+        code,
+      },
+      ...(remainder > 0 ? [{
+        description: recurringPart,
+        unit_price: remainder,
+        duration_label: durationFromPromotionLabel(recurringPart),
+        code,
+      }] : []),
+    ];
+  }
+
+  return [{
+    description: rawDescription,
+    unit_price: rawAmount,
+    duration_label: durationFromPromotionLabel(rawDescription),
+    code,
+  }];
+}
+
+function buildPdfSectionsFromInvoiceLines(lines: CanonicalPdfLine[], phones: any[] = []): PdfSectionLines {
+  const services: PdfSectionLines["services"] = [];
+  const equipment: PdfSectionLines["equipment"] = [];
+  const fees: PdfSectionLines["fees"] = [];
+  const discountSourceLines: CanonicalPdfLine[] = [];
+  let phoneIdx = 0;
+
+  for (const line of lines) {
+    const kind = canonicalLineKind(line);
+    if (kind === "discount") {
+      discountSourceLines.push(line);
+      continue;
+    }
+    if (kind === "service") {
+      services.push({
+        type: String((line.metadata as any)?.service_type || "Service"),
+        name: cleanServiceName(line.description),
+        description: String((line.metadata as any)?.description || ""),
+        monthly_price: Number(line.unit_price || line.line_total || 0),
+        quantity: Number(line.quantity || 1),
+      });
+      continue;
+    }
+    if (kind === "equipment") {
+      let label = line.description || "Equipement";
+      const phone = phones[phoneIdx];
+      if (phone && (phone.model || phone.imei)) {
+        label = buildEnrichedDescription(label, phone);
+        phoneIdx += 1;
+      }
+      equipment.push({
+        name: label,
+        quantity: Number(line.quantity || 1),
+        unit_price: Number(line.unit_price || line.line_total || 0),
+      });
+      continue;
+    }
+    if (kind === "fee" || kind === "other") {
+      fees.push({
+        label: line.description || "Frais",
+        amount: Number(line.line_total ?? line.unit_price ?? 0),
+      });
+    }
+  }
+
+  const monthlyServiceSubtotal = services.reduce(
+    (sum, service) => sum + Number(service.monthly_price || 0) * Number(service.quantity || 1),
+    0,
+  );
+  const discounts = discountSourceLines.flatMap((line) => splitDiscountLineForPdf(line, monthlyServiceSubtotal));
+
+  return { services, equipment, fees, discounts };
+}
+
+async function fetchInvoiceSectionLinesForOrder(
+  supabase: SupabaseClient,
+  orderId: string,
+  phones: any[] = [],
+): Promise<{
+  invoice: { id: string; subtotal: number; tps_amount: number; tvq_amount: number; total: number } | null;
+  sections: PdfSectionLines;
+}> {
+  const { data: invoice } = await supabase
+    .from("billing_invoices")
+    .select("id, subtotal, tps_amount, tvq_amount, total")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!(invoice as any)?.id) {
+    return { invoice: null, sections: { services: [], equipment: [], fees: [], discounts: [] } };
+  }
+
+  const { data: rawLines } = await supabase
+    .from("billing_invoice_lines")
+    .select("description, quantity, unit_price, line_total, line_type, metadata")
+    .eq("invoice_id", (invoice as any).id)
+    .order("created_at", { ascending: true });
+
+  const lines = (Array.isArray(rawLines) ? rawLines : []).map((l: any) => ({
+    description: String(l.description || ""),
+    quantity: Number(l.quantity || 1),
+    unit_price: Number(l.unit_price || 0),
+    line_total: Number(l.line_total ?? l.unit_price ?? 0),
+    line_type: String(l.line_type || ""),
+    metadata: l.metadata || null,
+  }));
+
+  return {
+    invoice: {
+      id: (invoice as any).id,
+      subtotal: Number((invoice as any).subtotal || 0),
+      tps_amount: Number((invoice as any).tps_amount || 0),
+      tvq_amount: Number((invoice as any).tvq_amount || 0),
+      total: Number((invoice as any).total || 0),
+    },
+    sections: buildPdfSectionsFromInvoiceLines(lines, phones),
+  };
+}
+
 /**
  * Resolve field-sales agent attribution for an order.
  * Returns null when order is not from field_sales (web/online).
