@@ -1,59 +1,76 @@
 
-## Objectif
+# Refonte "Adresses & Services" — Core + Portail Client
 
-Aujourd'hui les liens Square/PayPal générés depuis **Nivra Field**, **Nivra Core** ou **OneView CS** ne créent qu'une "intention de paiement" (`field_payment_intents`). Aucune commande n'existe tant que le client n'a pas payé → le processing dans Core est vide.
+Ta demande en clair:
+1. **Ne PAS combiner** la liste d'adresses et le sélecteur/actions dans un seul bloc. Ils doivent être séparés visuellement et fonctionnellement.
+2. Le workspace actuel (cartes cliquables + gros bouton "Ajouter", 4 métriques, boutons flottants) fait **amateur**. Refaire au niveau des autres sections du 360.
+3. Les actions "par adresse" (commander, RDV, ticket, équipement, changer plan, suspendre, retirer, notes…) doivent apparaître **comme les sections Équipements/Factures** — barre d'actions cohérente en haut, listes dessous.
+4. Même niveau de finition côté **Portail Client**: gestion d'adresses digne d'un opérateur télécom, pas un formulaire nu.
 
-**But** : la commande apparaît immédiatement dans Core avec les 10 étapes du workflow (comme celles du site public), en `payment_status = pending`. Le staff peut préparer KYC/équipement/technicien en parallèle. Le paiement Square/PayPal confirmé fait un simple `UPDATE payment_status = paid` sur la commande existante — zéro doublon.
+## Ce que je propose (Core — Nivra 360)
 
-## Ce qui change
+### A. Structurer "Adresses & Services" comme les autres sections
+Format identique à *Équipements*: **titre + barre d'actions unifiée + tabs internes**.
 
-### 1. Nouvelle action dans `field-order-engine`
-`action=materialize_pending_from_quote` — clone de la logique existante `materialize_from_quote`, mais :
-- crée `field_sales_orders` avec `payment_status='pending'` (au lieu de `confirmed`)
-- appelle `field-sales-sync` qui, grâce à la logique existante, crée `orders` avec `status='pending_payment'` + `payment_status='pending'`
-- lie immédiatement `field_payment_intents.converted_order_id = <new order.id>`
+```text
+Adresses & Services (3)                 [+ Nouvelle adresse]  [Transférer service]  [Fusionner]
+────────────────────────────────────────────────────────────────
+[ 2352 Rue Monet, Laval          ▸ 1 svc · 3 équip · actif ]  ← sélectionnée
+[ 118 Boul. Saint-Martin, Laval  ▸ 0 svc · secondaire      ]
+[ + Ajouter une adresse ]
+────────────────────────────────────────────────────────────────
+DOSSIER: 2352 Rue Monet, Laval  ·  Compte #200756
+[Actions]  Commander ici │ Ajouter service │ RDV │ Ticket │ Équipement │ Notes │ Transférer │ Retirer
 
-### 2. Câblage à la création des liens de paiement
+┌─ Services actifs (1) ─────────────┐  ┌─ Équipement (3) ──────────────┐
+│  Internet 100 Mbps  · 50$/mo · ▸  │  │  Terminal TV  S/N 3389…  · ▸  │
+└───────────────────────────────────┘  └───────────────────────────────┘
+┌─ RDV / Tech (0) ──────┐  ┌─ Support (1) ─────────┐  ┌─ Incidents (0) ─┐
+```
 
-- **`field-payment-link-create`** (Field → Square) : après création de l'intent, appelle `materialize_pending_from_quote`
-- **`field-payment-initiate`** (Field → PayPal) : idem
-- **`core-square-payment-link`** : *aucun changement* — cette fonction reçoit déjà un `invoice_id`, donc la commande existe déjà côté Core
-- **`pos-square-intent`** : *hors périmètre* — c'est un lien de paiement ad-hoc sans structure de commande (montant + description libre). À traiter séparément si besoin.
+### B. Séparer le sélecteur d'adresse du dossier
+- **Colonne gauche** (dans la section) = liste des adresses (cartes compactes, une ligne, badge "principale"/"secondaire", cliquable).
+- **Colonne droite** = dossier de l'adresse sélectionnée avec **la même barre d'actions que la section Équipements** (boutons plats en haut, pas de gros CTA colorés qui flottent).
+- Le bouton "Ajouter adresse" est **au-dessus de la liste**, discret, pas mélangé avec les actions du service.
 
-### 3. Convertisseurs de paiement (évite le doublon)
+### C. Réutiliser le langage visuel des autres sections
+- Même typo, même densité, mêmes `Panel`/`PanelHeader`/`MiniTable` que `Account360Helpers.tsx`.
+- Retirer les gros badges colorés, cartes arrondies XL, ombres, etc. → on garde le style dashboard opérationnel dark green.
+- Chaque bloc (services, équip., RDV, tickets, incidents) devient un **Panel** cliquable menant à la section principale filtrée par `service_address_id`.
 
-- **`paypal-capture-order`** : quand le webhook confirme un intent, vérifier `intent.converted_order_id`. Si présent → `UPDATE orders SET payment_status='paid', status='validated'` + créer `billing_payment` lié. Si null → ancien chemin (materialize à la volée, pour rétrocompatibilité).
-- **`field-order-engine.finalize_paid_intent`** : même logique — check `converted_order_id`, UPDATE si présent.
+### D. Actions réelles (pas juste des liens)
+Chaque bouton de la barre d'actions déclenche l'action correspondante **au bon endroit du 360**:
+- *Commander ici* → POS Core préfiltré par adresse
+- *Ajouter service* → même chose
+- *RDV* → dialog RDV avec adresse pré-sélectionnée
+- *Ticket* → dialog `QuickTicketDialog` avec adresse
+- *Équipement* → dialog assignation
+- *Notes* → note interne rattachée à l'adresse
+- *Transférer service vers autre adresse* → nouveau dialog (déplace `service_address_id` sur souscription/équipement)
+- *Retirer adresse* → soft delete si aucun service actif, sinon bloqué avec message
 
-## Ce que ça donne côté utilisateur
+## Portail Client (`/portal/service-addresses` + Dashboard)
 
-**Avant :**
-- Agent Field finalise vente → lien envoyé → Core voit un mini bloc « en attente de paiement, 2 options »
-- Impossible de préparer quoi que ce soit
-
-**Après :**
-- Agent Field finalise vente → **commande créée immédiatement** dans Core → 10 étapes visibles → KYC, équipement, technicien peuvent être préparés
-- Bandeau clair : `⚠️ Paiement en attente — le client n'a pas encore payé`
-- Actions disponibles : contacter client, renvoyer lien, marquer paiement manuel, etc.
-- Quand client paie → statut passe à `payé` automatiquement, activation possible
-
-## Ce que je ne touche PAS
-
-- Le checkout public (`checkout-canonical-sync`) — déjà correct
-- La structure des `field_payment_intents`
-- La logique de commission (elle se déclenche déjà sur `payment_status='confirmed'` — impact zéro tant que la commande est pending)
-- Les emails (le lien de paiement continue de partir comme avant)
-- L'intent FIELD-562FF562 existant — je ne rétroactive pas les intents en attente pour minimiser le risque. Nouveaux tests = nouvelles commandes visibles.
+### E. Même architecture, ton client
+- Page "Mes adresses" séparée en deux blocs:
+  1. **Mes adresses** (liste + bouton "Ajouter une adresse")
+  2. **Dossier de l'adresse sélectionnée** (Services, Équipement, RDV, Support) avec actions client: *Commander un service ici*, *Prendre RDV*, *Ouvrir un ticket*, *Voir factures*.
+- Sur le Dashboard, la carte "Adresse" liste toutes les adresses sous forme condensée avec lien "Gérer" → ouvre l'adresse dans le dossier.
 
 ## Détails techniques
 
-**Fichiers modifiés :**
-- `supabase/functions/field-order-engine/index.ts` — ajout action `materialize_pending_from_quote`
-- `supabase/functions/field-payment-link-create/index.ts` — appel post-insert intent
-- `supabase/functions/field-payment-initiate/index.ts` — appel post-insert intent
-- `supabase/functions/paypal-capture-order/index.ts` — UPDATE si `converted_order_id` existe
-- Éventuel mini-ajustement dans `field-order-engine.finalize_paid_intent` pour la même bifurcation
+- Nouveau composant `AccountAddressesSection.tsx` dans `src/core-app/components/account-360/` qui suit strictement le style des autres sections (Panel/PanelHeader). Remplace l'import de `AccountAddressesTab` dans `CoreAccountDetail.tsx`.
+- Retirer la logique `isAddressesSection` du grid (la section redevient normale à 3 colonnes → le panneau droit `Account360RightPanel` reste visible partout, comme tu le voulais indirectement en disant "les 2 menus doivent être séparés" — le résumé compte à droite ne bouge plus).
+- Nouveau composant `ClientAddressWorkspace.tsx` pour le portail (style clair, boutons primaires ronds cohérents avec le reste du portail client).
+- Barre d'actions par adresse implémentée via dialogs déjà existants (`QuickTicketDialog`, POS route, etc.) — pas de nouvelle logique métier.
+- Aucun changement DB requis: `service_addresses` + `service_address_id` sur tables enfants sont déjà en place.
 
-**Aucune migration SQL requise** — le schéma existant supporte tout.
+## Ce que je NE fais pas dans cette passe
+- Pas de refonte des sections Équipements/Factures elles-mêmes.
+- Pas de changement au moteur de facturation ni au RPC `resolve_or_create_service_address`.
+- Pas de nouveaux dialogs métier autres que "Transférer service" (à confirmer si tu le veux ou non).
 
-**Gestion d'erreur** : si `materialize_pending_from_quote` échoue après création de l'intent, on log mais on ne bloque pas la génération du lien (le paiement reste fonctionnel, et un cron ou le webhook capturera le cas). L'intent reste utilisable.
+## Question avant de coder
+Confirme-moi 2 points rapides:
+1. Le bouton **"Transférer un service vers une autre adresse"** — tu le veux dès cette passe, ou on le garde pour plus tard?
+2. Dans le Portail Client, tu veux que **l'ajout d'adresse** reste libre (comme aujourd'hui) ou passe par une **validation Core** (l'agent doit approuver la nouvelle adresse avant qu'elle soit utilisable pour commander)?
