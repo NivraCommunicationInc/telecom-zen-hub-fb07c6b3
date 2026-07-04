@@ -509,12 +509,22 @@ export default function EmployeeAccountDetail() {
           {locations.length > 0 && (
             <Section title="Adresses de service" icon={<MapPin className="h-4 w-4" />}>
               {locations.map((loc: any) => (
-                <div key={loc.id} className="flex items-start gap-2 py-1.5 text-xs border-b border-border/50 last:border-0">
-                  <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-foreground">{loc.service_address}</p>
-                    <p className="text-muted-foreground">{[loc.service_city, loc.service_province, loc.service_postal_code].filter(Boolean).join(", ")}</p>
+                <div key={loc.id} className="flex items-start justify-between gap-2 py-1.5 text-xs border-b border-border/50 last:border-0">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-foreground truncate">{loc.service_address}</p>
+                      <p className="text-muted-foreground truncate">{[loc.service_city, loc.service_province, loc.service_postal_code].filter(Boolean).join(", ")}</p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(employeePath(`/nouvelle-commande?client=${account.id}&adresse=${loc.id}`))}
+                    className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                    title="Commander un service à cette adresse (client existant)"
+                  >
+                    <ShoppingCart className="h-3 w-3" /> Commander ici
+                  </button>
                 </div>
               ))}
             </Section>
