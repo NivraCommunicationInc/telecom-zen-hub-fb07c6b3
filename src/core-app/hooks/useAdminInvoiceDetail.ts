@@ -192,14 +192,27 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
         customer_name: [(_custProf as any)?.first_name ?? o?.client_first_name ?? c?.first_name, (_custProf as any)?.last_name ?? o?.client_last_name ?? c?.last_name].filter(Boolean).join(" ") || null,
         customer_email: c?.email ?? null,
         customer_phone: c?.phone ?? null,
-        lines: (lines ?? []).map((l: any) => ({
-          id: l.id,
-          description: l.description,
-          unit_price: l.unit_price,
-          quantity: l.quantity,
-          line_total: l.line_total,
-          line_type: l.line_type,
-        })),
+        lines: (lines ?? []).map((l: any) => {
+          const sa = Array.isArray(l.service_address) ? l.service_address[0] : l.service_address;
+          return {
+            id: l.id,
+            description: l.description,
+            unit_price: l.unit_price,
+            quantity: l.quantity,
+            line_total: l.line_total,
+            line_type: l.line_type,
+            service_address_id: l.service_address_id ?? null,
+            service_address: sa
+              ? {
+                  id: sa.id,
+                  address_line: sa.address_line ?? null,
+                  city: sa.city ?? null,
+                  province: sa.province ?? null,
+                  postal_code: sa.postal_code ?? null,
+                }
+              : null,
+          };
+        }),
         payments: (payments ?? []).map((p: any) => ({
           id: p.id,
           payment_number: p.payment_number,
