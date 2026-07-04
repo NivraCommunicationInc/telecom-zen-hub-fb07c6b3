@@ -156,10 +156,12 @@ const AdminAccounts = () => {
     queryKey: ["account-locations", selectedAccount?.id],
     queryFn: async () => {
       if (!selectedAccount?.id) return [];
+      // R1 canonical read: service_addresses (aliased to legacy shape)
       const { data, error } = await supabase
-        .from("account_service_locations")
-        .select("*")
+        .from("service_addresses")
+        .select("id, account_id, label, is_active, created_at, service_address:address_line, service_city:city, service_province:province, service_postal_code:postal_code, created_via")
         .eq("account_id", selectedAccount.id)
+        .eq("is_active", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -261,12 +263,15 @@ const AdminAccounts = () => {
   // Add service location
   const addLocationMutation = useMutation({
     mutationFn: async (data: typeof newLocation & { account_id: string }) => {
-      const { error } = await supabase.from("account_service_locations").insert({
-        account_id: data.account_id,
-        label: data.label,
-        service_address: data.service_address,
-        service_city: data.service_city,
-        service_postal_code: data.service_postal_code,
+      // R1 canonical write: use RPC (INSERTs into account_service_locations are blocked)
+      const { error } = await supabase.rpc("resolve_or_create_service_address", {
+        p_account_id: data.account_id,
+        p_address: data.service_address,
+        p_city: data.service_city,
+        p_province: "QC",
+        p_postal: data.service_postal_code,
+        p_created_via: "admin",
+        p_label: data.label || null,
       });
       if (error) throw error;
     },
@@ -337,9 +342,10 @@ const AdminAccounts = () => {
   // Delete service location
   const deleteLocationMutation = useMutation({
     mutationFn: async (locationId: string) => {
+      // R1: soft-delete on canonical service_addresses (preserves history)
       const { error } = await supabase
-        .from("account_service_locations")
-        .delete()
+        .from("service_addresses")
+        .update({ is_active: false, deleted_at: new Date().toISOString() })
         .eq("id", locationId);
       if (error) throw error;
     },

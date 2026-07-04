@@ -116,8 +116,8 @@ export default function EmployeeAccountDetail() {
           .order("scheduled_at", { ascending: false })
           .limit(20),
         supabase
-          .from("account_service_locations")
-          .select("*")
+          .from("service_addresses")
+          .select("id, account_id, label, is_active, created_at, service_address:address_line, service_city:city, service_province:province, service_postal_code:postal_code")
           .eq("account_id", accountId)
           .eq("is_active", true),
         supabase
