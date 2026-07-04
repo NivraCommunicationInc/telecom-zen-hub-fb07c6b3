@@ -33,6 +33,8 @@ import { POSOrderSummary } from "@/components/pos/POSOrderSummary";
 import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
 import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
+import CoaxialSurvey, { initialCoaxialAnswers, type CoaxialAnswers } from "@/components/shared/CoaxialSurvey";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 
