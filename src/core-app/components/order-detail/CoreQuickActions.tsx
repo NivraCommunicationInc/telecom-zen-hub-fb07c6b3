@@ -83,11 +83,11 @@ export function CoreQuickActions({ proc, layout = "bar" }: Props) {
     { id: "complete", label: "Compléter commande", icon: CheckCircle2, variant: "success",
       hidden: isTerminal || order?.status !== "activated",
       handler: async () => { await proc.completeOrder(); } },
-    { id: "notify", label: "Notifier client", icon: Send, variant: "primary",
-      handler: async () => {
-        if (!order?.client_email) { toast.error("Aucun courriel client disponible"); return; }
-        await proc.sendClientNotification("order_update", "Mise à jour de votre commande — Nivra");
-      } },
+    // "Notifier client" button retired 2026-07-04 — emitted a content-free
+    // "Mise à jour Nivra" email that triggered support calls. Use a targeted
+    // template (order_status_update, invoice_sent, etc.) via the processing
+    // console instead.
+
     { id: "ticket", label: "Créer ticket", icon: Headphones, variant: "default",
       handler: async () => {
         const user = (await supabase.auth.getUser()).data.user;
