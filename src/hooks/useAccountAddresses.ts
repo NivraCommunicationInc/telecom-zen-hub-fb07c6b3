@@ -70,13 +70,13 @@ export function useAccountAddresses(accountId: string | null | undefined) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "service_addresses", filter: `account_id=eq.${accountId}` },
-        () => qc.invalidateQueries({ queryKey }),
+        () => qc.invalidateQueries({ queryKey: ["account-service-addresses", accountId] }),
       )
       .subscribe();
     return () => {
       backend.removeChannel(channel);
     };
-  }, [accountId, qc, backend, queryKey]);
+  }, [accountId, qc, backend]);
 
   const create = useMutation({
     mutationFn: async (input: CreateAddressInput) => {
