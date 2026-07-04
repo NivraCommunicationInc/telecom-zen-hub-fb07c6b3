@@ -53,6 +53,7 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { AccountAddressesTab } from "@/components/admin/account-profile/AccountAddressesTab";
 
 const creditClassLabels: Record<string, { label: string; color: string }> = {
   A: { label: "Excellent", color: "bg-green-500" },
