@@ -140,11 +140,22 @@ serve(async (req: Request) => {
 
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("id, order_number, user_id, client_email, client_first_name, client_last_name, installation_type")
+      .select("id, order_number, user_id, client_email, client_first_name, client_last_name, installation_type, payment_status")
       .eq("id", body.order_id)
       .maybeSingle();
 
     if (orderErr || !order) throw new Error(`Order not found: ${orderErr?.message || body.order_id}`);
+
+    // ── PAYMENT GATE — never send install info before payment is confirmed
+    const paidStatuses = new Set(["paid", "confirmed", "completed"]);
+    const paymentStatus = String((order as any).payment_status || "").toLowerCase();
+    if (!paidStatuses.has(paymentStatus)) {
+      console.log(`[send-auto-installation-email] SKIP order ${order.id} — payment_status=${paymentStatus}`);
+      return new Response(
+        JSON.stringify({ ok: true, skipped: true, reason: "payment_not_confirmed", payment_status: paymentStatus }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     let email = order.client_email;
     let firstName = order.client_first_name || "";
