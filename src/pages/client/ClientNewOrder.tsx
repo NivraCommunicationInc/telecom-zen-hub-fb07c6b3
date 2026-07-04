@@ -2381,6 +2381,7 @@ const ClientNewOrder = () => {
           date_of_birth: profile?.date_of_birth || dateOfBirth || null,
         },
         service_address: {
+          id: selectedAddressId || null,
           street: serviceAddressStreet || '',
           apartment: serviceAddressApartment || null,
           city: serviceAddressCity || '',
