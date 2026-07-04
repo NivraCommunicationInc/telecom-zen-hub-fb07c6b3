@@ -278,6 +278,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientUserId={clientId}
           clientName={clientName}
           accountId={accountId ?? null}
+          customerId={customerId ?? null}
         />
       )}
 

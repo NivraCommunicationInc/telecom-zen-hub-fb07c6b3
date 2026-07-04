@@ -219,23 +219,23 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
                 return (
                   <li
                     key={`${it.source}-${it.id}`}
-                    className="rounded-md border border-border/60 bg-card/40 p-3 flex items-center gap-3"
+                    className="rounded-md border border-[hsl(220,15%,20%)] bg-[hsl(220,20%,10%)] hover:border-violet-500/40 transition-colors p-3 flex items-center gap-3"
                   >
                     <div className={`shrink-0 h-10 w-10 rounded-md border flex items-center justify-center ${meta.tone}`}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm truncate">{it.name}</span>
+                        <span className="font-medium text-sm truncate text-core-text-primary">{it.name}</span>
                         <Badge variant="outline" className={`text-[10px] ${meta.tone}`}>{meta.label}</Badge>
-                        <Badge variant="outline" className="text-[10px]">{it.category}</Badge>
+                        <Badge variant="outline" className="text-[10px] border-[hsl(220,15%,22%)] text-core-text-secondary">{it.category}</Badge>
                         {it.signed && (
                           <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-300 border-amber-500/30">
                             Lien temporaire 5 min
                           </Badge>
                         )}
                       </div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-3 flex-wrap">
+                      <div className="text-[11px] text-core-text-label mt-1 flex items-center gap-3 flex-wrap">
                         <span>{new Date(it.created_at).toLocaleString("fr-CA")}</span>
                         {it.number && <span>N° {it.number}</span>}
                         <span>{formatBytes(it.size_bytes)}</span>
