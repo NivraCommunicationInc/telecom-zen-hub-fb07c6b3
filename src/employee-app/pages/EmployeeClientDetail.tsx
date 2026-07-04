@@ -26,6 +26,7 @@ import { EmployeeSquarePaymentDialog } from "@/employee-app/components/EmployeeS
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
+import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerTimeline } from "@/components/employee/CustomerTimeline";
 
