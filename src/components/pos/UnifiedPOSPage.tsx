@@ -33,6 +33,8 @@ import { POSOrderSummary } from "@/components/pos/POSOrderSummary";
 import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
 import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
+import CoaxialSurvey, { initialCoaxialAnswers, type CoaxialAnswers } from "@/components/shared/CoaxialSurvey";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 
@@ -116,6 +118,8 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [installSlot, setInstallSlot] = useState<{ date: string; time_slot: string } | null>(null);
+  const [coaxSurvey, setCoaxSurvey] = useState<CoaxialAnswers>(initialCoaxialAnswers());
   const [draftDismissed, setDraftDismissed] = useState(false);
 
   // Cart persistence — per portal
@@ -156,6 +160,22 @@ export default function UnifiedPOSPage({
   
   // Is this the admin portal with full features?
   const isAdminPortal = portalType === "admin";
+
+  // Requires installation appointment: Internet or TV services in cart trigger it.
+  const requiresInstall = useMemo(
+    () => pos.services.some((s) => s.category === "internet" || s.category === "tv"),
+    [pos.services],
+  );
+  const requiresCoax = useMemo(
+    () => pos.services.some((s) => s.category === "tv"),
+    [pos.services],
+  );
+  const coaxComplete =
+    !requiresCoax ||
+    (coaxSurvey.has_outlet !== null &&
+      (coaxSurvey.has_outlet === "no" ||
+        (coaxSurvey.outlet_works !== null && coaxSurvey.outlet_count !== null && coaxSurvey.outlet_count > 0)));
+  const installComplete = !requiresInstall || !!installSlot;
   
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -226,6 +246,14 @@ export default function UnifiedPOSPage({
   };
 
   const handleCustomerSubmit = (data: CustomerData | AdminCustomerData) => {
+    if (requiresCoax && !coaxComplete) {
+      toast.error("Veuillez compléter le questionnaire coaxial");
+      return;
+    }
+    if (requiresInstall && !installComplete) {
+      toast.error("Veuillez choisir un créneau d'installation");
+      return;
+    }
     setCustomerData(data);
     setStep("payment");
   };
@@ -339,6 +367,10 @@ export default function UnifiedPOSPage({
             services: payload.services,
             equipment: payload.equipment,
             adjustments: payload.adjustments,
+            installation: requiresInstall && installSlot
+              ? { date: installSlot.date, time_slot: installSlot.time_slot, required: true }
+              : { required: false },
+            coaxial_survey: requiresCoax ? coaxSurvey : null,
             ...((customerData as AdminCustomerData).is_new_client !== undefined && {
               is_new_client: (customerData as AdminCustomerData).is_new_client,
               client_id: (customerData as AdminCustomerData).client_id,
@@ -348,6 +380,7 @@ export default function UnifiedPOSPage({
             }),
             ...(squarePaymentId && { square_payment_id: squarePaymentId }),
           })),
+          coaxial_survey: requiresCoax ? (coaxSurvey as unknown as never) : null,
           subtotal: payload.totals.monthly_subtotal + payload.totals.equipment_total + payload.totals.adjustments_total,
           tps_amount: payload.totals.tps,
           tvq_amount: payload.totals.tvq,
@@ -616,7 +649,19 @@ export default function UnifiedPOSPage({
 
           {step === "customer" && (
             <div className="h-full overflow-auto">
-              <div className={cn("p-4 mx-auto", isAdminPortal ? "max-w-2xl" : "max-w-lg")}>
+              <div className={cn("p-4 mx-auto space-y-4", isAdminPortal ? "max-w-2xl" : "max-w-lg")}>
+                {requiresCoax && (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <h3 className="text-sm font-semibold text-white mb-3">Questionnaire câble coaxial</h3>
+                    <CoaxialSurvey value={coaxSurvey} onChange={setCoaxSurvey} variant="compact" />
+                  </div>
+                )}
+                {requiresInstall && (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <h3 className="text-sm font-semibold text-white mb-3">Rendez-vous d'installation</h3>
+                    <InstallSlotPicker value={installSlot} onChange={setInstallSlot} variant="compact" />
+                  </div>
+                )}
                 {isAdminPortal ? (
                   <POSCustomerFormAdmin
                     onSubmit={handleCustomerSubmit}
