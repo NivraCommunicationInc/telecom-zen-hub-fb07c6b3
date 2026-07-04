@@ -17,6 +17,7 @@ type CheckoutPayload = {
   };
   client_language?: "fr" | "en";
   service_address?: {
+    id?: string | null;
     street?: string;
     city?: string;
     province?: string;
