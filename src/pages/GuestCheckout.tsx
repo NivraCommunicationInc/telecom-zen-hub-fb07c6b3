@@ -274,6 +274,29 @@ const GuestCheckout = () => {
       wantsPortIn, portInNumber, portInCarrier, portInAccountNumber,
       paypalCaptureId, paymentComplete]);
 
+  // ── Mirror panier vers localStorage 30 jours (survit à la fermeture du navigateur) ──
+  useEffect(() => {
+    if (step === 7) { clearDraft(); return; }
+    if (selectedServices.length === 0) return;
+    saveDraft({
+      selectedServices,
+      addressStreet, addressApartment, addressCity, addressProvince, addressPostalCode,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, selectedServices, addressStreet, addressApartment, addressCity, addressProvince, addressPostalCode]);
+
+  const handleResumeDraft = () => {
+    if (!savedDraft) return;
+    if (savedDraft.selectedServices?.length) setSelectedServices(savedDraft.selectedServices);
+    if (savedDraft.addressStreet) setAddressStreet(savedDraft.addressStreet);
+    if (savedDraft.addressApartment) setAddressApartment(savedDraft.addressApartment);
+    if (savedDraft.addressCity) setAddressCity(savedDraft.addressCity);
+    if (savedDraft.addressProvince) setAddressProvince(savedDraft.addressProvince);
+    if (savedDraft.addressPostalCode) setAddressPostalCode(savedDraft.addressPostalCode);
+    setDraftDismissed(true);
+  };
+  const handleDismissDraft = () => { clearDraft(); setDraftDismissed(true); };
+
   // ── Annuler l'email d'abandon quand la commande est complétée ──
   const cancelAbandonmentEmail = () => {
     const emailId = sessionStorage.getItem(ABANDONMENT_EMAIL_KEY);
