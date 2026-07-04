@@ -288,6 +288,7 @@ export function InstallationSection({
                   confirmedAppointment={appointmentConfirmed}
                   onAppointmentConfirmedChange={onAppointmentConfirmedChange}
                   phase={phase}
+                  onCablingAnswered={onCablingAnswered}
                 />
               </div>
             </motion.div>
