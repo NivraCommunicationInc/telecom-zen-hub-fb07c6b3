@@ -117,13 +117,16 @@ const ClientProfile = () => {
   const addLocationMutation = useMutation({
     mutationFn: async (data: typeof newLocation) => {
       if (!accounts || accounts.length === 0) throw new Error("No account found");
-      const { error } = await portalSupabase.from("account_service_locations").insert({
-        account_id: accounts[0].id,
-        label: data.label,
-        service_address: data.service_address,
-        service_city: data.service_city,
-        service_postal_code: data.service_postal_code,
-      } as any);
+      // R1 canonical write via RPC (account_service_locations INSERTs are blocked)
+      const { error } = await portalSupabase.rpc("resolve_or_create_service_address" as any, {
+        p_account_id: accounts[0].id,
+        p_address: data.service_address,
+        p_city: data.service_city,
+        p_province: "QC",
+        p_postal: data.service_postal_code,
+        p_created_via: "portal",
+        p_label: data.label || null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
