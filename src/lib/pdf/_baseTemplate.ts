@@ -140,7 +140,7 @@ export function drawFooter(doc: jsPDF, pageInfoOrHash?: { current: number; total
     drawFooterV2(doc, pageInfoOrHash.current, pageInfoOrHash.total);
     return;
   }
-  drawFooterV2(doc, 1, 1, pageInfoOrHash);
+  drawFooterV2(doc, 1, 1, typeof pageInfoOrHash === "string" ? pageInfoOrHash : undefined);
 }
 
 export function drawFooterOnAllPages(doc: jsPDF) {
