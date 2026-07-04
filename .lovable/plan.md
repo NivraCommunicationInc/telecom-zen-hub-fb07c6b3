@@ -1,118 +1,142 @@
-## Passe 3A + 3C — Multi-adresses complet + Prorata immédiat
+# Pass 3A — Multi-adresses (aucune limite, tout dynamique)
 
-Template PDF `invoiceTemplateV3.ts` **NON touché** cette passe (verrou respecté).
+Objectif : rendre chaque adresse de service une entité indépendante portant ses propres services, équipements, rendez-vous, incidents et tickets. Aucune limite codée, aucune notion "principale/secondaire" hard-codée dans le code applicatif, un composant unique réutilisé partout.
 
----
-
-### 0. Fondations DB (migration unique)
-
-**`account_service_locations` — enrichissement en entité complète**
-
-Ajout des colonnes de traçabilité + métadonnées :
-- `created_by_user_id uuid` (auth.users) — qui a ajouté
-- `created_via text` — `guest_checkout | portal | field | core | pos | employee`
-- `created_from_order_id uuid` (orders)
-- `created_by_employee_id uuid` (employees)
-- `created_by_field_agent_id uuid` (profiles)
-- `deleted_at timestamptz` (soft-delete, jamais de purge)
-- `notes text`, `contact_name text`, `contact_phone text`
-- Index composite `(account_id, is_active)` + unique partiel `(account_id, service_address, service_postal_code) WHERE deleted_at IS NULL`
-
-**Cohérence `service_location_id` partout**
-- `billing_subscriptions` : déjà `service_address_id` + `address_id` → on ajoute `service_location_id uuid REFERENCES account_service_locations` (nullable pour rétrocompat, mais NOT NULL enforced côté code sur nouvelles créations)
-- `billing_invoice_lines` : ajout `service_location_id uuid` + index
-- `equipment_inventory` : déjà `address_id` — on ajoute `service_location_id` + backfill
-- `installations` : ajout `service_location_id`
-- `appointments` : ajout `service_location_id`
-- `support_tickets` : ajout `service_location_id` (optionnel — un ticket peut être compte-level)
-- `service_incidents` : ajout `service_location_id`
-- `technician_assignments` : ajout `service_location_id`
-
-**Backfill (idempotent, dans la même migration)**
-1. Pour chaque `accounts` sans `account_service_locations` mais avec adresse : créer 1 location "Adresse principale" à partir de `accounts.service_address/city/postal_code`.
-2. Backfill `orders.service_location_id` par match adresse normalisée.
-3. Backfill descendant : `billing_subscriptions`, `installations`, `appointments`, `equipment_inventory`, `service_incidents` héritent du `service_location_id` de leur `order_id` parent.
-4. Log dans `security_audit_log` du nombre de rows backfillées par table.
-
-**Nouvelle table `service_location_history`** (audit immuable)
-- `id, service_location_id, event_type, actor_user_id, actor_role, portal_source, order_id, metadata jsonb, created_at`
-- Trigger `AFTER INSERT/UPDATE/DELETE` sur `account_service_locations` → enregistre l'événement.
-- RLS : lecture par admin + owner du compte, écriture service_role uniquement.
-
-**RPC `resolve_or_create_service_location(account_id, address, city, province, postal, created_via, actor_id, order_id)`**
-- SECURITY DEFINER. Match par postal_code + street normalisée. Retourne UUID. Utilisé partout côté serveur pour éviter les doublons.
+Le template PDF de facture ne bouge pas dans cette passe (3C traitera le prorata).
 
 ---
 
-### 3A — Multi-adresses UI (4 tunnels + portail)
+## 1. Migration DB — indépendance par adresse
 
-**Composant partagé `<ServiceLocationPicker>`**
-- Props : `accountId`, `value`, `onChange`, `mode: 'existing-or-new' | 'new-only'`
-- Affiche : liste des adresses actives + bouton "Ajouter une nouvelle adresse de service"
-- Formulaire adresse identique partout (validation postal QC, `address-qualify` edge function).
+Ajout d'une colonne `service_address_id uuid references public.service_addresses(id)` (nullable, indexée) sur les tables qui n'en ont pas encore, pour qu'un compte multi-adresses puisse porter des lignes distinctes :
 
-**Intégration dans les 4 tunnels + 1 nouveau :**
-1. `GuestCheckout` — après création compte, résout la première location (created_via=`guest_checkout`).
-2. `UnifiedPOSPage` (Core POS) — sélecteur obligatoire si compte existant multi-adresses, sinon création (created_via=`pos`).
-3. `FieldNewSale` (Field) — StepCustomer étendu avec sélecteur/création (created_via=`field`).
-4. `EmployeePOS` — sélecteur/création (created_via=`employee`).
-5. **Nouveau `/portal/nouvelle-adresse`** — tunnel dédié client authentifié pour ajouter une adresse + commander un nouveau service dessus (created_via=`portal`).
+- `subscriptions`
+- `billing_subscriptions`
+- `billing_invoice_lines`
+- `services`
+- `service_instances`
+- `equipment_inventory`
+- `appointments`
+- `installation_appointments`
+- `installation_jobs`
+- `technician_assignments`
+- `support_tickets`
+- `service_incidents`
 
-**Portail client `/portal` — restructuration lecture**
-- Nouveau hook `useAccountServiceLocations(accountId)` retourne : `[{ location, subscriptions[], equipment[], invoices[], tickets[], appointments[] }]`.
-- Composant `<AccountLocationsView>` : accordéon par adresse, avec sous-sections **Services / Équipements / Factures / Support**.
-- Fallback compte mono-adresse : accordéon replié auto = comportement identique visuel actuel (aucune régression UX).
+Backfill : pour chaque compte n'ayant qu'une seule adresse active dans `service_addresses`, remplir automatiquement `service_address_id` sur les lignes existantes. Les comptes multi-adresses restent `NULL` (résolus par l'UI/back office). Aucun index unique restrictif ajouté.
 
-**Aucune limite codée à N=2** — tout est `.map()` sur array.
+Nouvelle RPC lecture agrégée : `get_account_service_tree(_account_id uuid)` renvoyant un JSON `{ account, addresses: [{ address, internet[], tv[], phone[], equipment[], appointments[], tickets[], incidents[] }] }`. Une seule requête par portail → zéro logique de regroupement côté front.
+
+Vue helper `v_account_address_summary` (security_invoker=on) : par adresse, compteurs de services actifs par catégorie. Utilisée par le picker.
+
+## 2. Composant réutilisable `<ServiceAddressPicker />`
+
+Emplacement : `src/components/service-address/ServiceAddressPicker.tsx`
+
+Props :
+```
+accountId: string
+value?: string
+onChange(id: string): void
+onCreateNew?(draft): Promise<string>   // appelle RPC resolve_or_create_service_address
+allowCreate?: boolean                  // défaut true
+filter?: (a) => boolean                // optionnel
+mode?: "select" | "cards"              // affichage
+disabledIds?: string[]
+```
+
+Comportement :
+- Fetch via `useAccountAddresses(accountId)` (nouveau hook partagé)
+- Toujours une liste dynamique — aucune référence à `[0]` / `[1]` / `primary`
+- Bouton "Ajouter une nouvelle adresse" ouvre un formulaire inline validé, persiste via `resolve_or_create_service_address`
+- Compatible mobile (touch 44px), i18n via `t()`, tokens design system
+
+Utilisé par : Guest Checkout, Portail Client, Core, Employee, Field, futurs projets.
+
+## 3. Hook partagé `useAccountAddresses`
+
+`src/hooks/useAccountAddresses.ts` — React Query, temps réel sur `service_addresses` filtré par `account_id`, expose `{ addresses, isLoading, refetch, create, softDelete }`. Utilisé partout où on liste des adresses. Élimine ~6 fetch dupliqués actuels.
+
+## 4. Portail Client — vue par adresse
+
+`src/pages/client/ClientMyServices.tsx` refactorisé :
+
+```
+Compte
+  ▶ <AddressBlock address={a}>
+       <ServiceSection kind="internet" items={...} />
+       <ServiceSection kind="tv" items={...} />
+       <ServiceSection kind="phone" items={...} />
+       <EquipmentSection items={...} />
+    </AddressBlock>
+  ▶ <AddressBlock address={b}>...</AddressBlock>
+```
+
+Chaque bloc rendu par `map()` sur `addresses`, aucun index codé, aucun accès `addresses[0]`. Les actions (ajouter/modifier/résilier) ciblent explicitement l'`address.id` du bloc.
+
+Composants extraits réutilisables :
+- `AddressBlock.tsx`
+- `ServiceSection.tsx`
+- `EquipmentSection.tsx`
+
+Ces mêmes composants sont importés dans Core, Employee et Field pour éliminer les 3 implémentations parallèles actuelles.
+
+## 5. Factorisation
+
+Fichiers qui dupliquent la logique "lister adresses + services par adresse" :
+- `AdminAccounts.tsx`, `AccountAddressesTab.tsx`, `AccountEquipmentTab.tsx`, `EmployeeAccountDetail.tsx`, `EmployeeClientDetail.tsx`, `ClientProfile.tsx`, `ClientMyServices.tsx`, `CheckoutAddressStep.tsx`
+
+Tous passent à `useAccountAddresses` + `<ServiceAddressPicker />` + `<AddressBlock />`. Suppression du code dupliqué.
+
+## 6. Facturation — traçabilité (sans toucher au PDF)
+
+- `billing_invoice_lines.service_address_id` (nouveau, nullable). Backfill via `subscription.service_address_id → invoice_line`.
+- Fonction `format_invoice_line_description(_line_id)` : préfixe automatiquement la description existante avec `[Adresse: <line_1>, <city>]` **au moment de la génération de nouvelles lignes uniquement**. Le PDF continue de lire la colonne `description` inchangée dans sa structure — seul le contenu texte devient identifiant par adresse.
+- Aucune modification de `compute_invoice_breakdown`, aucune modification des totaux ou taxes, aucune modification du template PDF.
+
+## 7. Prorata — préparation seulement (implémentation en 3C)
+
+Ajout du champ `billing_invoice_lines.prorata_metadata jsonb` (nullable) pour que 3C puisse stocker `{ days_billed, days_in_cycle, base_amount, address_id }` sans nouvelle migration.
+
+## 8. Tests
+
+- Unit : `ServiceAddressPicker` (0, 1, 5, 10 adresses ; création inline ; sélection contrôlée)
+- Unit : `useAccountAddresses` (subscription realtime, refetch)
+- Integration Playwright :
+  1. Compte 1 adresse — portail client rendu sans régression
+  2. Ajout 2ᵉ adresse via portail — apparaît dans les 4 portails
+  3. Création service Internet sur adresse B — n'affecte pas adresse A
+  4. Vue arborescente compte→adresse→services correcte
+  5. Compte 5 adresses simulé — pas de troncature, scroll OK
+  6. Captures desktop (1280) + mobile (390)
+- Régression : lancer la suite billing/order/checkout existante
+
+## 9. Rapport de fin de passe
+
+Livré en fin de 3A :
+- Liste fichiers modifiés / créés
+- Nouveaux composants et hook
+- Migration + RPC + vue
+- Résultats des tests + captures
+- Confirmation « aucune régression détectée »
 
 ---
 
-### 3C — Prorata immédiat (activation d'un service sur 2ᵉ+ adresse)
+## Technique — récap
 
-**Edge function `billing-create-prorata-invoice`** (nouvelle)
-- Input : `{ order_id, subscription_id, activation_date, cycle_anchor_date }`
-- Utilise `_shared/prorationMath.ts` (existant, 30j) : `montant = (prix_mensuel / 30) × jours_restants`
-- Crée `billing_invoices` avec `type='prorata_activation'`, `notes` = FR/EN mention explicite "Facturation au prorata — Activation du <date> jusqu'à la fin du cycle <date_fin>. Le prochain cycle complet démarrera le <cycle_anchor>."
-- Crée `billing_invoice_lines` avec `line_type='prorata_service'`, `description` préfixée `"[Adresse: <label>] <service_name> — Prorata <n> jours"`, `service_location_id` renseigné.
-- Application TPS 5% + TVQ 9.975% via `compute_invoice_breakdown` (existant, inchangé).
-- Aligne `billing_subscriptions.cycle_start_date` sur `cycle_anchor_date` (cycle principal du compte) → prochaine facture = 1 seule pour toutes les adresses.
+**Nouvelles migrations** : 1 migration unique ajoutant colonnes `service_address_id` + `prorata_metadata`, backfill, RPC `get_account_service_tree`, vue `v_account_address_summary`, fonction `format_invoice_line_description`.
 
-**Email prorata** — template bleu corporate existant (`baseStyles.ts`, `renderQueueTemplate`), sujet : "Facture de prorata — Activation nouvelle adresse". Aucun nouveau design.
+**Nouveaux fichiers** :
+- `src/hooks/useAccountAddresses.ts`
+- `src/components/service-address/ServiceAddressPicker.tsx`
+- `src/components/service-address/AddressBlock.tsx`
+- `src/components/service-address/ServiceSection.tsx`
+- `src/components/service-address/EquipmentSection.tsx`
+- `src/components/service-address/AddressCreateForm.tsx`
+- Tests associés
 
-**Trigger** : appelée par
-- `billing-confirm-payment` quand `order.type='additional_location'`
-- Webhook PayPal on `PAYMENT.SALE.COMPLETED` pour orders `additional_location`
+**Fichiers modifiés** : les 8 fichiers listés en §5 + `ClientMyServices.tsx`.
 
-**Prochain cycle** : `billing-subscription-cycle` (existant) génère naturellement 1 facture par `customer_id` regroupant toutes les `billing_subscriptions` du compte → les 2 adresses apparaissent en lignes préfixées `[Adresse: X]`. Template PDF inchangé, lisibilité assurée par le préfixe.
+**Non touché** : template PDF, `compute_invoice_breakdown`, moteur de taxes, logique de paiement, edge functions de facturation.
 
----
-
-### Tests avant publication (rapport fourni)
-
-Script Playwright + assertions psql couvrant :
-1. Compte mono-adresse existant : portail affiche sans accordéon (aucune régression).
-2. Création compte via `GuestCheckout` → 1 location créée, `created_via='guest_checkout'`.
-3. Ajout 2ᵉ adresse via `/portal/nouvelle-adresse` → location #2 créée, history log présent.
-4. Nouveau service sur adresse #2 → order + subscription + invoice_line ont `service_location_id` #2.
-5. Facture prorata générée avec bon montant (13/30 × prix par ex.), notes explicites, préfixe adresse dans les lignes.
-6. Rollover cycle : 1 seule facture mensuelle regroupant les 2 adresses.
-7. Portail client, portail Core (admin > client), Employee, Field : chaque adresse affiche ses propres services/équipements/factures/tickets.
-8. Compte à 3 adresses (test synthétique) : aucune limite atteinte.
-
-Rapport livré en markdown : `docs/PASS_3A_3C_TEST_REPORT.md`.
-
----
-
-### Ordre d'exécution
-
-1. Migration DB (schéma + backfill + trigger history + RPC).
-2. Types regénérés → composants partagés (`ServiceLocationPicker`, `useAccountServiceLocations`).
-3. Intégration 4 tunnels + création `/portal/nouvelle-adresse`.
-4. Refonte lecture portail client (accordéon par adresse).
-5. Edge function prorata + hooks paiement/webhook + email.
-6. Tests Playwright + assertions DB → rapport.
-7. Publish.
-
-**Estimation** : 1 grosse migration + ~15 fichiers frontend + 1 edge function + 1 script de test. Aucun toucher au template PDF, aucun toucher aux invariants financiers `compute_invoice_breakdown`.
-
-Confirme et j'enchaîne.
+Dis "go" et j'exécute la migration puis le code dans la foulée.

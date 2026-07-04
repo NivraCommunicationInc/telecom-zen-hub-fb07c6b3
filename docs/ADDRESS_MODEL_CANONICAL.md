@@ -112,3 +112,41 @@ Date cible : **fin Q4 2026**. Toute nouvelle référence à `account_service_loc
 - Trigger de blocage : `public.block_account_service_locations_insert()`
 - RPC canonique : `public.resolve_or_create_service_address(...)`
 - Table history : `public.service_address_history`
+
+---
+
+## Pass 3A (2026-07-04) — Multi-adresses indépendantes
+
+### Colonnes ajoutées
+`service_address_id uuid REFERENCES service_addresses(id) ON DELETE SET NULL` sur :
+`subscriptions`, `billing_subscriptions`, `billing_invoice_lines`, `services`,
+`service_instances`, `equipment_inventory`, `appointments`,
+`installation_appointments`, `installation_jobs`, `technician_assignments`,
+`support_tickets`, `service_incidents`. Plus `billing_invoice_lines.prorata_metadata jsonb` (préparation 3C).
+
+Backfill : comptes n'ayant qu'une seule adresse active → colonne remplie automatiquement.
+Comptes multi-adresses → laisser NULL et faire résoudre par l'UI (picker).
+
+### Outillage partagé (à utiliser partout)
+
+- Hook : `src/hooks/useAccountAddresses.ts` — liste + realtime + create/softDelete
+- Hook : `src/hooks/useAccountServiceTree.ts` — arbre agrégé via RPC
+- Composant : `src/components/service-address/ServiceAddressPicker.tsx` — sélection + création inline
+- Composant : `src/components/service-address/AddressBlock.tsx` — bloc d'affichage par adresse
+
+**Règles :**
+- ⛔ Aucune référence à `addresses[0]`, `primary`, `main`, indices codés dur.
+- ✅ Toujours `.map(a => ...)` sur la collection.
+- ✅ Toutes les nouvelles écritures qui touchent un service DOIVENT préciser `service_address_id`.
+
+### RPC / vue nouvelles
+
+| Objet | Rôle |
+|---|---|
+| `get_account_service_tree(_account_id uuid)` | Retourne `{ account_id, addresses: [{ address, subscriptions, equipment, appointments, tickets, incidents }] }`. Sécurité : owner OR admin/employee/moderator. |
+| `v_account_address_summary` | Vue read-only : par adresse, compteurs `active_subscriptions`, `equipment_count`, `open_tickets`. `security_invoker=on`. |
+| `format_invoice_line_description(_base_description, _service_address_id)` | Helper `[Adresse: line, city] description`. Utilisé par la génération future de lignes de facture. Ne modifie ni les totaux ni le template PDF. |
+
+### Colonne héritée `accounts.primary_service_address`
+
+Colonne dénormalisée conservée uniquement pour **affichage rapide** (headers, listes admin). Ne représente PAS l'adresse « principale » du compte : elle reflète la première adresse enregistrée à la création. Ne jamais s'en servir pour lier un service, une commande ou une facture — utiliser `service_address_id`. Suppression envisagée en même temps que le retrait de `account_service_locations` (2026-Q4).
