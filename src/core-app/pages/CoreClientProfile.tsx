@@ -98,6 +98,7 @@ const CoreClientProfile = () => {
       "billing_payments",
       "orders",
       "equipment_inventory",
+      "service_addresses",
       "appointments",
       "support_tickets",
       "service_incidents",
