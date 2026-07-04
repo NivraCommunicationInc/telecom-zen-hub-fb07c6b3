@@ -114,7 +114,7 @@ export function BillingServiceActionsDialog({
 
   useEffect(() => {
     if (!open) return;
-    setTab("methods");
+    setTab(customerId ? "square" : "methods");
     setNewType(""); setNewBrand(""); setNewLast4(""); setNewPaypalEmail("");
     setNewHolder(""); setNewDefault(false);
     setAutopayReason("");
