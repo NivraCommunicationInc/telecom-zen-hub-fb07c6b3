@@ -85,6 +85,7 @@ import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
 import { CheckoutAddressStep } from "@/components/checkout/CheckoutAddressStep";
+import { CheckoutProrataSection } from "@/components/billing/CheckoutProrataSection";
 import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
