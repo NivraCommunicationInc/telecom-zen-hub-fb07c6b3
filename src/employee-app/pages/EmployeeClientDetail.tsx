@@ -26,6 +26,7 @@ import { EmployeeSquarePaymentDialog } from "@/employee-app/components/EmployeeS
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
 import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
+import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerTimeline } from "@/components/employee/CustomerTimeline";
 
@@ -67,6 +68,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const [escalationPreset, setEscalationPreset] = useState<{ category: string; subject: string; desc: string } | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [showKycRequest, setShowKycRequest] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
 
   // Realtime: keep client 360 in sync with Core changes
   usePortalRealtime(
@@ -478,18 +480,26 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
 
           {/* 10. Documents section */}
           <Section title="Documents" icon={<FileText className="h-4 w-4" />}>
-            {orders.length > 0 ? (
-              <DocumentActions
-                orderId={orders[0].id}
-                invoiceId={invoices[0]?.id}
-                clientEmail={profile.email ?? undefined}
-                clientName={profile.full_name ?? undefined}
-                orderNumber={orders[0].order_number}
-                invoiceNumber={invoices[0]?.invoice_number}
-              />
-            ) : (
-              <p className="text-xs text-[hsl(220,10%,30%)]">Aucun document disponible.</p>
-            )}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowDocuments(true)}
+                className="w-full text-left px-3 py-2 rounded-lg bg-[hsl(220,20%,6%)] border border-[hsl(220,15%,10%)] hover:border-violet-500/40 transition-colors flex items-center justify-between"
+              >
+                <span className="text-xs text-white">Voir tous les documents (contrats, factures, reçus, KYC…)</span>
+                <ChevronRight className="h-4 w-4 text-[hsl(220,10%,40%)]" />
+              </button>
+              {orders.length > 0 && (
+                <DocumentActions
+                  orderId={orders[0].id}
+                  invoiceId={invoices[0]?.id}
+                  clientEmail={profile.email ?? undefined}
+                  clientName={profile.full_name ?? undefined}
+                  orderNumber={orders[0].order_number}
+                  invoiceNumber={invoices[0]?.invoice_number}
+                />
+              )}
+            </div>
           </Section>
 
           {/* 11. Equipment section */}
@@ -529,6 +539,16 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           </Section>
         </div>
       </div>
+
+      <AccountDocumentsDialog
+        open={showDocuments}
+        onClose={() => setShowDocuments(false)}
+        clientUserId={clientId}
+        clientName={profile.full_name || profile.email || "Client"}
+        accountId={account?.id ?? null}
+        isAdmin={false}
+        isStaff={true}
+      />
     </div>
   );
 }

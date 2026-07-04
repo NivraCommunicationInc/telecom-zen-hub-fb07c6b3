@@ -3,7 +3,7 @@
  * Staff-only read of all client documents (contracts, auto-docs, uploads, order docs).
  * Pulls via the `account-documents-list` edge function which signs storage URLs.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCheck2, Upload, PackageCheck, Receipt, FileSpreadsheet, FileQuestion } from "lucide-react";
+import { FileText, Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCheck2, Upload, PackageCheck, Receipt, FileSpreadsheet, FileQuestion, Send, Trash2, UploadCloud, Clock, CheckCircle2, XCircle } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -21,6 +21,10 @@ interface Props {
   clientName: string;
   accountId?: string | null;
   initialData?: any;
+  /** true when caller is a Nivra Core admin — enables upload/delete controls */
+  isAdmin?: boolean;
+  /** true when caller is any staff (agent/admin) — enables "resend signature" */
+  isStaff?: boolean;
 }
 
 interface DocItem {
@@ -112,11 +116,13 @@ function docsFromCanonical(data: any): DocItem[] {
   return rows;
 }
 
-export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName, accountId, initialData }: Props) {
+export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName, accountId, initialData, isAdmin = false, isStaff = true }: Props) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<DocItem[]>([]);
   const [tab, setTab] = useState<"all" | DocItem["source"]>("all");
   const [search, setSearch] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     if (!clientUserId) return;
@@ -161,6 +167,73 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
     window.open(it.url, "_blank", "noopener,noreferrer");
   };
 
+  const contractSignatureStatus = (m: any): { label: string; tone: string; icon: any } => {
+    const status = m?.status;
+    if (status === "signed_by_client" || status === "fully_signed" || m?.signed_at) {
+      return { label: `Signé ${m?.signed_at ? new Date(m.signed_at).toLocaleDateString("fr-CA") : ""}`.trim(), tone: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", icon: CheckCircle2 };
+    }
+    if (status === "expired") return { label: "Expiré", tone: "bg-red-500/15 text-red-300 border-red-500/30", icon: XCircle };
+    return { label: "En attente signature", tone: "bg-amber-500/15 text-amber-300 border-amber-500/30", icon: Clock };
+  };
+
+  const extractContractId = (it: DocItem): string | null => {
+    // it.id is like "canonical-contract-<uuid>" or "contract-<uuid>"
+    const m = it.id.match(/contract-([0-9a-f-]{36})$/i);
+    return m?.[1] || null;
+  };
+
+  const handleResend = async (it: DocItem) => {
+    const contractId = extractContractId(it);
+    if (!contractId) return toast.error("ID de contrat introuvable");
+    setBusyId(it.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-document-manage", {
+        body: { action: "resend_signature", contract_id: contractId },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Échec");
+      toast.success("Lien de signature renvoyé au client");
+      await load();
+    } catch (e: any) {
+      toast.error("Renvoi impossible", { description: e.message });
+    } finally { setBusyId(null); }
+  };
+
+  const handleUpload = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) return toast.error("Fichier > 10 Mo");
+    setBusyId("upload");
+    try {
+      const buf = await file.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const { data, error } = await supabase.functions.invoke("account-document-manage", {
+        body: { action: "upload", client_user_id: clientUserId, file_b64: b64, filename: file.name, document_type: "manual_upload" },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Échec");
+      toast.success("Document téléversé");
+      await load();
+    } catch (e: any) {
+      toast.error("Upload impossible", { description: e.message });
+    } finally { setBusyId(null); if (fileInputRef.current) fileInputRef.current.value = ""; }
+  };
+
+  const handleDelete = async (it: DocItem) => {
+    if (!confirm(`Supprimer « ${it.name} » ? Action irréversible.`)) return;
+    // it.id can be canonical-upload-<id> or uploaded-<id>
+    const m = it.id.match(/([0-9a-f-]{36})$/i);
+    const docId = m?.[1];
+    if (!docId) return toast.error("ID introuvable");
+    setBusyId(it.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-document-manage", {
+        body: { action: "delete", document_id: docId },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Échec");
+      toast.success("Document supprimé");
+      await load();
+    } catch (e: any) {
+      toast.error("Suppression impossible", { description: e.message });
+    } finally { setBusyId(null); }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
@@ -174,8 +247,8 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
@@ -187,6 +260,21 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
           <Button size="sm" variant="outline" onClick={load} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
+          {isAdmin && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
+              />
+              <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={busyId === "upload"}>
+                {busyId === "upload" ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <UploadCloud className="h-4 w-4 mr-1.5" />}
+                Téléverser
+              </Button>
+            </>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
@@ -216,6 +304,13 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
               {filtered.map((it) => {
                 const meta = sourceMeta[it.source];
                 const Icon = meta.icon;
+                const isContract = it.source === "contract";
+                const sigStatus = isContract ? contractSignatureStatus(it.metadata) : null;
+                const SigIcon = sigStatus?.icon;
+                const isSigned = sigStatus?.label.startsWith("Signé");
+                const isExpired = sigStatus?.label === "Expiré";
+                const canResend = isContract && !isSigned && !isExpired && isStaff;
+                const isUploaded = it.source === "uploaded";
                 return (
                   <li
                     key={`${it.source}-${it.id}`}
@@ -228,12 +323,12 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm truncate text-core-text-primary">{it.name}</span>
                         <Badge variant="outline" className={`text-[10px] ${meta.tone}`}>{meta.label}</Badge>
-                        <Badge variant="outline" className="text-[10px] border-[hsl(220,15%,22%)] text-core-text-secondary">{it.category}</Badge>
-                        {it.signed && (
-                          <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-300 border-amber-500/30">
-                            Lien temporaire 5 min
+                        {sigStatus && SigIcon && (
+                          <Badge variant="outline" className={`text-[10px] ${sigStatus.tone} flex items-center gap-1`}>
+                            <SigIcon className="h-3 w-3" /> {sigStatus.label}
                           </Badge>
                         )}
+                        <Badge variant="outline" className="text-[10px] border-[hsl(220,15%,22%)] text-core-text-secondary">{it.category}</Badge>
                       </div>
                       <div className="text-[11px] text-core-text-label mt-1 flex items-center gap-3 flex-wrap">
                         <span>{new Date(it.created_at).toLocaleString("fr-CA")}</span>
@@ -241,15 +336,23 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
                         <span>{formatBytes(it.size_bytes)}</span>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openDoc(it)}
-                      disabled={!it.url}
-                      className="shrink-0"
-                    >
-                      {it.url ? <><Download className="h-3.5 w-3.5 mr-1.5" /> Ouvrir</> : <><FileText className="h-3.5 w-3.5 mr-1.5" /> Indisponible</>}
-                    </Button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canResend && (
+                        <Button size="sm" variant="outline" onClick={() => handleResend(it)} disabled={busyId === it.id}
+                          className="border-amber-500/30 text-amber-300 hover:bg-amber-500/10">
+                          {busyId === it.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Send className="h-3.5 w-3.5 mr-1" /> Renvoyer</>}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => openDoc(it)} disabled={!it.url}>
+                        {it.url ? <><Download className="h-3.5 w-3.5 mr-1.5" /> Ouvrir</> : <><FileText className="h-3.5 w-3.5 mr-1.5" /> N/A</>}
+                      </Button>
+                      {isAdmin && isUploaded && (
+                        <Button size="sm" variant="outline" onClick={() => handleDelete(it)} disabled={busyId === it.id}
+                          className="border-red-500/30 text-red-300 hover:bg-red-500/10">
+                          {busyId === it.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </Button>
+                      )}
+                    </div>
                   </li>
                 );
               })}

@@ -394,6 +394,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientName={clientName}
           accountId={accountId ?? null}
           initialData={canonicalData}
+          isAdmin={true}
+          isStaff={true}
         />
       )}
 
