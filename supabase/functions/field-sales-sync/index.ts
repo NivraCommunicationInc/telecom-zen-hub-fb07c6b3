@@ -418,7 +418,7 @@ Deno.serve(async (req) => {
         // 1) Recurring service lines (1 per forfait)
         for (const svc of serviceItems) {
           const qty = Number(svc?.quantity ?? 1) || 1;
-          const monthly = Number(svc?.price_monthly ?? svc?.monthly_price ?? 0) || 0;
+          const monthly = Number(svc?.price_monthly ?? svc?.monthly_price ?? svc?.monthlyPrice ?? 0) || 0;
           if (monthly <= 0) continue;
           const rawName = String(svc?.name || svc?.plan_name || svc?.label || "Service");
           monthlyTotal += monthly * qty;
@@ -881,7 +881,7 @@ Deno.serve(async (req) => {
               const dAmt = Number(discountData.amount || 0);
               const dDur = Number(discountData.duration_months || 0);
               const dName = String(discountData.name || "Rabais agent");
-              const monthlyPrice = Number(discountData.monthly_price || subtotal || 0);
+              const monthlyPrice = Number(discountData.monthly_price || discountData.monthlyPrice || subtotal || 0);
 
               let desc: string | null = null;
               let unitPrice = 0;
