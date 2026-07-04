@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAccountProfile } from "@/core-app/hooks/useAccountProfile";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Loader2, User, AlertTriangle, LayoutGrid, Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare, Calendar, Shield, Activity, Briefcase, Receipt } from "lucide-react";
+import { Loader2, User, AlertTriangle, LayoutGrid, Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare, Calendar, Shield, Activity, Briefcase, Receipt, Home } from "lucide-react";
 
 import { Account360Header } from "@/core-app/components/account-360/Account360Header";
 import { Account360KPIStrip } from "@/core-app/components/account-360/Account360KPIStrip";
@@ -21,13 +21,15 @@ import {
   AppointmentsSection, KycSection, ContractsSection, TimelineSection,
   FinancialDocsSection, AdminDocsSection,
 } from "@/core-app/components/account-360/Account360Sections";
+import { AccountAddressesTab } from "@/components/admin/account-profile/AccountAddressesTab";
 
 /* ── Section definitions ── */
-type SectionId = "profile" | "billing" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "appointments" | "contracts" | "financial_docs" | "admin_docs" | "tickets" | "timeline";
+type SectionId = "profile" | "billing" | "addresses" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "appointments" | "contracts" | "financial_docs" | "admin_docs" | "tickets" | "timeline";
 
 const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
   { id: "profile", label: "Profil", icon: User },
   { id: "billing", label: "Facturation / Compte", icon: LayoutGrid },
+  { id: "addresses", label: "Adresses & Services", icon: Home },
   { id: "subscriptions", label: "Services actifs", icon: Repeat },
   { id: "orders", label: "Commandes", icon: ShoppingCart },
   { id: "invoices", label: "Factures", icon: FileText },
@@ -117,6 +119,7 @@ const CoreAccountDetail = () => {
   /* ── Section badge counts ── */
   const sectionCounts: Partial<Record<SectionId, number>> = {
     subscriptions: data.subscriptions.length,
+    addresses: data.serviceAddresses.length,
     orders: data.orders.length,
     invoices: data.invoices.length,
     payments: data.payments.length,
@@ -140,6 +143,7 @@ const CoreAccountDetail = () => {
     switch (activeSection) {
       case "profile": return <ProfileSection data={data} acct={acct} prof={prof} clientName={clientName} />;
       case "billing": return <BillingSection acct={acct} data={data} totalDue={totalDue} monthlyRevenue={monthlyRevenue} unpaidInvoices={unpaidInvoices} totalPaid={totalPaid} />;
+      case "addresses": return <AccountAddressesTab account={acct} subscriptions={data.subscriptions as any[]} />;
       case "subscriptions": return <SubscriptionsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "orders": return <OrdersSection data={data} accountId={accountId} clientId={data.clientId} clientEmail={prof?.email} clientName={clientName} onRefresh={data.refetch} />;
       case "invoices": return <InvoicesSection data={data} customerId={data.customerId} customerUserId={data.clientId} profileEmail={prof?.email} billingCustomerEmail={data.billingCustomer?.email} onRefresh={data.refetch} />;

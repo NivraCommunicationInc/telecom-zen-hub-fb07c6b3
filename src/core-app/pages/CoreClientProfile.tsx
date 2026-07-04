@@ -397,6 +397,9 @@ const CoreClientProfile = () => {
           <button onClick={() => navigate(corePath("/equipment"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-cyan-500/20 text-[10px] font-medium text-cyan-400 hover:bg-cyan-500/10 min-w-[80px]">
             <Package className="h-4 w-4" /> Équipement
           </button>
+          <button onClick={() => { setMainTab("overview"); setOverviewTab("adresses"); }} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-teal-500/20 text-[10px] font-medium text-teal-400 hover:bg-teal-500/10 min-w-[80px]">
+            <Home className="h-4 w-4" /> Adresses
+          </button>
           <button onClick={() => {
             if (account) {
               navigate(corePath(`/accounts/${account.id}`));
@@ -615,6 +618,16 @@ const CoreClientProfile = () => {
                   )}
                 </Section>
               </div>
+
+              <Section title="Adresses de service & options multi-service" icon={Home}>
+                {account?.id ? (
+                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} />
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">
+                    Aucun compte lié à ce client — impossible d'afficher les adresses.
+                  </p>
+                )}
+              </Section>
 
               <Section title="Abonnements actifs" icon={Wifi}>
                 {subscriptions.length > 0 ? (
