@@ -65,24 +65,24 @@ async function sendViaResend(
   }
 }
 
-function fallbackHtml(subject: string, templateKey: string, vars: Record<string, unknown>): string {
+/**
+ * fallbackHtml — Emit a MINIMAL branded body ONLY when the queue row carries
+ * an explicit action link (reset_link / action_link). Any other unrenderable
+ * template MUST be sent to DLQ — we never ship a "Template: xxx" body to a
+ * client. Handled by the caller: if this returns null, mark the row `dlq`.
+ */
+function fallbackHtml(subject: string, _templateKey: string, vars: Record<string, unknown>): string | null {
   const resetLink = (vars.reset_link || vars.action_link) as string | undefined;
-  if (resetLink) {
-    return `<html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+  if (!resetLink) return null;
+  return `<html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
 <h2 style="color:#7c3aed">Nivra Telecom</h2>
 <p>${subject}</p>
 <p><a href="${resetLink}" style="background:#7c3aed;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Accéder à votre compte</a></p>
 <p style="color:#6b7280;font-size:13px">Ce lien est valide 24 heures. Si vous n'avez pas demandé cela, ignorez cet email.</p>
 <hr><p style="color:#9ca3af;font-size:12px">Nivra Telecom • support@nivra-telecom.ca</p>
 </body></html>`;
-  }
-  return `<html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
-<h2 style="color:#7c3aed">Nivra Telecom</h2>
-<p>${subject}</p>
-<p style="color:#6b7280;font-size:13px">Template: ${templateKey}</p>
-<hr><p style="color:#9ca3af;font-size:12px">Nivra Telecom • support@nivra-telecom.ca</p>
-</body></html>`;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -169,8 +169,24 @@ Deno.serve(async (req) => {
       }
 
       if (!html) {
-        html = fallbackHtml(subject, row.template_key, vars);
+        const fb = fallbackHtml(subject, row.template_key, vars);
+        if (!fb) {
+          // Ghost template — refuse to send a content-free email to a real
+          // client. Send row to DLQ with a clear reason so ops can add a
+          // proper case or remove the trigger.
+          await supabase
+            .from("email_queue")
+            .update({
+              status: "dlq",
+              last_error: `template_not_defined:${row.template_key}`,
+            })
+            .eq("id", row.id);
+          results.push({ id: row.id, status: "dlq", reason: `template_not_defined:${row.template_key}` });
+          continue;
+        }
+        html = fb;
       }
+
 
       const sendResult = await sendViaResend(resendApiKey, row.to_email, subject, html, row.from_email, row.attachments);
 

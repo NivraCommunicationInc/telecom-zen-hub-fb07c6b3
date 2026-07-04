@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, Bell, StickyNote, CheckCircle2, RefreshCw, Loader2 } from "lucide-react";
+import { ChevronDown, StickyNote, CheckCircle2, RefreshCw, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -115,18 +115,8 @@ export function OrderProcessingHeader({ proc }: Props) {
     }
   };
 
-  const handleSendNotification = async () => {
-    setLoading("notify");
-    try {
-      await proc.sendClientNotification(
-        "order_update",
-        `Mise à jour de votre commande ${order.order_number || ""} — Nivra`,
-        { status: order.status }
-      );
-    } finally {
-      setLoading(null);
-    }
-  };
+  // handleSendNotification retiré 2026-07-04 — voir customQueueTemplates.ts.
+
 
   return (
     <>
@@ -178,10 +168,8 @@ export function OrderProcessingHeader({ proc }: Props) {
           <Button size="sm" variant="outline" onClick={() => setNoteDialogOpen(true)} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
             <StickyNote className="w-3.5 h-3.5 mr-1" /> Ajouter note
           </Button>
-          <Button size="sm" variant="outline" onClick={handleSendNotification} disabled={loading === "notify"} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
-            {loading === "notify" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Bell className="w-3.5 h-3.5 mr-1" />}
-            Notifier client
-          </Button>
+          {/* "Notifier client" retiré 2026-07-04 — envoyait un email vide "Mise à jour Nivra". */}
+
           <Button size="sm" variant="outline" onClick={() => proc.refetch()} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
             <RefreshCw className="w-3.5 h-3.5 mr-1" /> Actualiser
           </Button>

@@ -316,6 +316,46 @@ export type EmailLang = "fr" | "en";
 const t = (fr: string, en: string, lang: EmailLang): string =>
   lang === "en" ? en : fr;
 
+/**
+ * TEMPLATE ALIAS MAP — normalize legacy/duplicate template_keys used across the
+ * codebase onto their canonical case defined in the switch below. Prevents
+ * "template fantôme" emails (renderQueueTemplate returning null → queue-drain
+ * shipping a vacuous "Template: xxx" body).
+ */
+const TEMPLATE_ALIASES: Record<string, string> = {
+  contract_ready_for_signature: "contract_sign_request",
+  kyc_request: "kyc_document_required",
+  cancellation_completed: "service_cancelled",
+  cancellation_scheduled: "service_cancelled",
+  order_processed: "order_status_update",
+  order_payment_confirmed: "payment_confirmed",
+  payment_link: "field_payment_link",
+  payment_link_request: "field_payment_link",
+  paypal_subscription_activated: "autopay_activated",
+  paypal_subscription_cancelled: "autopay_cancelled",
+  paypal_recurring_approval: "autopay_activation_invitation",
+  porting_completed: "portin_completed",
+  porting_initiated: "portin_initiated",
+  employee_invite: "staff_invitation",
+  employee_welcome: "staff_account_created",
+  account_welcome: "welcome_new_client",
+  equipment_replaced: "client_equipment_assigned",
+  appointment_technician_en_route: "technician_on_the_way",
+  nps_survey_scheduled: "nps_survey",
+  payment_disputed: "client_dispute_status_update",
+  billing_credit_payment: "client_credit_added",
+  invoice_adjustment: "client_credit_added",
+  // Generic / manual sends — routed through custom_html which requires
+  // explicit `subject` + `message` variables. If those are missing, the
+  // custom_html case will emit an obvious no-op body and queue-drain will
+  // still refuse to send an empty template (see updated fallback logic).
+  admin_manual_communication: "custom_html",
+  admin_manual_email: "custom_html",
+  generic_customer_message: "custom_html",
+  generic_internal_note: "custom_html",
+  custom: "custom_html",
+};
+
 export function renderQueueTemplate(
   templateKey: string,
   vars: Record<string, unknown>,
@@ -331,7 +371,11 @@ export function renderQueueTemplate(
   const orderNum = esc(v.order_number || v.ORDER_NUMBER || v.order_id || "");
   const accountNum = esc(v.account_number || v.ACCOUNT_NUMBER || "");
 
-  switch (templateKey) {
+  // Normalize aliases before switching.
+  const resolvedKey = TEMPLATE_ALIASES[templateKey] || templateKey;
+
+  switch (resolvedKey) {
+
     // ===================================================================
     // HUB BOUTIQUE — order status update
     // ===================================================================
@@ -3615,17 +3659,27 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
-    // GENERIC FALLBACK
+    // GENERIC FALLBACK — custom_html requires an explicit subject + message.
+    // We NO LONGER fabricate a vacuous "Mise à jour Nivra" body: the caller
+    // must supply real content (used by admin manual communications, staff
+    // OTP shells, CRM lead-capture, marketing broadcasts). If subject or
+    // message is missing → return null, queue-drain will mark DLQ.
+    //
+    // The legacy `order_update` template_key was retired 2026-07-04: the two
+    // "Notifier client" buttons emitted a generic, content-free email that
+    // triggered client support calls. Do not re-add it.
     // ===================================================================
-    case "order_update":
     case "custom_html": {
-      const subject = String(v.subject || v._subject || "Mise à jour Nivra");
-      const message = String(v.message || v.body || "Une mise à jour concernant votre compte est disponible.");
+      const subject = String(v.subject || v._subject || "").trim();
+      const message = String(v.message || v.body || "").trim();
+      if (!subject || !message) {
+        console.warn(`[renderQueueTemplate] custom_html called without subject/message — dropping to DLQ (originalKey=${templateKey})`);
+        return null;
+      }
       return {
         subject,
         html: shell({
           preheader: subject,
-          badge: "MISE À JOUR",
           heroTitle: subject,
           icon: "doc",
           greeting,
@@ -3635,6 +3689,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
         }),
       };
     }
+
 
     // ===================================================================
     // FIELD SALES / POS — Secure payment link sent by agent (card processor)
