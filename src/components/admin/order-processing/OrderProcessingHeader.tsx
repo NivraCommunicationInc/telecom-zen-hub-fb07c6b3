@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, Bell, StickyNote, CheckCircle2, RefreshCw, Loader2 } from "lucide-react";
+import { ChevronDown, StickyNote, CheckCircle2, RefreshCw, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
