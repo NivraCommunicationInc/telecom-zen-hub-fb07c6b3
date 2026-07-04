@@ -51,6 +51,93 @@ import ClientLanguagePreference from "@/components/client/ClientLanguagePreferen
 import ClientAccountDeletion from "@/components/client/ClientAccountDeletion";
 import ClientNumberDisplay from "@/components/client/ClientNumberDisplay";
 import ClientCommunicationPreferences from "@/components/client/ClientCommunicationPreferences";
+import { Trash2 } from "lucide-react";
+import { toast as sonnerToast } from "sonner";
+
+/**
+ * ClientAddressesList — Multi-adresses côté portail client.
+ * Toutes les adresses sont affichées à égalité, chacune avec ses services actifs.
+ */
+function ClientAddressesList({
+  accountId,
+  subscriptions,
+  onChanged,
+}: {
+  accountId: string;
+  subscriptions: any[];
+  onChanged: () => void;
+}) {
+  const { addresses, isLoading, softDelete, deleting } = useAccountAddresses(accountId);
+
+  const serviceCountByAddress = new Map<string, number>();
+  for (const s of subscriptions || []) {
+    const key = s?.service_address_id || s?.address_id;
+    if (!key) continue;
+    serviceCountByAddress.set(key, (serviceCountByAddress.get(key) ?? 0) + 1);
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Supprimer cette adresse ? Elle sera masquée de votre compte.")) return;
+    try {
+      await softDelete(id);
+      sonnerToast.success("Adresse supprimée");
+      onChanged();
+    } catch (e: any) {
+      sonnerToast.error(e?.message || "Suppression impossible");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <ServiceAddressPicker
+        accountId={accountId}
+        value={undefined}
+        mode="cards"
+        allowCreate
+        emptyLabel={isLoading ? "Chargement…" : "Aucune adresse enregistrée"}
+        onChange={() => onChanged()}
+      />
+
+      {addresses.length > 0 && (
+        <div className="space-y-3">
+          {addresses.map((addr) => (
+            <AddressBlock
+              key={addr.id}
+              address={addr}
+              badges={
+                <Badge variant="outline" className="text-[10px]">
+                  {serviceCountByAddress.get(addr.id) ?? 0} service(s) actif(s)
+                </Badge>
+              }
+              actions={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                  onClick={() => handleDelete(addr.id)}
+                  disabled={deleting}
+                  aria-label="Supprimer cette adresse"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              }
+            >
+              <p className="text-xs text-muted-foreground">
+                Ajoutée le {new Date(addr.created_at).toLocaleDateString("fr-CA")}
+              </p>
+            </AddressBlock>
+          ))}
+        </div>
+      )}
+
+      <p className="text-xs text-muted-foreground pt-1">
+        Aucune limite — toutes vos adresses sont traitées à égalité. Un service peut être commandé
+        depuis n'importe laquelle d'entre elles.
+      </p>
+    </div>
+  );
+}
+
 const ClientProfile = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
