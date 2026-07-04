@@ -63,7 +63,11 @@ export function AccountAddressesTab({ account, locations, subscriptions }: Accou
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("account_service_locations").delete().eq("id", id);
+      // R1: soft-delete on canonical service_addresses
+      const { error } = await supabase
+        .from("service_addresses")
+        .update({ is_active: false, deleted_at: new Date().toISOString() })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
