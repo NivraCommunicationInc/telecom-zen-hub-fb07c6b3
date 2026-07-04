@@ -550,7 +550,7 @@ const ClientProfile = () => {
             </CardContent>
           </Card>
 
-          {/* Service Locations — Pass 3A: composant partagé */}
+          {/* Service Locations — Pass 3A: composant partagé (multi-adresses, égalité) */}
           <Card className="bg-white border border-slate-200 rounded-lg overflow-hidden border-l-4 border-l-teal-600">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -560,19 +560,17 @@ const ClientProfile = () => {
             </CardHeader>
             <CardContent>
               {accounts?.[0]?.id ? (
-                <ServiceAddressPicker
+                <ClientAddressesList
                   accountId={accounts[0].id}
-                  value={undefined}
-                  mode="cards"
-                  allowCreate
-                  onChange={() => refetchLocations()}
-                  emptyLabel="Aucune adresse de service"
+                  subscriptions={subscriptions}
+                  onChanged={refetchLocations}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">Aucun compte actif</p>
               )}
             </CardContent>
           </Card>
+
 
           {/* Account Details */}
           <div className="space-y-6">
