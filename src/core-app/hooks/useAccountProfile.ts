@@ -431,26 +431,19 @@ export function useAccountProfile(accountId: string | undefined) {
   });
 
   const serviceAddresses = useQuery({
-    queryKey: ["account-profile-service-addresses", customerId],
+    queryKey: ["account-profile-service-addresses", accountId],
     queryFn: async () => {
-      if (!customerId) return [];
-      const { data: subs } = await supabase
-        .from("billing_subscriptions")
-        .select("address_id")
-        .eq("customer_id", customerId)
-        .not("address_id", "is", null);
-      
-      const addressIds = [...new Set(subs?.map(s => s.address_id).filter(Boolean))] as string[];
-      if (addressIds.length === 0) return [];
-      
+      if (!accountId) return [];
       const { data, error } = await supabase
         .from("service_addresses")
         .select("*")
-        .in("id", addressIds);
+        .eq("account_id", accountId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!customerId,
+    enabled: !!accountId,
   });
 
   const isLoading = account.isLoading || (!!account.data?.client_id && profile.isLoading);

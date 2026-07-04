@@ -22,6 +22,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useClientPerks } from "@/hooks/useClientPerks";
 import { ClientPerksWidget } from "@/components/client/ClientPerksWidget";
+import { useAccountAddresses } from "@/hooks/useAccountAddresses";
 
 /* ─── Keyframe styles injected once ──────────────────────────── */
 const KEYFRAMES = `
@@ -139,6 +140,7 @@ const ClientDashboard = () => {
 
   const profile  = canon?.profile;
   const account  = canon?.account;
+  const { addresses: liveAddresses } = useAccountAddresses(account?.id);
   const orders   = canon?.orders?.slice(0, 4) ?? [];
 
   const subs = (canon?.subscriptions ?? [])
@@ -157,6 +159,15 @@ const ClientDashboard = () => {
     }));
 
   const serviceAddresses = (() => {
+    const live = liveAddresses.map((a: any) => ({
+      id: a.id,
+      address_line: a.address_line || "Adresse de service",
+      city: a.city,
+      province: a.province || "QC",
+      postal_code: a.postal_code,
+    })).filter((a: any) => a.id || a.address_line);
+    if (live.length > 0) return live;
+
     const canonical = (canon?.serviceAddresses ?? []).map((a: any) => ({
       id: a.id,
       address_line: a.address_line || a.service_address || a.address || "Adresse de service",
