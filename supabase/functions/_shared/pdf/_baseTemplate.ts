@@ -26,8 +26,8 @@ export const RED:         [number, number, number] = [180, 45, 45];
 export const RED_LIGHT:   [number, number, number] = [253, 232, 232];
 export const AMBER:       [number, number, number] = [180, 83, 9];     // #B45309
 export const AMBER_BG:    [number, number, number] = [254, 243, 199];  // #FEF3C7
-export const ORANGE:      AMBER;
-export const ORANGE_LIGHT:AMBER_BG;
+export const ORANGE = AMBER;
+export const ORANGE_LIGHT = AMBER_BG;
 export const GREY_BG      = LIGHT_BG;
 export const GREY_BORDER  = BORDER;
 export const BLUE_DARK    = NAVY;
