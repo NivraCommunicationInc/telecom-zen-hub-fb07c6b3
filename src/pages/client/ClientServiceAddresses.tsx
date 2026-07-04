@@ -7,7 +7,7 @@
 import ClientLayout from "@/components/client/ClientLayout";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
-import { AddressServiceWorkspace } from "@/components/service-address/AddressServiceWorkspace";
+import { ClientAddressWorkspace } from "@/components/service-address/ClientAddressWorkspace";
 import { Loader2, MapPin } from "lucide-react";
 
 const ClientServiceAddresses = () => {
@@ -35,14 +35,12 @@ const ClientServiceAddresses = () => {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <AddressServiceWorkspace
+          <ClientAddressWorkspace
             accountId={accountId}
-            account={canonical?.account}
             subscriptions={(canonical?.subscriptions || []).filter((s: any) => ["active", "pending", "suspended", "paused", "pause_requested"].includes(String(s.status)))}
             equipment={canonical?.equipment || []}
             appointments={canonical?.appointments || []}
             tickets={canonical?.supportTickets || []}
-            mode="portal"
           />
         )}
       </div>
