@@ -131,7 +131,39 @@ Deno.serve(async (req) => {
       channel: "Autopay Square",
     });
 
+    // ── Email reçu de paiement (template officiel bleu) avec PDF facture ──
+    const bcRecipient = sub.billing_customers as any;
+    if (bcRecipient?.email) {
+      try {
+        const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+        const pdfAttachment = await buildReceiptPdfAttachment(invoice_id, "recu-paiement").catch(() => null);
+        await supabase.from("email_queue").insert({
+          event_key: `square-receipt-${squarePaymentId}`,
+          to_email: bcRecipient.email,
+          template_key: "payment_receipt",
+          template_vars: {
+            client_name: `${bcRecipient.first_name || ""} ${bcRecipient.last_name || ""}`.trim() || bcRecipient.email,
+            amount: Number(amount).toFixed(2),
+            amount_paid_today: Number(amount).toFixed(2),
+            total_payable: Number(amount).toFixed(2),
+            invoice_id,
+            invoice_number: invRow?.invoice_number || null,
+            payment_method: `Carte ${bcRecipient.square_card_brand || ""} •••• ${bcRecipient.square_card_last4 || ""} (Paiement automatique)`,
+            reference: pmtRow?.nivra_reference || squarePaymentId,
+            receipt_url: receiptUrl,
+          },
+          attachments: pdfAttachment ? [pdfAttachment] : null,
+          status: "queued",
+          attempts: 0,
+          max_attempts: 5,
+        });
+      } catch (emailErr) {
+        console.warn("[square-charge-subscription] receipt email enqueue failed:", emailErr);
+      }
+    }
+
     console.log(`[square-charge-subscription] ✅ Charged ${amount} CAD for invoice ${invoice_id}, Square payment ${squarePaymentId}`);
+
 
 
     return new Response(JSON.stringify({
