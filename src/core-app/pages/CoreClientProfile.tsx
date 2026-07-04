@@ -548,6 +548,7 @@ const CoreClientProfile = () => {
           <Tabs value={overviewTab} onValueChange={setOverviewTab}>
             <TabsList className="bg-[hsl(220,20%,10%)] border border-[hsl(220,15%,15%)] h-8 mb-4">
               <TabsTrigger value="profil" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Profil</TabsTrigger>
+              <TabsTrigger value="adresses" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Adresses & Services</TabsTrigger>
               <TabsTrigger value="facturation" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Facturation</TabsTrigger>
               <TabsTrigger value="equipement" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Équipement</TabsTrigger>
               <TabsTrigger value="notes" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Notes & Activité</TabsTrigger>
