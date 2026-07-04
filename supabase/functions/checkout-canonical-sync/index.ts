@@ -645,24 +645,32 @@ serve(async (req) => {
         }
       }
 
-      // ALWAYS ensure billing_cycle_day matches canonical rule on existing accounts too
-      const finalBillingCycleDay =
-        response.billing_cycle_day ||
-        (payload.pricing_snapshot as any)?.billing_cycle_day ||
-        new Date().getDate();
-
+      // CANONICAL RULE — billing_cycle_day is anchored at ACCOUNT CREATION and IMMUTABLE.
+      // Adding a service to an existing account MUST NOT touch the anchor. Read-only.
       if (accountId) {
-        // Compute next_invoice_date: next occurrence of billing_cycle_day after today
-        const today = new Date();
-        let nextInvoice = new Date(today.getFullYear(), today.getMonth(), finalBillingCycleDay);
-        if (nextInvoice <= today) {
-          nextInvoice = new Date(today.getFullYear(), today.getMonth() + 1, finalBillingCycleDay);
-        }
-        const nextInvoiceDateStr = nextInvoice.toISOString().split("T")[0];
-        await admin
+        const { data: acct } = await admin
           .from("accounts")
-          .update({ billing_cycle_day: finalBillingCycleDay, next_invoice_date: nextInvoiceDateStr })
-          .eq("id", accountId);
+          .select("billing_cycle_day")
+          .eq("id", accountId)
+          .maybeSingle();
+
+        if (!acct?.billing_cycle_day) {
+          // Only bootstrap the anchor when it is missing (never overwrite)
+          const finalBillingCycleDay =
+            response.billing_cycle_day ||
+            (payload.pricing_snapshot as any)?.billing_cycle_day ||
+            new Date().getDate();
+          const today = new Date();
+          let nextInvoice = new Date(today.getFullYear(), today.getMonth(), finalBillingCycleDay);
+          if (nextInvoice <= today) {
+            nextInvoice = new Date(today.getFullYear(), today.getMonth() + 1, finalBillingCycleDay);
+          }
+          const nextInvoiceDateStr = nextInvoice.toISOString().split("T")[0];
+          await admin
+            .from("accounts")
+            .update({ billing_cycle_day: finalBillingCycleDay, next_invoice_date: nextInvoiceDateStr })
+            .eq("id", accountId);
+        }
       }
 
       if (!accountId) throw new Error("No active account resolved");
