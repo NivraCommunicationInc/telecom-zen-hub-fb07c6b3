@@ -1,55 +1,44 @@
 /**
- * Base helpers V3 — shared header/footer/utility for all secondary documents.
- * Matches creditNoteTemplate / refundNoticeTemplate visual standard.
+ * Base helpers V3 officiel — shell corporate bleu (#0066CC) pour TOUS les documents.
+ * Les anciennes signatures sont conservées pour que chaque template existant
+ * passe automatiquement par le nouveau design sans ancien rendu navy/teal.
  */
 import { jsPDF } from "jspdf";
 import { NIVRA } from "./companyInfo";
-import {
-  safeText,
-  safeMoney,
-  safeDate as sanitizeSafeDate,
-} from "./_pdfSanitize";
+import { safeText, safeMoney, safeDate as sanitizeSafeDate } from "./_pdfSanitize";
 
-export const NAVY: [number, number, number] = [30, 64, 120];
-export const TEAL: [number, number, number] = [20, 184, 166];
-export const RED: [number, number, number] = [180, 50, 50];
-export const ORANGE: [number, number, number] = [217, 119, 6];
-export const GREEN: [number, number, number] = [22, 163, 74];
-export const GREY_BG: [number, number, number] = [248, 250, 252];
-export const GREY_BORDER: [number, number, number] = [226, 232, 240];
+export const BLUE: [number, number, number] = [0, 102, 204];
+export const NAVY: [number, number, number] = [10, 37, 64];
+export const BLUE_LIGHT: [number, number, number] = [232, 241, 250];
+export const BLUE_TINT: [number, number, number] = [207, 225, 245];
+export const LIGHT_BG: [number, number, number] = [245, 248, 252];
+export const BORDER: [number, number, number] = [216, 225, 236];
+export const MUTED: [number, number, number] = [91, 107, 128];
+export const TEAL = BLUE;
+export const GREEN: [number, number, number] = [34, 120, 60];
+export const GREEN_LIGHT: [number, number, number] = [220, 240, 226];
+export const RED: [number, number, number] = [180, 45, 45];
+export const RED_LIGHT: [number, number, number] = [253, 232, 232];
+export const AMBER: [number, number, number] = [180, 83, 9];
+export const AMBER_BG: [number, number, number] = [254, 243, 199];
+export const ORANGE = AMBER;
+export const ORANGE_LIGHT = AMBER_BG;
+export const GREY_BG = LIGHT_BG;
+export const GREY_BORDER = BORDER;
+export const BLUE_DARK = NAVY;
+export const VIOLET = BLUE;
+export const VIOLET_LIGHT = BLUE_LIGHT;
+export const TEXT_DARK: [number, number, number] = [26, 26, 26];
+export const TEXT_MUTED = MUTED;
 
-/**
- * Formats numbers as Canadian currency. Accepts null/undefined/NaN safely.
- *   fmtCAD(123.4)  → "123,40 $"
- *   fmtCAD(0)      → "0,00 $"
- *   fmtCAD(null)   → "—"
- *
- * Previously the old `amount || 0` collapsed null → 0,00 $ which hid bugs;
- * we now use the central safeMoney() so the placeholder appears when data
- * is genuinely missing.
- */
-export const fmtCAD = (amount: number | null | undefined): string => safeMoney(amount);
-
-/**
- * Formats a date string (YYYY-MM-DD or ISO) as "23 mai 2026".
- * Returns "—" when the input is missing/invalid — never crashes on bad data.
- */
+export const fmtCAD = (amount: number | null | undefined): string => safeMoney(amount ?? 0);
 export const fmtDate = (dateStr: string | undefined | null): string =>
   sanitizeSafeDate(dateStr, "long", "fr-CA");
 
 export function wrapText(doc: jsPDF, text: string, maxWidth: number): string[] {
-  // Coerce nullish to empty so splitTextToSize doesn't choke; downstream
-  // callers should still prefer safeText() for explicit placeholders.
   return doc.splitTextToSize(safeText(text, ""), maxWidth) as string[];
 }
 
-/**
- * Drop-in wrapper for `doc.text(value, x, y, opts)` that NEVER writes
- * "null" / "undefined" / "NaN" / garbage. Always coerces to safeText first.
- *
- *   safeDrawText(doc, profile?.full_name, 15, 50)
- *   // renders "—" if full_name is null instead of literal "null"
- */
 export function safeDrawText(
   doc: jsPDF,
   value: unknown,
@@ -57,155 +46,150 @@ export function safeDrawText(
   y: number,
   opts?: { align?: "left" | "right" | "center"; maxWidth?: number; fallback?: string },
 ): void {
-  const out = safeText(value, opts?.fallback ?? "—");
-  // jsPDF's TextOptionsLight matches the shape we pass.
-  doc.text(out, x, y, opts as any);
+  doc.text(safeText(value, opts?.fallback ?? "—"), x, y, opts as any);
 }
 
-/**
- * Premium Telus-style header — 42mm navy band with logo mark, brand wordmark,
- * document title, document number, and the date on the right.
- *
- *   ┌────────────────────────────────────────────────────────────────────┐
- *   │  ▌ NIVRA TELECOM                              FACTURE  No 12345    │
- *   │    Service à la clientèle                              23 mai 2026 │
- *   └────────────────────────────────────────────────────────────────────┘
- */
+export interface HeaderOptions {
+  title: string;
+  subtitle?: string;
+  docNumber?: string;
+  docDate?: string;
+  accent?: [number, number, number];
+}
+
+export function drawHeaderV2(doc: jsPDF, opts: HeaderOptions): number {
+  const pw = doc.internal.pageSize.getWidth();
+  const accent = opts.accent || BLUE;
+
+  doc.setFillColor(accent[0], accent[1], accent[2]);
+  doc.rect(0, 0, pw, 30, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.text("NIVRA", 15, 13);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text("TELECOM", 15, 19);
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7);
+  doc.setTextColor(BLUE_TINT[0], BLUE_TINT[1], BLUE_TINT[2]);
+  doc.text("Prépayé - Sans engagement - Québec", 15, 25);
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.text(safeText(opts.title, "DOCUMENT").toUpperCase(), pw - 15, 13, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  if (opts.docNumber) doc.text(`No ${safeText(opts.docNumber, "—")}`, pw - 15, 19, { align: "right" });
+  if (opts.docDate) doc.text(`Émis le ${safeText(opts.docDate, "—")}`, pw - 15, 24, { align: "right" });
+
+  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.rect(0, 30, pw, 8, "F");
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  doc.text(safeText(opts.subtitle, NIVRA.tagline), 15, 35.5);
+
+  doc.setTextColor(0, 0, 0);
+  return 46;
+}
+
 export function drawHeader(
   doc: jsPDF,
   docTitle: string,
   docNumber: string,
   options: { docDate?: string | Date | null; subtitle?: string } = {},
 ) {
-  const pw = doc.internal.pageSize.getWidth();
-
-  // Navy band (slightly taller for premium feel)
-  doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.rect(0, 0, pw, 42, "F");
-
-  // Accent vertical bar — Telus uses a coloured stripe on the left of the wordmark
-  doc.setFillColor(TEAL[0], TEAL[1], TEAL[2]);
-  doc.rect(0, 0, 3, 42, "F");
-
-  // Wordmark
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(255, 255, 255);
-  doc.text("NIVRA TELECOM", 12, 17);
-
-  // Subtitle (division / tagline)
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(180, 200, 220);
-  doc.text(safeText(options.subtitle, NIVRA.division), 12, 23);
-
-  // Document title (right side, prominent)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(255, 255, 255);
-  doc.text(safeText(docTitle, "DOCUMENT").toUpperCase(), pw - 12, 17, { align: "right" });
-
-  // Document number + date (right side, under title)
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(200, 215, 230);
-  if (docNumber) {
-    doc.text(`No ${safeText(docNumber, "—")}`, pw - 12, 23, { align: "right" });
-  }
-  if (options.docDate) {
-    const dateStr = fmtDate(
-      options.docDate instanceof Date ? options.docDate.toISOString().split("T")[0] : String(options.docDate),
-    );
-    doc.text(dateStr, pw - 12, 29, { align: "right" });
-  }
-
-  // Reset for body content
-  doc.setTextColor(0, 0, 0);
-  doc.setLineWidth(0.2);
+  drawHeaderV2(doc, {
+    title: docTitle,
+    subtitle: options.subtitle || docTitle.charAt(0).toUpperCase() + docTitle.slice(1).toLowerCase(),
+    docNumber,
+    docDate: options.docDate
+      ? fmtDate(options.docDate instanceof Date ? options.docDate.toISOString().slice(0, 10) : String(options.docDate))
+      : undefined,
+  });
 }
 
-/**
- * Canonical legal footer — appears on every page.
- *
- * Line 1: Company legal name + NEQ + email
- * Line 2: GST (TPS) + QST (TVQ) registrations
- * Line 3: Postal address
- * Line 4: Page x of y (if pageInfo provided)
- *
- * Call once per page (drawFooter is automatically idempotent — wraps in
- * setPage). For multi-page documents, prefer drawFooterOnAllPages() below.
- */
-export function drawFooter(
-  doc: jsPDF,
-  pageInfo?: { current: number; total: number },
-) {
+export function drawFooterV2(doc: jsPDF, pageNo = 1, totalPages = 1, hash?: string) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
 
-  // Top thin separator line
-  doc.setDrawColor(GREY_BORDER[0], GREY_BORDER[1], GREY_BORDER[2]);
-  doc.setLineWidth(0.3);
-  doc.line(15, ph - 26, pw - 15, ph - 26);
+  doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+  doc.setLineWidth(0.2);
+  doc.line(15, ph - 18, pw - 15, ph - 18);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(80, 80, 80);
-
-  // Line 1 — legal identity
-  doc.text(
-    `${NIVRA.legalName} | NEQ ${NIVRA.neq} | ${NIVRA.email} | ${NIVRA.website}`,
-    pw / 2, ph - 20, { align: "center" },
-  );
-
-  // Line 2 — tax registrations
-  doc.setTextColor(110, 110, 110);
-  doc.text(
-    `${NIVRA.tpsLabel} | ${NIVRA.tvqLabel}`,
-    pw / 2, ph - 15, { align: "center" },
-  );
-
-  // Line 3 — postal address
-  doc.text(safeText(NIVRA.address, ""), pw / 2, ph - 10, { align: "center" });
-
-  // Line 4 — page x of y (if multi-page)
-  if (pageInfo && pageInfo.total > 1) {
-    doc.setFontSize(7);
-    doc.text(
-      `Page ${pageInfo.current} sur ${pageInfo.total}`,
-      pw - 15, ph - 5, { align: "right" },
-    );
+  doc.setFontSize(7);
+  doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc.text(`${NIVRA.legalName} - ${NIVRA.email} - ${NIVRA.website}`, 15, ph - 13);
+  doc.text(`NEQ ${NIVRA.neq} - ${NIVRA.tpsLabel} - ${NIVRA.tvqLabel}`, 15, ph - 9);
+  doc.text(`Page ${pageNo} sur ${totalPages}`, pw - 15, ph - 13, { align: "right" });
+  doc.text("Document généré automatiquement", pw - 15, ph - 9, { align: "right" });
+  if (hash) {
+    doc.setFontSize(6);
+    doc.setTextColor(170, 180, 195);
+    doc.text(`SHA-256: ${hash.slice(0, 48)}`, pw / 2, ph - 4, { align: "center" });
   }
-
   doc.setTextColor(0, 0, 0);
-  doc.setLineWidth(0.2);
 }
 
-/**
- * Convenience: draw the footer on every page of a multi-page document.
- * Call this AFTER all body content is rendered.
- */
+export function drawFooter(doc: jsPDF, pageInfoOrHash?: { current: number; total: number } | string) {
+  if (typeof pageInfoOrHash === "object" && pageInfoOrHash) {
+    drawFooterV2(doc, pageInfoOrHash.current, pageInfoOrHash.total);
+    return;
+  }
+  drawFooterV2(doc, 1, 1, typeof pageInfoOrHash === "string" ? pageInfoOrHash : undefined);
+}
+
 export function drawFooterOnAllPages(doc: jsPDF) {
   const total = doc.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
-    drawFooter(doc, { current: i, total });
+    drawFooterV2(doc, i, total);
   }
 }
 
-/**
- * Client info block (returns new Y position).
- *
- * Telus-style two-column layout:
- *   ┌─ Client ────────────────────┐ ┌─ Adresse de service ────────────────┐
- *   │ Jean Tremblay               │ │ 123 rue Example                    │
- *   │ jean@example.com            │ │ Laval, QC H7T 2Y5                  │
- *   │ (514) 555-1234              │ │                                    │
- *   │ Compte: NIV-ACCT-000123     │ │                                    │
- *   └─────────────────────────────┘ └────────────────────────────────────┘
- *
- * Every field is run through safeText() so missing data never renders as
- * "null" or empty space.
- */
+export function drawMetaGrid(doc: jsPDF, y: number, rows: Array<[string, string]>): number {
+  const pw = doc.internal.pageSize.getWidth();
+  const marginX = 15;
+  const colW = (pw - 2 * marginX) / 2;
+  const rowH = 15;
+  const innerW = colW - 6;
+
+  for (let i = 0; i < rows.length; i++) {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = marginX + col * colW;
+    const yy = y + row * rowH;
+    doc.setFillColor(LIGHT_BG[0], LIGHT_BG[1], LIGHT_BG[2]);
+    doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+    doc.setLineWidth(0.2);
+    doc.rect(x, yy, colW - 2, rowH - 2, "FD");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    doc.text(safeText(rows[i][0], "").toUpperCase(), x + 3, yy + 5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+    let value = safeText(rows[i][1], "—");
+    let fs = 9;
+    doc.setFontSize(fs);
+    while (doc.getTextWidth(value) > innerW && fs > 7) {
+      fs -= 0.5;
+      doc.setFontSize(fs);
+    }
+    if (doc.getTextWidth(value) > innerW) {
+      while (value.length > 4 && doc.getTextWidth(value + "…") > innerW) value = value.slice(0, -1);
+      value += "…";
+    }
+    doc.text(value, x + 3, yy + 11);
+  }
+  doc.setTextColor(0, 0, 0);
+  return y + Math.ceil(rows.length / 2) * rowH + 4;
+}
+
 export function drawClientBlock(
   doc: jsPDF,
   startY: number,
@@ -218,100 +202,235 @@ export function drawClientBlock(
     province?: string | null;
     postal?: string | null;
     account_number?: string | null;
-  }
+  },
 ): number {
-  let y = startY;
+  const rows: Array<[string, string]> = [["Client", safeText(client.name, "—")]];
+  if (client.account_number) rows.push(["N° de compte", safeText(client.account_number, "—")]);
+  if (client.email) rows.push(["Courriel", safeText(client.email, "—")]);
+  if (client.phone) rows.push(["Téléphone", safeText(client.phone, "—")]);
+  if (client.address) {
+    rows.push(["Adresse", [client.address, client.city, client.province, client.postal].filter(Boolean).join(", ")]);
+  }
+  return drawMetaGrid(doc, startY, rows);
+}
+
+export function drawSectionTitle(doc: jsPDF, title: string, y: number, accent = BLUE): number {
+  const pw = doc.internal.pageSize.getWidth();
+  doc.setFillColor(accent[0], accent[1], accent[2]);
+  doc.rect(15, y, 3, 6, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.text("Client", 15, y);
-  if (client.address) doc.text("Adresse de service", 110, y);
-  y += 6;
+  doc.text(safeText(title, "").toUpperCase(), 20, y + 4.5);
+  doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+  doc.setLineWidth(0.2);
+  doc.line(15, y + 8, pw - 15, y + 8);
+  doc.setTextColor(0, 0, 0);
+  return y + 12;
+}
 
+export interface HeroBoxOpts {
+  label: string;
+  value: string;
+  sublabel?: string;
+  bg?: [number, number, number];
+  height?: number;
+}
+
+export function drawHeroBox(doc: jsPDF, y: number, opts: HeroBoxOpts): number {
+  const pw = doc.internal.pageSize.getWidth();
+  const h = opts.height ?? 26;
+  const bg = opts.bg || BLUE;
+  doc.setFillColor(bg[0], bg[1], bg[2]);
+  doc.rect(15, y, pw - 30, h, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(BLUE_TINT[0], BLUE_TINT[1], BLUE_TINT[2]);
+  doc.text(safeText(opts.label, "").toUpperCase(), 21, y + 7);
+  doc.setFontSize(22);
+  doc.setTextColor(255, 255, 255);
+  doc.text(safeText(opts.value, "—"), 21, y + h / 2 + 6);
+  if (opts.sublabel) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(BLUE_TINT[0], BLUE_TINT[1], BLUE_TINT[2]);
+    doc.text(safeText(opts.sublabel, ""), 21, y + h - 4);
+  }
+  doc.setTextColor(0, 0, 0);
+  return y + h + 6;
+}
+
+export function drawZebraTable(
+  doc: jsPDF,
+  y: number,
+  headers: string[],
+  rows: Array<Array<string | number>>,
+  colWidths: number[],
+  accent = BLUE,
+): number {
+  const totalW = colWidths.reduce((a, b) => a + b, 0);
+  const headerH = 7;
+  const rowH = 6.5;
+  doc.setFillColor(accent[0], accent[1], accent[2]);
+  doc.rect(15, y, totalW, headerH, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  let x = 15;
+  for (let i = 0; i < headers.length; i++) {
+    doc.text(safeText(headers[i], "").toUpperCase(), x + 2, y + 4.8);
+    x += colWidths[i];
+  }
+  y += headerH;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(30, 30, 30);
-  // Names + address — safeText handles null gracefully
-  doc.text(safeText(client.name, "Non fourni"), 15, y);
-  if (client.address) doc.text(safeText(client.address, "—"), 110, y);
-  y += 5;
-
-  if (client.email) { doc.text(safeText(client.email, "—").toLowerCase(), 15, y); }
-  if (client.city || client.province || client.postal) {
-    const cityLine = [
-      safeText(client.city, ""),
-      safeText(client.province, "QC"),
-      safeText(client.postal, ""),
-    ].filter(Boolean).join(", ");
-    doc.text(cityLine || "—", 110, y);
+  doc.setFontSize(8.5);
+  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+  for (let r = 0; r < rows.length; r++) {
+    if (r % 2 === 0) {
+      doc.setFillColor(LIGHT_BG[0], LIGHT_BG[1], LIGHT_BG[2]);
+      doc.rect(15, y, totalW, rowH, "F");
+    }
+    x = 15;
+    for (let i = 0; i < rows[r].length; i++) {
+      doc.text(safeText(rows[r][i], ""), x + 2, y + 4.4);
+      x += colWidths[i];
+    }
+    y += rowH;
   }
-  y += 5;
-
-  if (client.phone) {
-    // Format E.164 / 10-digit into "(514) 555-1234"
-    const phoneRaw = String(client.phone).replace(/\D/g, "");
-    const phoneFmt =
-      phoneRaw.length === 10
-        ? `(${phoneRaw.slice(0, 3)}) ${phoneRaw.slice(3, 6)}-${phoneRaw.slice(6)}`
-        : safeText(client.phone, "—");
-    doc.text(phoneFmt, 15, y);
-    y += 5;
-  }
-
-  if (client.account_number) {
-    doc.setFontSize(8);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Compte: ${safeText(client.account_number, "—")}`, 15, y);
-    y += 6;
-  }
+  doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+  doc.setLineWidth(0.2);
+  doc.rect(15, y - headerH - rows.length * rowH, totalW, headerH + rows.length * rowH, "S");
   doc.setTextColor(0, 0, 0);
   return y + 4;
 }
 
-/**
- * Totals block (Telus-style) — subtotal, discounts, taxes, total.
- * Right-aligned column, takes a row list. Pass nulls safely.
- *
- *   drawTotalsBlock(doc, y, [
- *     { label: "Sous-total",      amount: 100 },
- *     { label: "Rabais bienvenue", amount: -100, muted: true },
- *     { label: "TPS (5%)",         amount: 0 },
- *     { label: "TVQ (9,975%)",     amount: 0 },
- *     { label: "Total",            amount: 0, bold: true, separator: true },
- *   ])
- */
+export interface InfoBoxOpts {
+  title: string;
+  body: string;
+  bg?: [number, number, number];
+  border?: [number, number, number];
+  accent?: [number, number, number];
+  textColor?: [number, number, number];
+}
+
+export function drawInfoBox(doc: jsPDF, y: number, opts: InfoBoxOpts): number {
+  const pw = doc.internal.pageSize.getWidth();
+  const w = pw - 30;
+  const bg = opts.bg || BLUE_LIGHT;
+  const border = opts.border || BLUE;
+  const accent = opts.accent || border;
+  const lines = wrapText(doc, safeText(opts.body, ""), w - 8);
+  const hasTitle = Boolean(opts.title);
+  const h = (hasTitle ? 10 : 5) + lines.length * 4.2;
+  doc.setFillColor(bg[0], bg[1], bg[2]);
+  doc.setDrawColor(border[0], border[1], border[2]);
+  doc.setLineWidth(0.4);
+  doc.rect(15, y, w, h, "FD");
+  let ly = y + 5;
+  if (hasTitle) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(accent[0], accent[1], accent[2]);
+    doc.text(safeText(opts.title, ""), 19, ly);
+    ly += 5.5;
+  }
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  const tc = opts.textColor || [40, 40, 40];
+  doc.setTextColor(tc[0], tc[1], tc[2]);
+  for (const line of lines) {
+    doc.text(line, 19, ly);
+    ly += 4.2;
+  }
+  doc.setTextColor(0, 0, 0);
+  return y + h + 5;
+}
+
+export function drawBoxedText(
+  doc: jsPDF,
+  text: string,
+  y: number,
+  options: { fillColor?: [number, number, number]; borderColor?: [number, number, number]; textColor?: [number, number, number] } = {},
+): number {
+  return drawInfoBox(doc, y, {
+    title: "",
+    body: text,
+    bg: options.fillColor,
+    border: options.borderColor,
+    accent: options.borderColor,
+    textColor: options.textColor,
+  });
+}
+
+export function drawKeyValue(doc: jsPDF, label: string, value: string, y: number): number {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc.text(safeText(label, ""), 15, y);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.text(safeText(value, "—"), 80, y);
+  doc.setTextColor(0, 0, 0);
+  return y + 6;
+}
+
+export function drawSignatureBlock(
+  doc: jsPDF,
+  y: number,
+  opts: { leftLabel?: string; rightLabel?: string; autoSignName?: string; autoSignDate?: string } = {},
+): number {
+  const pw = doc.internal.pageSize.getWidth();
+  const lineW = 70;
+  if (opts.autoSignName) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(14);
+    doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+    doc.text(safeText(opts.autoSignName, ""), 15, y);
+    y += 2;
+  } else {
+    y += 4;
+  }
+  doc.setDrawColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.setLineWidth(0.3);
+  doc.line(15, y + 6, 15 + lineW, y + 6);
+  doc.line(pw - 15 - lineW, y + 6, pw - 15, y + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc.text(safeText(opts.leftLabel, "Signature"), 15, y + 10);
+  doc.text(safeText(opts.rightLabel, "Signature du client"), pw - 15, y + 10, { align: "right" });
+  if (opts.autoSignDate) doc.text(safeText(opts.autoSignDate, ""), 15, y + 14);
+  doc.setTextColor(0, 0, 0);
+  return y + 20;
+}
+
+export function drawDivider(doc: jsPDF, y: number): number {
+  const pw = doc.internal.pageSize.getWidth();
+  doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
+  doc.setLineWidth(0.2);
+  doc.line(15, y, pw - 15, y);
+  return y + 5;
+}
+
 export function drawTotalsBlock(
   doc: jsPDF,
   startY: number,
-  rows: Array<{
-    label: string;
-    amount: number | null | undefined;
-    bold?: boolean;
-    muted?: boolean;
-    separator?: boolean; // draw line above this row
-  }>,
+  rows: Array<{ label: string; amount: number | null | undefined; bold?: boolean; muted?: boolean; separator?: boolean }>,
   options: { rightAlign?: number; leftAlign?: number } = {},
 ): number {
   const rightX = options.rightAlign ?? 195;
   const leftX = options.leftAlign ?? 115;
   let y = startY;
-
   for (const row of rows) {
     if (row.separator) {
-      doc.setDrawColor(GREY_BORDER[0], GREY_BORDER[1], GREY_BORDER[2]);
+      doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]);
       doc.line(leftX, y - 1, rightX, y - 1);
       y += 2;
     }
-    if (row.bold) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-    } else {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(row.muted ? 110 : 40, row.muted ? 110 : 40, row.muted ? 110 : 40);
-    }
-    doc.text(row.label, leftX, y);
+    doc.setFont("helvetica", row.bold ? "bold" : "normal");
+    doc.setFontSize(row.bold ? 11 : 9);
+    doc.setTextColor(row.bold ? NAVY[0] : row.muted ? 110 : 40, row.bold ? NAVY[1] : row.muted ? 110 : 40, row.bold ? NAVY[2] : row.muted ? 110 : 40);
+    doc.text(safeText(row.label, ""), leftX, y);
     doc.text(fmtCAD(row.amount ?? 0), rightX, y, { align: "right" });
     y += row.bold ? 7 : 5;
   }
@@ -319,10 +438,6 @@ export function drawTotalsBlock(
   return y + 3;
 }
 
-/**
- * Premium amount-due box — used on invoices, suspension notices, refund
- * receipts. Big rounded card with the amount in large type.
- */
 export function drawAmountDueBox(
   doc: jsPDF,
   y: number,
@@ -330,88 +445,23 @@ export function drawAmountDueBox(
   label: string,
   options: { tone?: "primary" | "warning" | "success" | "error" } = {},
 ): number {
-  const pw = doc.internal.pageSize.getWidth();
   const tone = options.tone ?? "primary";
   const fillMap: Record<string, [number, number, number]> = {
-    primary: [240, 248, 255],
-    warning: [255, 247, 230],
-    success: [232, 246, 235],
-    error:   [253, 233, 233],
+    primary: BLUE_LIGHT,
+    warning: AMBER_BG,
+    success: GREEN_LIGHT,
+    error: RED_LIGHT,
   };
   const borderMap: Record<string, [number, number, number]> = {
-    primary: NAVY,
-    warning: ORANGE,
+    primary: BLUE,
+    warning: AMBER,
     success: GREEN,
-    error:   RED,
+    error: RED,
   };
-  const fill = fillMap[tone];
-  const border = borderMap[tone];
-
-  doc.setFillColor(fill[0], fill[1], fill[2]);
-  doc.setDrawColor(border[0], border[1], border[2]);
-  doc.setLineWidth(0.6);
-  doc.roundedRect(15, y, pw - 30, 24, 3, 3, "FD");
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(80, 80, 80);
-  doc.text(label, 22, y + 9);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(border[0], border[1], border[2]);
-  doc.text(fmtCAD(amount ?? 0), pw - 22, y + 16, { align: "right" });
-
-  doc.setTextColor(0, 0, 0);
-  doc.setLineWidth(0.2);
-  return y + 30;
-}
-
-/** Section title (small bold heading). */
-export function drawSectionTitle(doc: jsPDF, title: string, y: number): number {
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-  doc.text(title, 15, y);
-  doc.setTextColor(0, 0, 0);
-  return y + 6;
-}
-
-/** Boxed paragraph. */
-export function drawBoxedText(
-  doc: jsPDF,
-  text: string,
-  y: number,
-  options: { fillColor?: [number, number, number]; borderColor?: [number, number, number]; textColor?: [number, number, number] } = {}
-): number {
-  const lines = wrapText(doc, text, 165);
-  const h = Math.max(8, lines.length * 4.5 + 4);
-  const fill = options.fillColor || GREY_BG;
-  const border = options.borderColor || GREY_BORDER;
-  doc.setFillColor(fill[0], fill[1], fill[2]);
-  doc.setDrawColor(border[0], border[1], border[2]);
-  doc.roundedRect(15, y, 170, h, 1, 1, "FD");
-  const tc = options.textColor || [40, 40, 40];
-  doc.setTextColor(tc[0], tc[1], tc[2]);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  let ly = y + 5;
-  for (const line of lines) {
-    doc.text(line, 17, ly);
-    ly += 4.5;
-  }
-  doc.setTextColor(0, 0, 0);
-  return y + h + 6;
-}
-
-/** Key-value row (two columns). */
-export function drawKeyValue(doc: jsPDF, label: string, value: string, y: number): number {
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(80, 80, 80);
-  doc.text(label, 15, y);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(0, 0, 0);
-  doc.text(value || "—", 80, y);
-  return y + 6;
+  return drawHeroBox(doc, y, {
+    label,
+    value: fmtCAD(amount ?? 0),
+    bg: borderMap[tone],
+    height: 24,
+  });
 }
