@@ -9,7 +9,7 @@ import { useParams, Link } from "react-router-dom";
 import { useAdminInvoiceDetail } from "@/core-app/hooks/useAdminInvoiceDetail";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, Download, AlertTriangle, Receipt, ClipboardList } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, Download, AlertTriangle, Receipt, ClipboardList, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { generateCanonicalInvoicePDF, generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
