@@ -94,7 +94,12 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
       toast({ title: "Impossible", description: "Retirez d'abord les services actifs de cette adresse.", variant: "destructive" });
       return;
     }
-    if (!confirm(`Retirer l'adresse « ${a.address_line} » ?`)) return;
+    // Double confirmation pour éviter les suppressions accidentelles.
+    const first = prompt(`Pour retirer l'adresse « ${a.address_line} », tapez RETIRER (majuscules) :`);
+    if (first !== "RETIRER") {
+      if (first !== null) toast({ title: "Suppression annulée" });
+      return;
+    }
     await softDelete(a.id);
     if (selectedId === a.id) setSelectedId(null);
     toast({ title: "Adresse retirée" });
