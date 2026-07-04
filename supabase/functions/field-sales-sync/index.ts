@@ -124,6 +124,13 @@ function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
   };
 }
 
+function extractStaffTunnelContext(sale: any): { accountId: string | null; serviceAddressId: string | null } {
+  const note = String(sale?.internal_notes || "");
+  const accountId = note.match(/account_id=([0-9a-f-]{36})/i)?.[1] || null;
+  const serviceAddressId = note.match(/service_address_id=([0-9a-f-]{36})/i)?.[1] || null;
+  return { accountId, serviceAddressId };
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight â€” always return 204 with permissive headers.
   if (req.method === 'OPTIONS') {
@@ -271,21 +278,53 @@ Deno.serve(async (req) => {
         const customerEmail = String(sale.customer_email || "").trim().toLowerCase();
 
         let clientUserId: string | null = null;
+        const staffTunnel = extractStaffTunnelContext(sale);
+        let staffAccount: any = null;
+        let staffServiceAddress: any = null;
 
-        const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
-          .from("profiles")
-          .select("user_id, email")
-          .ilike("email", customerEmail)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle();
+        if (staffTunnel.accountId) {
+          const { data: accountRow, error: staffAccountError } = await supabaseAdmin
+            .from("accounts")
+            .select("id, client_id, account_number, status")
+            .eq("id", staffTunnel.accountId)
+            .maybeSingle();
+          if (staffAccountError || !accountRow?.client_id) {
+            throw new Error(`Staff tunnel account invalid: ${staffAccountError?.message || "account not found"}`);
+          }
+          staffAccount = accountRow;
+          clientUserId = accountRow.client_id;
 
-        if (existingProfileError) {
-          console.warn("[field-sales-sync] profile lookup error:", existingProfileError);
+          if (staffTunnel.serviceAddressId) {
+            const { data: addressRow, error: staffAddressError } = await supabaseAdmin
+              .from("service_addresses")
+              .select("id, account_id, address_line, city, province, postal_code, deleted_at")
+              .eq("id", staffTunnel.serviceAddressId)
+              .eq("account_id", staffTunnel.accountId)
+              .is("deleted_at", null)
+              .maybeSingle();
+            if (staffAddressError || !addressRow) {
+              throw new Error(`Staff tunnel service address invalid: ${staffAddressError?.message || "address not found on account"}`);
+            }
+            staffServiceAddress = addressRow;
+          }
         }
 
-        if (existingProfile?.user_id) {
-          clientUserId = existingProfile.user_id;
+        if (!clientUserId) {
+          const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+            .from("profiles")
+            .select("user_id, email")
+            .ilike("email", customerEmail)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (existingProfileError) {
+            console.warn("[field-sales-sync] profile lookup error:", existingProfileError);
+          }
+
+          if (existingProfile?.user_id) {
+            clientUserId = existingProfile.user_id;
+          }
         }
 
         if (!clientUserId) {
@@ -431,74 +470,79 @@ Deno.serve(async (req) => {
         // â•â•â• RESOLVE OR CREATE ACCOUNT (orders.account_id is NOT NULL) â•â•â•
         let accountId: string | null = null;
 
-        // 1) Try to find existing account by client_id
-        const { data: existingAccount } = await supabaseAdmin
-          .from("accounts")
-          .select("id")
-          .eq("client_id", clientUserId!)
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (existingAccount) {
-          accountId = existingAccount.id;
-          console.log(`[field-sales-sync] Found existing account ${accountId} for client ${clientUserId}`);
-
-          // Always keep profile.account_number in sync with the active account
-          const { data: acctRow } = await supabaseAdmin
+        if (staffAccount?.id) {
+          accountId = staffAccount.id;
+          console.log(`[field-sales-sync] Staff tunnel forced account ${accountId} for client ${clientUserId}`);
+        } else {
+          // 1) Try to find existing account by client_id
+          const { data: existingAccount } = await supabaseAdmin
             .from("accounts")
-            .select("account_number")
-            .eq("id", accountId)
+            .select("id")
+            .eq("client_id", clientUserId!)
+            .eq("status", "active")
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
-          if (acctRow?.account_number) {
+
+          if (existingAccount) {
+            accountId = existingAccount.id;
+            console.log(`[field-sales-sync] Found existing account ${accountId} for client ${clientUserId}`);
+
+            // Always keep profile.account_number in sync with the active account
+            const { data: acctRow } = await supabaseAdmin
+              .from("accounts")
+              .select("account_number")
+              .eq("id", accountId)
+              .maybeSingle();
+            if (acctRow?.account_number) {
+              await supabaseAdmin
+                .from("profiles")
+                .update({ account_number: String(acctRow.account_number) })
+                .eq("user_id", clientUserId!)
+                .neq("account_number", String(acctRow.account_number));
+            }
+          } else {
+            // 2) Create new account with generated account_number
+            const { data: acctNum, error: acctNumErr } = await supabaseAdmin.rpc("generate_account_number");
+            if (acctNumErr || !acctNum) {
+              throw new Error(`generate_account_number failed: ${acctNumErr?.message}`);
+            }
+
+            const { firstName: fn, lastName: ln } = splitName(sale.customer_name);
+            const { data: newAccount, error: acctErr } = await supabaseAdmin
+              .from("accounts")
+              .insert({
+                client_id: clientUserId!,
+                account_number: String(acctNum),
+                account_name: sale.customer_name || `${fn || ""} ${ln || ""}`.trim() || "Client Terrain",
+                status: "active",
+                billing_address: sale.customer_address || null,
+                billing_city: sale.customer_city || null,
+                billing_postal_code: sale.customer_postal_code || null,
+                billing_province: "QC",
+                primary_service_address: sale.customer_address || null,
+                primary_service_city: sale.customer_city || null,
+                primary_service_postal_code: sale.customer_postal_code || null,
+                primary_service_province: "QC",
+                billing_cycle_day: new Date().getDate(),
+              })
+              .select("id, account_number")
+              .single();
+
+            if (acctErr || !newAccount) {
+              console.error("[field-sales-sync] Account creation error:", acctErr);
+              throw new Error(`Account creation failed: ${acctErr?.message}`);
+            }
+
+            accountId = newAccount.id;
+            console.log(`[field-sales-sync] Created account ${newAccount.account_number} (${accountId}) for client ${clientUserId}`);
+
+            // Sync account_number to profile
             await supabaseAdmin
               .from("profiles")
-              .update({ account_number: String(acctRow.account_number) })
-              .eq("user_id", clientUserId!)
-              .neq("account_number", String(acctRow.account_number));
+              .update({ account_number: String(acctNum) })
+              .eq("user_id", clientUserId!);
           }
-        } else {
-          // 2) Create new account with generated account_number
-          const { data: acctNum, error: acctNumErr } = await supabaseAdmin.rpc("generate_account_number");
-          if (acctNumErr || !acctNum) {
-            throw new Error(`generate_account_number failed: ${acctNumErr?.message}`);
-          }
-
-          const { firstName: fn, lastName: ln } = splitName(sale.customer_name);
-          const { data: newAccount, error: acctErr } = await supabaseAdmin
-            .from("accounts")
-            .insert({
-              client_id: clientUserId!,
-              account_number: String(acctNum),
-              account_name: sale.customer_name || `${fn || ""} ${ln || ""}`.trim() || "Client Terrain",
-              status: "active",
-              billing_address: sale.customer_address || null,
-              billing_city: sale.customer_city || null,
-              billing_postal_code: sale.customer_postal_code || null,
-              billing_province: "QC",
-              primary_service_address: sale.customer_address || null,
-              primary_service_city: sale.customer_city || null,
-              primary_service_postal_code: sale.customer_postal_code || null,
-              primary_service_province: "QC",
-              billing_cycle_day: new Date().getDate(),
-            })
-            .select("id, account_number")
-            .single();
-
-          if (acctErr || !newAccount) {
-            console.error("[field-sales-sync] Account creation error:", acctErr);
-            throw new Error(`Account creation failed: ${acctErr?.message}`);
-          }
-
-          accountId = newAccount.id;
-          console.log(`[field-sales-sync] Created account ${newAccount.account_number} (${accountId}) for client ${clientUserId}`);
-
-          // Sync account_number to profile
-          await supabaseAdmin
-            .from("profiles")
-            .update({ account_number: String(acctNum) })
-            .eq("user_id", clientUserId!);
         }
 
         const agentName = repProfile?.full_name || "Agent terrain";
@@ -516,6 +560,7 @@ Deno.serve(async (req) => {
             .insert({
               user_id: clientUserId,
               account_id: accountId,
+              service_address_id: staffServiceAddress?.id || null,
               order_number: orderNumber,
               created_by: 'field_sales',
 
@@ -579,6 +624,7 @@ Deno.serve(async (req) => {
             .update({
               user_id: clientUserId,
               account_id: accountId,
+              service_address_id: staffServiceAddress?.id || null,
               client_email: customerEmail,
               client_phone: sale.customer_phone || null,
               client_first_name: customerFirstName || null,
@@ -736,6 +782,7 @@ Deno.serve(async (req) => {
                 quantity: li.qty,
                 line_total: li.unit_price * li.qty,
                 line_type: li.category === "fee" ? "fee" : "service",
+              service_address_id: staffServiceAddress?.id || null,
               });
               if (lineErr) {
                 throw new Error(`Invoice line creation failed: ${lineErr.message}`);
@@ -772,6 +819,7 @@ Deno.serve(async (req) => {
                   quantity: 1,
                   line_total: -monthlyTotal,
                   line_type: "discount",
+                  service_address_id: staffServiceAddress?.id || null,
                 });
               if (autoFmErr) {
                 console.error("[field-sales-sync] auto first-month line insert failed:", autoFmErr);
@@ -822,6 +870,7 @@ Deno.serve(async (req) => {
                   quantity: 1,
                   line_total: unitPrice,
                   line_type: "discount",
+                  service_address_id: staffServiceAddress?.id || null,
                 });
                 if (discLineErr) {
                   console.error("[field-sales-sync] discount line insert failed:", discLineErr);
@@ -1007,6 +1056,7 @@ Deno.serve(async (req) => {
             const subscriptionPayload = {
               customer_id: billingCustomerId,
               order_id: canonicalOrder.id,
+              service_address_id: staffServiceAddress?.id || null,
               plan_code: primaryRecurring?.type || services?.[0]?.category || "service",
               plan_name: primaryRecurring?.name || services?.[0]?.name || "Service",
               plan_price: primaryRecurring?.unit_price ?? monthlyTotal,
