@@ -159,6 +159,10 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
       </div>
     </Panel>
 
+    {/* PPA Square — inscription/désactivation par l'agent */}
+    {data.customerId && <CoreAutopayPanel billingCustomerId={data.customerId} channel="core" />}
+
+
     <Panel>
       <PanelHeader icon={Hash} title="Informations du compte" />
       <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
