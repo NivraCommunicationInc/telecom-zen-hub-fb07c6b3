@@ -1,142 +1,98 @@
-# Pass 3A — Multi-adresses (aucune limite, tout dynamique)
+# Pass 3C — Prorata immédiat (per-address)
 
-Objectif : rendre chaque adresse de service une entité indépendante portant ses propres services, équipements, rendez-vous, incidents et tickets. Aucune limite codée, aucune notion "principale/secondaire" hard-codée dans le code applicatif, un composant unique réutilisé partout.
+Objectif : lorsqu'un client ajoute un service à une adresse **en cours de cycle**, il paie immédiatement un montant proraté couvrant la période entre la date d'activation et la prochaine date d'anniversaire de facturation. La facture mensuelle suivante repart plein tarif au prochain cycle.
 
-Le template PDF de facture ne bouge pas dans cette passe (3C traitera le prorata).
-
----
-
-## 1. Migration DB — indépendance par adresse
-
-Ajout d'une colonne `service_address_id uuid references public.service_addresses(id)` (nullable, indexée) sur les tables qui n'en ont pas encore, pour qu'un compte multi-adresses puisse porter des lignes distinctes :
-
-- `subscriptions`
-- `billing_subscriptions`
-- `billing_invoice_lines`
-- `services`
-- `service_instances`
-- `equipment_inventory`
-- `appointments`
-- `installation_appointments`
-- `installation_jobs`
-- `technician_assignments`
-- `support_tickets`
-- `service_incidents`
-
-Backfill : pour chaque compte n'ayant qu'une seule adresse active dans `service_addresses`, remplir automatiquement `service_address_id` sur les lignes existantes. Les comptes multi-adresses restent `NULL` (résolus par l'UI/back office). Aucun index unique restrictif ajouté.
-
-Nouvelle RPC lecture agrégée : `get_account_service_tree(_account_id uuid)` renvoyant un JSON `{ account, addresses: [{ address, internet[], tv[], phone[], equipment[], appointments[], tickets[], incidents[] }] }`. Une seule requête par portail → zéro logique de regroupement côté front.
-
-Vue helper `v_account_address_summary` (security_invoker=on) : par adresse, compteurs de services actifs par catégorie. Utilisée par le picker.
-
-## 2. Composant réutilisable `<ServiceAddressPicker />`
-
-Emplacement : `src/components/service-address/ServiceAddressPicker.tsx`
-
-Props :
-```
-accountId: string
-value?: string
-onChange(id: string): void
-onCreateNew?(draft): Promise<string>   // appelle RPC resolve_or_create_service_address
-allowCreate?: boolean                  // défaut true
-filter?: (a) => boolean                // optionnel
-mode?: "select" | "cards"              // affichage
-disabledIds?: string[]
-```
-
-Comportement :
-- Fetch via `useAccountAddresses(accountId)` (nouveau hook partagé)
-- Toujours une liste dynamique — aucune référence à `[0]` / `[1]` / `primary`
-- Bouton "Ajouter une nouvelle adresse" ouvre un formulaire inline validé, persiste via `resolve_or_create_service_address`
-- Compatible mobile (touch 44px), i18n via `t()`, tokens design system
-
-Utilisé par : Guest Checkout, Portail Client, Core, Employee, Field, futurs projets.
-
-## 3. Hook partagé `useAccountAddresses`
-
-`src/hooks/useAccountAddresses.ts` — React Query, temps réel sur `service_addresses` filtré par `account_id`, expose `{ addresses, isLoading, refetch, create, softDelete }`. Utilisé partout où on liste des adresses. Élimine ~6 fetch dupliqués actuels.
-
-## 4. Portail Client — vue par adresse
-
-`src/pages/client/ClientMyServices.tsx` refactorisé :
-
-```
-Compte
-  ▶ <AddressBlock address={a}>
-       <ServiceSection kind="internet" items={...} />
-       <ServiceSection kind="tv" items={...} />
-       <ServiceSection kind="phone" items={...} />
-       <EquipmentSection items={...} />
-    </AddressBlock>
-  ▶ <AddressBlock address={b}>...</AddressBlock>
-```
-
-Chaque bloc rendu par `map()` sur `addresses`, aucun index codé, aucun accès `addresses[0]`. Les actions (ajouter/modifier/résilier) ciblent explicitement l'`address.id` du bloc.
-
-Composants extraits réutilisables :
-- `AddressBlock.tsx`
-- `ServiceSection.tsx`
-- `EquipmentSection.tsx`
-
-Ces mêmes composants sont importés dans Core, Employee et Field pour éliminer les 3 implémentations parallèles actuelles.
-
-## 5. Factorisation
-
-Fichiers qui dupliquent la logique "lister adresses + services par adresse" :
-- `AdminAccounts.tsx`, `AccountAddressesTab.tsx`, `AccountEquipmentTab.tsx`, `EmployeeAccountDetail.tsx`, `EmployeeClientDetail.tsx`, `ClientProfile.tsx`, `ClientMyServices.tsx`, `CheckoutAddressStep.tsx`
-
-Tous passent à `useAccountAddresses` + `<ServiceAddressPicker />` + `<AddressBlock />`. Suppression du code dupliqué.
-
-## 6. Facturation — traçabilité (sans toucher au PDF)
-
-- `billing_invoice_lines.service_address_id` (nouveau, nullable). Backfill via `subscription.service_address_id → invoice_line`.
-- Fonction `format_invoice_line_description(_line_id)` : préfixe automatiquement la description existante avec `[Adresse: <line_1>, <city>]` **au moment de la génération de nouvelles lignes uniquement**. Le PDF continue de lire la colonne `description` inchangée dans sa structure — seul le contenu texte devient identifiant par adresse.
-- Aucune modification de `compute_invoice_breakdown`, aucune modification des totaux ou taxes, aucune modification du template PDF.
-
-## 7. Prorata — préparation seulement (implémentation en 3C)
-
-Ajout du champ `billing_invoice_lines.prorata_metadata jsonb` (nullable) pour que 3C puisse stocker `{ days_billed, days_in_cycle, base_amount, address_id }` sans nouvelle migration.
-
-## 8. Tests
-
-- Unit : `ServiceAddressPicker` (0, 1, 5, 10 adresses ; création inline ; sélection contrôlée)
-- Unit : `useAccountAddresses` (subscription realtime, refetch)
-- Integration Playwright :
-  1. Compte 1 adresse — portail client rendu sans régression
-  2. Ajout 2ᵉ adresse via portail — apparaît dans les 4 portails
-  3. Création service Internet sur adresse B — n'affecte pas adresse A
-  4. Vue arborescente compte→adresse→services correcte
-  5. Compte 5 adresses simulé — pas de troncature, scroll OK
-  6. Captures desktop (1280) + mobile (390)
-- Régression : lancer la suite billing/order/checkout existante
-
-## 9. Rapport de fin de passe
-
-Livré en fin de 3A :
-- Liste fichiers modifiés / créés
-- Nouveaux composants et hook
-- Migration + RPC + vue
-- Résultats des tests + captures
-- Confirmation « aucune régression détectée »
+Toute la logique est **backend-only** (respect de la mémoire "Canonical Tax Engine" et "Nivra Core = seule source de vérité"). Aucune formule côté frontend.
 
 ---
 
-## Technique — récap
+## 1. Règles fonctionnelles
 
-**Nouvelles migrations** : 1 migration unique ajoutant colonnes `service_address_id` + `prorata_metadata`, backfill, RPC `get_account_service_tree`, vue `v_account_address_summary`, fonction `format_invoice_line_description`.
+- **Anniversaire de facturation** : porté par le compte (`accounts.billing_anchor_day` — jour du mois 1–28). Créé si manquant, backfill = jour de création du compte (clampé à 28).
+- **Cycle** : 30 jours calendaires, ancrés sur `billing_anchor_day`. Un service ajouté le jour J est facturé de J → prochain anchor exclu.
+- **Formule** : `prorata = round( monthly_price * days_remaining / days_in_cycle, 2 )` avec `days_in_cycle = date(next_anchor) - date(prev_anchor)`.
+- **Taxes** : appliquées **après** prorata via `compute_invoice_breakdown` existant (TPS 5%, TVQ 9.975%). Aucune duplication de logique fiscale.
+- **Équipement** : jamais proraté — facturé plein tarif dans la même facture (frais one-time).
+- **Promotions** (`BIENVENUE2026`/`NIVRA2026` 100% off 1er mois) : s'appliquent au **premier cycle plein**, pas au prorata. Le prorata est donc payé même avec promo. Documenté dans la mémoire.
+- **Multi-adresses** : chaque service ajouté est lié à `service_address_id`. Le prorata est calculé **par service**, pas par compte. La ligne de facture affiche `[Adresse, Ville] · Service · Prorata J→J+n`.
+- **Cas limites** :
+  - Ajout le jour même de l'anchor → 0 prorata, 1er cycle plein démarre immédiatement.
+  - Mois court (fév) → `days_in_cycle` reflète la vraie durée du cycle.
+  - Ré-activation d'un service annulé → nouveau prorata, nouveau cycle.
 
-**Nouveaux fichiers** :
-- `src/hooks/useAccountAddresses.ts`
-- `src/components/service-address/ServiceAddressPicker.tsx`
-- `src/components/service-address/AddressBlock.tsx`
-- `src/components/service-address/ServiceSection.tsx`
-- `src/components/service-address/EquipmentSection.tsx`
-- `src/components/service-address/AddressCreateForm.tsx`
-- Tests associés
+---
 
-**Fichiers modifiés** : les 8 fichiers listés en §5 + `ClientMyServices.tsx`.
+## 2. Backend (single source of truth)
 
-**Non touché** : template PDF, `compute_invoice_breakdown`, moteur de taxes, logique de paiement, edge functions de facturation.
+### 2.1 Migration
+- `accounts.billing_anchor_day smallint` (1–28), backfill = `LEAST(EXTRACT(day FROM created_at)::int, 28)`, `NOT NULL DEFAULT` via trigger sur insert.
+- Index sur `billing_invoice_lines(service_address_id)` (déjà ajouté en 3A ? vérifier).
+- Nouvelle fonction SQL (SECURITY DEFINER, `search_path=public`) :
+  ```
+  compute_prorata_for_service(
+    p_account_id uuid,
+    p_service_address_id uuid,
+    p_monthly_price_cents int,
+    p_activation_date date DEFAULT current_date
+  ) RETURNS jsonb
+  -- { days_remaining, days_in_cycle, prorata_cents, next_anchor, prev_anchor, is_zero }
+  ```
+- Aucune vue/table de prorata séparée : le calcul est pur, stocké dans `billing_invoice_lines.prorata_metadata` (déjà ajouté en 3A) au moment de la facturation.
 
-Dis "go" et j'exécute la migration puis le code dans la foulée.
+### 2.2 Edge Function
+- Nouvelle fonction `billing-create-prorata-invoice` (< 50KB) :
+  - Input : `{ account_id, service_address_id, service_ids[], equipment_ids[], activation_date? }`
+  - Récupère les prix depuis le catalogue (jamais du client).
+  - Appelle `compute_prorata_for_service` pour chaque service.
+  - Construit les lignes : 1 ligne prorata par service (avec metadata JSON) + 1 ligne plein tarif équipement.
+  - Appelle `compute_invoice_breakdown` pour taxes/totaux.
+  - Insère `billing_invoices` + `billing_invoice_lines` (statut `pending`).
+  - Retourne `{ invoice_id, total_cents, breakdown }`.
+- Réutilise le shell email corporate #0066CC via `renderQueueTemplate` pour l'envoi (respect mémoire email).
+
+### 2.3 Hook lecture
+- `useProratePreview(accountId, addressId, serviceSelection)` : appelle un RPC read-only `preview_prorata` pour affichage temps-réel dans le checkout / ajout de service (aucun calcul côté client, juste rendu).
+
+---
+
+## 3. Frontend (rendu uniquement)
+
+Trois points d'intégration, **tous via des composants partagés** :
+
+1. **Checkout** (`CheckoutReviewStep` ou équivalent) : après sélection d'adresse (via `ServiceAddressPicker` existant), affiche un bloc "Ajustement au prorata" retourné par `preview_prorata`. Ligne visible : `Prorata Internet Fibre 500 · 12/30 jours · 24,00 $`.
+2. **Ajout de service à une adresse existante** (client portal `ClientMyServices` + admin `AccountEquipmentTab`) : même composant `<ProratePreviewCard addressId serviceId />`.
+3. **Facture PDF** : **aucun changement de template**. Les lignes prorata utilisent la description formatée par `format_invoice_line_description` (déjà en place), rendant `[Adresse, Ville] · Internet Fibre · Prorata 12j (04→16 juillet)`.
+
+Nouveau composant partagé unique : `src/components/billing/ProratePreviewCard.tsx`.
+
+---
+
+## 4. Tests
+
+- **SQL** : cas 1 jour, 15 jours, 30 jours, anniversaire même jour, mois de février.
+- **Edge function** : appel avec 1 service, 3 services multi-adresses, service + équipement.
+- **Invariants financiers** : `sum(lines.total) === invoice.subtotal` ; taxes = `compute_invoice_breakdown` ; aucune régression sur factures mensuelles (le prorata ne touche que les factures d'activation).
+- **UI** : le preview affiché correspond exactement au montant facturé (byte-for-byte via même RPC).
+
+---
+
+## 5. Documentation & mémoire
+
+- Nouveau fichier `docs/PRORATA_MODEL.md` : formule, ancrage, cas limites, interaction promotions, exemples.
+- Mise à jour mémoire : nouvelle entrée `[Prorata Immédiat 3C]` — backend seul, per-service per-address, promo s'applique au 1er cycle plein.
+
+---
+
+## 6. Livrables
+
+- 1 migration (`billing_anchor_day` + fonctions SQL)
+- 1 edge function (`billing-create-prorata-invoice`)
+- 1 RPC read-only (`preview_prorata`)
+- 1 composant partagé (`ProratePreviewCard`)
+- 1 hook (`useProratePreview`)
+- 3 écrans branchés (checkout, client portal, admin)
+- Documentation + mise à jour mémoire
+
+**Non inclus** (hors périmètre 3C) : refonte du template PDF, changement de la logique de facturation mensuelle récurrente, changement des promotions existantes.
+
+Réponds **"go"** pour exécuter, ou indique les ajustements souhaités.

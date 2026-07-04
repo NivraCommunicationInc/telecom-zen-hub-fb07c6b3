@@ -586,6 +586,7 @@ export type Database = {
           account_number: string
           billing_address: string | null
           billing_anchor_date: string | null
+          billing_anchor_day: number | null
           billing_city: string | null
           billing_cycle_day: number | null
           billing_cycle_timezone: string | null
@@ -625,6 +626,7 @@ export type Database = {
           account_number: string
           billing_address?: string | null
           billing_anchor_date?: string | null
+          billing_anchor_day?: number | null
           billing_city?: string | null
           billing_cycle_day?: number | null
           billing_cycle_timezone?: string | null
@@ -664,6 +666,7 @@ export type Database = {
           account_number?: string
           billing_address?: string | null
           billing_anchor_date?: string | null
+          billing_anchor_day?: number | null
           billing_city?: string | null
           billing_cycle_day?: number | null
           billing_cycle_timezone?: string | null
@@ -28677,6 +28680,15 @@ export type Database = {
         Args: { p_days_remaining: number; p_monthly_price: number }
         Returns: number
       }
+      compute_prorata_for_service: {
+        Args: {
+          p_account_id: string
+          p_activation_date?: string
+          p_monthly_price_cents: number
+          p_service_address_id: string
+        }
+        Returns: Json
+      }
       confirm_appointment_hold: {
         Args: {
           p_appointment_id: string
@@ -29630,6 +29642,15 @@ export type Database = {
       portal_jsonb_array_count: {
         Args: { _key: string; _snapshot: Json }
         Returns: number
+      }
+      preview_prorata: {
+        Args: {
+          p_account_id: string
+          p_activation_date?: string
+          p_monthly_price_cents: number
+          p_service_address_id: string
+        }
+        Returns: Json
       }
       process_customer_portal_projection_events: {
         Args: { _limit?: number }
