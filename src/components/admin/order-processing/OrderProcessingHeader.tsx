@@ -115,18 +115,8 @@ export function OrderProcessingHeader({ proc }: Props) {
     }
   };
 
-  const handleSendNotification = async () => {
-    setLoading("notify");
-    try {
-      await proc.sendClientNotification(
-        "order_update",
-        `Mise à jour de votre commande ${order.order_number || ""} — Nivra`,
-        { status: order.status }
-      );
-    } finally {
-      setLoading(null);
-    }
-  };
+  // handleSendNotification retiré 2026-07-04 — voir customQueueTemplates.ts.
+
 
   return (
     <>
