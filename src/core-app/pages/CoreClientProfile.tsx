@@ -224,7 +224,7 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       if (!clientId) return [];
       const { data: ords } = await supabase.from("orders")
-        .select("id, equipment_details, service_activated_at, updated_at, status")
+        .select("id, equipment_details, service_address_id, service_activated_at, updated_at, status")
         .eq("user_id", clientId!)
         .in("status", ["activated", "delivered", "completed"]);
       const out: any[] = [];
@@ -239,6 +239,7 @@ const CoreClientProfile = () => {
             status: eq.status || "assigned",
             price_client: eq.type === "router" ? 60 : eq.type === "tv_box" ? 50 : eq.type === "sim" ? 30 : 0,
             assigned_at: o.service_activated_at || o.updated_at,
+            service_address_id: o.service_address_id || null,
           });
         });
       });
