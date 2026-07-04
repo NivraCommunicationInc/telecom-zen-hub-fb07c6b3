@@ -118,6 +118,8 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [installSlot, setInstallSlot] = useState<{ date: string; time_slot: string } | null>(null);
+  const [coaxSurvey, setCoaxSurvey] = useState<CoaxialAnswers>(initialCoaxialAnswers());
   const [draftDismissed, setDraftDismissed] = useState(false);
 
   // Cart persistence — per portal
