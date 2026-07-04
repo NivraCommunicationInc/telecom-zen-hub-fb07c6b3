@@ -972,46 +972,11 @@ Deno.serve(async (req) => {
                 console.error("[field-sales-sync] client_documents mirror failed:", docErr?.message || docErr);
               }
 
-              // Enqueue contract email to client (template resolved by email worker)
-              try {
-                await supabaseAdmin.from("email_queue").insert({
-                  event_key: `contract_generated:${canonicalOrder.id}`,
-                  to_email: customerEmail,
-                  template_key: "contract_generated",
-                  status: "pending",
-                  attempts: 0,
-                  max_attempts: 5,
-                  message_type: "transactional",
-                  entity_type: "contract",
-                  entity_id: canonicalOrder.id,
-                  subject: "Votre contrat de service Nivra",
-                  template_vars: {
-                    order_number: canonicalOrder.order_number,
-                    customer_first_name: customerFirstName,
-                    customer_last_name: customerLastName,
-                    agent_name: agentName,
-                    agent_number: agentNumber,
-                    // Discount section â€” RULE 4: always include automatic
-                    // first-month-free (when there are recurring services) +
-                    // the agent's optional additional discount.
-                    discount_data: discountData || null,
-                    discounts: [
-                      ...(monthlyTotal > 0 && !agentDiscountIsFirstMonth
-                        ? [{
-                            label: "1er mois offert âœ“ (automatique)",
-                            amount: -monthlyTotal,
-                            type: "first_month_free",
-                            automatic: true,
-                          }]
-                        : []),
-                      ...(discountData ? [discountData] : []),
-                    ],
-                  },
-                  idempotency_key: `contract_generated:${canonicalOrder.id}`,
-                });
-              } catch (mailErr) {
-                console.error("[field-sales-sync] contract_generated enqueue failed:", mailErr?.message || mailErr);
-              }
+              // BUG 4 FIX — Do NOT enqueue a separate "contract_generated" email
+              // here. send-order-confirmation below is the single source of the
+              // order confirmation email (corporate blue template + attached
+              // contract + summary PDFs). Duplicate emails removed.
+
             }
           }
         } catch (billingErr) {
