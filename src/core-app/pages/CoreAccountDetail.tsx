@@ -115,6 +115,7 @@ const CoreAccountDetail = () => {
     const d = new Date(p.created_at);
     return (now.getTime() - d.getTime()) < 30 * 24 * 60 * 60 * 1000;
   });
+  const isAddressesSection = activeSection === "addresses";
 
   /* ── Section badge counts ── */
   const sectionCounts: Partial<Record<SectionId, number>> = {
@@ -214,8 +215,8 @@ const CoreAccountDetail = () => {
         invoiceHref={(invoiceId) => corePath(`/invoices/${invoiceId}`)}
       />
 
-      {/* 3-column layout: Nav | Content | Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-[210px_1fr_280px] gap-3">
+      {/* 360 layout: address workspace uses full width so its actions stay visible */}
+      <div className={`grid grid-cols-1 gap-3 ${isAddressesSection ? "lg:grid-cols-[210px_1fr]" : "lg:grid-cols-[210px_1fr_280px]"}`}>
         {/* LEFT: Section Navigation */}
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] self-start lg:sticky lg:top-4">
           <div className="px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
@@ -254,21 +255,23 @@ const CoreAccountDetail = () => {
         </div>
 
         {/* RIGHT: Persistent Summary Panel */}
-        <Account360RightPanel
-          account={acct}
-          profile={prof}
-          clientName={clientName}
-          latestKyc={latestKyc}
-          totalDue={totalDue}
-          totalPaid={totalPaid}
-          monthlyRevenue={monthlyRevenue}
-          unpaidCount={unpaidInvoices.length}
-          accountId={accountId}
-          clientId={data.clientId}
-          subscriptions={data.subscriptions}
-          creditScore={data.creditScore}
-          onRefresh={data.refetch}
-        />
+        {!isAddressesSection && (
+          <Account360RightPanel
+            account={acct}
+            profile={prof}
+            clientName={clientName}
+            latestKyc={latestKyc}
+            totalDue={totalDue}
+            totalPaid={totalPaid}
+            monthlyRevenue={monthlyRevenue}
+            unpaidCount={unpaidInvoices.length}
+            accountId={accountId}
+            clientId={data.clientId}
+            subscriptions={data.subscriptions}
+            creditScore={data.creditScore}
+            onRefresh={data.refetch}
+          />
+        )}
       </div>
 
       <Account360ProfileEditDialog
