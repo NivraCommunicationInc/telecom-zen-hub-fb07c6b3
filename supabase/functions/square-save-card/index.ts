@@ -70,7 +70,9 @@ Deno.serve(async (req) => {
     // Save card on file
     const payload: Record<string, unknown> = {
       source_id,
-      idempotency_key: `save-card-${customer_id}-${Date.now()}`,
+      // Square limit: idempotency_key <= 45 chars. Use random UUID (36) — a new
+      // attempt should always be a new key (no dedupe on retry, user drives it).
+      idempotency_key: crypto.randomUUID(),
       card: { customer_id: squareCustomerId },
     };
     if (verification_token) payload.verification_token = verification_token;
@@ -87,7 +89,7 @@ Deno.serve(async (req) => {
 
     const body = await res.json();
     if (!res.ok) {
-      const errMsg = body.errors?.map((e: any) => e.detail).join(", ") || "Erreur Square inconnue";
+      const errMsg = body.errors?.map((e: any) => e.field ? `${e.detail} (champ: ${e.field})` : e.detail).join(", ") || "Erreur Square inconnue";
       throw new Error(errMsg);
     }
 

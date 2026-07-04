@@ -52,11 +52,37 @@ serve(async (req) => {
     const email = body.email.trim().toLowerCase();
     console.log(`[auto-create-client-account] Processing: ${email}`);
 
-    // Step 1: Check if auth user already exists
+    // Step 1: Match by email first, then by normalized phone (anti-duplicate).
+    const normalizePhone = (p?: string | null): string | null => {
+      if (!p) return null;
+      const digits = String(p).replace(/\D+/g, "");
+      // strip leading country code 1 for NA numbers so 5145551234 == 15145551234
+      const trimmed = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+      return trimmed.length >= 10 ? trimmed.slice(-10) : (trimmed || null);
+    };
+    const inputPhoneNorm = normalizePhone(body.phone);
+
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(
+    let existingUser = existingUsers?.users?.find(
       u => u.email?.toLowerCase() === email
     );
+
+    let phoneMatchDifferentEmail: { matchedEmail: string } | null = null;
+
+    if (!existingUser && inputPhoneNorm) {
+      // Look up profiles by normalized phone
+      const { data: phoneRows } = await supabase
+        .from("profiles")
+        .select("user_id, email, phone")
+        .not("phone", "is", null);
+      const match = (phoneRows || []).find(r => normalizePhone(r.phone) === inputPhoneNorm);
+      if (match?.user_id) {
+        const matchedAuth = existingUsers?.users?.find(u => u.id === match.user_id);
+        existingUser = matchedAuth;
+        phoneMatchDifferentEmail = { matchedEmail: matchedAuth?.email || match.email || "(inconnu)" };
+        console.log(`[auto-create-client-account] Phone match found, different email: ${email} vs ${phoneMatchDifferentEmail.matchedEmail}`);
+      }
+    }
 
     let userId: string;
     let isNewAccount = false;
@@ -66,13 +92,12 @@ serve(async (req) => {
       console.log(`[auto-create-client-account] User already exists: ${userId}`);
     } else {
       // Step 2: Create new auth user with a random password
-      // User will reset via email
-      const tempPassword = crypto.randomUUID() + "Aa1!"; // Meets password requirements
+      const tempPassword = crypto.randomUUID() + "Aa1!";
       
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email,
         password: tempPassword,
-        email_confirm: true, // Auto-confirm email
+        email_confirm: true,
         user_metadata: {
           first_name: body.first_name,
           last_name: body.last_name,
@@ -88,6 +113,29 @@ serve(async (req) => {
       userId = newUser.user.id;
       isNewAccount = true;
       console.log(`[auto-create-client-account] Created new user: ${userId}`);
+    }
+
+    // If we linked by phone with a different email, log an auto-note + activity alert
+    if (phoneMatchDifferentEmail) {
+      try {
+        const noteBody = `Commande liée par correspondance téléphone — email fourni différent : ${email} vs ${phoneMatchDifferentEmail.matchedEmail}. Vérification agent requise.`;
+        await supabase.from("client_internal_notes").insert({
+          client_id: userId,
+          author_name: "Système Nivra",
+          author_role: "system",
+          note: noteBody,
+          category: "identity",
+        });
+        await supabase.from("activity_logs").insert({
+          entity_id: userId,
+          entity_type: "client",
+          action: noteBody,
+          actor_name: "Système Nivra",
+          actor_role: "system",
+        });
+      } catch (e) {
+        console.warn("[auto-create-client-account] phone-match note failed:", e);
+      }
     }
 
     // Step 3: Ensure profile exists and is updated

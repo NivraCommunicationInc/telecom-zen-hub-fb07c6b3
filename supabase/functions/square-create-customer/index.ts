@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
         family_name: bc.last_name || "",
         email_address: bc.email,
         reference_id: bc.id,
-        idempotency_key: `create-customer-${bc.id}`,
+        // Square limit: idempotency_key <= 45 chars. UUID (36) fits and is stable.
+        idempotency_key: bc.id,
       }),
     });
 
