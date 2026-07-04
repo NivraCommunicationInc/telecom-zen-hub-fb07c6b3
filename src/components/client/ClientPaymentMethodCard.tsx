@@ -108,14 +108,38 @@ export const ClientPaymentMethodCard = () => {
           Authorization: `Bearer ${BACKEND_ANON_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ source_id: result.token, customer_id: cardData.id }),
+        body: JSON.stringify({ source_id: result.token, customer_id: cardData.id, channel: "portal" }),
       });
       const data = await res.json();
       if (!data?.ok) { toast.error(data?.error || "Erreur lors de l'enregistrement"); return; }
 
-      toast.success("Carte enregistrée — autopay activé !");
+      toast.success("Carte enregistrée — paiement automatique activé !");
       qc.invalidateQueries({ queryKey: ["square-card-status", user.id] });
       setShowForm(false);
+    } catch (e: any) {
+      toast.error("Erreur : " + (e?.message || String(e)));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDetachCard = async () => {
+    if (!cardData?.id) return;
+    if (!confirm("Désactiver le paiement automatique ? Vos prochaines factures devront être payées manuellement.")) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/functions/v1/square-detach-card`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${BACKEND_ANON_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ customer_id: cardData.id, channel: "portal" }),
+      });
+      const data = await res.json();
+      if (!data?.ok) { toast.error(data?.error || "Erreur lors de la désactivation"); return; }
+      toast.success("Paiement automatique désactivé");
+      qc.invalidateQueries({ queryKey: ["square-card-status", user.id] });
     } catch (e: any) {
       toast.error("Erreur : " + (e?.message || String(e)));
     } finally {
