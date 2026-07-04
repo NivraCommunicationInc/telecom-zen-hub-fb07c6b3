@@ -378,6 +378,7 @@ export default function UnifiedPOSPage({
       });
 
       pos.clearCart();
+      clearDraft();
       setCustomerData(null);
       setPaymentData(null);
       
