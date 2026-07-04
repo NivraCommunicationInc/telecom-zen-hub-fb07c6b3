@@ -21,7 +21,7 @@ import {
   AppointmentsSection, KycSection, ContractsSection, TimelineSection,
   FinancialDocsSection, AdminDocsSection,
 } from "@/core-app/components/account-360/Account360Sections";
-import { AccountAddressesTab } from "@/components/admin/account-profile/AccountAddressesTab";
+import { AccountAddressesSection } from "@/core-app/components/account-360/AccountAddressesSection";
 
 /* ── Section definitions ── */
 type SectionId = "profile" | "billing" | "addresses" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "appointments" | "contracts" | "financial_docs" | "admin_docs" | "tickets" | "timeline";
@@ -115,7 +115,7 @@ const CoreAccountDetail = () => {
     const d = new Date(p.created_at);
     return (now.getTime() - d.getTime()) < 30 * 24 * 60 * 60 * 1000;
   });
-  const isAddressesSection = activeSection === "addresses";
+  
 
   /* ── Section badge counts ── */
   const sectionCounts: Partial<Record<SectionId, number>> = {
@@ -144,7 +144,7 @@ const CoreAccountDetail = () => {
     switch (activeSection) {
       case "profile": return <ProfileSection data={data} acct={acct} prof={prof} clientName={clientName} />;
       case "billing": return <BillingSection acct={acct} data={data} totalDue={totalDue} monthlyRevenue={monthlyRevenue} unpaidInvoices={unpaidInvoices} totalPaid={totalPaid} />;
-      case "addresses": return <AccountAddressesTab account={acct} subscriptions={data.subscriptions as any[]} equipment={data.equipment as any[]} appointments={data.appointments as any[]} tickets={data.tickets as any[]} incidents={data.incidents as any[]} />;
+      case "addresses": return <AccountAddressesSection account={acct} subscriptions={data.subscriptions as any[]} equipment={data.equipment as any[]} appointments={data.appointments as any[]} tickets={data.tickets as any[]} incidents={data.incidents as any[]} onRefresh={data.refetch} />;
       case "subscriptions": return <SubscriptionsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "orders": return <OrdersSection data={data} accountId={accountId} clientId={data.clientId} clientEmail={prof?.email} clientName={clientName} onRefresh={data.refetch} />;
       case "invoices": return <InvoicesSection data={data} customerId={data.customerId} customerUserId={data.clientId} profileEmail={prof?.email} billingCustomerEmail={data.billingCustomer?.email} onRefresh={data.refetch} />;
@@ -215,8 +215,8 @@ const CoreAccountDetail = () => {
         invoiceHref={(invoiceId) => corePath(`/invoices/${invoiceId}`)}
       />
 
-      {/* 360 layout: address workspace uses full width so its actions stay visible */}
-      <div className={`grid grid-cols-1 gap-3 ${isAddressesSection ? "lg:grid-cols-[210px_1fr]" : "lg:grid-cols-[210px_1fr_280px]"}`}>
+      {/* 360 layout: 3 colonnes constantes — sidebar / contenu / résumé compte */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[210px_1fr_280px]">
         {/* LEFT: Section Navigation */}
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] self-start lg:sticky lg:top-4">
           <div className="px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
@@ -249,29 +249,25 @@ const CoreAccountDetail = () => {
           </nav>
         </div>
 
-        {/* CENTER: Active Section Content */}
         <div className="min-h-[500px] min-w-0">
           {renderSection()}
         </div>
 
-        {/* RIGHT: Persistent Summary Panel */}
-        {!isAddressesSection && (
-          <Account360RightPanel
-            account={acct}
-            profile={prof}
-            clientName={clientName}
-            latestKyc={latestKyc}
-            totalDue={totalDue}
-            totalPaid={totalPaid}
-            monthlyRevenue={monthlyRevenue}
-            unpaidCount={unpaidInvoices.length}
-            accountId={accountId}
-            clientId={data.clientId}
-            subscriptions={data.subscriptions}
-            creditScore={data.creditScore}
-            onRefresh={data.refetch}
-          />
-        )}
+        <Account360RightPanel
+          account={acct}
+          profile={prof}
+          clientName={clientName}
+          latestKyc={latestKyc}
+          totalDue={totalDue}
+          totalPaid={totalPaid}
+          monthlyRevenue={monthlyRevenue}
+          unpaidCount={unpaidInvoices.length}
+          accountId={accountId}
+          clientId={data.clientId}
+          subscriptions={data.subscriptions}
+          creditScore={data.creditScore}
+          onRefresh={data.refetch}
+        />
       </div>
 
       <Account360ProfileEditDialog
