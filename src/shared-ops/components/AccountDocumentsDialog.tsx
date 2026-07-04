@@ -3,7 +3,7 @@
  * Staff-only read of all client documents (contracts, auto-docs, uploads, order docs).
  * Pulls via the `account-documents-list` edge function which signs storage URLs.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCheck2, Upload, PackageCheck, Receipt, FileSpreadsheet, FileQuestion } from "lucide-react";
+import { FileText, Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCheck2, Upload, PackageCheck, Receipt, FileSpreadsheet, FileQuestion, Send, Trash2, UploadCloud, Clock, CheckCircle2, XCircle } from "lucide-react";
 
 interface Props {
   open: boolean;
