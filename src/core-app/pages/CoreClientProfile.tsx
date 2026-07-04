@@ -98,6 +98,10 @@ const CoreClientProfile = () => {
       "billing_payments",
       "orders",
       "equipment_inventory",
+      "service_addresses",
+      "appointments",
+      "support_tickets",
+      "service_incidents",
       "contracts",
       "client_auto_documents",
       "accounts",
@@ -112,6 +116,9 @@ const CoreClientProfile = () => {
         queryClient.invalidateQueries({ queryKey: ["core-client-subscriptions", clientId] });
         queryClient.invalidateQueries({ queryKey: ["core-client-equipment", clientId] });
         queryClient.invalidateQueries({ queryKey: ["core-client-equipment-fallback", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-appointments", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-tickets", clientId] });
+        queryClient.invalidateQueries({ queryKey: ["core-client-incidents", clientId] });
         queryClient.invalidateQueries({ queryKey: ["core-client-invoices", clientId] });
         queryClient.invalidateQueries({ queryKey: ["core-client-payments", clientId] });
         queryClient.invalidateQueries({ queryKey: ["core-client-contracts", clientId] });
@@ -188,7 +195,7 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       if (!billingCustomer) return [];
       const { data } = await supabase.from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category, service_address_id")
+        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at, service_category, service_address_id, address_id")
         .eq("customer_id", billingCustomer.id)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -203,7 +210,7 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       if (!account) return [];
       const { data } = await supabase.from("equipment_inventory")
-        .select("id, catalog_name, serial_number, status, price_client, assigned_at")
+        .select("id, catalog_name, serial_number, status, price_client, assigned_at, service_address_id")
         .eq("account_id", account.id)
         .order("assigned_at", { ascending: false });
       return (data || []) as any[];
@@ -218,7 +225,7 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       if (!clientId) return [];
       const { data: ords } = await supabase.from("orders")
-        .select("id, equipment_details, service_activated_at, updated_at, status")
+        .select("id, equipment_details, service_address_id, service_activated_at, updated_at, status")
         .eq("user_id", clientId!)
         .in("status", ["activated", "delivered", "completed"]);
       const out: any[] = [];
@@ -233,6 +240,7 @@ const CoreClientProfile = () => {
             status: eq.status || "assigned",
             price_client: eq.type === "router" ? 60 : eq.type === "tv_box" ? 50 : eq.type === "sim" ? 30 : 0,
             assigned_at: o.service_activated_at || o.updated_at,
+            service_address_id: o.service_address_id || null,
           });
         });
       });
@@ -243,6 +251,53 @@ const CoreClientProfile = () => {
   });
 
   const equipment = equipmentInv.length > 0 ? equipmentInv : equipmentFallback;
+
+  // ── Address-linked operations ──
+  const { data: appointments = [] } = useQuery({
+    queryKey: ["core-client-appointments", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase.from("appointments")
+        .select("*")
+        .eq("client_id", clientId!)
+        .order("scheduled_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
+  const { data: tickets = [] } = useQuery({
+    queryKey: ["core-client-tickets", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase.from("support_tickets")
+        .select("*")
+        .or(`user_id.eq.${clientId},owner_user_id.eq.${clientId}`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
+  const { data: incidents = [] } = useQuery({
+    queryKey: ["core-client-incidents", clientId, account?.id],
+    queryFn: async () => {
+      if (!clientId && !account?.id) return [];
+      const filters = [clientId ? `client_user_id.eq.${clientId}` : null, account?.id ? `client_account_id.eq.${account.id}` : null].filter(Boolean).join(",");
+      const { data, error } = await supabase.from("service_incidents")
+        .select("*")
+        .or(filters)
+        .order("started_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId || !!account?.id,
+  });
 
   // ── Contracts (FIX 2 — Section A) ──
   const { data: contracts = [] } = useQuery({
@@ -621,7 +676,7 @@ const CoreClientProfile = () => {
 
               <Section title="Adresses de service & options multi-service" icon={Home}>
                 {account?.id ? (
-                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} />
+                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} equipment={equipment as any[]} appointments={appointments as any[]} tickets={tickets as any[]} incidents={incidents as any[]} />
                 ) : (
                   <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">
                     Aucun compte lié à ce client — impossible d'afficher les adresses.
@@ -711,7 +766,7 @@ const CoreClientProfile = () => {
             <TabsContent value="adresses" className="space-y-4">
               <Section title="Adresses de service & services actifs" icon={Home}>
                 {account?.id ? (
-                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} />
+                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} equipment={equipment as any[]} appointments={appointments as any[]} tickets={tickets as any[]} incidents={incidents as any[]} />
                 ) : (
                   <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">
                     Aucun compte lié à ce client — impossible d'afficher les adresses.

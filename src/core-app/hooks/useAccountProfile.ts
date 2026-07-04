@@ -196,6 +196,26 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!clientId,
   });
 
+  const incidents = useQuery({
+    queryKey: ["account-profile-incidents", clientId, accountId],
+    queryFn: async () => {
+      if (!clientId && !accountId) return [];
+      const filters = [
+        clientId ? `client_user_id.eq.${clientId}` : null,
+        accountId ? `client_account_id.eq.${accountId}` : null,
+      ].filter(Boolean).join(",");
+      const { data, error } = await supabase
+        .from("service_incidents")
+        .select("*")
+        .or(filters)
+        .order("started_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId || !!accountId,
+  });
+
   const appointments = useQuery({
     queryKey: ["account-profile-appointments", clientId],
     queryFn: async () => {
@@ -411,26 +431,19 @@ export function useAccountProfile(accountId: string | undefined) {
   });
 
   const serviceAddresses = useQuery({
-    queryKey: ["account-profile-service-addresses", customerId],
+    queryKey: ["account-profile-service-addresses", accountId],
     queryFn: async () => {
-      if (!customerId) return [];
-      const { data: subs } = await supabase
-        .from("billing_subscriptions")
-        .select("address_id")
-        .eq("customer_id", customerId)
-        .not("address_id", "is", null);
-      
-      const addressIds = [...new Set(subs?.map(s => s.address_id).filter(Boolean))] as string[];
-      if (addressIds.length === 0) return [];
-      
+      if (!accountId) return [];
       const { data, error } = await supabase
         .from("service_addresses")
         .select("*")
-        .in("id", addressIds);
+        .eq("account_id", accountId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!customerId,
+    enabled: !!accountId,
   });
 
   const isLoading = account.isLoading || (!!account.data?.client_id && profile.isLoading);
@@ -446,6 +459,7 @@ export function useAccountProfile(accountId: string | undefined) {
     payments.refetch();
     subscriptions.refetch();
     tickets.refetch();
+    incidents.refetch();
     appointments.refetch();
     kycSessions.refetch();
     equipment.refetch();
@@ -467,6 +481,7 @@ export function useAccountProfile(accountId: string | undefined) {
     payments: payments.data || [],
     subscriptions: subscriptions.data || [],
     tickets: tickets.data || [],
+    incidents: incidents.data || [],
     appointments: appointments.data || [],
     authorizedUsers: authorizedUsers.data || [],
     kycSessions: kycSessions.data || [],
