@@ -757,12 +757,23 @@ export async function fallbackCheckout(
     }
   }
 
-  // ── 10. Update account billing_cycle_day ──
-  await supabase
-    .from("accounts")
-    .update({ billing_cycle_day: billingCycleDay })
-    .eq("id", accountId)
-    .then(() => console.log("[FallbackCheckout] ✓ billing_cycle_day set to:", billingCycleDay));
+  // ── 10. Update account billing_cycle_day (only if missing — anchor is immutable) ──
+  {
+    const { data: acct } = await supabase
+      .from("accounts")
+      .select("billing_cycle_day")
+      .eq("id", accountId)
+      .maybeSingle();
+    if (!acct?.billing_cycle_day) {
+      await supabase
+        .from("accounts")
+        .update({ billing_cycle_day: billingCycleDay })
+        .eq("id", accountId)
+        .then(() => console.log("[FallbackCheckout] ✓ billing_cycle_day bootstrapped to:", billingCycleDay));
+    } else {
+      console.log("[FallbackCheckout] billing_cycle_day preserved:", acct.billing_cycle_day);
+    }
+  }
 
   console.log("[FallbackCheckout] ✓ COMPLETE — All operational records created directly in Supabase");
 
