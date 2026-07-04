@@ -1503,6 +1503,13 @@ const GuestCheckout = () => {
             {step < 7 && renderStepShell(1, step === 1 && (
 
               <div className="space-y-6">
+                {hasDraft && selectedServices.length === 0 && !draftDismissed && (
+                  <CartResumeBanner
+                    itemCount={savedDraft?.selectedServices?.length || 0}
+                    onResume={handleResumeDraft}
+                    onDismiss={handleDismissDraft}
+                  />
+                )}
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                     <CardTitle className="flex items-center gap-3">
