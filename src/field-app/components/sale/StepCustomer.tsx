@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { User, MapPin, CheckCircle2, XCircle, Loader2, Search, UserPlus, ArrowRight, AlertTriangle, AlertCircle } from "lucide-react";
 import { searchCustomers, checkServiceability, checkDuplicates, type ServiceabilityResult, type DuplicateCheckResult } from "@/field-app/lib/fieldServices";
 import type { FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
+import CoaxialSurvey, { initialCoaxialAnswers } from "@/components/shared/CoaxialSurvey";
 
 interface Props {
   customer: FieldSaleCustomer;
