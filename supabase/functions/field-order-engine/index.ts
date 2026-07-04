@@ -540,6 +540,116 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, field_order_id: fieldOrder.id, order_id: syncData.orderId, invoice_id: syncData.invoice_id ?? null }), { headers });
     }
 
+    // ────────────────────────────────────────────────────────────────
+    // materialize_pending_from_quote — creates the shell Core order at
+    // intent creation time (BEFORE payment), so staff can prepare KYC,
+    // equipment, technician, etc. in parallel while the client pays.
+    // Called internally by field-payment-link-create / field-payment-initiate.
+    // Idempotent: no-op if intent.converted_order_id is already set.
+    // ────────────────────────────────────────────────────────────────
+    if (postAction === "materialize_pending_from_quote") {
+      if (!isServiceRoleCall) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
+      const intentId = body.intent_id || body.field_payment_intent_id;
+      if (!intentId) return new Response(JSON.stringify({ error: "intent_id requis" }), { status: 400, headers });
+
+      const { data: intent } = await admin
+        .from("field_payment_intents")
+        .select("id, quote_id, agent_id, amount, status, customer_email, customer_name, converted_field_order_id, converted_order_id, payment_method")
+        .eq("id", intentId)
+        .maybeSingle();
+      if (!intent) return new Response(JSON.stringify({ error: "Intent introuvable" }), { status: 404, headers });
+
+      // Idempotent — already materialized
+      if (intent.converted_order_id) {
+        return new Response(JSON.stringify({
+          success: true,
+          order_id: intent.converted_order_id,
+          field_order_id: intent.converted_field_order_id,
+          already_materialized: true,
+        }), { headers });
+      }
+      if (!intent.quote_id) {
+        return new Response(JSON.stringify({ error: "Intent sans quote — impossible de matérialiser" }), { status: 400, headers });
+      }
+
+      const { data: quote } = await admin.from("field_quotes").select("*").eq("id", intent.quote_id).maybeSingle();
+      if (!quote) return new Response(JSON.stringify({ error: "Soumission introuvable" }), { status: 404, headers });
+
+      const ci: any = quote.client_info || {};
+      const customerName = [ci.first_name, ci.last_name].filter(Boolean).join(" ").trim()
+        || intent.customer_name || "Client";
+      const fieldServices = [
+        ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
+        ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
+      ];
+
+      // Normalize payment_method for field_sales_orders (its enum accepts a subset)
+      const rawPm = String(intent.payment_method || "card_manual").toLowerCase();
+      const fsoPaymentMethod = rawPm.includes("paypal") ? "paypal"
+        : rawPm.includes("square") ? "card_manual"
+        : "card_manual";
+
+      const { data: fso, error: fsoErr } = await admin
+        .from("field_sales_orders")
+        .insert({
+          salesperson_id: intent.agent_id,
+          customer_name: customerName,
+          customer_email: ci.email || intent.customer_email || null,
+          customer_phone: ci.phone || null,
+          customer_address: ci.address || null,
+          customer_city: ci.city || null,
+          customer_postal_code: ci.postal_code || ci.postalCode || null,
+          customer_date_of_birth: ci.date_of_birth || ci.dob || null,
+          services: fieldServices,
+          total_amount: Number(intent.amount || quote.total || 0),
+          payment_method: fsoPaymentMethod,
+          payment_status: "pending", // ← KEY: pending, not confirmed
+          sync_status: "pending",
+          discount_data: quote.discount || null,
+          source_quote_id: quote.id,
+          source_field_payment_intent_id: intent.id,
+          internal_notes: `Shell Core créée depuis intent ${intent.id} — en attente de paiement client`,
+        } as any)
+        .select("id")
+        .single();
+      if (fsoErr || !fso) throw fsoErr ?? new Error("Création field_sales_orders échouée");
+
+      const syncResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
+        body: JSON.stringify({ action: "sync_single", field_order_id: fso.id, internal: true }),
+      });
+      const syncData = await syncResp.json().catch(() => null);
+      if (!syncResp.ok || !syncData?.success || !syncData?.orderId) {
+        // Roll back to avoid orphan field_sales_orders row
+        await admin.from("field_sales_orders").delete().eq("id", fso.id);
+        throw new Error(syncData?.error || "Sync Core échoué");
+      }
+
+      await admin.from("field_payment_intents").update({
+        converted_field_order_id: fso.id,
+        converted_order_id: syncData.orderId,
+        converted_invoice_id: syncData.invoice_id ?? null,
+      }).eq("id", intent.id);
+
+      // Journal
+      await admin.rpc("log_field_order_event" as never, {
+        p_intent_id: intent.id,
+        p_event_type: "shell_order_materialized",
+        p_payload: { order_id: syncData.orderId, field_order_id: fso.id } as never,
+      }).then(undefined, () => {});
+
+      console.log("[materialize_pending_from_quote] intent", intent.id, "→ order", syncData.orderId);
+      return new Response(JSON.stringify({
+        success: true,
+        field_order_id: fso.id,
+        order_id: syncData.orderId,
+        invoice_id: syncData.invoice_id ?? null,
+      }), { headers });
+    }
+
+
+
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // FIX 1 â€” materialize_from_quote: called by paypal-webhook
     // after a field_payment_intent capture is confirmed. Reads the
