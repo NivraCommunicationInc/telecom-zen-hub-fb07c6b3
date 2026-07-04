@@ -28525,6 +28525,15 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_prorata_to_invoice: {
+        Args: {
+          p_account_id: string
+          p_activation_date?: string
+          p_invoice_id: string
+          p_service_address_id: string
+        }
+        Returns: Json
+      }
       apply_referral_discount:
         | {
             Args: { p_account_id: string; p_invoice_amount: number }

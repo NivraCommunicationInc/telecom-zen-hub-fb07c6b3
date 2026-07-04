@@ -17,6 +17,7 @@ type CheckoutPayload = {
   };
   client_language?: "fr" | "en";
   service_address?: {
+    id?: string | null;
     street?: string;
     city?: string;
     province?: string;
@@ -922,6 +923,38 @@ serve(async (req) => {
     } catch (err) {
       console.error("[checkout-canonical-sync] âŒ CRITICAL: Invoice lines exception:", err);
       errors.push(`invoice_lines_critical: ${err?.message || String(err)}`);
+    }
+
+    // 5b) Prorata immédiat (Pass 3C) — canonique, une seule source de vérité.
+    // Réécrit les lignes récurrentes (line_type=service) en montants prorata
+    // et recalcule taxes + total. Idempotent, no-op si déjà appliqué ou si
+    // aucune adresse fournie.
+    if (accountId && payload.service_address?.id && response.invoice_id) {
+      try {
+        const { data: prorataResult, error: prorataErr } = await admin.rpc(
+          "apply_prorata_to_invoice",
+          {
+            p_invoice_id: response.invoice_id,
+            p_account_id: accountId,
+            p_service_address_id: payload.service_address.id,
+            p_activation_date: toDateOnly(nowIso),
+          },
+        );
+        if (prorataErr) {
+          console.error("[checkout-canonical-sync] prorata rpc error:", prorataErr);
+          errors.push(`prorata: ${prorataErr.message}`);
+        } else {
+          console.log("[checkout-canonical-sync] prorata applied:", prorataResult);
+          results.prorata = prorataResult;
+          const newTotal = (prorataResult as any)?.new_total;
+          if (typeof newTotal === "number" && response.order_id) {
+            await admin.from("orders").update({ total_amount: newTotal }).eq("id", response.order_id);
+          }
+        }
+      } catch (err: any) {
+        console.error("[checkout-canonical-sync] prorata exception:", err);
+        errors.push(`prorata: ${err?.message || String(err)}`);
+      }
     }
 
     // â˜… FIX #3 â€” Equipment line details fallback.

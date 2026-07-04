@@ -53,6 +53,8 @@ export interface NivraCheckoutCustomer {
 }
 
 export interface NivraCheckoutAddress {
+  /** Canonical service_addresses.id (Pass 3A/3C). Optional — resolved server-side if absent. */
+  id?: string | null;
   street: string;
   apartment?: string | null;
   city: string;
