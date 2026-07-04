@@ -96,8 +96,24 @@ export function useAccountAddresses(accountId: string | null | undefined) {
       } as any);
       if (error) throw error;
       if (!data) throw new Error("La création de l'adresse a échoué silencieusement (RPC a retourné null).");
+      const { data: confirmed, error: confirmError } = await backend
+        .from("service_addresses")
+        .select("*")
+        .eq("id", data as string)
+        .eq("account_id", accountId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (confirmError) throw confirmError;
+      if (!confirmed) {
+        throw new Error("Adresse créée, mais non visible dans ce compte. Succès annulé.");
+      }
       // Attendre le refetch AVANT de résoudre → la liste est à jour quand
       // l'UI appelante fait setSelectedId(id) juste après.
+      qc.setQueryData<ServiceAddress[]>(queryKey, (current = []) => {
+        const next = current.filter((address) => address.id !== confirmed.id);
+        next.push(confirmed as ServiceAddress);
+        return next.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      });
       await qc.invalidateQueries({ queryKey });
       await qc.refetchQueries({ queryKey });
       return data as string;
