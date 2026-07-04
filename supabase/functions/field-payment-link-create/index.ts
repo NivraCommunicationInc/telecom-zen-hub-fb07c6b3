@@ -116,8 +116,8 @@ serve(async (req) => {
       }).then(undefined, () => {});
     }
 
-    // Materialize the Core shell order immediately (best-effort, non-blocking).
-    // Ensures Core sees a full 10-step workflow while the client pays.
+    // Materialize the Core shell order immediately.
+    // This is mandatory: Core must receive the normal order even while payment is pending.
     try {
       const matResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-order-engine`, {
         method: "POST",
@@ -129,13 +129,15 @@ serve(async (req) => {
         body: JSON.stringify({ action: "materialize_pending_from_quote", intent_id: intentId }),
       });
       const matData = await matResp.json().catch(() => null);
-      if (!matResp.ok || !matData?.success) {
-        console.warn("[field-payment-link-create] shell materialization failed (non-fatal):", matData?.error || matResp.status);
-      } else {
-        console.log("[field-payment-link-create] shell order:", matData.order_id, "already:", !!matData.already_materialized);
+      if (!matResp.ok || !matData?.success || !matData?.order_id) {
+        const reason = matData?.error || `HTTP ${matResp.status}`;
+        console.error("[field-payment-link-create] shell materialization failed:", reason);
+        return json({ ok: false, error: `Création commande Core échouée: ${reason}` }, 500);
       }
+      console.log("[field-payment-link-create] shell order:", matData.order_id, "already:", !!matData.already_materialized);
     } catch (e) {
-      console.warn("[field-payment-link-create] shell materialization exception:", e);
+      console.error("[field-payment-link-create] shell materialization exception:", e);
+      return json({ ok: false, error: `Création commande Core échouée: ${e?.message || String(e)}` }, 500);
     }
 
     const paymentUrl = `${SITE_URL}/payer/${intentId}`;
