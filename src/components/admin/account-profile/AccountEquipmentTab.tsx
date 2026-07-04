@@ -87,7 +87,8 @@ export function AccountEquipmentTab({ accountId, clientId }: AccountEquipmentTab
   const { data: locations } = useQuery({
     queryKey: ["account-locations-for-eq", accountId],
     queryFn: async () => {
-      const { data } = await supabase.from("account_service_locations").select("id, label, service_address").eq("account_id", accountId);
+      // R1 canonical read: service_addresses (aliased to legacy shape)
+      const { data } = await supabase.from("service_addresses").select("id, label, service_address:address_line").eq("account_id", accountId).eq("is_active", true);
       return data || [];
     },
     enabled: !!accountId,
