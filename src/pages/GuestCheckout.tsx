@@ -20,6 +20,8 @@ import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { PromoCodeInput } from "@/components/checkout/PromoCodeInput";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
+import { CartResumeBanner } from "@/components/checkout/CartResumeBanner";
+import { useCheckoutDraft } from "@/hooks/useCheckoutDraft";
 import {
   CheckoutShippingAndActivation,
   DEFAULT_SHIPPING,
