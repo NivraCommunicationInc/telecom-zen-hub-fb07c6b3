@@ -414,11 +414,12 @@ Deno.serve(async (req) => {
         let monthlyTotal = 0;
         let equipmentTotal = 0;
         const lineItems: any[] = [];
+        let quoteAdjustmentProjected = false;
 
         // 1) Recurring service lines (1 per forfait)
         for (const svc of serviceItems) {
           const qty = Number(svc?.quantity ?? 1) || 1;
-          const monthly = Number(svc?.price_monthly ?? svc?.monthly_price ?? 0) || 0;
+          const monthly = Number(svc?.price_monthly ?? svc?.monthly_price ?? svc?.monthlyPrice ?? 0) || 0;
           if (monthly <= 0) continue;
           const rawName = String(svc?.name || svc?.plan_name || svc?.label || "Service");
           monthlyTotal += monthly * qty;
@@ -488,7 +489,7 @@ Deno.serve(async (req) => {
 
 
         // Taxes (Quebec) â€” canonical tax module
-        const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
+        let baseAmount = subtotal + activationFee + deliveryFee + installationFee;
         let { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
         // â•â•â• AUTHORITATIVE TOTAL â€” sale.total_amount is the agent-displayed total â•â•â•
@@ -502,11 +503,34 @@ Deno.serve(async (req) => {
           const TAX_RATE = 0.14975; // TPS+TVQ combined
           const newBase = Number((agentTotal / (1 + TAX_RATE)).toFixed(2));
           const recomputed = computeTaxes(newBase);
+          baseAmount = newBase;
           tpsAmount = recomputed.tps;
           tvqAmount = recomputed.tvq;
           totalAmount = recomputed.total;
           // Adjust subtotal to absorb any discount (keep activation fee unchanged)
           subtotal = Math.max(0, newBase - activationFee - deliveryFee - installationFee);
+        }
+
+        // Keep invoice/PDF lines aligned with the authoritative quote total.
+        // Field quotes can contain automatic first-month credits and agent promos;
+        // project the net difference as one explicit discount/adjustment line so
+        // Core receives normal detailed lines immediately, even while payment is pending.
+        const currentLineTotal = Number(lineItems.reduce((sum, li) => sum + Number(li.unit_price || 0) * Number(li.qty || 1), 0).toFixed(2));
+        const targetLineTotal = Number(baseAmount.toFixed(2));
+        const lineAdjustment = Number((targetLineTotal - currentLineTotal).toFixed(2));
+        if (Math.abs(lineAdjustment) >= 0.01) {
+          const quoteDiscount: any = (sale as any).discount_data || null;
+          const discountName = String(quoteDiscount?.name || quoteDiscount?.label || "Ajustement promotionnel").trim();
+          lineItems.push({
+            category: lineAdjustment < 0 ? "discount" : "fee",
+            type: lineAdjustment < 0 ? "promotion" : "quote_adjustment",
+            name: lineAdjustment < 0 ? discountName : "Ajustement de soumission",
+            qty: 1,
+            unit_price: lineAdjustment,
+            period: "one_time",
+            taxable: true,
+          });
+          quoteAdjustmentProjected = true;
         }
 
         // â•â•â• RESOLVE OR CREATE ACCOUNT (orders.account_id is NOT NULL) â•â•â•
@@ -839,7 +863,7 @@ Deno.serve(async (req) => {
               discountData && String(discountData.type || "") === "first_month_free";
 
             let welcomeEligible = false;
-            if (monthlyTotal > 0 && !agentDiscountIsFirstMonth) {
+            if (monthlyTotal > 0 && !agentDiscountIsFirstMonth && !quoteAdjustmentProjected) {
               const { data: eligData, error: eligErr } = await supabaseAdmin.rpc(
                 "is_eligible_for_welcome_first_month",
                 { p_user_id: clientUserId ?? null, p_email: sale.customer_email ?? null },
@@ -875,13 +899,13 @@ Deno.serve(async (req) => {
             };
 
             // Discount line (if applied at the door â€” second/additional discount)
-            if (discountData) {
+            if (discountData && !quoteAdjustmentProjected) {
               const dType = String(discountData.type || "");
               const dAppliesTo = String(discountData.applies_to || "");
               const dAmt = Number(discountData.amount || 0);
               const dDur = Number(discountData.duration_months || 0);
               const dName = String(discountData.name || "Rabais agent");
-              const monthlyPrice = Number(discountData.monthly_price || subtotal || 0);
+              const monthlyPrice = Number(discountData.monthly_price || discountData.monthlyPrice || subtotal || 0);
 
               let desc: string | null = null;
               let unitPrice = 0;

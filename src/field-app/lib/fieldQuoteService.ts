@@ -57,14 +57,40 @@ export async function saveQuoteAndEmail({
     existing_service_address_id: draft.existing_service_address_id ?? null,
   };
 
+  const normalizedServices = (draft.services || []).map((service: any) => {
+    const monthlyPrice = Number(service?.monthlyPrice ?? service?.price_monthly ?? service?.monthly_price ?? service?.price ?? 0) || 0;
+    return {
+      ...service,
+      kind: "service",
+      quantity: Number(service?.quantity ?? 1) || 1,
+      monthlyPrice,
+      price_monthly: monthlyPrice,
+      monthly_price: monthlyPrice,
+      price_setup: 0,
+    };
+  });
+
+  const normalizedEquipment = (draft.equipment || []).map((equipment: any) => {
+    const setupPrice = Number(equipment?.price_setup ?? equipment?.price ?? 0) || 0;
+    return {
+      ...equipment,
+      kind: "equipment",
+      quantity: Number(equipment?.quantity ?? 1) || 1,
+      price: setupPrice,
+      price_setup: setupPrice,
+      price_monthly: 0,
+      monthly_price: 0,
+    };
+  });
+
   const { data: inserted, error: qErr } = await supabase
     .from("field_quotes")
     .insert({
       agent_id: agentId,
       agent_name: agentName,
       client_info: clientInfo as any,
-      services: draft.services as any,
-      equipment: draft.equipment as any,
+      services: normalizedServices as any,
+      equipment: normalizedEquipment as any,
       discount: draft.discount as any,
       activation_fee: activationFee,
       subtotal,
