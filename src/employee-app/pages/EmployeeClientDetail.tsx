@@ -480,18 +480,26 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
 
           {/* 10. Documents section */}
           <Section title="Documents" icon={<FileText className="h-4 w-4" />}>
-            {orders.length > 0 ? (
-              <DocumentActions
-                orderId={orders[0].id}
-                invoiceId={invoices[0]?.id}
-                clientEmail={profile.email ?? undefined}
-                clientName={profile.full_name ?? undefined}
-                orderNumber={orders[0].order_number}
-                invoiceNumber={invoices[0]?.invoice_number}
-              />
-            ) : (
-              <p className="text-xs text-[hsl(220,10%,30%)]">Aucun document disponible.</p>
-            )}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowDocuments(true)}
+                className="w-full text-left px-3 py-2 rounded-lg bg-[hsl(220,20%,6%)] border border-[hsl(220,15%,10%)] hover:border-violet-500/40 transition-colors flex items-center justify-between"
+              >
+                <span className="text-xs text-white">Voir tous les documents (contrats, factures, reçus, KYC…)</span>
+                <ChevronRight className="h-4 w-4 text-[hsl(220,10%,40%)]" />
+              </button>
+              {orders.length > 0 && (
+                <DocumentActions
+                  orderId={orders[0].id}
+                  invoiceId={invoices[0]?.id}
+                  clientEmail={profile.email ?? undefined}
+                  clientName={profile.full_name ?? undefined}
+                  orderNumber={orders[0].order_number}
+                  invoiceNumber={invoices[0]?.invoice_number}
+                />
+              )}
+            </div>
           </Section>
 
           {/* 11. Equipment section */}
