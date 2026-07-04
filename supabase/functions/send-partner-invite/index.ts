@@ -374,11 +374,24 @@ serve(async (req: Request): Promise<Response> => {
     console.log("[send-partner-invite] Onboarding URL:", onboardingUrl);
 
     // Send email with professional template
+    const { violetShell } = await import("../_shared/violetEmailShell.ts");
+    const emailHtml = violetShell({
+      preheader: "Bienvenue au programme partenaires Nivra Telecom.",
+      badge: "PARTENAIRE NIVRA",
+      heroTitle: "Bienvenue au programme partenaires",
+      heroSub: "Nivra Telecom",
+      greeting: `Bonjour ${influencer.first_name},`,
+      bodyHtml: "Nous sommes ravis de vous compter parmi nos partenaires. Cliquez sur le bouton ci-dessous pour compléter votre inscription et accéder à votre tableau de bord.",
+      ctaPrimaryUrl: onboardingUrl,
+      ctaPrimaryLabel: "Compléter mon inscription",
+      helpHtml: `Ce lien expire dans 7 jours. Une question ? Écrivez-nous à <a href="mailto:${supportEmail}" style="color:#0066CC;">${supportEmail}</a>.`,
+    });
+
     const emailResponse = await resend.emails.send({
       from: "Nivra Telecom <support@nivra-telecom.ca>",
       to: [influencer.email],
       subject: "Bienvenue au programme partenaires Nivra!",
-      html: generatePartnerInviteEmail(influencer.first_name, onboardingUrl, supportEmail),
+      html: emailHtml,
     });
 
     console.log("[send-partner-invite] Email sent:", emailResponse);

@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { violetShell } from "../_shared/violetEmailShell.ts";
+
 
 /**
  * NOTIFY ADMIN ALERT - Send email alerts to admins for attention-required events
@@ -62,121 +64,31 @@ const ALERT_TEMPLATES: Record<string, { emoji: string; subject_prefix: string; c
 };
 
 function buildAdminAlertHtml(data: AdminAlertRequest, adminLink: string, template: typeof ALERT_TEMPLATES[string]): string {
-  const priorityColors: Record<string, string> = {
-    low: "#22c55e",
-    normal: "#f59e0b", 
-    high: "#f97316",
-    urgent: "#ef4444",
-  };
   const priorityLabels: Record<string, string> = {
-    low: "Basse",
-    normal: "Normale",
-    high: "Haute",
-    urgent: "Urgente",
+    low: "Basse", normal: "Normale", high: "Haute", urgent: "Urgente",
   };
-  const priorityColor = priorityColors[data.priority || template.priority];
-  const priorityLabel = priorityLabels[data.priority || template.priority];
-
-  return `
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${template.emoji} ${data.title}</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse;">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, ${template.color} 0%, ${template.color}dd 100%); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">
-                ${template.emoji} ${template.subject_prefix}
-              </h1>
-            </td>
-          </tr>
-          
-          <!-- Priority Badge -->
-          <tr>
-            <td style="background-color: #ffffff; padding: 20px 30px 0; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
-              <span style="display: inline-block; background-color: ${priorityColor}22; color: ${priorityColor}; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">
-                Priorité ${priorityLabel}
-              </span>
-              ${data.entity_number ? `
-              <span style="display: inline-block; background-color: #f3f4f6; color: #374151; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-left: 8px;">
-                #${data.entity_number}
-              </span>
-              ` : ""}
-            </td>
-          </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="background-color: #ffffff; padding: 20px 30px 30px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
-              
-              <!-- Title -->
-              <h2 style="margin: 0 0 16px; color: #111827; font-size: 18px; font-weight: 600;">
-                ${data.title}
-              </h2>
-              
-              <!-- Summary -->
-              <div style="background-color: #f9fafb; border-left: 4px solid ${template.color}; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
-                <p style="margin: 0; color: #374151; font-size: 15px; line-height: 1.6;">
-                  ${data.summary}
-                </p>
-              </div>
-              
-              ${data.client_info ? `
-              <!-- Client Info -->
-              <table role="presentation" style="width: 100%; background-color: #f9fafb; border-radius: 8px; margin-bottom: 20px;">
-                <tr>
-                  <td style="padding: 16px;">
-                    <h3 style="margin: 0 0 12px; color: #374151; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">
-                      👤 Client
-                    </h3>
-                    ${data.client_info.name ? `<p style="margin: 0 0 4px; color: #111827; font-size: 15px; font-weight: 600;">${data.client_info.name}</p>` : ""}
-                    ${data.client_info.email ? `<p style="margin: 0 0 4px; color: #6b7280; font-size: 14px;">📧 ${data.client_info.email}</p>` : ""}
-                    ${data.client_info.phone ? `<p style="margin: 0; color: #6b7280; font-size: 14px;">📞 ${data.client_info.phone}</p>` : ""}
-                  </td>
-                </tr>
-              </table>
-              ` : ""}
-              
-              <!-- CTA Button -->
-              <table role="presentation" style="width: 100%;">
-                <tr>
-                  <td align="center">
-                    <a href="${adminLink}" style="display: inline-block; background-color: ${template.color}; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
-                      Voir dans le portail admin →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #1f2937; padding: 20px; text-align: center; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                Notification automatique - Nivra Télécom Admin
-              </p>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
+  const priorityLabel = priorityLabels[data.priority || template.priority] || "Normale";
+  const cardRows: [string, string][] = [
+    ["Priorité", priorityLabel],
+  ];
+  if (data.entity_number) cardRows.push(["Référence", `#${data.entity_number}`]);
+  if (data.client_info?.name) cardRows.push(["Client", data.client_info.name]);
+  if (data.client_info?.email) cardRows.push(["Courriel", data.client_info.email]);
+  if (data.client_info?.phone) cardRows.push(["Téléphone", data.client_info.phone]);
+  return violetShell({
+    preheader: `${template.subject_prefix} — ${data.title}`,
+    badge: template.subject_prefix.toUpperCase(),
+    heroTitle: data.title,
+    heroSub: template.subject_prefix,
+    bodyHtml: data.summary,
+    cardTitle: "Détails de l'alerte",
+    cardRows,
+    ctaPrimaryUrl: adminLink,
+    ctaPrimaryLabel: "Voir dans le portail admin",
+    helpVariant: (data.priority === "urgent" || template.priority === "urgent") ? "warning" : undefined,
+  });
 }
+
 
 serve(async (req) => {
   const requestId = crypto.randomUUID();

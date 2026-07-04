@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { violetShell } from "../_shared/violetEmailShell.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -173,13 +175,20 @@ serve(async (req: Request) => {
           ...trigger.metadata,
         };
 
-        // Replace variables in content and subject
-        const htmlContent = replaceVariables(template.html_content, templateVars);
+        // Replace variables in content and subject, then wrap in OFFICIAL template
+        const rawContent = replaceVariables(template.html_content, templateVars);
         const subject = replaceVariables(rule.subject_override || template.subject, templateVars);
+        const htmlContent = violetShell({
+          preheader: subject,
+          badge: "NIVRA TELECOM",
+          heroTitle: subject,
+          greeting: `Bonjour ${templateVars.first_name || templateVars.client_name || "Client"},`,
+          bodyHtml: rawContent,
+        });
 
-        // Send email via Resend
+        // Send email via Resend (official template wrapped)
         const emailResponse = await resend.emails.send({
-          from: "Nivra <noreply@nivra.ca>",
+          from: "Nivra Telecom <support@nivra-telecom.ca>",
           to: [trigger.client_email],
           subject: subject,
           html: htmlContent,

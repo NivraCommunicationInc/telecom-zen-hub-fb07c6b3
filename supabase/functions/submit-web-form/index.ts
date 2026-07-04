@@ -192,47 +192,22 @@ serve(async (req) => {
       try {
         const resend = new Resend(resendApiKey);
 
-        const emailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #16a34a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .content { background: #f9fafb; padding: 24px; border-radius: 0 0 8px 8px; }
-    .message-box { background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #16a34a; margin: 16px 0; }
-    .footer { text-align: center; color: #666; font-size: 12px; margin-top: 24px; }
-    .ref { background: #e5e7eb; padding: 8px 12px; border-radius: 4px; display: inline-block; font-family: monospace; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1 style="margin: 0;">✓ Message reçu</h1>
-    </div>
-    <div class="content">
-      <p>Bonjour ${escapeHtml(payload.fullName)},</p>
-      <p>Nous avons bien reçu votre message. Notre équipe vous répondra sous peu.</p>
-      
-      <p><strong>Votre message:</strong></p>
-      <div class="message-box">
-        ${escapeHtml(payload.message).replace(/\n/g, "<br>")}
-      </div>
-      
-      <p><strong>Numéro de référence:</strong></p>
-      <p class="ref">${escapeHtml(thread.thread_number)}</p>
-      
-      <p style="margin-top: 24px;">Vous pouvez répondre directement à cet email pour continuer la conversation.</p>
-    </div>
-    <div class="footer">
-      <p>Nivra Télécom<br>
-      support@nivra-telecom.ca</p>
-    </div>
-  </div>
-</body>
-</html>`;
+        const { violetShell } = await import("../_shared/violetEmailShell.ts");
+        const escaped = escapeHtml(payload.message).replace(/\n/g, "<br>");
+        const emailHtml = violetShell({
+          preheader: `Confirmation — nous avons reçu votre message [${thread.thread_number}]`,
+          badge: "MESSAGE REÇU",
+          heroTitle: "Nous avons bien reçu votre message",
+          heroSub: `Référence ${thread.thread_number}`,
+          greeting: `Bonjour ${escapeHtml(payload.fullName)},`,
+          bodyHtml: `Notre équipe vous répondra sous peu. Voici une copie de votre message :`,
+          cardTitle: "Votre message",
+          cardRows: [
+            ["Référence", thread.thread_number],
+            ["Message", escaped],
+          ],
+          helpHtml: `Vous pouvez répondre directement à ce courriel pour continuer la conversation.`,
+        });
 
         const supportEmail = Deno.env.get("SUPPORT_EMAIL") || "support@nivra-telecom.ca";
 
