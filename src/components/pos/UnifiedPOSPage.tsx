@@ -3,7 +3,9 @@
  * Used by: Admin, Employee, Technician
  * Admin portal gets enhanced features (client search, PIN, inline Square card charge)
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useCheckoutDraft } from "@/hooks/useCheckoutDraft";
+import { CartResumeBanner } from "@/components/checkout/CartResumeBanner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useFieldSalesOffers, FieldSalesOffer, SelectedService } from "@/hooks/useFieldSalesOffers";
