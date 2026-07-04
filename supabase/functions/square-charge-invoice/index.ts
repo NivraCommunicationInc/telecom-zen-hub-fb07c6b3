@@ -546,6 +546,19 @@ serve(async (req) => {
             }).eq("id", intentShell.converted_field_order_id);
           }
           console.log("[square-charge-invoice] shell order flipped to paid:", intentShell.converted_order_id);
+
+          // Now that payment is confirmed, trigger the official order
+          // confirmation email (contract + invoice + summary PDFs). The
+          // send-order-confirmation function enforces its own payment gate,
+          // so this is the canonical trigger point after Square capture.
+          try {
+            await supabase.functions.invoke("send-order-confirmation", {
+              body: { order_id: intentShell.converted_order_id },
+            });
+            console.log("[square-charge-invoice] send-order-confirmation invoked after payment");
+          } catch (confirmErr) {
+            console.warn("[square-charge-invoice] send-order-confirmation failed (non-fatal):", confirmErr);
+          }
         }
       } catch (shellFlipErr) {
         console.warn("[square-charge-invoice] shell order flip failed (non-fatal):", shellFlipErr);
