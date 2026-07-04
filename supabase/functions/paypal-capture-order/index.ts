@@ -231,7 +231,7 @@ serve(async (req) => {
               {
                 p_invoice_id: fieldIntent.converted_invoice_id,
                 p_amount: amount,
-                p_payment_method: "paypal",
+                p_method: "paypal",
                 p_provider: "paypal",
                 p_provider_payment_id: captureId,
                 p_provider_order_id: body.paypal_order_id,
@@ -241,6 +241,7 @@ serve(async (req) => {
                 p_customer_id: null,
               } as any,
             );
+
             if (rpcError) throw new Error(`apply_payment_to_invoice: ${rpcError.message}`);
 
             // Mark intent completed
