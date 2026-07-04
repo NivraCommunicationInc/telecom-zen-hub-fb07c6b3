@@ -48,12 +48,21 @@ export async function saveQuoteAndEmail({
   if (!agentId) throw new Error("Agent non authentifié.");
 
   // 1) Insert the quote row.
+  // Staff tunnel context is stored inside client_info because field_quotes has
+  // no dedicated account/service-address columns. Edge sync functions read
+  // these optional ids and keep normal Field sales unchanged when absent.
+  const clientInfo = {
+    ...(draft.customer as any),
+    existing_account_id: draft.existing_account_id ?? null,
+    existing_service_address_id: draft.existing_service_address_id ?? null,
+  };
+
   const { data: inserted, error: qErr } = await supabase
     .from("field_quotes")
     .insert({
       agent_id: agentId,
       agent_name: agentName,
-      client_info: draft.customer as any,
+      client_info: clientInfo as any,
       services: draft.services as any,
       equipment: draft.equipment as any,
       discount: draft.discount as any,

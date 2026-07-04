@@ -300,6 +300,9 @@ serve(async (req) => {
           if (!quote) throw new Error("Field quote not found for intent " + fieldIntent.id);
 
           const ci: any = quote.client_info || {};
+          const staffTunnelTag = ci.existing_account_id
+            ? `[STAFF_TUNNEL account_id=${ci.existing_account_id}${ci.existing_service_address_id ? ` service_address_id=${ci.existing_service_address_id}` : ""} ] `
+            : "";
           const customerName = `${ci.first_name || ""} ${ci.last_name || ""}`.trim()
             || fieldIntent.customer_name || "Client";
 
@@ -322,7 +325,7 @@ serve(async (req) => {
               sync_status: "pending",
               source_quote_id: quote.id,
               source_field_payment_intent_id: fieldIntent.id,
-              internal_notes: `Agent: ${quote.agent_name || "â€”"} Â· Field PayPal capture Â· intent=${fieldIntent.id}`,
+              internal_notes: `${staffTunnelTag}Agent: ${quote.agent_name || "â€”"} Â· Field PayPal capture Â· intent=${fieldIntent.id}`.trim(),
             })
             .select("id")
             .single();

@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { submitNewSale } from "@/field-app/lib/fieldServices";
+import { checkServiceability } from "@/field-app/lib/fieldServices";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { logger } from "@/lib/logger";
@@ -56,6 +56,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
   const [prefillContext, setPrefillContext] = useState<string | null>(null);
+  const [prefillError, setPrefillError] = useState<string | null>(null);
   const [prefillLoading, setPrefillLoading] = useState<boolean>(Boolean(prefillAccountId));
   const [agentGps, setAgentGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
 
@@ -266,13 +267,16 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     hasPrefilledRef.current = true;
     (async () => {
       try {
+        setPrefillError(null);
         const { data: acct, error: acctErr } = await supabase
           .from("accounts")
           .select("id, account_number, account_name, client_id, primary_service_address, primary_service_city, primary_service_postal_code, primary_service_province, billing_address, billing_city, billing_postal_code, billing_province")
           .eq("id", prefillAccountId)
           .maybeSingle();
         if (acctErr || !acct) {
-          toast.error("Compte introuvable — vérifiez le lien.");
+          const msg = "Compte introuvable — vérifiez le lien.";
+          setPrefillError(msg);
+          toast.error(msg);
           setPrefillLoading(false);
           return;
         }
@@ -284,11 +288,20 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
 
         let addr: any = null;
         if (prefillAddressId) {
-          const { data: a } = await supabase
+          const { data: a, error: addrErr } = await supabase
             .from("service_addresses")
             .select("id, address_line, city, province, postal_code, label")
             .eq("id", prefillAddressId)
+            .eq("account_id", (acct as any).id)
+            .is("deleted_at", null)
             .maybeSingle();
+          if (addrErr || !a) {
+            const msg = "Adresse de service introuvable pour ce compte — impossible de pré-remplir la commande.";
+            setPrefillError(msg);
+            toast.error(msg);
+            setPrefillLoading(false);
+            return;
+          }
           addr = a;
         }
 
@@ -301,9 +314,23 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
         const nameParts = (prof?.full_name || "").split(" ");
         const first_name = (prof as any)?.first_name || nameParts[0] || "";
         const last_name = (prof as any)?.last_name || nameParts.slice(1).join(" ") || "";
+        const accountLabel = `Compte #${(acct as any).account_number || "—"}`;
+        const clientLabel = (acct as any).account_name || prof?.full_name || [first_name, last_name].filter(Boolean).join(" ") || "Client";
+        const addressLabel = [address_line, city, postal_code].filter(Boolean).join(", ");
+        const ctxLabel = `${accountLabel} — ${clientLabel} — Adresse : ${addressLabel || "—"}`;
+        setPrefillContext(ctxLabel);
+
+        let serviceabilityStatus: "available" | "unavailable" = "unavailable";
+        try {
+          const coverage = await checkServiceability(postal_code, address_line, city);
+          serviceabilityStatus = coverage.status === "available" || coverage.status === "limited" ? "available" : "unavailable";
+        } catch (coverageErr) {
+          logger.warn("[FieldNewSale] prefill serviceability check failed", coverageErr);
+        }
 
         setDraft((d) => ({
           ...d,
+          step: serviceabilityStatus === "available" ? "services" : "customer",
           existing_account_id: (acct as any).id,
           existing_service_address_id: addr?.id || null,
           customer: {
@@ -317,19 +344,24 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             city,
             postal_code,
             province,
-            serviceability_status: "unknown",
+            serviceability_status: serviceabilityStatus,
           },
         }));
-        const ctxLabel = `Compte ${(acct as any).account_number || "—"} · ${(acct as any).account_name || prof?.full_name || "Client"}`
-          + (addr ? ` · Adresse : ${addr.address_line}${addr.city ? ", " + addr.city : ""}` : "");
-        setPrefillContext(ctxLabel);
+        setCompletedSteps(serviceabilityStatus === "available" ? ["customer"] : []);
         // Skip any restored draft — prefill takes priority
         hasCheckedRestoreRef.current = true;
         setRestoreDialogOpen(false);
         setPendingRestore(null);
+        if (serviceabilityStatus === "available") {
+          toast.success("Compte et adresse chargés — sélectionnez les forfaits.");
+        } else {
+          toast.warning("Compte chargé — disponibilité à vérifier avant de continuer.");
+        }
       } catch (e: any) {
         console.error("[FieldNewSale] prefill error", e);
-        toast.error("Erreur de pré-remplissage : " + (e?.message || "inconnue"));
+        const msg = "Erreur de pré-remplissage : " + (e?.message || "inconnue");
+        setPrefillError(msg);
+        toast.error(msg);
       } finally {
         setPrefillLoading(false);
       }
@@ -956,6 +988,36 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     );
   }
 
+  if (prefillLoading && prefillAccountId) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        <div className="rounded-2xl border border-violet-500/30 bg-gray-800 p-6 text-center shadow-xl">
+          <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+          <h1 className="text-lg font-bold text-gray-50">Chargement du compte client…</h1>
+          <p className="mt-1 text-sm text-gray-400">Préparation de l'adresse et vérification de couverture.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (prefillError) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        <div className="rounded-2xl border border-red-500/30 bg-gray-800 p-6 shadow-xl">
+          <h1 className="text-lg font-bold text-gray-50">Pré-remplissage impossible</h1>
+          <p className="mt-2 text-sm text-red-200">{prefillError}</p>
+          <button
+            type="button"
+            onClick={() => navigate(_exitPath)}
+            className="mt-5 h-11 rounded-lg border border-border px-4 text-sm font-semibold text-gray-50 hover:bg-secondary"
+          >
+            Retour
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-6">
       <div className="mb-5">
@@ -970,6 +1032,13 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5 min-w-0">
+          {draft.existing_account_id && prefillContext && (
+            <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4 text-sm text-violet-100">
+              <p className="font-semibold">{prefillContext}</p>
+              <p className="mt-1 text-xs text-violet-200/80">Tunnel staff pré-rempli — aucun nouveau compte ne sera créé.</p>
+            </div>
+          )}
+
           {draft.step === "customer" && (
             <StepCustomer
               customer={draft.customer}
