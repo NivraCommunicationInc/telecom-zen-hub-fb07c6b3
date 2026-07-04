@@ -304,6 +304,13 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
               {filtered.map((it) => {
                 const meta = sourceMeta[it.source];
                 const Icon = meta.icon;
+                const isContract = it.source === "contract";
+                const sigStatus = isContract ? contractSignatureStatus(it.metadata) : null;
+                const SigIcon = sigStatus?.icon;
+                const isSigned = sigStatus?.label.startsWith("Signé");
+                const isExpired = sigStatus?.label === "Expiré";
+                const canResend = isContract && !isSigned && !isExpired && isStaff;
+                const isUploaded = it.source === "uploaded";
                 return (
                   <li
                     key={`${it.source}-${it.id}`}
@@ -316,12 +323,12 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm truncate text-core-text-primary">{it.name}</span>
                         <Badge variant="outline" className={`text-[10px] ${meta.tone}`}>{meta.label}</Badge>
-                        <Badge variant="outline" className="text-[10px] border-[hsl(220,15%,22%)] text-core-text-secondary">{it.category}</Badge>
-                        {it.signed && (
-                          <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-300 border-amber-500/30">
-                            Lien temporaire 5 min
+                        {sigStatus && SigIcon && (
+                          <Badge variant="outline" className={`text-[10px] ${sigStatus.tone} flex items-center gap-1`}>
+                            <SigIcon className="h-3 w-3" /> {sigStatus.label}
                           </Badge>
                         )}
+                        <Badge variant="outline" className="text-[10px] border-[hsl(220,15%,22%)] text-core-text-secondary">{it.category}</Badge>
                       </div>
                       <div className="text-[11px] text-core-text-label mt-1 flex items-center gap-3 flex-wrap">
                         <span>{new Date(it.created_at).toLocaleString("fr-CA")}</span>
@@ -329,15 +336,23 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
                         <span>{formatBytes(it.size_bytes)}</span>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openDoc(it)}
-                      disabled={!it.url}
-                      className="shrink-0"
-                    >
-                      {it.url ? <><Download className="h-3.5 w-3.5 mr-1.5" /> Ouvrir</> : <><FileText className="h-3.5 w-3.5 mr-1.5" /> Indisponible</>}
-                    </Button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canResend && (
+                        <Button size="sm" variant="outline" onClick={() => handleResend(it)} disabled={busyId === it.id}
+                          className="border-amber-500/30 text-amber-300 hover:bg-amber-500/10">
+                          {busyId === it.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Send className="h-3.5 w-3.5 mr-1" /> Renvoyer</>}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => openDoc(it)} disabled={!it.url}>
+                        {it.url ? <><Download className="h-3.5 w-3.5 mr-1.5" /> Ouvrir</> : <><FileText className="h-3.5 w-3.5 mr-1.5" /> N/A</>}
+                      </Button>
+                      {isAdmin && isUploaded && (
+                        <Button size="sm" variant="outline" onClick={() => handleDelete(it)} disabled={busyId === it.id}
+                          className="border-red-500/30 text-red-300 hover:bg-red-500/10">
+                          {busyId === it.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </Button>
+                      )}
+                    </div>
                   </li>
                 );
               })}
