@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
 
     const body = await res.json();
     if (!res.ok) {
-      const errMsg = body.errors?.map((e: any) => e.detail).join(", ") || "Erreur Square inconnue";
+      const errMsg = body.errors?.map((e: any) => e.field ? `${e.detail} (champ: ${e.field})` : e.detail).join(", ") || "Erreur Square inconnue";
       throw new Error(errMsg);
     }
 
