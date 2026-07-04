@@ -2561,7 +2561,11 @@ export type Database = {
           id: string
           last_name: string
           phone: string
+          square_card_brand: string | null
+          square_card_exp_month: number | null
+          square_card_exp_year: number | null
           square_card_id: string | null
+          square_card_last4: string | null
           square_customer_id: string | null
           status: Database["public"]["Enums"]["billing_customer_status"] | null
           stripe_customer_id: string | null
@@ -2579,7 +2583,11 @@ export type Database = {
           id?: string
           last_name: string
           phone: string
+          square_card_brand?: string | null
+          square_card_exp_month?: number | null
+          square_card_exp_year?: number | null
           square_card_id?: string | null
+          square_card_last4?: string | null
           square_customer_id?: string | null
           status?: Database["public"]["Enums"]["billing_customer_status"] | null
           stripe_customer_id?: string | null
@@ -2597,7 +2605,11 @@ export type Database = {
           id?: string
           last_name?: string
           phone?: string
+          square_card_brand?: string | null
+          square_card_exp_month?: number | null
+          square_card_exp_year?: number | null
           square_card_id?: string | null
+          square_card_last4?: string | null
           square_customer_id?: string | null
           status?: Database["public"]["Enums"]["billing_customer_status"] | null
           stripe_customer_id?: string | null
@@ -2700,6 +2712,7 @@ export type Database = {
           activation_fee: number | null
           address_snapshot: Json | null
           amount_paid: number | null
+          autopay_grace_until: string | null
           balance_due: number | null
           billing_snapshot_account_number: string | null
           billing_snapshot_client: Json | null
@@ -2734,6 +2747,7 @@ export type Database = {
           activation_fee?: number | null
           address_snapshot?: Json | null
           amount_paid?: number | null
+          autopay_grace_until?: string | null
           balance_due?: number | null
           billing_snapshot_account_number?: string | null
           billing_snapshot_client?: Json | null
@@ -2768,6 +2782,7 @@ export type Database = {
           activation_fee?: number | null
           address_snapshot?: Json | null
           amount_paid?: number | null
+          autopay_grace_until?: string | null
           balance_due?: number | null
           billing_snapshot_account_number?: string | null
           billing_snapshot_client?: Json | null

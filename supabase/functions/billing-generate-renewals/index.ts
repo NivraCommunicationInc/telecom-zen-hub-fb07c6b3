@@ -671,6 +671,8 @@ serve(async (req) => {
           } else {
             const reason = squareErr?.message ?? squareResult?.error ?? "unknown";
             console.error(`[billing-generate-renewals] Square charge failed for ${invoiceNumber}: ${reason}`);
+
+            // 1) Alerte système (existant)
             await supabase.from("billing_system_alerts").insert({
               alert_type: "square_charge_failed_on_renewal",
               entity_type: "billing_invoice",
@@ -678,6 +680,55 @@ serve(async (req) => {
               severity: "warning",
               details: { message: `Square charge échoué pour ${invoiceNumber}: ${reason}`, subscription_id: sub.id, amount: finalTotal, reason },
             }).catch(() => {});
+
+            // 2) Grâce 5 jours avant dunning (le job dunning doit respecter autopay_grace_until)
+            const graceUntil = new Date();
+            graceUntil.setUTCDate(graceUntil.getUTCDate() + 5);
+            await supabase
+              .from("billing_invoices")
+              .update({ autopay_grace_until: graceUntil.toISOString() })
+              .eq("id", invoice.id)
+              .catch(() => {});
+
+            // 3) Note interne
+            try {
+              const { data: bcLink } = await supabase
+                .from("billing_customers").select("user_id").eq("id", sub.customer_id).maybeSingle();
+              if (bcLink?.user_id) {
+                await supabase.from("client_internal_notes").insert({
+                  client_id: bcLink.user_id,
+                  author_name: "Système Nivra",
+                  author_role: "system",
+                  note: `Échec paiement automatique — ${invoiceNumber} — ${reason}`,
+                  category: "billing",
+                });
+              }
+            } catch {}
+
+            // 4) Email client (template officiel bleu) — payment_failed
+            try {
+              if (sub.customer?.email) {
+                await supabase.from("email_queue").insert({
+                  event_key: `square-charge-failed-${invoice.id}`,
+                  to_email: sub.customer.email,
+                  template_key: "payment_failed",
+                  template_vars: {
+                    client_name: `${sub.customer.first_name || ""} ${sub.customer.last_name || ""}`.trim() || sub.customer.email,
+                    invoice_id: invoice.id,
+                    invoice_number: invoiceNumber,
+                    amount: Number(finalTotal).toFixed(2),
+                    failure_reason: reason,
+                    pay_url: `${Deno.env.get("APP_URL") || "https://www.nivra-telecom.ca"}/payer/${invoice.id}`,
+                    grace_until: graceUntil.toISOString(),
+                  },
+                  status: "queued",
+                  attempts: 0,
+                  max_attempts: 5,
+                });
+              }
+            } catch (emailErr) {
+              console.warn("[billing-generate-renewals] failure email enqueue failed:", emailErr);
+            }
           }
         } else if (hasPayPalSubscription) {
           // 2. Fallback: PayPal (account under review — may fail)

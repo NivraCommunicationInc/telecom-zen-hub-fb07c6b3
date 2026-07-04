@@ -19,6 +19,7 @@ import { EquipmentActionMenu } from "@/core-app/components/account-actions/Equip
 import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
 import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
 import { CoreSquarePaymentDialog } from "@/core-app/components/account-360/CoreSquarePaymentDialog";
+import { CoreAutopayPanel } from "@/core-app/components/account-360/CoreAutopayPanel";
 import { FinancialDocumentsPanel } from "@/components/admin/FinancialDocumentsPanel";
 import { AdminDocumentsPanel } from "@/components/admin/AdminDocumentsPanel";
 import { EquipmentDetailDialog, KycDetailDialog } from "./Account360DetailDialogs";
@@ -157,6 +158,10 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
         )}
       </div>
     </Panel>
+
+    {/* PPA Square — inscription/désactivation par l'agent */}
+    {data.customerId && <CoreAutopayPanel billingCustomerId={data.customerId} channel="core" />}
+
 
     <Panel>
       <PanelHeader icon={Hash} title="Informations du compte" />
