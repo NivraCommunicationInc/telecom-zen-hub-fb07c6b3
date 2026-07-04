@@ -184,9 +184,14 @@ export const ClientPaymentMethodCard = () => {
               <ShieldCheck className="h-3 w-3 shrink-0" />
               Votre abonnement se renouvelle automatiquement chaque mois. Rabais de 5 $/mois inclus.
             </p>
-            <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
-              Modifier la carte
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
+                Changer de carte
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDetachCard} disabled={saving} className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50">
+                {saving ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />…</> : "Désactiver"}
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
