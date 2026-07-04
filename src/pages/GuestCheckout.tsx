@@ -963,6 +963,7 @@ const GuestCheckout = () => {
             occupancy_status: installationDetailsData.occupancyStatus || null,
             access_notes: installationDetailsData.accessNotes || null,
           },
+          coaxial_survey: coaxialSurveyPayload,
         };
         if (shippingData.shipToDifferentAddress) {
           Object.assign(orderPatch, {
