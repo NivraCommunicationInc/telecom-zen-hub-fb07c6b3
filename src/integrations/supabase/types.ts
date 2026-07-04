@@ -467,10 +467,19 @@ export type Database = {
       account_service_locations: {
         Row: {
           account_id: string
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
+          created_by_employee_id: string | null
+          created_by_field_agent_id: string | null
+          created_by_user_id: string | null
+          created_from_order_id: string | null
+          created_via: string | null
+          deleted_at: string | null
           id: string
           is_active: boolean | null
           label: string
+          notes: string | null
           service_address: string
           service_city: string | null
           service_postal_code: string | null
@@ -479,10 +488,19 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
+          created_by_employee_id?: string | null
+          created_by_field_agent_id?: string | null
+          created_by_user_id?: string | null
+          created_from_order_id?: string | null
+          created_via?: string | null
+          deleted_at?: string | null
           id?: string
           is_active?: boolean | null
           label?: string
+          notes?: string | null
           service_address: string
           service_city?: string | null
           service_postal_code?: string | null
@@ -491,10 +509,19 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
+          created_by_employee_id?: string | null
+          created_by_field_agent_id?: string | null
+          created_by_user_id?: string | null
+          created_from_order_id?: string | null
+          created_via?: string | null
+          deleted_at?: string | null
           id?: string
           is_active?: boolean | null
           label?: string
+          notes?: string | null
           service_address?: string
           service_city?: string | null
           service_postal_code?: string | null
@@ -1920,6 +1947,7 @@ export type Database = {
           scheduled_at: string
           service_address: string | null
           service_city: string | null
+          service_location_id: string | null
           service_postal_code: string | null
           service_type: string | null
           status: string | null
@@ -1951,6 +1979,7 @@ export type Database = {
           scheduled_at: string
           service_address?: string | null
           service_city?: string | null
+          service_location_id?: string | null
           service_postal_code?: string | null
           service_type?: string | null
           status?: string | null
@@ -1982,6 +2011,7 @@ export type Database = {
           scheduled_at?: string
           service_address?: string | null
           service_city?: string | null
+          service_location_id?: string | null
           service_postal_code?: string | null
           service_type?: string | null
           status?: string | null
@@ -2010,6 +2040,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
             referencedColumns: ["id"]
           },
           {
@@ -2567,6 +2604,7 @@ export type Database = {
           line_type: string
           metadata: Json | null
           quantity: number | null
+          service_location_id: string | null
           unit_price: number
         }
         Insert: {
@@ -2578,6 +2616,7 @@ export type Database = {
           line_type?: string
           metadata?: Json | null
           quantity?: number | null
+          service_location_id?: string | null
           unit_price: number
         }
         Update: {
@@ -2589,6 +2628,7 @@ export type Database = {
           line_type?: string
           metadata?: Json | null
           quantity?: number | null
+          service_location_id?: string | null
           unit_price?: number
         }
         Relationships: [
@@ -2605,6 +2645,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "billing_invoice_lines_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3032,6 +3079,7 @@ export type Database = {
           referral_discount_months_remaining: number | null
           service_address_id: string | null
           service_category: string | null
+          service_location_id: string | null
           source_id: string | null
           source_type: string | null
           status:
@@ -3072,6 +3120,7 @@ export type Database = {
           referral_discount_months_remaining?: number | null
           service_address_id?: string | null
           service_category?: string | null
+          service_location_id?: string | null
           source_id?: string | null
           source_type?: string | null
           status?:
@@ -3112,6 +3161,7 @@ export type Database = {
           referral_discount_months_remaining?: number | null
           service_address_id?: string | null
           service_category?: string | null
+          service_location_id?: string | null
           source_id?: string | null
           source_type?: string | null
           status?:
@@ -3167,6 +3217,13 @@ export type Database = {
             columns: ["service_address_id"]
             isOneToOne: false
             referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -9177,6 +9234,7 @@ export type Database = {
           price_client: number | null
           retired_at: string | null
           serial_number: string | null
+          service_location_id: string | null
           sku: string | null
           status: string
           subscription_id: string | null
@@ -9204,6 +9262,7 @@ export type Database = {
           price_client?: number | null
           retired_at?: string | null
           serial_number?: string | null
+          service_location_id?: string | null
           sku?: string | null
           status?: string
           subscription_id?: string | null
@@ -9231,6 +9290,7 @@ export type Database = {
           price_client?: number | null
           retired_at?: string | null
           serial_number?: string | null
+          service_location_id?: string | null
           sku?: string | null
           status?: string
           subscription_id?: string | null
@@ -9285,6 +9345,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -13177,6 +13244,7 @@ export type Database = {
           readiness_score: number | null
           service_address: string | null
           service_city: string | null
+          service_location_id: string | null
           service_postal_code: string | null
           status: Database["public"]["Enums"]["installation_status"] | null
           technician_level:
@@ -13203,6 +13271,7 @@ export type Database = {
           readiness_score?: number | null
           service_address?: string | null
           service_city?: string | null
+          service_location_id?: string | null
           service_postal_code?: string | null
           status?: Database["public"]["Enums"]["installation_status"] | null
           technician_level?:
@@ -13229,6 +13298,7 @@ export type Database = {
           readiness_score?: number | null
           service_address?: string | null
           service_city?: string | null
+          service_location_id?: string | null
           service_postal_code?: string | null
           status?: Database["public"]["Enums"]["installation_status"] | null
           technician_level?:
@@ -13258,6 +13328,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installations_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -22039,6 +22116,7 @@ export type Database = {
           scheduled_end_at: string | null
           scheduled_start_at: string | null
           service_display_name: string | null
+          service_location_id: string | null
           service_name: string
           started_at: string
           status_at_incident: string
@@ -22065,6 +22143,7 @@ export type Database = {
           scheduled_end_at?: string | null
           scheduled_start_at?: string | null
           service_display_name?: string | null
+          service_location_id?: string | null
           service_name: string
           started_at?: string
           status_at_incident: string
@@ -22091,12 +22170,21 @@ export type Database = {
           scheduled_end_at?: string | null
           scheduled_start_at?: string | null
           service_display_name?: string | null
+          service_location_id?: string | null
           service_name?: string
           started_at?: string
           status_at_incident?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_incidents_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_instances: {
         Row: {
@@ -22186,6 +22274,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      service_location_history: {
+        Row: {
+          account_id: string
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          employee_id: string | null
+          event_type: string
+          field_agent_id: string | null
+          id: string
+          metadata: Json
+          order_id: string | null
+          portal_source: string | null
+          service_location_id: string
+        }
+        Insert: {
+          account_id: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          employee_id?: string | null
+          event_type: string
+          field_agent_id?: string | null
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          portal_source?: string | null
+          service_location_id: string
+        }
+        Update: {
+          account_id?: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          employee_id?: string | null
+          event_type?: string
+          field_agent_id?: string | null
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          portal_source?: string | null
+          service_location_id?: string
+        }
+        Relationships: []
       }
       service_status: {
         Row: {
@@ -23865,6 +23998,7 @@ export type Database = {
           resolved_at: string | null
           route_to: string | null
           service_address: string | null
+          service_location_id: string | null
           source: string | null
           status: string
           subject: string
@@ -23909,6 +24043,7 @@ export type Database = {
           resolved_at?: string | null
           route_to?: string | null
           service_address?: string | null
+          service_location_id?: string | null
           source?: string | null
           status?: string
           subject: string
@@ -23953,6 +24088,7 @@ export type Database = {
           resolved_at?: string | null
           route_to?: string | null
           service_address?: string | null
+          service_location_id?: string | null
           source?: string | null
           status?: string
           subject?: string
@@ -23994,6 +24130,13 @@ export type Database = {
             columns: ["related_order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -24402,6 +24545,7 @@ export type Database = {
           scheduled_date: string
           scheduled_time_end: string
           scheduled_time_start: string
+          service_location_id: string | null
           signal_strength: number | null
           status: string
           technician_id: string | null
@@ -24429,6 +24573,7 @@ export type Database = {
           scheduled_date: string
           scheduled_time_end: string
           scheduled_time_start: string
+          service_location_id?: string | null
           signal_strength?: number | null
           status?: string
           technician_id?: string | null
@@ -24456,6 +24601,7 @@ export type Database = {
           scheduled_date?: string
           scheduled_time_end?: string
           scheduled_time_start?: string
+          service_location_id?: string | null
           signal_strength?: number | null
           status?: string
           technician_id?: string | null
@@ -24483,6 +24629,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_assignments_service_location_id_fkey"
+            columns: ["service_location_id"]
+            isOneToOne: false
+            referencedRelation: "account_service_locations"
             referencedColumns: ["id"]
           },
           {
@@ -29222,6 +29375,22 @@ export type Database = {
         Args: { p_customer_id: string; p_order_id?: string }
         Returns: string
       }
+      resolve_or_create_service_location: {
+        Args: {
+          p_account_id: string
+          p_actor_user_id?: string
+          p_address: string
+          p_city: string
+          p_created_via: string
+          p_employee_id?: string
+          p_field_agent_id?: string
+          p_label?: string
+          p_order_id?: string
+          p_postal: string
+          p_province: string
+        }
+        Returns: string
+      }
       reveal_supplier_password: { Args: { p_id: string }; Returns: string }
       run_customer_portal_integrity_check: { Args: never; Returns: Json }
       search_clients_unified: {
@@ -29620,7 +29789,12 @@ export type Database = {
         | "overdue"
         | "void"
         | "not_renewed"
-      billing_invoice_type: "initial" | "renewal" | "adjustment" | "credit"
+      billing_invoice_type:
+        | "initial"
+        | "renewal"
+        | "adjustment"
+        | "credit"
+        | "prorata_activation"
       billing_payment_method: "interac" | "manual" | "paypal" | "card"
       billing_payment_status:
         | "pending"
@@ -30101,7 +30275,13 @@ export const Constants = {
         "void",
         "not_renewed",
       ],
-      billing_invoice_type: ["initial", "renewal", "adjustment", "credit"],
+      billing_invoice_type: [
+        "initial",
+        "renewal",
+        "adjustment",
+        "credit",
+        "prorata_activation",
+      ],
       billing_payment_method: ["interac", "manual", "paypal", "card"],
       billing_payment_status: [
         "pending",
