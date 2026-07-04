@@ -63,17 +63,9 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
   const selected = addresses.find((a) => a.id === selectedId) || null;
   const bucket = selected ? byAddress.get(selected.id) : null;
 
-  const notifyClient = (addr: any) => {
-    supabase.functions.invoke("account-ops-actions", {
-      body: {
-        action: "notify_address_change",
-        client_user_id: account?.user_id || account?.client_id,
-        new_address: addr.address_line,
-        new_city: addr.city,
-        new_postal: addr.postal_code,
-      },
-    }).catch(() => {});
-  };
+  // NOTE: Ajout d'adresse = multi-adresses (compte avec 2 adresses actives),
+  // PAS un déménagement. On NE déclenche PAS l'email/PDF "changement d'adresse"
+  // ici. Le flow déménagement reste dédié (AdminDocumentsPanel → AddressChangeDialog).
 
   const handleCreate = async (input: CreateAddressInput) => {
     try {
@@ -81,7 +73,6 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
       setSelectedId(id);
       setAddOpen(false);
       toast({ title: "Adresse ajoutée" });
-      notifyClient(input);
       onRefresh?.();
     } catch (e: any) {
       toast({ title: "Erreur", description: e?.message, variant: "destructive" });
