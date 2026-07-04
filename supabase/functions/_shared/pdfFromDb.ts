@@ -152,6 +152,43 @@ function joinAddress(a: { line1: string; city: string; province: string; postal:
 }
 
 /**
+ * Multi-address support (Pass 3A): resolve the true service address for an
+ * order. Reads orders.service_address_id → service_addresses. Returns null
+ * when the order has no explicit service_address_id (fall back to account
+ * primary or shipping snapshot).
+ */
+async function resolveOrderServiceAddress(
+  supabase: SupabaseClient,
+  orderId: string,
+): Promise<string | null> {
+  try {
+    const { data: ord } = await supabase
+      .from("orders")
+      .select("service_address_id")
+      .eq("id", orderId)
+      .maybeSingle();
+    const saId = (ord as any)?.service_address_id;
+    if (!saId) return null;
+    const { data: sa } = await supabase
+      .from("service_addresses")
+      .select("address_line, city, province, postal_code")
+      .eq("id", saId)
+      .maybeSingle();
+    if (!sa) return null;
+    return joinAddress({
+      line1: (sa as any).address_line || "",
+      city: (sa as any).city || "",
+      province: (sa as any).province || "QC",
+      postal: (sa as any).postal_code || "",
+    });
+  } catch (e) {
+    console.warn("[pdfFromDb] resolveOrderServiceAddress error:", (e as any)?.message || e);
+    return null;
+  }
+}
+
+
+/**
  * Fetch phone + mobile + appointment + technician details for an order.
  * All fields are optional; returns whatever could be resolved.
  */
