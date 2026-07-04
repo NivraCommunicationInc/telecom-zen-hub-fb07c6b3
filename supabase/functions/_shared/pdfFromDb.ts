@@ -1075,12 +1075,17 @@ export async function buildSummaryPdfAttachment(
     }
     clientName = clientName || "Client";
 
+    // Pass 3A: prefer orders.service_address_id → service_addresses over
+    // legacy snapshots so multi-address orders show the right address.
+    const explicitSummarySA = await resolveOrderServiceAddress(supabase, orderId);
     const addr = await resolveClientAddress(supabase, { userId: (o as any).user_id, orderId });
-    const clientAddr = joinAddress(addr.service)
+    const clientAddr = explicitSummarySA
+      || joinAddress(addr.service)
       || (o as any).client_full_address
       || [(o as any).shipping_address, (o as any).shipping_city, (o as any).shipping_postal_code]
         .filter(Boolean).join(", ")
       || "";
+
 
     let accountNumber = "";
     if ((o as any).user_id) {
