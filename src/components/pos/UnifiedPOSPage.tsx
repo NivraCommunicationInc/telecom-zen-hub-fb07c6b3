@@ -367,6 +367,10 @@ export default function UnifiedPOSPage({
             services: payload.services,
             equipment: payload.equipment,
             adjustments: payload.adjustments,
+            installation: requiresInstall && installSlot
+              ? { date: installSlot.date, time_slot: installSlot.time_slot, required: true }
+              : { required: false },
+            coaxial_survey: requiresCoax ? coaxSurvey : null,
             ...((customerData as AdminCustomerData).is_new_client !== undefined && {
               is_new_client: (customerData as AdminCustomerData).is_new_client,
               client_id: (customerData as AdminCustomerData).client_id,
@@ -376,6 +380,7 @@ export default function UnifiedPOSPage({
             }),
             ...(squarePaymentId && { square_payment_id: squarePaymentId }),
           })),
+          coaxial_survey: requiresCoax ? (coaxSurvey as unknown as never) : null,
           subtotal: payload.totals.monthly_subtotal + payload.totals.equipment_total + payload.totals.adjustments_total,
           tps_amount: payload.totals.tps,
           tvq_amount: payload.totals.tvq,
