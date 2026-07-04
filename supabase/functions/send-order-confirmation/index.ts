@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend, enqueueEmail } from "../_shared/ResendProxy.ts";
 import { sendSmsNotification, SMS_TEMPLATES, toE164 } from "../_shared/smsHelper.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { buildInvoicePdfAttachment, buildContractPdfAttachment, buildSummaryPdfAttachment } from "../_shared/pdfFromDb.ts";
+import { persistOrderDocuments } from "../_shared/persistOrderDocuments.ts";
 import { renderQueueTemplate } from "../_shared/customQueueTemplates.ts";
 import {
   emailDocument, header, statusBanner, contentWrapper, footer, button,
