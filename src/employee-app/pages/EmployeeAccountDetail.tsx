@@ -117,9 +117,10 @@ export default function EmployeeAccountDetail() {
           .limit(20),
         supabase
           .from("service_addresses")
-          .select("id, account_id, label, is_active, created_at, service_address:address_line, service_city:city, service_province:province, service_postal_code:postal_code")
+          .select("id, account_id, label, is_active, created_at, address_line, city, province, postal_code, contact_name, contact_phone, deleted_at")
           .eq("account_id", accountId)
-          .eq("is_active", true),
+          .is("deleted_at", null)
+          .order("created_at", { ascending: true }),
         supabase
           .from("billing_customers")
           .select("id")
