@@ -615,47 +615,14 @@ const AdminAccounts = () => {
               </TabsContent>
 
               <TabsContent value="locations" className="space-y-4 mt-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium">Adresses de service</h3>
-                  <Button size="sm" onClick={() => setAddLocationOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Ajouter
-                  </Button>
-                </div>
-                
-                {/* Primary address */}
-                <div className="p-4 border rounded-lg bg-accent/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge>Principal</Badge>
-                  </div>
-                  <p className="text-sm">
-                    {selectedAccount?.primary_service_address}, {selectedAccount?.primary_service_city}, {selectedAccount?.primary_service_postal_code}
-                  </p>
-                </div>
-
-                {/* Additional locations */}
-                {serviceLocations?.map((loc: any) => (
-                  <div key={loc.id} className="p-4 border rounded-lg flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline">{loc.label}</Badge>
-                        {!loc.is_active && <Badge variant="secondary">Inactif</Badge>}
-                      </div>
-                      <p className="text-sm">
-                        {loc.service_address}, {loc.service_city}, {loc.service_postal_code}
-                      </p>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => deleteLocationMutation.mutate(loc.id)}
-                      disabled={deleteLocationMutation.isPending}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                {selectedAccount?.id ? (
+                  <AccountAddressesTab
+                    account={selectedAccount}
+                    subscriptions={(serviceLocations as any) ?? []}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sélectionnez un compte.</p>
+                )}
               </TabsContent>
 
               <TabsContent value="billing" className="space-y-4 mt-4">
