@@ -10,6 +10,14 @@ import {
   resolveCanonicalAccountNumber,
 } from "@/lib/canonicalAccountResolver";
 
+export interface InvoiceDetailAddress {
+  id: string;
+  address_line: string | null;
+  city: string | null;
+  province: string | null;
+  postal_code: string | null;
+}
+
 export interface InvoiceDetailLine {
   id: string;
   description: string;
@@ -17,6 +25,8 @@ export interface InvoiceDetailLine {
   quantity: number;
   line_total: number;
   line_type: string;
+  service_address_id: string | null;
+  service_address: InvoiceDetailAddress | null;
 }
 
 export interface InvoiceDetailPayment {
