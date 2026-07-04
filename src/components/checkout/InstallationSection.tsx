@@ -27,6 +27,8 @@ interface Props {
   onDecisionMade?: (decision: InstallationDecision) => void;
   /** Which phase to render — "choice" (tiles + cabling questionnaire) or "schedule" (calendar) */
   phase?: "choice" | "schedule";
+  /** Forwarded from the scheduler so the parent can persist coaxial answers on the order */
+  onCablingAnswered?: (answers: import("@/components/installation/CablingQuestionnaire").CablingData) => void;
 }
 
 const AUTO_INSTALL_FEATURES = [
