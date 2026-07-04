@@ -781,7 +781,7 @@ Deno.serve(async (req) => {
               order_id: canonicalOrder.id,
               type: "initial",
               status: invoiceStatus,
-              subtotal: subtotal + activationFee,
+              subtotal: subtotal + activationFee + deliveryFee,
               tps_amount: tpsAmount,
               tvq_amount: tvqAmount,
               total: totalAmount,
