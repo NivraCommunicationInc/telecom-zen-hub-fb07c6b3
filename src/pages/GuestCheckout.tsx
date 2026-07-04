@@ -20,6 +20,8 @@ import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { PromoCodeInput } from "@/components/checkout/PromoCodeInput";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
+import { CartResumeBanner } from "@/components/checkout/CartResumeBanner";
+import { useCheckoutDraft } from "@/hooks/useCheckoutDraft";
 import {
   CheckoutShippingAndActivation,
   DEFAULT_SHIPPING,
@@ -192,6 +194,22 @@ const GuestCheckout = () => {
   // Stable cart UUID — satisfies paypal-create-order guard without creating a DB record first.
   const clientCartIdRef = useRef<string>('cart_' + crypto.randomUUID());
 
+  // ── Panier persistant 30 jours (localStorage + DB mirror) ──
+  const [draftDismissed, setDraftDismissed] = useState(false);
+  const {
+    draft: savedDraft,
+    hasDraft,
+    save: saveDraft,
+    clear: clearDraft,
+  } = useCheckoutDraft<{
+    selectedServices: Service[];
+    addressStreet: string;
+    addressApartment: string;
+    addressCity: string;
+    addressProvince: string;
+    addressPostalCode: string;
+  }>("guest_checkout");
+
   // ── Restaurer le state depuis sessionStorage au montage ──
   useEffect(() => {
     try {
@@ -255,6 +273,29 @@ const GuestCheckout = () => {
       installationChoice, selectedDate, selectedTime, notes,
       wantsPortIn, portInNumber, portInCarrier, portInAccountNumber,
       paypalCaptureId, paymentComplete]);
+
+  // ── Mirror panier vers localStorage 30 jours (survit à la fermeture du navigateur) ──
+  useEffect(() => {
+    if (step === 7) { clearDraft(); return; }
+    if (selectedServices.length === 0) return;
+    saveDraft({
+      selectedServices,
+      addressStreet, addressApartment, addressCity, addressProvince, addressPostalCode,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, selectedServices, addressStreet, addressApartment, addressCity, addressProvince, addressPostalCode]);
+
+  const handleResumeDraft = () => {
+    if (!savedDraft) return;
+    if (savedDraft.selectedServices?.length) setSelectedServices(savedDraft.selectedServices);
+    if (savedDraft.addressStreet) setAddressStreet(savedDraft.addressStreet);
+    if (savedDraft.addressApartment) setAddressApartment(savedDraft.addressApartment);
+    if (savedDraft.addressCity) setAddressCity(savedDraft.addressCity);
+    if (savedDraft.addressProvince) setAddressProvince(savedDraft.addressProvince);
+    if (savedDraft.addressPostalCode) setAddressPostalCode(savedDraft.addressPostalCode);
+    setDraftDismissed(true);
+  };
+  const handleDismissDraft = () => { clearDraft(); setDraftDismissed(true); };
 
   // ── Annuler l'email d'abandon quand la commande est complétée ──
   const cancelAbandonmentEmail = () => {
@@ -1462,6 +1503,13 @@ const GuestCheckout = () => {
             {step < 7 && renderStepShell(1, step === 1 && (
 
               <div className="space-y-6">
+                {hasDraft && selectedServices.length === 0 && !draftDismissed && (
+                  <CartResumeBanner
+                    itemCount={savedDraft?.selectedServices?.length || 0}
+                    onResume={handleResumeDraft}
+                    onDismiss={handleDismissDraft}
+                  />
+                )}
                 <Card className="overflow-hidden border border-[#E5E7EB] rounded-xl shadow-sm bg-white">
                   <CardHeader className="pb-4 border-b border-[#E5E7EB]" style={{ background: '#F0F6FC' }}>
                     <CardTitle className="flex items-center gap-3">

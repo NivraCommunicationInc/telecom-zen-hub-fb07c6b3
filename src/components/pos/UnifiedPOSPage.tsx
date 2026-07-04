@@ -3,7 +3,9 @@
  * Used by: Admin, Employee, Technician
  * Admin portal gets enhanced features (client search, PIN, inline Square card charge)
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useCheckoutDraft } from "@/hooks/useCheckoutDraft";
+import { CartResumeBanner } from "@/components/checkout/CartResumeBanner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useFieldSalesOffers, FieldSalesOffer, SelectedService } from "@/hooks/useFieldSalesOffers";
@@ -114,6 +116,42 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [draftDismissed, setDraftDismissed] = useState(false);
+
+  // Cart persistence — per portal
+  const draftSource = `pos_${portalType}`;
+  const {
+    draft: savedDraft,
+    hasDraft,
+    save: saveDraft,
+    clear: clearDraft,
+  } = useCheckoutDraft<{
+    services: SelectedService[];
+    equipment: EquipmentItem[];
+    adjustments: AdjustmentItem[];
+  }>(draftSource);
+
+  // Autosave whenever cart changes (skip empty)
+  const skipNextSaveRef = useRef(true);
+  useEffect(() => {
+    if (skipNextSaveRef.current) { skipNextSaveRef.current = false; return; }
+    if (pos.isEmpty) return;
+    saveDraft({ services: pos.services, equipment: pos.equipment, adjustments: pos.adjustments });
+  }, [pos.services, pos.equipment, pos.adjustments, pos.isEmpty, saveDraft]);
+
+  const handleResumeDraft = () => {
+    if (!savedDraft) return;
+    pos.setServices(savedDraft.services || []);
+    pos.setEquipment(savedDraft.equipment || []);
+    pos.setAdjustments(savedDraft.adjustments || []);
+    setDraftDismissed(true);
+    toast.success("Panier restauré");
+  };
+
+  const handleDismissDraft = () => {
+    clearDraft();
+    setDraftDismissed(true);
+  };
   
   
   // Is this the admin portal with full features?
@@ -340,6 +378,7 @@ export default function UnifiedPOSPage({
       });
 
       pos.clearCart();
+      clearDraft();
       setCustomerData(null);
       setPaymentData(null);
       
@@ -435,7 +474,19 @@ export default function UnifiedPOSPage({
         <div className="flex-1 overflow-hidden">
           {step === "catalog" && (
             <div className={cn("h-full flex", isMobile ? "flex-col" : "")}>
-              {/* Product Area */}
+              {hasDraft && pos.isEmpty && !draftDismissed && (
+                <div className="absolute top-2 left-2 right-2 z-20 md:left-4 md:right-4">
+                  <CartResumeBanner
+                    itemCount={
+                      (savedDraft?.services?.length || 0) +
+                      (savedDraft?.equipment?.length || 0) +
+                      (savedDraft?.adjustments?.length || 0)
+                    }
+                    onResume={handleResumeDraft}
+                    onDismiss={handleDismissDraft}
+                  />
+                </div>
+              )}
               <div className={cn("flex-1 flex flex-col", !isMobile && "border-r border-slate-700/50")}>
                 {/* Catalog Tabs */}
                 <div className="border-b border-slate-700/50 bg-slate-900/30">
