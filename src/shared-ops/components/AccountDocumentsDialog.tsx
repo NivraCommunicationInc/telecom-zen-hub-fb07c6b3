@@ -116,11 +116,13 @@ function docsFromCanonical(data: any): DocItem[] {
   return rows;
 }
 
-export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName, accountId, initialData }: Props) {
+export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName, accountId, initialData, isAdmin = false, isStaff = true }: Props) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<DocItem[]>([]);
   const [tab, setTab] = useState<"all" | DocItem["source"]>("all");
   const [search, setSearch] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     if (!clientUserId) return;
@@ -163,6 +165,73 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
       return;
     }
     window.open(it.url, "_blank", "noopener,noreferrer");
+  };
+
+  const contractSignatureStatus = (m: any): { label: string; tone: string; icon: any } => {
+    const status = m?.status;
+    if (status === "signed_by_client" || status === "fully_signed" || m?.signed_at) {
+      return { label: `Signé ${m?.signed_at ? new Date(m.signed_at).toLocaleDateString("fr-CA") : ""}`.trim(), tone: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", icon: CheckCircle2 };
+    }
+    if (status === "expired") return { label: "Expiré", tone: "bg-red-500/15 text-red-300 border-red-500/30", icon: XCircle };
+    return { label: "En attente signature", tone: "bg-amber-500/15 text-amber-300 border-amber-500/30", icon: Clock };
+  };
+
+  const extractContractId = (it: DocItem): string | null => {
+    // it.id is like "canonical-contract-<uuid>" or "contract-<uuid>"
+    const m = it.id.match(/contract-([0-9a-f-]{36})$/i);
+    return m?.[1] || null;
+  };
+
+  const handleResend = async (it: DocItem) => {
+    const contractId = extractContractId(it);
+    if (!contractId) return toast.error("ID de contrat introuvable");
+    setBusyId(it.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-document-manage", {
+        body: { action: "resend_signature", contract_id: contractId },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Échec");
+      toast.success("Lien de signature renvoyé au client");
+      await load();
+    } catch (e: any) {
+      toast.error("Renvoi impossible", { description: e.message });
+    } finally { setBusyId(null); }
+  };
+
+  const handleUpload = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) return toast.error("Fichier > 10 Mo");
+    setBusyId("upload");
+    try {
+      const buf = await file.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const { data, error } = await supabase.functions.invoke("account-document-manage", {
+        body: { action: "upload", client_user_id: clientUserId, file_b64: b64, filename: file.name, document_type: "manual_upload" },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Échec");
+      toast.success("Document téléversé");
+      await load();
+    } catch (e: any) {
+      toast.error("Upload impossible", { description: e.message });
+    } finally { setBusyId(null); if (fileInputRef.current) fileInputRef.current.value = ""; }
+  };
+
+  const handleDelete = async (it: DocItem) => {
+    if (!confirm(`Supprimer « ${it.name} » ? Action irréversible.`)) return;
+    // it.id can be canonical-upload-<id> or uploaded-<id>
+    const m = it.id.match(/([0-9a-f-]{36})$/i);
+    const docId = m?.[1];
+    if (!docId) return toast.error("ID introuvable");
+    setBusyId(it.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-document-manage", {
+        body: { action: "delete", document_id: docId },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Échec");
+      toast.success("Document supprimé");
+      await load();
+    } catch (e: any) {
+      toast.error("Suppression impossible", { description: e.message });
+    } finally { setBusyId(null); }
   };
 
   return (
