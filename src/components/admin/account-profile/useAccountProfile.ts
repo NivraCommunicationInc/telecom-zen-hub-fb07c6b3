@@ -45,10 +45,12 @@ export function useAccountProfile(accountId: string | undefined) {
     queryKey: ["account-profile-locations", accountId],
     queryFn: async () => {
       if (!accountId) return [];
+      // R1 canonical read: service_addresses (aliased to legacy shape used by AccountAddressesTab)
       const { data, error } = await supabase
-        .from("account_service_locations")
-        .select("*")
+        .from("service_addresses")
+        .select("id, account_id, label, is_active, created_at, service_address:address_line, service_city:city, service_province:province, service_postal_code:postal_code, created_via")
         .eq("account_id", accountId)
+        .eq("is_active", true)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data || [];
