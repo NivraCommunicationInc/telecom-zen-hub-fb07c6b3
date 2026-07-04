@@ -217,7 +217,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
 
     // Badge
     doc.setFillColor(...BLUE);
-    doc.roundRect(15, y - 5, 75, 6.5, 1.5, 1.5, "F");
+    doc.roundedRect(15, y - 5, 75, 6.5, 1.5, 1.5, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
@@ -240,7 +240,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       const x = 15 + col * (gridW + 2);
       const yy = y + row * 11;
       doc.setFillColor(...LIGHT);
-      doc.roundRect(x, yy, gridW, 9, 1.5, 1.5, "F");
+      doc.roundedRect(x, yy, gridW, 9, 1.5, 1.5, "F");
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
       doc.setTextColor(...MUTED);
@@ -257,7 +257,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     const drawParty = (x: number, title: string, lines: string[]) => {
       doc.setDrawColor(...BORDER);
       doc.setFillColor(255, 255, 255);
-      doc.roundRect(x, y, boxW, 40, 2, 2, "FD");
+      doc.roundedRect(x, y, boxW, 40, 2, 2, "FD");
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(...NAVY);
@@ -491,7 +491,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
 
     // Blue box (monthly)
     doc.setFillColor(...NAVY);
-    doc.roundRect(15, y, bw, 52, 2, 2, "F");
+    doc.roundedRect(15, y, bw, 52, 2, 2, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
@@ -531,7 +531,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
 
     const x2 = 19 + bw;
     doc.setFillColor(...GREEN_DARK);
-    doc.roundRect(x2, y, bw, 52, 2, 2, "F");
+    doc.roundedRect(x2, y, bw, 52, 2, 2, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
@@ -708,7 +708,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
 
     // Acceptance banner
     doc.setFillColor(230, 244, 234);
-    doc.roundRect(15, y, pw - 30, 12, 2, 2, "F");
+    doc.roundedRect(15, y, pw - 30, 12, 2, 2, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(...GREEN_DARK);
@@ -724,7 +724,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     // Nivra box
     doc.setDrawColor(...BORDER);
     doc.setFillColor(255, 255, 255);
-    doc.roundRect(15, y, sbW, 42, 2, 2, "FD");
+    doc.roundedRect(15, y, sbW, 42, 2, 2, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(...NAVY);
@@ -766,7 +766,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     const x2b = 19 + sbW;
     doc.setDrawColor(...BORDER);
     doc.setFillColor(255, 255, 255);
-    doc.roundRect(x2b, y, sbW, 42, 2, 2, "FD");
+    doc.roundedRect(x2b, y, sbW, 42, 2, 2, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(...NAVY);
