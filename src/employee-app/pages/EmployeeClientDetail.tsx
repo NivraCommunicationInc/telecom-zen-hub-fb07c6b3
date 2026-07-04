@@ -539,6 +539,16 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           </Section>
         </div>
       </div>
+
+      <AccountDocumentsDialog
+        open={showDocuments}
+        onClose={() => setShowDocuments(false)}
+        clientUserId={clientId}
+        clientName={profile.full_name || profile.email || "Client"}
+        accountId={account?.id ?? null}
+        isAdmin={false}
+        isStaff={true}
+      />
     </div>
   );
 }
