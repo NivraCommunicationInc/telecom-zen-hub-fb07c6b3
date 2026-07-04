@@ -31,6 +31,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ProratePreviewCard } from "@/components/billing/ProratePreviewCard";
 
 interface AccountServicesTabProps {
   subscriptions: any[];
