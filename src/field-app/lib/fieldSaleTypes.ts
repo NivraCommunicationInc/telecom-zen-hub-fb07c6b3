@@ -147,6 +147,8 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     serviceability_status: "unknown",
     install_date: null,
     install_mode: "technician",
+    install_slot: null,
+    coaxial_survey: null,
   },
   services: [],
   equipment: [],
