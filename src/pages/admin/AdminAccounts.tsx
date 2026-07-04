@@ -255,31 +255,7 @@ const AdminAccounts = () => {
     },
   });
 
-  // Add service location
-  const addLocationMutation = useMutation({
-    mutationFn: async (data: typeof newLocation & { account_id: string }) => {
-      // R1 canonical write: use RPC (INSERTs into account_service_locations are blocked)
-      const { error } = await supabase.rpc("resolve_or_create_service_address", {
-        p_account_id: data.account_id,
-        p_address: data.service_address,
-        p_city: data.service_city,
-        p_province: "QC",
-        p_postal: data.service_postal_code,
-        p_created_via: "admin",
-        p_label: data.label || null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refetchLocations();
-      toast({ title: "Adresse de service ajoutée" });
-      setAddLocationOpen(false);
-      setNewLocation({ label: "", service_address: "", service_city: "", service_postal_code: "" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    },
-  });
+  // Pass 3A: mutation d'ajout d'adresse retirée — délégué au ServiceAddressPicker via AccountAddressesTab.
 
   // Update account status
   const updateStatusMutation = useMutation({
