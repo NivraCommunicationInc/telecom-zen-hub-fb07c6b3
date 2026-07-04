@@ -428,7 +428,7 @@ const ClientDashboard = () => {
               {serviceAddresses.length > 0 ? (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, padding: 20 }}>
                   {serviceAddresses.map((addr: any, i: number) => (
-                    <div key={addr.id || `${addr.address_line}-${i}`} style={{ border: "1px solid rgba(20,184,166,0.22)", borderRadius: 16, padding: 16, background: "rgba(20,184,166,0.05)" }}>
+                    <Link key={addr.id || `${addr.address_line}-${i}`} to={`/portal/service-addresses${addr.id ? `?address=${addr.id}` : ""}`} style={{ border: "1px solid rgba(20,184,166,0.22)", borderRadius: 16, padding: 16, background: "rgba(20,184,166,0.05)", display: "block", textDecoration: "none" }}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                         <div style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(20,184,166,0.12)", border: "1px solid rgba(20,184,166,0.28)", display: "flex", alignItems: "center", justifyContent: "center", color: "#5eead4", flexShrink: 0 }}>
                           <MapPin size={16} />
@@ -439,9 +439,12 @@ const ClientDashboard = () => {
                           <span style={{ display: "inline-flex", border: "1px solid rgba(20,184,166,0.3)", borderRadius: 999, padding: "4px 10px", color: "#5eead4", fontSize: 11, fontWeight: 700 }}>
                             {serviceCountByAddress.get(addr.id) ?? 0} service{(serviceCountByAddress.get(addr.id) ?? 0) > 1 ? "s" : ""}
                           </span>
+                          <span style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 700 }}>
+                            Ouvrir le dossier <ChevronRight size={12} />
+                          </span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
