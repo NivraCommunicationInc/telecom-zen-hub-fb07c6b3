@@ -18,8 +18,9 @@ import {
   CheckCircle, AlertTriangle, XCircle, CreditCard, Package,
   Tv, Wifi, Plus, PauseCircle, PlayCircle, Loader2, Send,
   Calendar, DollarSign, Wrench, TicketIcon, Download, FileSignature,
-  FileX, UserX,
+  FileX, UserX, Home,
 } from "lucide-react";
+import { AccountAddressesTab } from "@/components/admin/account-profile/AccountAddressesTab";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
@@ -187,10 +188,10 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       if (!billingCustomer) return [];
       const { data } = await supabase.from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category")
+        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category, service_address_id")
         .eq("customer_id", billingCustomer.id)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(50);
       return data || [];
     },
     enabled: !!billingCustomer,
@@ -547,6 +548,7 @@ const CoreClientProfile = () => {
           <Tabs value={overviewTab} onValueChange={setOverviewTab}>
             <TabsList className="bg-[hsl(220,20%,10%)] border border-[hsl(220,15%,15%)] h-8 mb-4">
               <TabsTrigger value="profil" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Profil</TabsTrigger>
+              <TabsTrigger value="adresses" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Adresses & Services</TabsTrigger>
               <TabsTrigger value="facturation" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Facturation</TabsTrigger>
               <TabsTrigger value="equipement" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Équipement</TabsTrigger>
               <TabsTrigger value="notes" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Notes & Activité</TabsTrigger>
@@ -690,6 +692,19 @@ const CoreClientProfile = () => {
                 invoiceHref={(invoiceId) => corePath(`/invoices/${invoiceId}`)}
                 fallbackEmail={profile.email}
               />
+            </TabsContent>
+
+            {/* ── Adresses & Services ── */}
+            <TabsContent value="adresses" className="space-y-4">
+              <Section title="Adresses de service & services actifs" icon={Home}>
+                {account?.id ? (
+                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} />
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">
+                    Aucun compte lié à ce client — impossible d'afficher les adresses.
+                  </p>
+                )}
+              </Section>
             </TabsContent>
 
             {/* ── Équipement ── */}
