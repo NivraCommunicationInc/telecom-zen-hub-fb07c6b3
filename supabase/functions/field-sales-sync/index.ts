@@ -823,7 +823,7 @@ Deno.serve(async (req) => {
                 unit_price: li.unit_price,
                 quantity: li.qty,
                 line_total: li.unit_price * li.qty,
-                line_type: li.category === "fee" ? "fee" : "service",
+                line_type: li.category === "equipment" ? "equipment" : li.category === "fee" ? "fee" : li.category === "discount" ? "discount" : "service",
               service_address_id: staffServiceAddress?.id || null,
               });
               if (lineErr) {
