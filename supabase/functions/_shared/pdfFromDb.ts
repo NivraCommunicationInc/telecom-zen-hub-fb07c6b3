@@ -847,6 +847,34 @@ export async function buildReceiptPdfAttachment(
     const isCardManualPending = !hasConfirmedPayment && orderPaymentMethod === "card_manual";
     const paymentStatus: "paid" | "pending" = isCardManualPending ? "pending" : "paid";
 
+    const receiptSections = buildPdfSectionsFromInvoiceLines(lines as CanonicalPdfLine[]);
+    const receiptDetailedItems = [
+      ...receiptSections.services.map((s) => ({
+        description: s.name,
+        quantity: Number(s.quantity || 1),
+        unit_price: Number(s.monthly_price || 0),
+        line_total: Number(s.monthly_price || 0) * Number(s.quantity || 1),
+      })),
+      ...receiptSections.equipment.map((e) => ({
+        description: e.name,
+        quantity: Number(e.quantity || 1),
+        unit_price: Number(e.unit_price || 0),
+        line_total: Number(e.unit_price || 0) * Number(e.quantity || 1),
+      })),
+      ...receiptSections.fees.map((f) => ({
+        description: f.label,
+        quantity: 1,
+        unit_price: Number(f.amount || 0),
+        line_total: Number(f.amount || 0),
+      })),
+      ...receiptSections.discounts.map((d) => ({
+        description: d.duration_label ? `${d.description} (${d.duration_label})` : d.description,
+        quantity: 1,
+        unit_price: -Math.abs(Number(d.unit_price || 0)),
+        line_total: -Math.abs(Number(d.unit_price || 0)),
+      })),
+    ];
+
     // Previous payments (last 3, excluding the current one)
     let previousPayments: Array<{ date: string; method: string; amount: number }> = [];
     if (customer.user_id) {
@@ -894,20 +922,17 @@ export async function buildReceiptPdfAttachment(
       client_phone: customer.phone || undefined,
       client_address: clientAddress,
       account_number: accountNumber,
-      billed_items: lines.map((l) => ({
+      billed_items: receiptDetailedItems.map((l) => ({
         description: l.description || "Article",
         amount: Number(l.line_total || 0),
       })),
-      detailed_items: lines.map((l) => ({
-        description: l.description || "Article",
-        quantity: Number(l.quantity || 1),
-        unit_price: Number(l.unit_price ?? 0),
-        line_total: Number(l.line_total ?? 0),
-      })),
+      detailed_items: receiptDetailedItems,
       transaction_reference:
         payment?.reference || (payment as any)?.provider_payment_id || undefined,
       balance_remaining: Number((invoice as any).balance_due || 0),
       subtotal: Number((invoice as any).subtotal || 0),
+      discount_amount: receiptSections.discounts.reduce((s, d) => s + Math.abs(Number(d.unit_price || 0)), 0),
+      discount_label: receiptSections.discounts[0]?.description,
       tps_amount: Number((invoice as any).tps_amount || 0),
       tvq_amount: Number((invoice as any).tvq_amount || 0),
       payment_status: paymentStatus,
