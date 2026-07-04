@@ -6,6 +6,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,43 +77,30 @@ serve(async (req) => {
     const clientNumber = client?.client_number || "â€”";
     const adminLink = `${ADMIN_BASE_URL}/core/activations`;
 
-    const subject = `ðŸ”” Nouvelle demande d'activation â€” ${clientName}`;
+    const subject = `🔔 Nouvelle demande d'activation — ${clientName}`;
 
-    const html = `
-<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8"><title>${subject}</title></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background-color:#f3f4f6;">
-  <table role="presentation" style="width:100%;border-collapse:collapse;">
-    <tr><td align="center" style="padding:40px 20px;">
-      <table role="presentation" style="max-width:600px;width:100%;border-collapse:collapse;">
-        <tr><td style="background:linear-gradient(135deg,#0066CC,#0052a3);padding:24px;text-align:center;border-radius:12px 12px 0 0;">
-          <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">ðŸ”” Nouvelle demande d'activation</h1>
-        </td></tr>
-        <tr><td style="background:#fff;padding:30px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
-          <p style="margin:0 0 20px;color:#374151;font-size:15px;">Une nouvelle demande d'activation WiFi vient d'être soumise.</p>
-          <table role="presentation" style="width:100%;background:#f9fafb;border-radius:8px;margin-bottom:20px;">
-            <tr><td style="padding:16px;">
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Client:</strong> ${clientName}</p>
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Compte:</strong> #${clientNumber}</p>
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Courriel:</strong> ${clientEmail}</p>
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Téléphone contact:</strong> ${ar.contact_phone}</p>
-              <p style="margin:0 0 6px;font-size:13px;color:#6b7280;"><strong>Réseau WiFi demandé:</strong> <code>${ar.wifi_network_name}</code></p>
-              <p style="margin:0;font-size:13px;color:#6b7280;"><strong>Soumis Ã :</strong> ${new Date(ar.submitted_at).toLocaleString("fr-CA", { timeZone: "America/Toronto" })}</p>
-            </td></tr>
-          </table>
-          ${ar.client_notes ? `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:12px;border-radius:0 8px 8px 0;margin-bottom:20px;"><p style="margin:0;font-size:13px;color:#92400e;"><strong>Notes du client:</strong> ${ar.client_notes}</p></div>` : ""}
-          <table role="presentation" style="width:100%;"><tr><td align="center">
-            <a href="${adminLink}" style="display:inline-block;background:#0066CC;color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Traiter la demande â†’</a>
-          </td></tr></table>
-        </td></tr>
-        <tr><td style="background:#1f2937;padding:20px;text-align:center;border-radius:0 0 12px 12px;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;">Notification automatique â€” Nivra Télécom Admin</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+    const cardRows: [string, string][] = [
+      ["Client", clientName],
+      ["Compte", `#${clientNumber}`],
+      ["Courriel", clientEmail],
+      ["Téléphone contact", String(ar.contact_phone ?? "—")],
+      ["Réseau WiFi demandé", String(ar.wifi_network_name ?? "—")],
+      ["Soumis à", new Date(ar.submitted_at).toLocaleString("fr-CA", { timeZone: "America/Toronto" })],
+    ];
+    const html = violetShell({
+      preheader: `Nouvelle demande d'activation WiFi — ${clientName}`,
+      badge: "DEMANDE D'ACTIVATION",
+      heroTitle: "Nouvelle demande d'activation WiFi",
+      heroSub: clientName,
+      bodyHtml: "Une nouvelle demande d'activation WiFi vient d'être soumise par un client.",
+      cardTitle: "Détails de la demande",
+      cardRows,
+      ctaPrimaryUrl: adminLink,
+      ctaPrimaryLabel: "Traiter la demande",
+      helpHtml: ar.client_notes ? `<strong>Notes du client :</strong> ${String(ar.client_notes)}` : undefined,
+      helpVariant: ar.client_notes ? "warning" : undefined,
+    });
+
 
     let emailsSent = 0;
     if (resendApiKey) {
