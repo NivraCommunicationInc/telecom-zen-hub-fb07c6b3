@@ -53,6 +53,7 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { AccountAddressesTab } from "@/components/admin/account-profile/AccountAddressesTab";
 
 const creditClassLabels: Record<string, { label: string; color: string }> = {
   A: { label: "Excellent", color: "bg-green-500" },
@@ -82,13 +83,7 @@ const AdminAccounts = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingCreditClass, setEditingCreditClass] = useState(false);
   const [newCreditClass, setNewCreditClass] = useState("C");
-  const [addLocationOpen, setAddLocationOpen] = useState(false);
-  const [newLocation, setNewLocation] = useState({
-    label: "",
-    service_address: "",
-    service_city: "",
-    service_postal_code: "",
-  });
+  // Pass 3A: état "addLocation" retiré — géré par AccountAddressesTab/<ServiceAddressPicker/>.
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState("active");
   const [statusReason, setStatusReason] = useState("");
@@ -260,31 +255,7 @@ const AdminAccounts = () => {
     },
   });
 
-  // Add service location
-  const addLocationMutation = useMutation({
-    mutationFn: async (data: typeof newLocation & { account_id: string }) => {
-      // R1 canonical write: use RPC (INSERTs into account_service_locations are blocked)
-      const { error } = await supabase.rpc("resolve_or_create_service_address", {
-        p_account_id: data.account_id,
-        p_address: data.service_address,
-        p_city: data.service_city,
-        p_province: "QC",
-        p_postal: data.service_postal_code,
-        p_created_via: "admin",
-        p_label: data.label || null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      refetchLocations();
-      toast({ title: "Adresse de service ajoutée" });
-      setAddLocationOpen(false);
-      setNewLocation({ label: "", service_address: "", service_city: "", service_postal_code: "" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    },
-  });
+  // Pass 3A: mutation d'ajout d'adresse retirée — délégué au ServiceAddressPicker via AccountAddressesTab.
 
   // Update account status
   const updateStatusMutation = useMutation({
@@ -615,47 +586,14 @@ const AdminAccounts = () => {
               </TabsContent>
 
               <TabsContent value="locations" className="space-y-4 mt-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium">Adresses de service</h3>
-                  <Button size="sm" onClick={() => setAddLocationOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Ajouter
-                  </Button>
-                </div>
-                
-                {/* Primary address */}
-                <div className="p-4 border rounded-lg bg-accent/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge>Principal</Badge>
-                  </div>
-                  <p className="text-sm">
-                    {selectedAccount?.primary_service_address}, {selectedAccount?.primary_service_city}, {selectedAccount?.primary_service_postal_code}
-                  </p>
-                </div>
-
-                {/* Additional locations */}
-                {serviceLocations?.map((loc: any) => (
-                  <div key={loc.id} className="p-4 border rounded-lg flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline">{loc.label}</Badge>
-                        {!loc.is_active && <Badge variant="secondary">Inactif</Badge>}
-                      </div>
-                      <p className="text-sm">
-                        {loc.service_address}, {loc.service_city}, {loc.service_postal_code}
-                      </p>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => deleteLocationMutation.mutate(loc.id)}
-                      disabled={deleteLocationMutation.isPending}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                {selectedAccount?.id ? (
+                  <AccountAddressesTab
+                    account={selectedAccount}
+                    subscriptions={(serviceLocations as any) ?? []}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sélectionnez un compte.</p>
+                )}
               </TabsContent>
 
               <TabsContent value="billing" className="space-y-4 mt-4">
@@ -935,74 +873,7 @@ const AdminAccounts = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add Location Dialog */}
-      <Dialog open={addLocationOpen} onOpenChange={setAddLocationOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ajouter une adresse de service</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Libellé *</Label>
-              <Input
-                value={newLocation.label}
-                onChange={(e) => setNewLocation({ ...newLocation, label: e.target.value })}
-                placeholder="ex: Bureau, Chalet, Triplex B"
-              />
-            </div>
-            <div>
-              <Label>Adresse *</Label>
-              <AddressAutocomplete
-                value={newLocation.service_address}
-                onValueChange={(value) => setNewLocation({ ...newLocation, service_address: value })}
-                onSelect={(details: AddressValue) => {
-                  // Defense-in-depth: also call setter with formatted address
-                  const addressText = details.formatted || details.line1;
-                  setNewLocation({
-                    ...newLocation,
-                    service_address: addressText,
-                    service_city: details.city || newLocation.service_city,
-                    service_postal_code: details.postalCode || newLocation.service_postal_code,
-                  });
-                }}
-                placeholder="Rechercher une adresse..."
-                restrictToQuebec={true}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Ville</Label>
-                <Input
-                  value={newLocation.service_city}
-                  onChange={(e) => setNewLocation({ ...newLocation, service_city: e.target.value })}
-                  placeholder="Montréal"
-                />
-              </div>
-              <div>
-                <Label>Code postal</Label>
-                <Input
-                  value={newLocation.service_postal_code}
-                  onChange={(e) => setNewLocation({ ...newLocation, service_postal_code: e.target.value })}
-                  placeholder="H2X 1Y4"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddLocationOpen(false)}>Annuler</Button>
-            <Button
-              onClick={() => {
-                if (selectedAccount && newLocation.label && newLocation.service_address) {
-                  addLocationMutation.mutate({ ...newLocation, account_id: selectedAccount.id });
-                }
-              }}
-              disabled={addLocationMutation.isPending || !newLocation.label || !newLocation.service_address}
-            >
-              Ajouter
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add Location Dialog — retiré (Pass 3A: création via AccountAddressesTab + ServiceAddressPicker) */}
 
       {/* Change Status Dialog */}
       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>

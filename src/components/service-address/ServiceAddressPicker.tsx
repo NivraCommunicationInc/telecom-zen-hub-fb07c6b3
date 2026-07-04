@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { MapPin, Plus, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 export interface ServiceAddressPickerProps {
   accountId: string | null | undefined;
@@ -178,7 +179,21 @@ function AddressCreateDialog({
         <div className="grid gap-3">
           <div>
             <Label>Adresse</Label>
-            <Input value={form.address_line} onChange={(e) => set("address_line", e.target.value)} placeholder="123 rue Principale" />
+            <AddressAutocomplete
+              value={form.address_line}
+              onValueChange={(v) => set("address_line", v)}
+              onSelect={(d: AddressValue) => {
+                setForm((f) => ({
+                  ...f,
+                  address_line: d.formatted || d.line1 || f.address_line,
+                  city: d.city || f.city,
+                  postal_code: d.postalCode || f.postal_code,
+                  province: d.region || f.province,
+                }));
+              }}
+              placeholder="Rechercher une adresse au Québec…"
+              restrictToQuebec
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
