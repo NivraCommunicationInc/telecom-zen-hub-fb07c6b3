@@ -1759,6 +1759,13 @@ const GuestCheckout = () => {
                     appointmentConfirmed={appointmentConfirmed}
                     onAppointmentConfirmedChange={setAppointmentConfirmed}
                     phase={installationPhase}
+                    onCablingAnswered={(a) => setCoaxialSurveyPayload({
+                      has_coaxial: a.hasCoaxial,
+                      cable_status: a.cableStatus,
+                      previous_service: a.previousService,
+                      captured_at: new Date().toISOString(),
+                      source: "guest_checkout",
+                    })}
                   />
                 )}
 
