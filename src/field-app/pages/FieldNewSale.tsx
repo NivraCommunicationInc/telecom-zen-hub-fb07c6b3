@@ -330,7 +330,12 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
 
         setDraft((d) => ({
           ...d,
-          step: serviceabilityStatus === "available" ? "services" : "customer",
+          // Stay on the customer step (locked mode) so the shared
+          // InstallSlotPicker + CoaxialSurvey render before services.
+          // Identity + address fields are read-only; the agent only picks
+          // the install slot and answers the coaxial survey, then clicks
+          // "Continuer".
+          step: "customer",
           existing_account_id: (acct as any).id,
           existing_service_address_id: addr?.id || null,
           customer: {
@@ -347,13 +352,13 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             serviceability_status: serviceabilityStatus,
           },
         }));
-        setCompletedSteps(serviceabilityStatus === "available" ? ["customer"] : []);
+        setCompletedSteps([]);
         // Skip any restored draft — prefill takes priority
         hasCheckedRestoreRef.current = true;
         setRestoreDialogOpen(false);
         setPendingRestore(null);
         if (serviceabilityStatus === "available") {
-          toast.success("Compte et adresse chargés — sélectionnez les forfaits.");
+          toast.success("Compte et adresse chargés — choisissez un créneau d'installation puis continuez.");
         } else {
           toast.warning("Compte chargé — disponibilité à vérifier avant de continuer.");
         }

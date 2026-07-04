@@ -152,6 +152,43 @@ function joinAddress(a: { line1: string; city: string; province: string; postal:
 }
 
 /**
+ * Multi-address support (Pass 3A): resolve the true service address for an
+ * order. Reads orders.service_address_id → service_addresses. Returns null
+ * when the order has no explicit service_address_id (fall back to account
+ * primary or shipping snapshot).
+ */
+async function resolveOrderServiceAddress(
+  supabase: SupabaseClient,
+  orderId: string,
+): Promise<string | null> {
+  try {
+    const { data: ord } = await supabase
+      .from("orders")
+      .select("service_address_id")
+      .eq("id", orderId)
+      .maybeSingle();
+    const saId = (ord as any)?.service_address_id;
+    if (!saId) return null;
+    const { data: sa } = await supabase
+      .from("service_addresses")
+      .select("address_line, city, province, postal_code")
+      .eq("id", saId)
+      .maybeSingle();
+    if (!sa) return null;
+    return joinAddress({
+      line1: (sa as any).address_line || "",
+      city: (sa as any).city || "",
+      province: (sa as any).province || "QC",
+      postal: (sa as any).postal_code || "",
+    });
+  } catch (e) {
+    console.warn("[pdfFromDb] resolveOrderServiceAddress error:", (e as any)?.message || e);
+    return null;
+  }
+}
+
+
+/**
  * Fetch phone + mobile + appointment + technician details for an order.
  * All fields are optional; returns whatever could be resolved.
  */
@@ -892,18 +929,23 @@ export async function buildContractPdfAttachment(
       : Number(o.discount_amount || 0);
     const contractDiscountLabel = contractDiscountLines[0]?.description;
 
-    // Address: orders.shipping_* are snapshot fields captured at order creation.
-    // Fall back to live accounts/profiles only when orders has no address.
+    // Address (Pass 3A multi-address):
+    //   - service_address = orders.service_address_id → service_addresses (canonical)
+    //   - billing_address = accounts.billing_* (primary billing address)
+    //   - Both fall back to shipping/live chain only when explicit sources missing.
+    const explicitServiceAddress = await resolveOrderServiceAddress(supabase, orderId);
     const orderShipping = o.shipping_address
       ? joinAddress({ line1: o.shipping_address, city: o.shipping_city || "", province: o.shipping_province || "QC", postal: o.shipping_postal_code || "" })
       : "";
-    let billingAddress = orderShipping || o.client_full_address || "";
-    let serviceAddress = orderShipping || o.client_full_address || "";
-    if (!billingAddress || !serviceAddress) {
-      const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
-      if (!billingAddress) billingAddress = joinAddress(addr.billing) || "";
-      if (!serviceAddress) serviceAddress = joinAddress(addr.service) || "";
+    let billingAddress = "";
+    let serviceAddress = explicitServiceAddress || "";
+    // Always try to resolve the true billing address from the account first.
+    const addr = await resolveClientAddress(supabase, { userId: o.user_id, orderId });
+    billingAddress = joinAddress(addr.billing) || orderShipping || o.client_full_address || "";
+    if (!serviceAddress) {
+      serviceAddress = joinAddress(addr.service) || orderShipping || o.client_full_address || "";
     }
+
 
     // Real signature data from contracts table (if exists)
     let signature: {
@@ -1033,12 +1075,17 @@ export async function buildSummaryPdfAttachment(
     }
     clientName = clientName || "Client";
 
+    // Pass 3A: prefer orders.service_address_id → service_addresses over
+    // legacy snapshots so multi-address orders show the right address.
+    const explicitSummarySA = await resolveOrderServiceAddress(supabase, orderId);
     const addr = await resolveClientAddress(supabase, { userId: (o as any).user_id, orderId });
-    const clientAddr = joinAddress(addr.service)
+    const clientAddr = explicitSummarySA
+      || joinAddress(addr.service)
       || (o as any).client_full_address
       || [(o as any).shipping_address, (o as any).shipping_city, (o as any).shipping_postal_code]
         .filter(Boolean).join(", ")
       || "";
+
 
     let accountNumber = "";
     if ((o as any).user_id) {
