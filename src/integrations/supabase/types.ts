@@ -21778,6 +21778,51 @@ export type Database = {
         }
         Relationships: []
       }
+      service_address_history: {
+        Row: {
+          account_id: string
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          employee_id: string | null
+          event_type: string
+          field_agent_id: string | null
+          id: string
+          metadata: Json
+          order_id: string | null
+          portal_source: string | null
+          service_address_id: string
+        }
+        Insert: {
+          account_id: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          employee_id?: string | null
+          event_type: string
+          field_agent_id?: string | null
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          portal_source?: string | null
+          service_address_id: string
+        }
+        Update: {
+          account_id?: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          employee_id?: string | null
+          event_type?: string
+          field_agent_id?: string | null
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          portal_source?: string | null
+          service_address_id?: string
+        }
+        Relationships: []
+      }
       service_addresses: {
         Row: {
           account_id: string
@@ -21786,7 +21831,15 @@ export type Database = {
           address_normalized: string | null
           city: string | null
           coax_readiness_score: number | null
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string | null
+          created_by_employee_id: string | null
+          created_by_field_agent_id: string | null
+          created_by_user_id: string | null
+          created_from_order_id: string | null
+          created_via: string | null
+          deleted_at: string | null
           id: string
           is_active: boolean | null
           is_default: boolean
@@ -21798,6 +21851,7 @@ export type Database = {
           last_install_outcome_at: string | null
           latitude: number | null
           longitude: number | null
+          notes: string | null
           postal_code: string | null
           province: string | null
           updated_at: string | null
@@ -21809,7 +21863,15 @@ export type Database = {
           address_normalized?: string | null
           city?: string | null
           coax_readiness_score?: number | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string | null
+          created_by_employee_id?: string | null
+          created_by_field_agent_id?: string | null
+          created_by_user_id?: string | null
+          created_from_order_id?: string | null
+          created_via?: string | null
+          deleted_at?: string | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean
@@ -21821,6 +21883,7 @@ export type Database = {
           last_install_outcome_at?: string | null
           latitude?: number | null
           longitude?: number | null
+          notes?: string | null
           postal_code?: string | null
           province?: string | null
           updated_at?: string | null
@@ -21832,7 +21895,15 @@ export type Database = {
           address_normalized?: string | null
           city?: string | null
           coax_readiness_score?: number | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string | null
+          created_by_employee_id?: string | null
+          created_by_field_agent_id?: string | null
+          created_by_user_id?: string | null
+          created_from_order_id?: string | null
+          created_via?: string | null
+          deleted_at?: string | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean
@@ -21844,6 +21915,7 @@ export type Database = {
           last_install_outcome_at?: string | null
           latitude?: number | null
           longitude?: number | null
+          notes?: string | null
           postal_code?: string | null
           province?: string | null
           updated_at?: string | null
@@ -29371,10 +29443,27 @@ export type Database = {
         Returns: Json
       }
       repair_order_client_portal_links: { Args: never; Returns: Json }
-      resolve_or_create_service_address: {
-        Args: { p_customer_id: string; p_order_id?: string }
-        Returns: string
-      }
+      resolve_or_create_service_address:
+        | {
+            Args: {
+              p_account_id: string
+              p_actor_user_id?: string
+              p_address: string
+              p_city: string
+              p_created_via: string
+              p_employee_id?: string
+              p_field_agent_id?: string
+              p_label?: string
+              p_order_id?: string
+              p_postal: string
+              p_province: string
+            }
+            Returns: string
+          }
+        | {
+            Args: { p_customer_id: string; p_order_id?: string }
+            Returns: string
+          }
       resolve_or_create_service_location: {
         Args: {
           p_account_id: string
