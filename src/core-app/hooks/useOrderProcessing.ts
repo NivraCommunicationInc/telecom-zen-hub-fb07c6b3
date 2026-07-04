@@ -1847,23 +1847,28 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
     }
 
-    // Step 2: Update account billing cycle + next invoice date
+    // Step 2: Update account status + bootstrap billing cycle ONLY if missing (anchor is immutable)
     const account = data?.account;
     if (account?.id) {
-      const activationDay = new Date().getDate();
-      const nextInvoice = new Date();
-      nextInvoice.setMonth(nextInvoice.getMonth() + 1);
-      nextInvoice.setDate(activationDay);
-
-      await supabase
+      const { data: acct } = await supabase
         .from("accounts")
-        .update({
-          billing_cycle_day: activationDay,
-          next_invoice_date: nextInvoice.toISOString().split("T")[0],
-          status: "active",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", account.id);
+        .select("billing_cycle_day")
+        .eq("id", account.id)
+        .maybeSingle();
+
+      const patch: Record<string, unknown> = {
+        status: "active",
+        updated_at: new Date().toISOString(),
+      };
+      if (!acct?.billing_cycle_day) {
+        const activationDay = new Date().getDate();
+        const nextInvoice = new Date();
+        nextInvoice.setMonth(nextInvoice.getMonth() + 1);
+        nextInvoice.setDate(activationDay);
+        patch.billing_cycle_day = activationDay;
+        patch.next_invoice_date = nextInvoice.toISOString().split("T")[0];
+      }
+      await supabase.from("accounts").update(patch).eq("id", account.id);
     }
 
     // Step 3: Save provider ref and activation notes on order

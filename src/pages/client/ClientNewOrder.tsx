@@ -2599,15 +2599,24 @@ const ClientNewOrder = () => {
       let nivraPaymentRef = nivraCheckoutResponse.payment_number;
       const postStepErrors: string[] = [...canonicalSyncErrors];
 
-      // ★ Update account billing_cycle_day (skip if fallback already handled it)
+      // ★ Bootstrap account billing_cycle_day ONLY if missing — anchor is immutable
       if (!usedFallback) {
         try {
           if (resolvedAccountId && nivraCheckoutResponse.billing_cycle_day) {
-            await supabase
+            const { data: acct } = await supabase
               .from("accounts")
-              .update({ billing_cycle_day: nivraCheckoutResponse.billing_cycle_day })
-              .eq("id", resolvedAccountId);
-            console.log("[BillingCycle] Account billing_cycle_day set to:", nivraCheckoutResponse.billing_cycle_day);
+              .select("billing_cycle_day")
+              .eq("id", resolvedAccountId)
+              .maybeSingle();
+            if (!acct?.billing_cycle_day) {
+              await supabase
+                .from("accounts")
+                .update({ billing_cycle_day: nivraCheckoutResponse.billing_cycle_day })
+                .eq("id", resolvedAccountId);
+              console.log("[BillingCycle] Bootstrapped billing_cycle_day:", nivraCheckoutResponse.billing_cycle_day);
+            } else {
+              console.log("[BillingCycle] Preserved existing billing_cycle_day:", acct.billing_cycle_day);
+            }
           }
         } catch (cyclErr) {
           console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
