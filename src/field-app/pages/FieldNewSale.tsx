@@ -711,6 +711,22 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
           } else if (syncData?.order_number) {
             coreOrderNumber = syncData.order_number;
           }
+          if (draft.customer.coaxial_survey) {
+            try {
+              const { data: fsFinal } = await supabase
+                .from("field_sales_orders")
+                .select("converted_order_id")
+                .eq("id", saleId)
+                .maybeSingle();
+              const coreOrderId = (fsFinal as any)?.converted_order_id;
+              if (coreOrderId) {
+                await supabase
+                  .from("orders")
+                  .update({ coaxial_survey: draft.customer.coaxial_survey as any } as any)
+                  .eq("id", coreOrderId);
+              }
+            } catch (mirrorErr) { logger.warn("coaxial_survey mirror failed", mirrorErr); }
+          }
         }
       } catch (syncCatch: any) {
         console.error("[field_sales_orders] catch", syncCatch);
