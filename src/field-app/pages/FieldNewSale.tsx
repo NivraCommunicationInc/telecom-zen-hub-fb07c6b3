@@ -406,6 +406,10 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             customer_city: draft.customer.city || null,
             customer_postal_code: draft.customer.postal_code || null,
             customer_date_of_birth: draft.customer.date_of_birth || null,
+            install_date: draft.customer.install_slot?.date || draft.customer.install_date || null,
+            install_mode: draft.customer.install_mode || null,
+            appointment_date: draft.customer.install_slot?.date || null,
+            appointment_notes: draft.customer.install_slot?.time_slot || null,
             services: [
               ...draft.services.map((s) => ({ ...s, quantity: 1, price_monthly: s.monthlyPrice, monthly_price: s.monthlyPrice, price_setup: 0 })),
               ...draft.equipment.map((e) => ({ ...e, quantity: e.quantity, price_monthly: 0, monthly_price: 0, price_setup: e.price })),
@@ -433,6 +437,23 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
         if (saleId) {
           const { data: syncData } = await supabase.functions.invoke("field-sales-sync", { body: { action: "sync_single", sale_id: saleId } });
           if (syncData?.order_number) coreOrderNumber = syncData.order_number;
+          // Mirror the coaxial survey onto the synced Core order for cross-portal parity.
+          if (draft.customer.coaxial_survey) {
+            try {
+              const { data: fsFinal } = await supabase
+                .from("field_sales_orders")
+                .select("converted_order_id")
+                .eq("id", saleId)
+                .maybeSingle();
+              const coreOrderId = (fsFinal as any)?.converted_order_id;
+              if (coreOrderId) {
+                await supabase
+                  .from("orders")
+                  .update({ coaxial_survey: draft.customer.coaxial_survey as any } as any)
+                  .eq("id", coreOrderId);
+              }
+            } catch (mirrorErr) { logger.warn("coaxial_survey mirror failed", mirrorErr); }
+          }
         }
       } catch (syncErr: any) {
         logger.warn("[square-inline] order creation failed (non-blocking)", syncErr);
@@ -631,6 +652,10 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             customer_city: draft.customer.city || null,
             customer_postal_code: draft.customer.postal_code || null,
             customer_date_of_birth: draft.customer.date_of_birth || null,
+            install_date: draft.customer.install_slot?.date || draft.customer.install_date || null,
+            install_mode: draft.customer.install_mode || null,
+            appointment_date: draft.customer.install_slot?.date || null,
+            appointment_notes: draft.customer.install_slot?.time_slot || null,
             services: [
               ...draft.services.map((service) => ({
                 ...service,
@@ -685,6 +710,22 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             toast.error("Commande créée, mais sync Core échouée: " + message);
           } else if (syncData?.order_number) {
             coreOrderNumber = syncData.order_number;
+          }
+          if (draft.customer.coaxial_survey) {
+            try {
+              const { data: fsFinal } = await supabase
+                .from("field_sales_orders")
+                .select("converted_order_id")
+                .eq("id", saleId)
+                .maybeSingle();
+              const coreOrderId = (fsFinal as any)?.converted_order_id;
+              if (coreOrderId) {
+                await supabase
+                  .from("orders")
+                  .update({ coaxial_survey: draft.customer.coaxial_survey as any } as any)
+                  .eq("id", coreOrderId);
+              }
+            } catch (mirrorErr) { logger.warn("coaxial_survey mirror failed", mirrorErr); }
           }
         }
       } catch (syncCatch: any) {

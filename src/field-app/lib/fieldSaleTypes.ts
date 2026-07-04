@@ -18,6 +18,14 @@ export interface FieldSaleCustomer {
   serviceability_status: "unknown" | "checking" | "available" | "unavailable";
   install_date?: string | null;
   install_mode?: "technician" | "self";
+  /** Chosen installation slot from the shared InstallSlotPicker */
+  install_slot?: { date: string; time_slot: string } | null;
+  /** Answers from the shared CoaxialSurvey component; mirrored onto orders.coaxial_survey */
+  coaxial_survey?: {
+    has_outlet: "yes" | "no" | null;
+    outlet_works: "yes" | "unknown" | "no" | null;
+    outlet_count: number | null;
+  } | null;
 }
 
 /** Concatenates address + apartment for downstream consumers (orders, invoices). */
@@ -139,6 +147,8 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     serviceability_status: "unknown",
     install_date: null,
     install_mode: "technician",
+    install_slot: null,
+    coaxial_survey: null,
   },
   services: [],
   equipment: [],

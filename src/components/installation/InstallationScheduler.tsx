@@ -73,6 +73,8 @@ interface Props {
   onAppointmentConfirmedChange?: (confirmed: boolean) => void;
   /** "choice" = show questionnaire + verdict only; "schedule" = show verdict recap + calendar */
   phase?: "choice" | "schedule";
+  /** Bubbles the raw cabling answers up so callers can mirror them onto orders.coaxial_survey */
+  onCablingAnswered?: (answers: CablingData) => void;
 }
 
 export function InstallationScheduler({
@@ -88,6 +90,7 @@ export function InstallationScheduler({
   confirmedAppointment,
   onAppointmentConfirmedChange,
   phase = "choice",
+  onCablingAnswered,
 }: Props) {
   const showQuestionnaire = phase === "choice";
   const showSchedule = phase === "schedule";
@@ -295,6 +298,7 @@ export function InstallationScheduler({
   const handleQuestionnaireComplete = useCallback(
     async (answers: CablingData) => {
       setCablingAnswers(answers);
+      onCablingAnswered?.(answers);
       const result = determineInstallation(distanceKm, answers);
       setDecision(result);
       onInstallationTypeChange(result.installationType, result.technicianLevel);

@@ -141,6 +141,9 @@ const GuestCheckout = () => {
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   // Sub-phase inside step 4: "choice" (installation type + questionnaire) → "schedule" (calendar)
   const [installationPhase, setInstallationPhase] = useState<"choice" | "schedule">("choice");
+  // Raw coaxial questionnaire answers — mirrored onto orders.coaxial_survey after submit
+  // for cross-portal consistency with UnifiedPOS / Field flows.
+  const [coaxialSurveyPayload, setCoaxialSurveyPayload] = useState<Record<string, unknown> | null>(null);
   const [notes, setNotes] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
@@ -960,6 +963,7 @@ const GuestCheckout = () => {
             occupancy_status: installationDetailsData.occupancyStatus || null,
             access_notes: installationDetailsData.accessNotes || null,
           },
+          coaxial_survey: coaxialSurveyPayload,
         };
         if (shippingData.shipToDifferentAddress) {
           Object.assign(orderPatch, {
@@ -1756,6 +1760,13 @@ const GuestCheckout = () => {
                     appointmentConfirmed={appointmentConfirmed}
                     onAppointmentConfirmedChange={setAppointmentConfirmed}
                     phase={installationPhase}
+                    onCablingAnswered={(a) => setCoaxialSurveyPayload({
+                      has_coaxial: a.hasCoaxial,
+                      cable_status: a.cableStatus,
+                      previous_service: a.previousService,
+                      captured_at: new Date().toISOString(),
+                      source: "guest_checkout",
+                    })}
                   />
                 )}
 
