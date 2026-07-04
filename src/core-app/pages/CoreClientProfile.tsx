@@ -187,10 +187,10 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       if (!billingCustomer) return [];
       const { data } = await supabase.from("billing_subscriptions")
-        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category")
+        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category, service_address_id")
         .eq("customer_id", billingCustomer.id)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(50);
       return data || [];
     },
     enabled: !!billingCustomer,
