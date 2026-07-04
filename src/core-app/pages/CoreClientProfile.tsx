@@ -18,8 +18,9 @@ import {
   CheckCircle, AlertTriangle, XCircle, CreditCard, Package,
   Tv, Wifi, Plus, PauseCircle, PlayCircle, Loader2, Send,
   Calendar, DollarSign, Wrench, TicketIcon, Download, FileSignature,
-  FileX, UserX,
+  FileX, UserX, Home,
 } from "lucide-react";
+import { AccountAddressesTab } from "@/components/admin/account-profile/AccountAddressesTab";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
