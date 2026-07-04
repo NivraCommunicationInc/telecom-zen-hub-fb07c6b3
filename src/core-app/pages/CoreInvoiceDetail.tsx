@@ -220,34 +220,66 @@ const CoreInvoiceDetail = () => {
         </div>
       </div>
 
-      {/* Invoice Lines */}
+      {/* Invoice Lines — grouped by service address (Pass 3B) */}
       <div>
         <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,38%)] font-medium mb-2">Lignes de facturation ({inv.lines.length})</p>
-        <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-[hsl(220,15%,16%)]">
-                {["Description", "Type", "Qté", "Prix unit.", "Total"].map(h => (
-                  <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {inv.lines.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8 text-[hsl(220,10%,30%)] text-xs">Aucune ligne</td></tr>
-              ) : inv.lines.map(l => (
-                <tr key={l.id} className="border-b border-[hsl(220,15%,13%)] last:border-0">
-                  <td className="px-3 py-2 text-white">{l.description}</td>
-                  <td className="px-3 py-2 text-[hsl(220,10%,50%)]">{l.line_type}</td>
-                  <td className="px-3 py-2 tabular-nums text-[hsl(220,10%,50%)]">{l.quantity}</td>
-                  <td className="px-3 py-2 tabular-nums text-[hsl(220,10%,50%)] font-mono">{fmtCAD(l.unit_price)}</td>
-                  <td className="px-3 py-2 tabular-nums text-white font-mono font-medium">{fmtCAD(l.line_total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {inv.lines.length === 0 ? (
+          <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-8 text-center text-[hsl(220,10%,30%)] text-xs">Aucune ligne</div>
+        ) : (
+          <div className="space-y-3">
+            {(() => {
+              // Group lines by service_address_id (null = "Sans adresse / général")
+              const groups = new Map<string, { addr: typeof inv.lines[number]["service_address"]; lines: typeof inv.lines; subtotal: number }>();
+              for (const l of inv.lines) {
+                const key = l.service_address_id ?? "__none__";
+                const g = groups.get(key) ?? { addr: l.service_address, lines: [] as typeof inv.lines, subtotal: 0 };
+                g.lines.push(l);
+                g.subtotal += Number(l.line_total ?? 0);
+                groups.set(key, g);
+              }
+              return Array.from(groups.entries()).map(([key, g]) => {
+                const label = g.addr
+                  ? [g.addr.address_line, g.addr.city, g.addr.province, g.addr.postal_code].filter(Boolean).join(", ")
+                  : "Général — sans adresse de service";
+                return (
+                  <div key={key} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-[hsl(220,15%,16%)] bg-[hsl(220,20%,10%)]">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <span className="text-[11px] font-semibold text-white truncate">{label}</span>
+                      </div>
+                      <span className="text-[11px] font-mono tabular-nums text-[hsl(220,10%,60%)] shrink-0 ml-3">
+                        Sous-total : <span className="text-white font-semibold">{fmtCAD(g.subtotal)}</span>
+                      </span>
+                    </div>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-[hsl(220,15%,16%)]">
+                          {["Description", "Type", "Qté", "Prix unit.", "Total"].map(h => (
+                            <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.lines.map(l => (
+                          <tr key={l.id} className="border-b border-[hsl(220,15%,13%)] last:border-0">
+                            <td className="px-3 py-2 text-white">{l.description}</td>
+                            <td className="px-3 py-2 text-[hsl(220,10%,50%)]">{l.line_type}</td>
+                            <td className="px-3 py-2 tabular-nums text-[hsl(220,10%,50%)]">{l.quantity}</td>
+                            <td className="px-3 py-2 tabular-nums text-[hsl(220,10%,50%)] font-mono">{fmtCAD(l.unit_price)}</td>
+                            <td className="px-3 py-2 tabular-nums text-white font-mono font-medium">{fmtCAD(l.line_total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
       </div>
+
 
       {/* Payments */}
       <div>
