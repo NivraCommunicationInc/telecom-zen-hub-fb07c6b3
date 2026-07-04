@@ -821,6 +821,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             services: [
               ...draft.services.map((service) => ({
                 ...service,
+                kind: 'service',
                 quantity: 1,
                 price_monthly: service.monthlyPrice,
                 monthly_price: service.monthlyPrice,
@@ -828,6 +829,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               })),
               ...draft.equipment.map((equipment) => ({
                 ...equipment,
+                kind: 'equipment',
                 quantity: equipment.quantity,
                 price_monthly: 0,
                 monthly_price: 0,
