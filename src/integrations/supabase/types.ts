@@ -1946,6 +1946,7 @@ export type Database = {
           order_id: string | null
           scheduled_at: string
           service_address: string | null
+          service_address_id: string | null
           service_city: string | null
           service_location_id: string | null
           service_postal_code: string | null
@@ -1978,6 +1979,7 @@ export type Database = {
           order_id?: string | null
           scheduled_at: string
           service_address?: string | null
+          service_address_id?: string | null
           service_city?: string | null
           service_location_id?: string | null
           service_postal_code?: string | null
@@ -2010,6 +2012,7 @@ export type Database = {
           order_id?: string | null
           scheduled_at?: string
           service_address?: string | null
+          service_address_id?: string | null
           service_city?: string | null
           service_location_id?: string | null
           service_postal_code?: string | null
@@ -2041,6 +2044,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "appointments_service_location_id_fkey"
@@ -2603,7 +2620,9 @@ export type Database = {
           line_total: number
           line_type: string
           metadata: Json | null
+          prorata_metadata: Json | null
           quantity: number | null
+          service_address_id: string | null
           service_location_id: string | null
           unit_price: number
         }
@@ -2615,7 +2634,9 @@ export type Database = {
           line_total: number
           line_type?: string
           metadata?: Json | null
+          prorata_metadata?: Json | null
           quantity?: number | null
+          service_address_id?: string | null
           service_location_id?: string | null
           unit_price: number
         }
@@ -2627,7 +2648,9 @@ export type Database = {
           line_total?: number
           line_type?: string
           metadata?: Json | null
+          prorata_metadata?: Json | null
           quantity?: number | null
+          service_address_id?: string | null
           service_location_id?: string | null
           unit_price?: number
         }
@@ -2645,6 +2668,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "billing_invoice_lines_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_invoice_lines_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "billing_invoice_lines_service_location_id_fkey"
@@ -3178,6 +3215,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "billing_subscriptions_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
+          },
+          {
             foreignKeyName: "billing_subscriptions_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -3218,6 +3262,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "service_addresses"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "billing_subscriptions_service_location_id_fkey"
@@ -9234,6 +9285,7 @@ export type Database = {
           price_client: number | null
           retired_at: string | null
           serial_number: string | null
+          service_address_id: string | null
           service_location_id: string | null
           sku: string | null
           status: string
@@ -9262,6 +9314,7 @@ export type Database = {
           price_client?: number | null
           retired_at?: string | null
           serial_number?: string | null
+          service_address_id?: string | null
           service_location_id?: string | null
           sku?: string | null
           status?: string
@@ -9290,6 +9343,7 @@ export type Database = {
           price_client?: number | null
           retired_at?: string | null
           serial_number?: string | null
+          service_address_id?: string | null
           service_location_id?: string | null
           sku?: string | null
           status?: string
@@ -9311,6 +9365,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "service_addresses"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "equipment_inventory_catalog_item_id_fkey"
@@ -9346,6 +9407,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "equipment_inventory_service_location_id_fkey"
@@ -12915,6 +12990,7 @@ export type Database = {
           installation_fee: number | null
           notes: string | null
           order_id: string | null
+          service_address_id: string | null
           status: string | null
           technician_id: string | null
           updated_at: string
@@ -12930,6 +13006,7 @@ export type Database = {
           installation_fee?: number | null
           notes?: string | null
           order_id?: string | null
+          service_address_id?: string | null
           status?: string | null
           technician_id?: string | null
           updated_at?: string
@@ -12945,6 +13022,7 @@ export type Database = {
           installation_fee?: number | null
           notes?: string | null
           order_id?: string | null
+          service_address_id?: string | null
           status?: string | null
           technician_id?: string | null
           updated_at?: string
@@ -12970,6 +13048,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_appointments_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_appointments_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
         ]
       }
@@ -13045,6 +13137,7 @@ export type Database = {
           scheduled_time_end: string | null
           scheduled_time_start: string | null
           service_address: string | null
+          service_address_id: string | null
           service_city: string | null
           service_postal_code: string | null
           service_type: string | null
@@ -13082,6 +13175,7 @@ export type Database = {
           scheduled_time_end?: string | null
           scheduled_time_start?: string | null
           service_address?: string | null
+          service_address_id?: string | null
           service_city?: string | null
           service_postal_code?: string | null
           service_type?: string | null
@@ -13119,6 +13213,7 @@ export type Database = {
           scheduled_time_end?: string | null
           scheduled_time_start?: string | null
           service_address?: string | null
+          service_address_id?: string | null
           service_city?: string | null
           service_postal_code?: string | null
           service_type?: string | null
@@ -13143,6 +13238,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "service_addresses"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "installation_jobs_appointment_id_fkey"
@@ -13171,6 +13273,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "installation_jobs_technician_id_fkey"
@@ -17280,6 +17396,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "service_addresses"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "orders_service_location_id_fkey"
@@ -22187,6 +22310,7 @@ export type Database = {
           resolved_by: string | null
           scheduled_end_at: string | null
           scheduled_start_at: string | null
+          service_address_id: string | null
           service_display_name: string | null
           service_location_id: string | null
           service_name: string
@@ -22214,6 +22338,7 @@ export type Database = {
           resolved_by?: string | null
           scheduled_end_at?: string | null
           scheduled_start_at?: string | null
+          service_address_id?: string | null
           service_display_name?: string | null
           service_location_id?: string | null
           service_name: string
@@ -22241,6 +22366,7 @@ export type Database = {
           resolved_by?: string | null
           scheduled_end_at?: string | null
           scheduled_start_at?: string | null
+          service_address_id?: string | null
           service_display_name?: string | null
           service_location_id?: string | null
           service_name?: string
@@ -22249,6 +22375,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "service_incidents_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_incidents_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
+          },
           {
             foreignKeyName: "service_incidents_service_location_id_fkey"
             columns: ["service_location_id"]
@@ -22269,6 +22409,7 @@ export type Database = {
           monthly_price: number | null
           order_id: string | null
           plan_name: string | null
+          service_address_id: string | null
           service_type: string
           start_date: string | null
           status: string
@@ -22288,6 +22429,7 @@ export type Database = {
           monthly_price?: number | null
           order_id?: string | null
           plan_name?: string | null
+          service_address_id?: string | null
           service_type: string
           start_date?: string | null
           status?: string
@@ -22307,6 +22449,7 @@ export type Database = {
           monthly_price?: number | null
           order_id?: string | null
           plan_name?: string | null
+          service_address_id?: string | null
           service_type?: string
           start_date?: string | null
           status?: string
@@ -22344,6 +22487,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_instances_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_instances_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
         ]
       }
@@ -22463,6 +22620,7 @@ export type Database = {
           plan_code: string | null
           price: number | null
           promo_eligible: boolean | null
+          service_address_id: string | null
           shipping_fee_rule: string | null
           short_description: string | null
           short_description_en: string | null
@@ -22498,6 +22656,7 @@ export type Database = {
           plan_code?: string | null
           price?: number | null
           promo_eligible?: boolean | null
+          service_address_id?: string | null
           shipping_fee_rule?: string | null
           short_description?: string | null
           short_description_en?: string | null
@@ -22533,6 +22692,7 @@ export type Database = {
           plan_code?: string | null
           price?: number | null
           promo_eligible?: boolean | null
+          service_address_id?: string | null
           shipping_fee_rule?: string | null
           short_description?: string | null
           short_description_en?: string | null
@@ -22546,7 +22706,22 @@ export type Database = {
           visible_simulator?: boolean | null
           visible_website?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "services_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
+          },
+        ]
       }
       shipments: {
         Row: {
@@ -23835,6 +24010,7 @@ export type Database = {
           next_invoice_date: string | null
           order_id: string | null
           plan_name: string
+          service_address_id: string | null
           service_type: string | null
           start_date: string
           status: string
@@ -23858,6 +24034,7 @@ export type Database = {
           next_invoice_date?: string | null
           order_id?: string | null
           plan_name: string
+          service_address_id?: string | null
           service_type?: string | null
           start_date?: string
           status?: string
@@ -23881,6 +24058,7 @@ export type Database = {
           next_invoice_date?: string | null
           order_id?: string | null
           plan_name?: string
+          service_address_id?: string | null
           service_type?: string | null
           start_date?: string
           status?: string
@@ -23930,6 +24108,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
         ]
       }
@@ -24070,6 +24262,7 @@ export type Database = {
           resolved_at: string | null
           route_to: string | null
           service_address: string | null
+          service_address_id: string | null
           service_location_id: string | null
           source: string | null
           status: string
@@ -24115,6 +24308,7 @@ export type Database = {
           resolved_at?: string | null
           route_to?: string | null
           service_address?: string | null
+          service_address_id?: string | null
           service_location_id?: string | null
           source?: string | null
           status?: string
@@ -24160,6 +24354,7 @@ export type Database = {
           resolved_at?: string | null
           route_to?: string | null
           service_address?: string | null
+          service_address_id?: string | null
           service_location_id?: string | null
           source?: string | null
           status?: string
@@ -24203,6 +24398,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "support_tickets_service_location_id_fkey"
@@ -24617,6 +24826,7 @@ export type Database = {
           scheduled_date: string
           scheduled_time_end: string
           scheduled_time_start: string
+          service_address_id: string | null
           service_location_id: string | null
           signal_strength: number | null
           status: string
@@ -24645,6 +24855,7 @@ export type Database = {
           scheduled_date: string
           scheduled_time_end: string
           scheduled_time_start: string
+          service_address_id?: string | null
           service_location_id?: string | null
           signal_strength?: number | null
           status?: string
@@ -24673,6 +24884,7 @@ export type Database = {
           scheduled_date?: string
           scheduled_time_end?: string
           scheduled_time_start?: string
+          service_address_id?: string | null
           service_location_id?: string | null
           signal_strength?: number | null
           status?: string
@@ -24702,6 +24914,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_assignments_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_assignments_service_address_id_fkey"
+            columns: ["service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
           },
           {
             foreignKeyName: "technician_assignments_service_location_id_fkey"
@@ -28111,6 +28337,56 @@ export type Database = {
         }
         Relationships: []
       }
+      v_account_address_summary: {
+        Row: {
+          account_id: string | null
+          active_subscriptions: number | null
+          address_line_1: string | null
+          city: string | null
+          created_at: string | null
+          deleted_at: string | null
+          equipment_count: number | null
+          open_tickets: number | null
+          postal_code: string | null
+          province: string | null
+          service_address_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          active_subscriptions?: never
+          address_line_1?: string | null
+          city?: string | null
+          created_at?: string | null
+          deleted_at?: string | null
+          equipment_count?: never
+          open_tickets?: never
+          postal_code?: string | null
+          province?: string | null
+          service_address_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          active_subscriptions?: never
+          address_line_1?: string | null
+          city?: string | null
+          created_at?: string | null
+          deleted_at?: string | null
+          equipment_count?: never
+          open_tickets?: never
+          postal_code?: string | null
+          province?: string | null
+          service_address_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_addresses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_growth_agent_health: {
         Row: {
           agent_name: string | null
@@ -28822,6 +29098,10 @@ export type Database = {
         }
         Returns: Json
       }
+      format_invoice_line_description: {
+        Args: { _base_description: string; _service_address_id: string }
+        Returns: string
+      }
       generate_account_number: { Args: never; Returns: string }
       generate_account_renewal_invoice: {
         Args: { p_account_id: string }
@@ -28873,6 +29153,7 @@ export type Database = {
       }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
+      get_account_service_tree: { Args: { _account_id: string }; Returns: Json }
       get_agent_available_discounts: {
         Args: { p_agent_id?: string }
         Returns: {
