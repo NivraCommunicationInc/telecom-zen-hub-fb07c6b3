@@ -131,7 +131,7 @@ serve(async (req: Request) => {
         return jsonResponse(payload, 400);
       }
 
-      // â"€â"€ Best-effort post-signature notifications (do not block client) â"€â"€
+      // ── Best-effort post-signature notifications (do not block client) ──
       try {
         // 0. Persist SHA-256 hash on the contract_signatures row (LCCJTI non-repudiation)
         await supabase.from("contract_signatures")
@@ -140,6 +140,32 @@ serve(async (req: Request) => {
           .then(({ error: shaErr }) => {
             if (shaErr) console.warn("[sign-contract-public] pdf_sha256 update failed:", shaErr.message);
           });
+
+        // 0.5. REGENERATE the contract PDF now that signature fields are in DB,
+        //      and OVERWRITE the stored PDF (same storage_path) so Core / portal /
+        //      OneView / Employee all see the signed version — no stale unsigned PDF.
+        if (payload.order_id) {
+          try {
+            const { persistOrderDocuments } = await import("../_shared/persistOrderDocuments.ts");
+            const persisted = await persistOrderDocuments(payload.order_id);
+            const contractRes = persisted.results.find((r) => r.doc_type === "order_contract");
+            if (contractRes?.ok && contractRes.storage_path) {
+              const contractAtt = persisted.attachments.find((a) => a.filename?.toLowerCase().includes("contrat"));
+              await supabase.from("contracts")
+                .update({
+                  contract_pdf_url: contractRes.storage_path,
+                  contract_pdf_stored_at: new Date().toISOString(),
+                  pdf_hash: contractAtt?.hash_sha256 ?? null,
+                  pdf_generated_at: new Date().toISOString(),
+                })
+                .eq("id", payload.contract_id);
+            } else {
+              console.warn("[sign-contract-public] signed PDF regeneration failed:", contractRes?.error);
+            }
+          } catch (regenErr: any) {
+            console.warn("[sign-contract-public] regenerate signed PDF error:", regenErr?.message);
+          }
+        }
 
         // 1. Activity log
         await supabase.from("activity_logs").insert({
