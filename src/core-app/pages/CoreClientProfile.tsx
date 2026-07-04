@@ -694,6 +694,19 @@ const CoreClientProfile = () => {
               />
             </TabsContent>
 
+            {/* ── Adresses & Services ── */}
+            <TabsContent value="adresses" className="space-y-4">
+              <Section title="Adresses de service & services actifs" icon={Home}>
+                {account?.id ? (
+                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} />
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">
+                    Aucun compte lié à ce client — impossible d'afficher les adresses.
+                  </p>
+                )}
+              </Section>
+            </TabsContent>
+
             {/* ── Équipement ── */}
             <TabsContent value="equipement" className="space-y-4">
               <Section title={`Équipements${equipment.length > 0 ? ` (${equipment.length})` : ""}`} icon={Package} action={
