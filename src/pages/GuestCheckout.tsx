@@ -194,6 +194,22 @@ const GuestCheckout = () => {
   // Stable cart UUID — satisfies paypal-create-order guard without creating a DB record first.
   const clientCartIdRef = useRef<string>('cart_' + crypto.randomUUID());
 
+  // ── Panier persistant 30 jours (localStorage + DB mirror) ──
+  const [draftDismissed, setDraftDismissed] = useState(false);
+  const {
+    draft: savedDraft,
+    hasDraft,
+    save: saveDraft,
+    clear: clearDraft,
+  } = useCheckoutDraft<{
+    selectedServices: Service[];
+    addressStreet: string;
+    addressApartment: string;
+    addressCity: string;
+    addressProvince: string;
+    addressPostalCode: string;
+  }>("guest_checkout");
+
   // ── Restaurer le state depuis sessionStorage au montage ──
   useEffect(() => {
     try {
