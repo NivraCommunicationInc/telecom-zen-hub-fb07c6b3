@@ -5926,12 +5926,15 @@ export type Database = {
           contract_pdf_url: string | null
           contract_url: string
           created_at: string
+          expired_at: string | null
           id: string
           is_signed: boolean | null
+          last_reminder_at: string | null
           order_id: string | null
           owner_user_id: string
           pdf_generated_at: string | null
           pdf_hash: string | null
+          reminder_count: number
           sent_at: string | null
           sent_count: number | null
           signature_method: string | null
@@ -5965,12 +5968,15 @@ export type Database = {
           contract_pdf_url?: string | null
           contract_url: string
           created_at?: string
+          expired_at?: string | null
           id?: string
           is_signed?: boolean | null
+          last_reminder_at?: string | null
           order_id?: string | null
           owner_user_id: string
           pdf_generated_at?: string | null
           pdf_hash?: string | null
+          reminder_count?: number
           sent_at?: string | null
           sent_count?: number | null
           signature_method?: string | null
@@ -6004,12 +6010,15 @@ export type Database = {
           contract_pdf_url?: string | null
           contract_url?: string
           created_at?: string
+          expired_at?: string | null
           id?: string
           is_signed?: boolean | null
+          last_reminder_at?: string | null
           order_id?: string | null
           owner_user_id?: string
           pdf_generated_at?: string | null
           pdf_hash?: string | null
+          reminder_count?: number
           sent_at?: string | null
           sent_count?: number | null
           signature_method?: string | null
