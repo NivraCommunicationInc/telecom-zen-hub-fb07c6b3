@@ -27,6 +27,7 @@ import { fr } from "date-fns/locale";
 import { ClientPinManagement } from "@/components/client/ClientPinManagement";
 import ClientAuthorizedContacts from "@/components/client/ClientAuthorizedContacts";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { ServiceAddressPicker } from "@/components/service-address/ServiceAddressPicker";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
