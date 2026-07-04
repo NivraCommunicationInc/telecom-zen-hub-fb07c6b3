@@ -92,12 +92,16 @@ export function useAccountAddresses(accountId: string | null | undefined) {
         p_order_id: null,
         p_employee_id: null,
         p_field_agent_id: null,
-        p_label: null,
+        p_label: input.notes ?? null,
       } as any);
       if (error) throw error;
+      if (!data) throw new Error("La création de l'adresse a échoué silencieusement (RPC a retourné null).");
+      // Attendre le refetch AVANT de résoudre → la liste est à jour quand
+      // l'UI appelante fait setSelectedId(id) juste après.
+      await qc.invalidateQueries({ queryKey });
+      await qc.refetchQueries({ queryKey });
       return data as string;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey }),
   });
 
   const softDelete = useMutation({
@@ -107,8 +111,9 @@ export function useAccountAddresses(accountId: string | null | undefined) {
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
+      await qc.invalidateQueries({ queryKey });
+      await qc.refetchQueries({ queryKey });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey }),
   });
 
   return {

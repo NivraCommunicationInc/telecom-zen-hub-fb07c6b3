@@ -117,9 +117,10 @@ export default function EmployeeAccountDetail() {
           .limit(20),
         supabase
           .from("service_addresses")
-          .select("id, account_id, label, is_active, created_at, service_address:address_line, service_city:city, service_province:province, service_postal_code:postal_code")
+          .select("id, account_id, label, is_active, created_at, address_line, city, province, postal_code, contact_name, contact_phone, deleted_at")
           .eq("account_id", accountId)
-          .eq("is_active", true),
+          .is("deleted_at", null)
+          .order("created_at", { ascending: true }),
         supabase
           .from("billing_customers")
           .select("id")
@@ -513,8 +514,8 @@ export default function EmployeeAccountDetail() {
                   <div className="flex items-start gap-2 min-w-0">
                     <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-foreground truncate">{loc.service_address}</p>
-                      <p className="text-muted-foreground truncate">{[loc.service_city, loc.service_province, loc.service_postal_code].filter(Boolean).join(", ")}</p>
+                      <p className="text-foreground truncate">{loc.address_line}</p>
+                      <p className="text-muted-foreground truncate">{[loc.city, loc.province, loc.postal_code].filter(Boolean).join(", ")}</p>
                     </div>
                   </div>
                   <button
