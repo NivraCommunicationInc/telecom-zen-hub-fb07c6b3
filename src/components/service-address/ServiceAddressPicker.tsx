@@ -188,7 +188,7 @@ function AddressCreateDialog({
                   address_line: d.formatted || d.line1 || f.address_line,
                   city: d.city || f.city,
                   postal_code: d.postalCode || f.postal_code,
-                  province: d.province || f.province,
+                  province: d.region || f.province,
                 }));
               }}
               placeholder="Rechercher une adresse au Québec…"
