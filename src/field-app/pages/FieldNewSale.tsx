@@ -652,6 +652,10 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
             customer_city: draft.customer.city || null,
             customer_postal_code: draft.customer.postal_code || null,
             customer_date_of_birth: draft.customer.date_of_birth || null,
+            install_date: draft.customer.install_slot?.date || draft.customer.install_date || null,
+            install_mode: draft.customer.install_mode || null,
+            appointment_date: draft.customer.install_slot?.date || null,
+            appointment_notes: draft.customer.install_slot?.time_slot || null,
             services: [
               ...draft.services.map((service) => ({
                 ...service,
