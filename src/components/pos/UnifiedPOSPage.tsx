@@ -160,6 +160,22 @@ export default function UnifiedPOSPage({
   
   // Is this the admin portal with full features?
   const isAdminPortal = portalType === "admin";
+
+  // Requires installation appointment: Internet or TV services in cart trigger it.
+  const requiresInstall = useMemo(
+    () => pos.services.some((s) => s.category === "internet" || s.category === "tv"),
+    [pos.services],
+  );
+  const requiresCoax = useMemo(
+    () => pos.services.some((s) => s.category === "tv"),
+    [pos.services],
+  );
+  const coaxComplete =
+    !requiresCoax ||
+    (coaxSurvey.has_outlet !== null &&
+      (coaxSurvey.has_outlet === "no" ||
+        (coaxSurvey.outlet_works !== null && coaxSurvey.outlet_count !== null && coaxSurvey.outlet_count > 0)));
+  const installComplete = !requiresInstall || !!installSlot;
   
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
