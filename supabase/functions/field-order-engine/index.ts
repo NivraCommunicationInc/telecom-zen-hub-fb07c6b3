@@ -475,13 +475,43 @@ Deno.serve(async (req) => {
 
       const { data: intent } = await admin
         .from("field_payment_intents")
-        .select("id, quote_id, agent_id, amount, status, customer_email, customer_name, converted_field_order_id, converted_order_id")
+        .select("id, quote_id, agent_id, amount, status, customer_email, customer_name, converted_field_order_id, converted_order_id, converted_invoice_id")
         .eq("id", intentId)
         .maybeSingle();
       if (!intent) return new Response(JSON.stringify({ error: "Intent terrain introuvable" }), { status: 404, headers });
-      if (intent.converted_order_id) {
+      if (intent.converted_order_id && intent.status === "completed") {
         return new Response(JSON.stringify({ success: true, order_id: intent.converted_order_id, field_order_id: intent.converted_field_order_id }), { headers });
       }
+
+      // NEW: shell order pre-materialized → just mark paid, no re-materialization
+      if (intent.converted_order_id) {
+        const captureRef = body.payment_reference || body.paypal_order_id || null;
+        if (intent.converted_field_order_id) {
+          await admin.from("field_sales_orders").update({
+            payment_status: "confirmed",
+            payment_reference: captureRef,
+            updated_at: new Date().toISOString(),
+          }).eq("id", intent.converted_field_order_id);
+        }
+        await admin.from("orders").update({
+          payment_status: "paid",
+          status: "validated",
+          updated_at: new Date().toISOString(),
+        }).eq("id", intent.converted_order_id);
+        await admin.from("field_payment_intents").update({
+          status: "completed",
+          paid_at: new Date().toISOString(),
+        }).eq("id", intent.id);
+        return new Response(JSON.stringify({
+          success: true,
+          order_id: intent.converted_order_id,
+          field_order_id: intent.converted_field_order_id,
+          invoice_id: intent.converted_invoice_id,
+          shell_path: true,
+        }), { headers });
+      }
+
+
 
       const { data: quote } = await admin.from("field_quotes").select("*").eq("id", intent.quote_id).maybeSingle();
       if (!quote) return new Response(JSON.stringify({ error: "Soumission terrain introuvable" }), { status: 404, headers });
