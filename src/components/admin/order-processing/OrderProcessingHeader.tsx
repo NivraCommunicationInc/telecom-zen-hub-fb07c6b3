@@ -178,10 +178,8 @@ export function OrderProcessingHeader({ proc }: Props) {
           <Button size="sm" variant="outline" onClick={() => setNoteDialogOpen(true)} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
             <StickyNote className="w-3.5 h-3.5 mr-1" /> Ajouter note
           </Button>
-          <Button size="sm" variant="outline" onClick={handleSendNotification} disabled={loading === "notify"} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
-            {loading === "notify" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Bell className="w-3.5 h-3.5 mr-1" />}
-            Notifier client
-          </Button>
+          {/* "Notifier client" retiré 2026-07-04 — envoyait un email vide "Mise à jour Nivra". */}
+
           <Button size="sm" variant="outline" onClick={() => proc.refetch()} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
             <RefreshCw className="w-3.5 h-3.5 mr-1" /> Actualiser
           </Button>
