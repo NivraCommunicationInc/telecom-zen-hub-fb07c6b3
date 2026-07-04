@@ -1650,6 +1650,25 @@ export function useOrderProcessing(orderId: string | undefined) {
   /* ── Send notification to client ── */
   const sendClientNotification = async (templateKey: string, subject: string, extraVars?: Record<string, any>) => {
     try {
+      const officialDocumentKeys = new Set([
+        "invoice_sent",
+        "document_contract_sent",
+        "document_invoice_sent",
+        "document_summary_sent",
+        "document_receipt_sent",
+        "all_documents_sent",
+        "payment_receipt",
+        "payment_confirmed",
+      ]);
+      const orderPaymentStatus = String(data?.order?.payment_status || "").toLowerCase();
+      const invoiceStatus = String(data?.invoice?.status || "").toLowerCase();
+      const invoiceBalance = Number(data?.invoice?.balance_due ?? 999999);
+      const paymentConfirmed = ["paid", "confirmed", "completed", "captured", "succeeded"].includes(orderPaymentStatus)
+        && (["paid", "confirmed", "completed", "captured", "succeeded"].includes(invoiceStatus) || invoiceBalance <= 0.01);
+      if (officialDocumentKeys.has(templateKey) && !paymentConfirmed) {
+        toast.error("Documents bloqués: le paiement doit être confirmé avant tout envoi au client.");
+        return;
+      }
       const email = getClientEmail();
       if (!email) {
         toast.error("Aucun courriel client disponible");
