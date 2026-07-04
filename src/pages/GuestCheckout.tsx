@@ -141,6 +141,9 @@ const GuestCheckout = () => {
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   // Sub-phase inside step 4: "choice" (installation type + questionnaire) → "schedule" (calendar)
   const [installationPhase, setInstallationPhase] = useState<"choice" | "schedule">("choice");
+  // Raw coaxial questionnaire answers — mirrored onto orders.coaxial_survey after submit
+  // for cross-portal consistency with UnifiedPOS / Field flows.
+  const [coaxialSurveyPayload, setCoaxialSurveyPayload] = useState<Record<string, unknown> | null>(null);
   const [notes, setNotes] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
