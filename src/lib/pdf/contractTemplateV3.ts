@@ -492,21 +492,23 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = sectionTitle(doc, "Recapitulatif financier", y);
 
     const bw = (pw - 30 - 4) / 2;
-    const monthlyBase = data.subtotal_monthly + totalPromo;
+    // Recap mensuel = récurrent stable (les crédits 1er-mois-seul sont hors récurrent)
+    const monthlyBase = data.subtotal_monthly + totalPromoRecurring;
     const monthlyGst = Math.round(monthlyBase * 0.05 * 100) / 100;
     const monthlyQst = Math.round(monthlyBase * 0.09975 * 100) / 100;
     const monthlyTotal = monthlyBase + monthlyGst + monthlyQst;
 
     // Blue box (monthly)
     doc.setFillColor(...NAVY);
-    doc.roundedRect(15, y, bw, 52, 2, 2, "F");
+    const boxH = totalPromoFirstMonth < 0 ? 58 : 52;
+    doc.roundedRect(15, y, bw, boxH, 2, 2, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
     doc.text("TOTAL MENSUEL RECURRENT", 18, y + 5.5);
-    const monthlyRows = [
+    const monthlyRows: Array<[string, string]> = [
       ["Services", fmt(data.subtotal_monthly)],
-      ["Rabais", fmt(totalPromo)],
+      ["Rabais recurrent", fmt(totalPromoRecurring)],
       ["Sous-total", fmt(monthlyBase)],
       ["TPS 5%", fmt(monthlyGst)],
       ["TVQ 9.975%", fmt(monthlyQst)],
@@ -530,6 +532,13 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.text("TOTAL / mois", 18, ry + 2);
     doc.setFontSize(13);
     doc.text(fmt(monthlyTotal), 15 + bw - 3, ry + 2, { align: "right" });
+    if (totalPromoFirstMonth < 0) {
+      ry += 6;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(184, 207, 230);
+      doc.text(`1er mois : credit ${fmt(totalPromoFirstMonth)} applique une seule fois`, 18, ry + 2);
+    }
 
     // Green box (one-time)
     const feesTotal = data.subtotal_one_time || 0;
