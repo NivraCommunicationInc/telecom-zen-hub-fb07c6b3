@@ -3659,17 +3659,27 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
-    // GENERIC FALLBACK
+    // GENERIC FALLBACK — custom_html requires an explicit subject + message.
+    // We NO LONGER fabricate a vacuous "Mise à jour Nivra" body: the caller
+    // must supply real content (used by admin manual communications, staff
+    // OTP shells, CRM lead-capture, marketing broadcasts). If subject or
+    // message is missing → return null, queue-drain will mark DLQ.
+    //
+    // The legacy `order_update` template_key was retired 2026-07-04: the two
+    // "Notifier client" buttons emitted a generic, content-free email that
+    // triggered client support calls. Do not re-add it.
     // ===================================================================
-    case "order_update":
     case "custom_html": {
-      const subject = String(v.subject || v._subject || "Mise à jour Nivra");
-      const message = String(v.message || v.body || "Une mise à jour concernant votre compte est disponible.");
+      const subject = String(v.subject || v._subject || "").trim();
+      const message = String(v.message || v.body || "").trim();
+      if (!subject || !message) {
+        console.warn(`[renderQueueTemplate] custom_html called without subject/message — dropping to DLQ (originalKey=${templateKey})`);
+        return null;
+      }
       return {
         subject,
         html: shell({
           preheader: subject,
-          badge: "MISE À JOUR",
           heroTitle: subject,
           icon: "doc",
           greeting,
@@ -3679,6 +3689,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
         }),
       };
     }
+
 
     // ===================================================================
     // FIELD SALES / POS — Secure payment link sent by agent (card processor)
