@@ -30,6 +30,7 @@ import { AddressAutocomplete, type AddressValue } from "@/components/shared/Addr
 import { ServiceAddressPicker } from "@/components/service-address/ServiceAddressPicker";
 import { AddressBlock } from "@/components/service-address/AddressBlock";
 import { useAccountAddresses } from "@/hooks/useAccountAddresses";
+import { AddressServiceWorkspace } from "@/components/service-address/AddressServiceWorkspace";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
@@ -60,81 +61,33 @@ import { toast as sonnerToast } from "sonner";
  */
 function ClientAddressesList({
   accountId,
+  account,
   subscriptions,
+  equipment,
+  appointments,
+  tickets,
   onChanged,
 }: {
   accountId: string;
+  account?: any;
   subscriptions: any[];
+  equipment: any[];
+  appointments: any[];
+  tickets: any[];
   onChanged: () => void;
 }) {
-  const { addresses, isLoading, softDelete, deleting } = useAccountAddresses(accountId);
-
-  const serviceCountByAddress = new Map<string, number>();
-  for (const s of subscriptions || []) {
-    const key = s?.service_address_id || s?.address_id;
-    if (!key) continue;
-    serviceCountByAddress.set(key, (serviceCountByAddress.get(key) ?? 0) + 1);
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer cette adresse ? Elle sera masquée de votre compte.")) return;
-    try {
-      await softDelete(id);
-      sonnerToast.success("Adresse supprimée");
-      onChanged();
-    } catch (e: any) {
-      sonnerToast.error(e?.message || "Suppression impossible");
-    }
-  };
-
   return (
-    <div className="space-y-4">
-      <ServiceAddressPicker
-        accountId={accountId}
-        value={undefined}
-        mode="cards"
-        allowCreate
-        emptyLabel={isLoading ? "Chargement…" : "Aucune adresse enregistrée"}
-        onChange={() => onChanged()}
-      />
-
-      {addresses.length > 0 && (
-        <div className="space-y-3">
-          {addresses.map((addr) => (
-            <AddressBlock
-              key={addr.id}
-              address={addr}
-              badges={
-                <Badge variant="outline" className="text-[10px]">
-                  {serviceCountByAddress.get(addr.id) ?? 0} service(s) actif(s)
-                </Badge>
-              }
-              actions={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                  onClick={() => handleDelete(addr.id)}
-                  disabled={deleting}
-                  aria-label="Supprimer cette adresse"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              }
-            >
-              <p className="text-xs text-muted-foreground">
-                Ajoutée le {new Date(addr.created_at).toLocaleDateString("fr-CA")}
-              </p>
-            </AddressBlock>
-          ))}
-        </div>
-      )}
-
-      <p className="text-xs text-muted-foreground pt-1">
-        Aucune limite — toutes vos adresses sont traitées à égalité. Un service peut être commandé
-        depuis n'importe laquelle d'entre elles.
-      </p>
-    </div>
+    <AddressServiceWorkspace
+      accountId={accountId}
+      account={account}
+      subscriptions={subscriptions}
+      equipment={equipment}
+      appointments={appointments}
+      tickets={tickets}
+      mode="portal"
+      compact
+      onChanged={onChanged}
+    />
   );
 }
 
@@ -649,7 +602,11 @@ const ClientProfile = () => {
               {accounts?.[0]?.id ? (
                 <ClientAddressesList
                   accountId={accounts[0].id}
+                  account={accounts[0]}
                   subscriptions={subscriptions}
+                  equipment={canonicalData?.equipment || []}
+                  appointments={canonicalData?.appointments || []}
+                  tickets={canonicalData?.supportTickets || []}
                   onChanged={refetchLocations}
                 />
               ) : (
