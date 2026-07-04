@@ -119,9 +119,9 @@ function parseAddress(addr?: string): { line1: string; cityLine: string; country
   };
 }
 
-// Colors
-const GREEN: [number, number, number] = [34, 120, 60];
-const GREEN_DARK: [number, number, number] = [22, 101, 47];
+// Colors — official document chrome is corporate blue (#0066CC).
+const GREEN: [number, number, number] = [0, 102, 204];
+const GREEN_DARK: [number, number, number] = [0, 76, 153];
 const GREEN_LIGHT: [number, number, number] = [220, 252, 231];
 const GREEN_TINT: [number, number, number] = [187, 247, 208];
 const NAVY: [number, number, number] = [15, 23, 42];
@@ -146,7 +146,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     const isPending = data.payment_status === "pending";
 
     // ---------- PAGE 1 ----------
-    // GREEN HEADER
+    // CORPORATE BLUE HEADER
     doc.setFillColor(...GREEN);
     doc.rect(0, 0, pw, 42, "F");
 

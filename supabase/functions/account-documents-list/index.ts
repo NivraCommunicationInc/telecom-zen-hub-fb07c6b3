@@ -149,8 +149,8 @@ Deno.serve(async (req) => {
         name: c.contract_name || `Contrat ${c.contract_number ?? ""}`.trim(),
         number: c.contract_number,
         created_at: c.created_at,
-        url: c.contract_pdf_url || c.contract_url || null,
-        signed: false,
+        url: await signMaybeStoragePath(admin, c.contract_pdf_url || c.contract_url || null),
+        signed: !!(c.contract_pdf_url || c.contract_url) && !/^https?:/i.test(String(c.contract_pdf_url || c.contract_url || "")),
         metadata: { status: c.status, signed_at: c.signed_at, version: c.version },
       });
     }
@@ -312,6 +312,15 @@ function parseStoragePath(path: string): { bucket: string; key: string } {
     return { bucket: segs[0], key: segs.slice(1).join("/") };
   }
   return { bucket: "client-documents", key: path };
+}
+
+async function signMaybeStoragePath(admin: any, raw: string | null | undefined): Promise<string | null> {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  if (/^https?:/i.test(value)) return value;
+  const parsed = parseStoragePath(value);
+  const { data } = await admin.storage.from(parsed.bucket).createSignedUrl(parsed.key, 60 * 5);
+  return data?.signedUrl || null;
 }
 
 function humanizeDocType(t: string | null | undefined): string {

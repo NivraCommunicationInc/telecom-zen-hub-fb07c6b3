@@ -159,12 +159,29 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
       .filter((i) => !q || i.name.toLowerCase().includes(q) || (i.number ?? "").toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
   }, [items, tab, search]);
 
-  const openDoc = (it: DocItem) => {
+  const openDoc = async (it: DocItem) => {
     if (!it.url) {
       toast.warning("Aucun fichier disponible pour ce document");
       return;
     }
-    window.open(it.url, "_blank", "noopener,noreferrer");
+    try {
+      const url = await resolveDocumentUrl(it.url);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      toast.error("Impossible d'ouvrir le document", { description: e?.message });
+    }
+  };
+
+  const resolveDocumentUrl = async (url: string): Promise<string> => {
+    const value = String(url || "").trim();
+    if (!value || /^https?:/i.test(value) || value.startsWith("blob:")) return value;
+    const knownBuckets = ["client-documents", "contracts", "invoices", "receipts", "order-documents"];
+    const parts = value.split("/");
+    const bucket = knownBuckets.includes(parts[0]) ? parts[0] : "client-documents";
+    const key = knownBuckets.includes(parts[0]) ? parts.slice(1).join("/") : value;
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, 300);
+    if (error || !data?.signedUrl) throw new Error(error?.message || "URL signée indisponible");
+    return data.signedUrl;
   };
 
   const contractSignatureStatus = (m: any): { label: string; tone: string; icon: any } => {
