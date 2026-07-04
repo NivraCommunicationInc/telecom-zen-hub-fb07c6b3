@@ -76,6 +76,25 @@ const Paginator = ({ page, total, pageSize, onPage }: { page: number; total: num
   );
 };
 
+const openClientDocumentUrl = async (url: string | null | undefined) => {
+  const value = String(url || "").trim();
+  if (!value) return toast.error("PDF non disponible");
+  if (/^https?:/i.test(value) || value.startsWith("blob:")) {
+    window.open(value, "_blank", "noopener,noreferrer");
+    return;
+  }
+  const knownBuckets = ["client-documents", "contracts", "invoices", "receipts", "order-documents"];
+  const parts = value.split("/");
+  const bucket = knownBuckets.includes(parts[0]) ? parts[0] : "client-documents";
+  const key = knownBuckets.includes(parts[0]) ? parts.slice(1).join("/") : value;
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, 300);
+  if (error || !data?.signedUrl) {
+    toast.error("Impossible d'ouvrir le PDF");
+    return;
+  }
+  window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+};
+
 const CoreClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
@@ -895,11 +914,12 @@ const CoreClientProfile = () => {
                               </a>
                             )}
                             {c.contract_pdf_url ? (
-                              <a href={c.contract_pdf_url} target="_blank" rel="noreferrer">
-                                <button className="h-6 px-2 rounded border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1">
-                                  <Download className="h-3 w-3" /> Télécharger
-                                </button>
-                              </a>
+                              <button
+                                onClick={() => openClientDocumentUrl(c.contract_pdf_url)}
+                                className="h-6 px-2 rounded border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1"
+                              >
+                                <Download className="h-3 w-3" /> Télécharger
+                              </button>
                             ) : (
                               <span className="text-[10px] text-[hsl(220,10%,40%)] italic">PDF non disponible</span>
                             )}

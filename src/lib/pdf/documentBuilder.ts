@@ -488,8 +488,8 @@ export function buildContractData(data: OrderDocumentData): ContractDataV3 {
     // discount_lines: full breakdown for the legal section of the contract
     // (lists each discount + amount on its own bulleted line).
     discount_lines: structured.discounts.map((d) => ({
-      label: d.label,
-      amount: d.amount,
+      description: d.label,
+      unit_price: d.amount,
     })),
     tax_gst: structured.tpsAmount,
     tax_qst: structured.tvqAmount,

@@ -40,9 +40,9 @@ export const TAX = {
 
 /** Standard colors for all PDFs */
 export const PDF_THEME = {
-  navy:      [15, 23, 42]    as [number, number, number],   // #0F172A
+  navy:      [10, 37, 64]    as [number, number, number],   // #0A2540
   darkSlate: [30, 41, 59]    as [number, number, number],   // #1E293B
-  teal:      [20, 184, 166]  as [number, number, number],   // #14B8A6
+  teal:      [0, 102, 204]   as [number, number, number],   // alias -> corporate blue
   blue:      [0, 102, 204]   as [number, number, number],   // #0066CC
   white:     [255, 255, 255] as [number, number, number],
   lightBg:   [248, 250, 252] as [number, number, number],   // #F8FAFC

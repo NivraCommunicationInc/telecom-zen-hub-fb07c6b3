@@ -592,7 +592,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2 & { order_number?: stri
     newPage(doc, data.invoice_number); drawPage5Termes(doc);
 
     // Footers with page numbers
-    const total = doc.internal.getNumberOfPages();
+    const total = doc.getNumberOfPages();
     for (let i = 1; i <= total; i++) {
       doc.setPage(i);
       drawFooter(doc, i, total);
