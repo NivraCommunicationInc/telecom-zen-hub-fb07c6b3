@@ -247,8 +247,8 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
@@ -260,6 +260,21 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
           <Button size="sm" variant="outline" onClick={load} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
+          {isAdmin && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
+              />
+              <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={busyId === "upload"}>
+                {busyId === "upload" ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <UploadCloud className="h-4 w-4 mr-1.5" />}
+                Téléverser
+              </Button>
+            </>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
