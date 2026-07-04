@@ -96,7 +96,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           .or(`entity_id.eq.${clientId},user_id.eq.${clientId}`)
           .order("created_at", { ascending: false }).limit(25),
         accountId
-          ? supabase.from("service_addresses").select("id, account_id, label, is_active, created_at, service_address:address_line, service_city:city, service_province:province, service_postal_code:postal_code").eq("account_id", accountId).eq("is_active", true)
+          ? supabase.from("service_addresses").select("id, account_id, label, is_active, created_at, service_address:address_line, service_city:city, service_province:province, service_postal_code:postal_code, deleted_at").eq("account_id", accountId).eq("is_active", true).is("deleted_at", null)
           : Promise.resolve({ data: [] }),
         orderIds.length > 0
           ? supabase.from("appointments")
