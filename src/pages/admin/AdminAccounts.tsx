@@ -83,13 +83,7 @@ const AdminAccounts = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingCreditClass, setEditingCreditClass] = useState(false);
   const [newCreditClass, setNewCreditClass] = useState("C");
-  const [addLocationOpen, setAddLocationOpen] = useState(false);
-  const [newLocation, setNewLocation] = useState({
-    label: "",
-    service_address: "",
-    service_city: "",
-    service_postal_code: "",
-  });
+  // Pass 3A: état "addLocation" retiré — géré par AccountAddressesTab/<ServiceAddressPicker/>.
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState("active");
   const [statusReason, setStatusReason] = useState("");
