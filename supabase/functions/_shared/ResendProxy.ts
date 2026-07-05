@@ -255,17 +255,19 @@ async function isEmailSuppressed(
 export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueResult> {
   try {
     const supabase = getSupabaseClient();
-    const eventKey = params.eventKey || generateEventKey(params.to);
+    // Always derive deterministically when no explicit key given — NO random, NO Date.now.
+    const eventKey = params.eventKey || deriveEventKey(params);
 
-    // Idempotency check on email_queue table
-    if (params.eventKey) {
+    // Idempotency check ALWAYS runs (previously was gated by `if (params.eventKey)`,
+    // which is exactly what let the random-fallback path create duplicates).
+    {
       const { data: existing } = await supabase
         .from("email_queue")
         .select("id")
         .eq("event_key", eventKey)
         .maybeSingle();
       if (existing) {
-        console.log(`[enqueueEmail] Already queued: ${eventKey}`);
+        console.log(`[enqueueEmail] Deduplicated — already queued: ${eventKey}`);
         return { success: true, id: existing.id, alreadyQueued: true };
       }
     }
