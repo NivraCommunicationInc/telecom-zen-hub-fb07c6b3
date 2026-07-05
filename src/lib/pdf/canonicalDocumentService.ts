@@ -111,10 +111,14 @@ export async function fetchCanonicalDocumentData(
 
   // Fetch all related data in parallel
   const [profileRes, accountRes, invoiceRes, contractRes] = await Promise.all([
-    client.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
+    userId
+      ? client.from("profiles").select("*").eq("user_id", userId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
     billingInvoice?.account_id
       ? client.from("accounts").select("*").eq("id", billingInvoice.account_id).maybeSingle()
-      : client.from("accounts").select("*").eq("client_id", userId).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+      : userId
+        ? client.from("accounts").select("*").eq("client_id", userId).order("created_at", { ascending: true }).limit(1).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
     billingInvoice
       ? Promise.resolve({ data: billingInvoice, error: null })
       : client.from("billing_invoices").select("*").eq("order_id", order.id).maybeSingle(),
