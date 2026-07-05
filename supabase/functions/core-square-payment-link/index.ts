@@ -120,8 +120,11 @@ serve(async (req) => {
     if (balance <= 0) return json({ ok: false, error: "Aucun solde à payer pour cette commande" });
 
     const orderAlreadyPaid = ["paid", "confirmed"].includes(String(order?.payment_status || "").toLowerCase());
+    const orderCancelled = String(order?.status || "").toLowerCase() === "cancelled";
     const invoiceClosed = ["paid", "cancelled", "void"].includes(String(inv?.status || "").toLowerCase()) && Number(inv?.balance_due || 0) <= 0;
-    if (orderAlreadyPaid || invoiceClosed) return json({ ok: false, error: "Cette commande est déjà payée ou fermée" });
+    if (invoiceClosed || orderCancelled || (!inv && orderAlreadyPaid)) {
+      return json({ ok: false, error: "Cette commande est déjà payée ou fermée" });
+    }
 
     const resolvedEmail = customer_email || order?.client_email || (inv?.customer as any)?.email || null;
     const resolvedName = customer_name ||
