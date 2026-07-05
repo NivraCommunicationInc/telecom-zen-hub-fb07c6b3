@@ -8733,7 +8733,7 @@ Réponse à la question de sécurité : <strong>${acctNum}</strong><br><br>
           heroTitle: `${alerts.length} alerte(s) détectée(s)`,
           heroSub: `Scan du ${scannedAt}`,
           bodyText: "Le watchdog opérationnel a détecté un ou plusieurs problèmes qui requièrent une intervention. Silence = système sain. Anti-spam : 1 email max par 24h par alerte.",
-          rawHtml: alertsHtml,
+          extraBodyHtml: alertsHtml,
           helpHtml: "Email interne automatique. Consultez /core/system-health pour l'état complet.",
         }),
       };
