@@ -1,9 +1,9 @@
 /**
  * core-square-payment-link
- * Creates a field_payment_intent linked to an existing billing invoice,
+ * Creates a field_payment_intent linked to an existing billing invoice or order,
  * optionally sends the payment URL by email, and returns the URL.
  *
- * Body: { invoice_id, customer_email?, customer_name?, mode?: 'email'|'direct' }
+ * Body: { invoice_id?, order_id?, customer_email?, customer_name?, mode?: 'email'|'direct' }
  * Returns: { ok, payment_url, email_sent }
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
@@ -37,13 +37,32 @@ serve(async (req) => {
     const body = await req.json();
     const { invoice_id: rawInvoiceId, order_id, customer_email, customer_name, mode } = body;
 
-    // Resolve invoice_id from order_id if only order_id was provided
+    // Resolve invoice_id from order_id when available, but do not require it:
+    // some Core orders exist before their billing invoice is materialized.
     let invoice_id: string | null = rawInvoiceId ?? null;
+    let order: any = null;
     if (!invoice_id && order_id) {
+      const { data: orderRow, error: orderErr } = await supabase
+        .from("orders")
+        .select(
+          "id, order_number, total_amount, client_email, client_first_name, client_last_name, " +
+          "client_phone, client_full_address, status, payment_status, service_type, equipment_details, " +
+          "equipment_line_details, pricing_snapshot, selected_channels, created_at",
+        )
+        .eq("id", order_id)
+        .maybeSingle();
+
+      if (orderErr) {
+        console.error("[core-square-payment-link] order lookup error:", orderErr);
+      }
+      if (orderRow) order = orderRow;
+
       const { data: invRow, error: invLookupErr } = await supabase
         .from("billing_invoices")
-        .select("id, balance_due, total, created_at")
+        .select("id, balance_due, total, status, created_at")
         .eq("order_id", order_id)
+        .gt("balance_due", 0)
+        .not("status", "in", "(paid,cancelled,void)")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -53,7 +72,9 @@ serve(async (req) => {
       if (invRow?.id) invoice_id = invRow.id;
     }
 
-    if (!invoice_id) return json({ ok: false, error: "Facture introuvable pour cette commande" }, 404);
+    if (!invoice_id && !order) {
+      return json({ ok: false, error: "Commande introuvable pour créer le lien Square" });
+    }
 
     // Try to extract caller's user_id from JWT (for agent_id audit trail)
     let agentId = SYSTEM_AGENT_ID;
@@ -66,25 +87,53 @@ serve(async (req) => {
       } catch { /* use system fallback */ }
     }
 
-    // Load invoice to get amount + customer data
-    const { data: inv, error: invErr } = await supabase
-      .from("billing_invoices")
-      .select(
-        "id, invoice_number, balance_due, total, customer_id, " +
-        "customer:billing_customers(email, first_name, last_name)",
-      )
-      .eq("id", invoice_id)
-      .single();
+    // Load invoice to get amount + customer data when present.
+    let inv: any = null;
+    if (invoice_id) {
+      const { data: invRow, error: invErr } = await supabase
+        .from("billing_invoices")
+        .select(
+          "id, invoice_number, balance_due, total, customer_id, order_id, status, " +
+          "customer:billing_customers(email, first_name, last_name)",
+        )
+        .eq("id", invoice_id)
+        .single();
 
-    if (invErr || !inv) return json({ ok: false, error: "Facture introuvable" }, 404);
+      if (invErr || !invRow) return json({ ok: false, error: "Facture introuvable" });
+      inv = invRow;
 
-    const balance = Number(inv.balance_due ?? inv.total ?? 0);
-    if (balance <= 0) return json({ ok: false, error: "Facture déjà payée" }, 400);
+      if (!order && inv.order_id) {
+        const { data: orderRow } = await supabase
+          .from("orders")
+          .select(
+            "id, order_number, total_amount, client_email, client_first_name, client_last_name, " +
+            "client_phone, client_full_address, status, payment_status, service_type, equipment_details, " +
+            "equipment_line_details, pricing_snapshot, selected_channels, created_at",
+          )
+          .eq("id", inv.order_id)
+          .maybeSingle();
+        if (orderRow) order = orderRow;
+      }
+    }
 
-    const resolvedEmail = customer_email || (inv.customer as any)?.email || null;
+    const balance = Number(inv?.balance_due ?? inv?.total ?? order?.total_amount ?? 0);
+    if (balance <= 0) return json({ ok: false, error: "Aucun solde à payer pour cette commande" });
+
+    const orderAlreadyPaid = ["paid", "confirmed"].includes(String(order?.payment_status || "").toLowerCase());
+    const invoiceClosed = ["paid", "cancelled", "void"].includes(String(inv?.status || "").toLowerCase()) && Number(inv?.balance_due || 0) <= 0;
+    if (orderAlreadyPaid || invoiceClosed) return json({ ok: false, error: "Cette commande est déjà payée ou fermée" });
+
+    const resolvedEmail = customer_email || order?.client_email || (inv?.customer as any)?.email || null;
     const resolvedName = customer_name ||
-      `${(inv.customer as any)?.first_name || ""} ${(inv.customer as any)?.last_name || ""}`.trim() ||
+      [order?.client_first_name, order?.client_last_name].filter(Boolean).join(" ").trim() ||
+      `${(inv?.customer as any)?.first_name || ""} ${(inv?.customer as any)?.last_name || ""}`.trim() ||
       null;
+    const orderNumber = order?.order_number || inv?.invoice_number || "";
+    const description = orderNumber ? `Commande #${orderNumber}` : inv?.invoice_number ? `Facture #${inv.invoice_number}` : "Paiement Nivra";
+    const lineItems = [
+      order?.service_type ? { name: order.service_type, type: "service" } : null,
+      ...(Array.isArray(order?.equipment_line_details) ? order.equipment_line_details : []),
+    ].filter(Boolean);
 
     // Create field_payment_intent linked to this invoice
     const { data: intent, error: intentErr } = await supabase
@@ -98,6 +147,9 @@ serve(async (req) => {
         customer_email: resolvedEmail,
         customer_name: resolvedName,
         converted_invoice_id: invoice_id,
+        converted_order_id: order?.id ?? inv?.order_id ?? null,
+        description,
+        line_items: lineItems.length ? lineItems : null,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
       })
       .select("id")
@@ -120,8 +172,9 @@ serve(async (req) => {
           template_key: "invoice_payment_link",
           template_vars: {
             client_name: resolvedName || "Client",
-            first_name: (inv.customer as any)?.first_name || resolvedName || "Client",
-            invoice_number: inv.invoice_number || "",
+            first_name: order?.client_first_name || (inv?.customer as any)?.first_name || resolvedName || "Client",
+            invoice_number: inv?.invoice_number || orderNumber,
+            order_number: orderNumber,
             amount: balance.toFixed(2),
             payment_url: paymentUrl,
           },
