@@ -16,6 +16,20 @@ import { Loader2, Mail, ExternalLink, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+const getPaymentErrorMessage = (error: any, data?: any) => {
+  if (data?.error) return String(data.error);
+  if (error?.context?.error) return String(error.context.error);
+  if (error?.message && error.message !== "Edge Function returned a non-2xx status code") {
+    return error.message;
+  }
+  return "Impossible de créer le lien Square. Vérifie que la commande a un montant à payer et réessaie.";
+};
+
+const openPaymentUrl = (url: string) => {
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.assign(url);
+};
+
 interface Props {
   orderId: string;
   orderNumber: string;
@@ -53,8 +67,7 @@ export function CorePaymentOptionsPanel({
         mode: mode === "email" ? "email" : undefined,
       },
     });
-    if (error) throw error;
-    if (!(data as any)?.ok) throw new Error((data as any)?.error || "Erreur création du lien");
+    if (error || !(data as any)?.ok) throw new Error(getPaymentErrorMessage(error, data));
     return (data as any).payment_url as string;
   }
 
@@ -80,8 +93,8 @@ export function CorePaymentOptionsPanel({
     try {
       const url = await createPaymentLink("direct");
       if (!url) throw new Error("Lien indisponible");
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast.info("Page de paiement ouverte dans un nouvel onglet");
+      openPaymentUrl(url);
+      toast.info("Page de paiement ouverte");
     } catch (e: any) {
       toast.error(e?.message || "Échec d'ouverture du lien");
     } finally {
