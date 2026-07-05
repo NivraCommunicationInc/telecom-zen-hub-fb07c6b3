@@ -210,8 +210,6 @@ serve(async (req) => {
         event_key: eventKey,
         to_email: ALERT_EMAIL,
         template_key: "ops_watchdog_alert",
-        subject: `[Nivra Ops] ${alerts.length} alerte(s) détectée(s) — ${todayKey}`,
-        html_body: html,
         template_vars: { alerts, scanned_at: new Date().toISOString() },
         status: "queued",
         attempts: 0,
