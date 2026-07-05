@@ -12,6 +12,7 @@
  * All emails go through email_queue (never direct Resend).
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +29,8 @@ function daysDiff(dateStr: string): number {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  const _cronStartedAt = new Date();
+
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -196,9 +199,14 @@ Deno.serve(async (req) => {
     }
 
     console.log("[billing-dunning-engine] run complete", results);
+    await recordHeartbeat(supabase, "billing-dunning-engine", "success", _cronStartedAt, { processed: results.processed, errors: results.errors.length });
     return new Response(JSON.stringify({ ok: true, ...results }), { headers });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[billing-dunning-engine] fatal error:", err);
+    try {
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await recordHeartbeat(sb, "billing-dunning-engine", "error", _cronStartedAt, {}, err?.message || String(err));
+    } catch (_) {}
     return new Response(
       JSON.stringify({ ok: false, error: err?.message || String(err) }),
       { status: 500, headers },

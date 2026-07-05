@@ -6580,6 +6580,42 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_heartbeats: {
+        Row: {
+          created_at: string
+          cron_name: string
+          details: Json
+          duration_ms: number | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          cron_name: string
+          details?: Json
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          cron_name?: string
+          details?: Json
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       crypto_ipn_logs: {
         Row: {
           created_at: string
@@ -27526,6 +27562,19 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_health_summary: {
+        Row: {
+          cron_name: string | null
+          health: string | null
+          last_duration_ms: number | null
+          last_error: string | null
+          last_finished_at: string | null
+          last_started_at: string | null
+          last_status: string | null
+          seconds_since_last: number | null
+        }
+        Relationships: []
+      }
       customer_unified_projection: {
         Row: {
           account_id: string | null
@@ -29754,6 +29803,16 @@ export type Database = {
       reconcile_orphan_paid_orders: {
         Args: { p_dry_run?: boolean }
         Returns: Json
+      }
+      record_cron_heartbeat: {
+        Args: {
+          _cron_name: string
+          _details?: Json
+          _error_message?: string
+          _started_at?: string
+          _status?: string
+        }
+        Returns: string
       }
       record_payment_error_captured: {
         Args: {

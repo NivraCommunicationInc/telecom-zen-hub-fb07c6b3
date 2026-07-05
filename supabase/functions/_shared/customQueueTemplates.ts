@@ -8714,6 +8714,31 @@ Réponse à la question de sécurité : <strong>${acctNum}</strong><br><br>
       };
     }
 
+    case "ops_watchdog_alert": {
+      const alerts = Array.isArray(v.alerts) ? v.alerts as any[] : [];
+      const scannedAt = esc(String(v.scanned_at || new Date().toISOString()));
+      const alertsHtml = alerts.map((a: any) => `
+        <div style="padding:14px 16px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;background:#f8fafc;">
+          <div style="font-size:14px;font-weight:700;color:#0f172a;">${esc(a.title || "")}</div>
+          <div style="font-size:13px;color:#334155;margin-top:6px;">${esc(a.what || "")}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px;"><b>Depuis :</b> ${esc(a.since || "")}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;"><b>Impact :</b> ${esc(a.impact || "")}</div>
+          ${a.link ? `<div style="margin-top:8px;"><a href="${esc(a.link)}" style="color:#0066CC;font-size:13px;font-weight:600;text-decoration:none;">→ Ouvrir dans Nivra Core</a></div>` : ""}
+        </div>`).join("");
+
+      return {
+        subject: `[Nivra Ops] ${alerts.length} alerte(s) détectée(s)`,
+        html: shell({
+          badge: "NIVRA — WATCHDOG OPS",
+          heroTitle: `${alerts.length} alerte(s) détectée(s)`,
+          heroSub: `Scan du ${scannedAt}`,
+          bodyText: "Le watchdog opérationnel a détecté un ou plusieurs problèmes qui requièrent une intervention. Silence = système sain. Anti-spam : 1 email max par 24h par alerte.",
+          extraBodyHtml: alertsHtml,
+          helpHtml: "Email interne automatique. Consultez /core/system-health pour l'état complet.",
+        }),
+      };
+    }
+
     case "paypal_migration_to_square": {
       // Migration invitation for existing PayPal autopay clients.
       // Sent once to clients who have paypal_subscription_id but no square_card_id.

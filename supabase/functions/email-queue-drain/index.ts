@@ -7,6 +7,7 @@
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,6 +89,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  const _cronStartedAt = new Date();
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -229,6 +231,8 @@ Deno.serve(async (req) => {
   const failed = results.filter(r => r.status === "failed").length;
 
   console.log(`[email-queue-drain] processed=${results.length} sent=${sent} failed=${failed} dlq=${dlq}`);
+
+  await recordHeartbeat(supabase, "email-queue-drain", "success", _cronStartedAt, { processed: results.length, sent, failed, dlq });
 
   return new Response(
     JSON.stringify({ processed: results.length, sent, failed, dlq }),

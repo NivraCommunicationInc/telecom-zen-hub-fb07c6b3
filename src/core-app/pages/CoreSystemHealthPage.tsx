@@ -84,6 +84,90 @@ const useHealthStats = () =>
     refetchInterval: 30_000,
   });
 
+interface CronHealthRow {
+  cron_name: string;
+  last_started_at: string | null;
+  last_finished_at: string | null;
+  last_status: string | null;
+  last_duration_ms: number | null;
+  last_error: string | null;
+  seconds_since_last: number | null;
+  health: "ok" | "warning" | "stale" | "error";
+}
+
+const useCronHealth = () =>
+  useQuery<CronHealthRow[]>({
+    queryKey: ["core-cron-health"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cron_health_summary" as any)
+        .select("*")
+        .order("cron_name");
+      if (error) throw error;
+      return (data ?? []) as unknown as CronHealthRow[];
+    },
+    refetchInterval: 30_000,
+  });
+
+function fmtAge(seconds: number | null): string {
+  if (seconds == null) return "—";
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}min`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}j`;
+}
+
+function CronHealthSection() {
+  const { data, isLoading } = useCronHealth();
+  const badge = (h: string) => {
+    const map: Record<string, string> = {
+      ok: "bg-green-500/10 text-green-600 border-green-500/30",
+      warning: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+      stale: "bg-red-500/10 text-red-600 border-red-500/30",
+      error: "bg-red-500/10 text-red-600 border-red-500/30",
+    };
+    return map[h] || "bg-muted text-muted-foreground border-border";
+  };
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Clock className="w-4 h-4 text-primary" /> Crons — dernière exécution
+        </h2>
+        <span className="text-xs text-muted-foreground">
+          {isLoading ? "…" : `${data?.length ?? 0} cron(s) suivis`}
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {(data ?? []).map((r) => (
+          <div key={r.cron_name} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+            <div className="flex-1 min-w-0">
+              <div className="font-mono text-xs text-foreground truncate">{r.cron_name}</div>
+              {r.last_error && (
+                <div className="text-[11px] text-red-500 truncate">Err: {r.last_error}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="text-xs text-muted-foreground tabular-nums">
+                il y a {fmtAge(r.seconds_since_last)}
+              </span>
+              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${badge(r.health)}`}>
+                {r.health}
+              </span>
+            </div>
+          </div>
+        ))}
+        {!isLoading && (data?.length ?? 0) === 0 && (
+          <div className="text-xs text-muted-foreground py-3 text-center">
+            Aucun heartbeat enregistré (les crons instrumentés apparaîtront après leur prochaine exécution).
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 export default function CoreSystemHealthPage() {
   const { data, isLoading, refetch, isFetching } = useHealthStats();
   const [check, setCheck] = useState<HealthCheckResult | null>(null);
@@ -191,6 +275,8 @@ export default function CoreSystemHealthPage() {
           );
         })}
       </div>
+
+      <CronHealthSection />
 
       {check && (
         <div className="rounded-xl border border-border bg-card p-4">

@@ -10,6 +10,7 @@
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +32,9 @@ serve(async (req) => {
   });
 
   const now = new Date();
+  const _cronStartedAt = now;
   const stats = { scanned: 0, reminded_j3: 0, reminded_j7: 0, expired: 0, errors: 0 };
+
 
   try {
     const { data: pending, error } = await supabase
@@ -151,11 +154,13 @@ serve(async (req) => {
       }
     }
 
+    await recordHeartbeat(supabase, "contract-signature-reminders-daily", "success", _cronStartedAt, stats);
     return new Response(JSON.stringify({ ok: true, stats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("[contract-signature-reminders] fatal:", err);
+    await recordHeartbeat(supabase, "contract-signature-reminders-daily", "error", _cronStartedAt, stats, err?.message || String(err));
     return new Response(JSON.stringify({ ok: false, error: err.message, stats }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
