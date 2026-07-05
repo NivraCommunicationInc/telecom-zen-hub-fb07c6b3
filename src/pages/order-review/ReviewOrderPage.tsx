@@ -85,6 +85,7 @@ interface IntentData {
     line_items?: any[] | null;
     signature?: any;
     consent_flags?: any;
+    client_edits?: any;
   };
   quote: null | {
     id: string;
@@ -418,8 +419,9 @@ export default function ReviewOrderPage() {
 
 
   const { intent, quote, agent_name } = data;
-  const ci = quote?.client_info || {};
-  const firstName = ci.first_name || "";
+  const fallbackClient = intent.client_edits || {};
+  const ci = quote?.client_info || fallbackClient;
+  const firstName = ci.first_name || intent.customer_name?.split(" ")?.[0] || "";
   const amount = Number(intent.amount);
 
   const monthlyTotal = (quote?.services || []).reduce(
@@ -560,8 +562,26 @@ export default function ReviewOrderPage() {
             </div>
           </div>
         ) : (
-          <div className="text-sm text-white/60">
-            Total : <span className="font-bold text-white">{fmt(amount)}</span>
+          <div className="space-y-3">
+            {Array.isArray(intent.line_items) && intent.line_items.length > 0 && (
+              <Block label="Articles">
+                {intent.line_items.map((item: any, i: number) => (
+                  <div key={i} className="flex items-start justify-between gap-3 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{item?.name || item?.label || intent.description || "Commande Nivra"}</p>
+                      {item?.type && <p className="text-[11px] text-white/50">{item.type}</p>}
+                    </div>
+                    {item?.amount != null && (
+                      <span className="text-sm font-semibold text-white flex-shrink-0">{fmt(Number(item.amount))}</span>
+                    )}
+                  </div>
+                ))}
+              </Block>
+            )}
+            <div className="rounded-xl border border-violet-500/30 bg-violet-500/[0.06] p-4 flex items-baseline justify-between">
+              <span className="text-base font-semibold text-white">Total à payer aujourd'hui</span>
+              <span className="text-2xl font-bold text-violet-300">{fmt(amount)}</span>
+            </div>
           </div>
         )}
       </Card>
