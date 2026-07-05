@@ -4,6 +4,7 @@ import { computeTaxes } from "../_shared/tax-constants.ts";
 import { nextAnchoredDate } from "../_shared/billing-utils.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 // STRIPE DISABLED — import removed: createNivraPaymentIntent
 
 const corsHeaders = {
