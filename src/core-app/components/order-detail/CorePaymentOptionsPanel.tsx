@@ -67,7 +67,7 @@ export function CorePaymentOptionsPanel({
           client_email: clientEmail,
         },
         priority: 1,
-        status: "pending",
+        status: "queued",
       });
       if (error) throw error;
       toast.success(`Lien de paiement Square envoyé à ${clientEmail}`);
