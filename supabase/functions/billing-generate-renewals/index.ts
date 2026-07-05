@@ -700,7 +700,9 @@ serve(async (req) => {
         await supabase.from("billing_subscriptions").update(cycleUpdate).eq("id", sub.id);
         // Advance siblings' cycles onto the same consolidated schedule
         for (const s of siblingSubs) {
-          await supabase.from("billing_subscriptions").update(cycleUpdate).eq("id", s.id).catch(() => {});
+          try {
+            await supabase.from("billing_subscriptions").update(cycleUpdate).eq("id", s.id);
+          } catch (_e) { /* non-fatal */ }
         }
 
 
