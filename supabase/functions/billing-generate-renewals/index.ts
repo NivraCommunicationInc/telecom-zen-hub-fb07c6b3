@@ -845,6 +845,8 @@ serve(async (req) => {
       });
     }
 
+    await recordHeartbeat(supabase, "billing-generate-renewals", "success", _cronStartedAt, { processed: results.processed, errors: results.errors.length });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -857,6 +859,10 @@ serve(async (req) => {
   } catch (error) {
     console.error("[billing-generate-renewals] Error:", error);
     await reportEdgeError(error, { function: "billing-generate-renewals" }).catch(() => {});
+    try {
+      const sb: any = createClient<any>(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await recordHeartbeat(sb, "billing-generate-renewals", "error", _cronStartedAt, {}, error instanceof Error ? error.message : String(error));
+    } catch (_) { /* non-blocking */ }
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
