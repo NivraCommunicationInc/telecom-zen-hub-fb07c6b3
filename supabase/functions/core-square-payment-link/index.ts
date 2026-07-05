@@ -134,9 +134,19 @@ serve(async (req) => {
     const orderNumber = order?.order_number || inv?.invoice_number || "";
     const description = orderNumber ? `Commande #${orderNumber}` : inv?.invoice_number ? `Facture #${inv.invoice_number}` : "Paiement Nivra";
     const lineItems = [
-      order?.service_type ? { name: order.service_type, type: "service" } : null,
+      order?.service_type ? { name: order.service_type, type: "service", amount: balance } : null,
       ...(Array.isArray(order?.equipment_line_details) ? order.equipment_line_details : []),
     ].filter(Boolean);
+    const clientEdits = order
+      ? {
+          first_name: order.client_first_name || "",
+          last_name: order.client_last_name || "",
+          phone: order.client_phone || "",
+          email: resolvedEmail || "",
+          address: order.client_full_address || "",
+          billing_address: { address: order.client_full_address || "", province: "QC" },
+        }
+      : null;
 
     // Create field_payment_intent linked to this invoice
     const { data: intent, error: intentErr } = await supabase
@@ -153,6 +163,7 @@ serve(async (req) => {
         converted_order_id: order?.id ?? inv?.order_id ?? null,
         description,
         line_items: lineItems.length ? lineItems : null,
+        client_edits: clientEdits,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
       })
       .select("id")
