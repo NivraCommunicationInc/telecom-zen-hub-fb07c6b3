@@ -582,10 +582,16 @@ export function renderQueueTemplate(
     case "payment_confirmed":
     case "payment_receipt":
     case "payment_received": {
-      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || t("En cours","In progress", lang));
-      const amount = money(v.amount_paid_today ?? v.amount ?? v.total_payable ?? v.AMOUNT);
-      const reference = esc(v.reference || v.payment_reference || t("Non disponible","Not available", lang));
-      const method = esc(v.payment_method || v.PAYMENT_METHOD || "Carte de crédit");
+      const invoiceNum = esc(v.invoice_number || v.INVOICE_NUMBER || v.invoiceNumber || t("En cours","In progress", lang));
+      // Accept every historical alias used across paypal-webhook, square-webhook, agent-billing,
+      // send-billing-notification, notify-client-update… Fixes "0 $" when the queue row uses
+      // amount_paid / total_amount / total instead of amount_paid_today / amount / AMOUNT.
+      const amount = money(
+        v.amount_paid_today ?? v.amount_paid ?? v.amount ?? v.total_amount
+        ?? v.total_payable ?? v.total ?? v.amount_due ?? v.AMOUNT ?? v.TOTAL_AMOUNT
+      );
+      const reference = esc(v.reference || v.payment_reference || v.PAYMENT_REFERENCE || v.transaction_id || t("Non disponible","Not available", lang));
+      const method = esc(v.payment_method || v.PAYMENT_METHOD || v.paymentMethod || "Carte de crédit");
       const invoiceUrl = String(v.invoice_url || `${portalUrl}/facturation`);
       const prRows: Array<[string, string]> = [
         [t("Commande","Order", lang), `#${String(orderNum).replace(/^#/, "")}`],
@@ -805,7 +811,10 @@ export function renderQueueTemplate(
 
     case "payment_failed":
     case "paypal_charge_failed_retry": {
-      const amount = money(v.amount ?? v.total ?? v.amount_due ?? v.AMOUNT);
+      const amount = money(
+        v.amount ?? v.amount_paid ?? v.amount_paid_today ?? v.total ?? v.total_amount
+        ?? v.amount_due ?? v.total_payable ?? v.AMOUNT ?? v.TOTAL_AMOUNT
+      );
       const paymentUrl = String(v.payment_url || `${portalUrl}/billing`);
       return {
         subject: t("Action requise — Paiement non traité", "Action required — Payment not processed", lang),
