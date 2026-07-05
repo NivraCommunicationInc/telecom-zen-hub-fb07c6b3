@@ -390,8 +390,8 @@ function AlertCard({ alert, onResolve }: { alert: Alert; onResolve: () => void }
                 <span className="text-sm font-semibold text-core-text-primary">
                   {ALERT_LABELS[alert.alert_type] ?? alert.alert_type}
                 </span>
-                <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", SEVERITY_STYLE[alert.severity])}>
-                  {alert.severity.toUpperCase()}
+                <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", SEVERITY_STYLE[alert.severity ?? "low"] ?? SEVERITY_STYLE.low)}>
+                  {(alert.severity ?? "low").toUpperCase()}
                 </span>
                 {alert.resolved && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
