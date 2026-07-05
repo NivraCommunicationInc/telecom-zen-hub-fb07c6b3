@@ -29,6 +29,8 @@ function daysDiff(dateStr: string): number {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  const _cronStartedAt = new Date();
+
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
