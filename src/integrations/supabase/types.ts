@@ -2713,6 +2713,11 @@ export type Database = {
           address_snapshot: Json | null
           amount_paid: number | null
           autopay_grace_until: string | null
+          autopay_last_attempt_at: string | null
+          autopay_last_error: string | null
+          autopay_next_attempt_at: string | null
+          autopay_retry_count: number
+          autopay_stopped: boolean
           balance_due: number | null
           billing_snapshot_account_number: string | null
           billing_snapshot_client: Json | null
@@ -2748,6 +2753,11 @@ export type Database = {
           address_snapshot?: Json | null
           amount_paid?: number | null
           autopay_grace_until?: string | null
+          autopay_last_attempt_at?: string | null
+          autopay_last_error?: string | null
+          autopay_next_attempt_at?: string | null
+          autopay_retry_count?: number
+          autopay_stopped?: boolean
           balance_due?: number | null
           billing_snapshot_account_number?: string | null
           billing_snapshot_client?: Json | null
@@ -2783,6 +2793,11 @@ export type Database = {
           address_snapshot?: Json | null
           amount_paid?: number | null
           autopay_grace_until?: string | null
+          autopay_last_attempt_at?: string | null
+          autopay_last_error?: string | null
+          autopay_next_attempt_at?: string | null
+          autopay_retry_count?: number
+          autopay_stopped?: boolean
           balance_due?: number | null
           billing_snapshot_account_number?: string | null
           billing_snapshot_client?: Json | null
