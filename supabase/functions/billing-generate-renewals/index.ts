@@ -690,13 +690,19 @@ serve(async (req) => {
         // Advance subscription cycle so billing-lifecycle at 8h does not re-process
         const nextRenewalDate = new Date(newCycleEnd);
         nextRenewalDate.setDate(nextRenewalDate.getDate() - 3);
-        await supabase.from("billing_subscriptions").update({
+        const cycleUpdate = {
           cycle_start_date: newCycleStart.toISOString().split('T')[0],
           cycle_end_date: newCycleEnd.toISOString().split('T')[0],
           next_renewal_at: nextRenewalDate.toISOString(),
           last_invoice_id: invoice.id,
           updated_at: new Date().toISOString(),
-        }).eq("id", sub.id);
+        };
+        await supabase.from("billing_subscriptions").update(cycleUpdate).eq("id", sub.id);
+        // Advance siblings' cycles onto the same consolidated schedule
+        for (const s of siblingSubs) {
+          await supabase.from("billing_subscriptions").update(cycleUpdate).eq("id", s.id).catch(() => {});
+        }
+
 
         // ═══ IDEMPOTENCY: never create a duplicate pending payment ═══
         // Check if a non-failed/cancelled payment already exists for this
