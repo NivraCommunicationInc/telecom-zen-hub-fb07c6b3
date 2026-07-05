@@ -232,6 +232,8 @@ Deno.serve(async (req) => {
 
   console.log(`[email-queue-drain] processed=${results.length} sent=${sent} failed=${failed} dlq=${dlq}`);
 
+  await recordHeartbeat(supabase, "email-queue-drain", "success", _cronStartedAt, { processed: results.length, sent, failed, dlq });
+
   return new Response(
     JSON.stringify({ processed: results.length, sent, failed, dlq }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
