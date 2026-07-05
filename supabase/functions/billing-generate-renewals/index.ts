@@ -114,13 +114,69 @@ serve(async (req) => {
     if (subError) throw subError;
     
     console.log(`[billing-generate-renewals] Found ${subscriptions?.length || 0} subscriptions to renew`);
-    
+
+    // ═══ CONSOLIDATION MULTI-ADRESSES ═══
+    // Regroupe les abonnements par compte (accounts.id). Une seule facture
+    // par compte par cycle : le sub "primaire" (plus proche renouvellement)
+    // porte la facture, les siblings sont ajoutés comme lignes + cycles avancés.
+    const subsByAccount = new Map<string, any[]>();
+    const accountBySubId = new Map<string, string>();
+    const accountIdByKey = new Map<string, string | null>();
+    const primarySubIds = new Set<string>();
+    const addressByIdCache = new Map<string, { line1: string; city: string }>();
+
+    if (subscriptions?.length) {
+      const custIds = [...new Set(subscriptions.map((s: any) => s.customer_id).filter(Boolean))];
+      const { data: bcRows } = await supabase
+        .from("billing_customers").select("id, user_id").in("id", custIds);
+      const userByCust = new Map<string, string>();
+      for (const r of bcRows || []) if ((r as any).user_id) userByCust.set((r as any).id, (r as any).user_id);
+      const userIds = [...new Set([...userByCust.values()])];
+      const { data: acctRows } = userIds.length
+        ? await supabase.from("accounts").select("id, client_id").in("client_id", userIds)
+        : { data: [] as any[] };
+      const acctByUser = new Map<string, string>();
+      for (const r of acctRows || []) acctByUser.set((r as any).client_id, (r as any).id);
+
+      for (const s of subscriptions as any[]) {
+        const uid = userByCust.get(s.customer_id);
+        const aid = uid ? acctByUser.get(uid) : null;
+        const key = aid || `sub:${s.id}`;
+        if (!subsByAccount.has(key)) {
+          subsByAccount.set(key, []);
+          accountIdByKey.set(key, aid || null);
+        }
+        subsByAccount.get(key)!.push(s);
+        accountBySubId.set(s.id, key);
+      }
+      for (const [_key, group] of subsByAccount.entries()) {
+        group.sort((a: any, b: any) => String(a.cycle_end_date).localeCompare(String(b.cycle_end_date)));
+        primarySubIds.add(group[0].id);
+      }
+      console.log(`[billing-generate-renewals] Consolidation: ${subscriptions.length} subs → ${subsByAccount.size} account groups`);
+    }
+
+    async function resolveAddressLabel(saId: string | null | undefined): Promise<string | null> {
+      if (!saId) return null;
+      if (addressByIdCache.has(saId)) {
+        const c = addressByIdCache.get(saId)!;
+        return `${c.line1}, ${c.city}`;
+      }
+      const { data: sa } = await supabase
+        .from("service_addresses")
+        .select("address_line, city")
+        .eq("id", saId).maybeSingle();
+      if (!sa) return null;
+      addressByIdCache.set(saId, { line1: (sa as any).address_line || "", city: (sa as any).city || "" });
+      return `${(sa as any).address_line || ""}, ${(sa as any).city || ""}`;
+    }
+
     const results = {
       processed: 0,
       invoices_created: [] as string[],
       errors: [] as string[]
     };
-    
+
     for (const sub of subscriptions || []) {
       try {
         // ═══ GUARD: NULL next_renewal_at ═══
