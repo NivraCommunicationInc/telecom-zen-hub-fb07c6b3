@@ -31,6 +31,8 @@ serve(async (req) => {
   if (rl) return rl;
 
   try {
+  const _cronStartedAt = new Date();
+  try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
