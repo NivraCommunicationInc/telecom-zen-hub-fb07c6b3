@@ -811,7 +811,10 @@ export function renderQueueTemplate(
 
     case "payment_failed":
     case "paypal_charge_failed_retry": {
-      const amount = money(v.amount ?? v.total ?? v.amount_due ?? v.AMOUNT);
+      const amount = money(
+        v.amount ?? v.amount_paid ?? v.amount_paid_today ?? v.total ?? v.total_amount
+        ?? v.amount_due ?? v.total_payable ?? v.AMOUNT ?? v.TOTAL_AMOUNT
+      );
       const paymentUrl = String(v.payment_url || `${portalUrl}/billing`);
       return {
         subject: t("Action requise — Paiement non traité", "Action required — Payment not processed", lang),
