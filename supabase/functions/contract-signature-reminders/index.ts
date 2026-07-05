@@ -32,7 +32,9 @@ serve(async (req) => {
   });
 
   const now = new Date();
+  const _cronStartedAt = now;
   const stats = { scanned: 0, reminded_j3: 0, reminded_j7: 0, expired: 0, errors: 0 };
+
 
   try {
     const { data: pending, error } = await supabase
