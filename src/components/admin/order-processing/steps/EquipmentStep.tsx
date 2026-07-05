@@ -51,42 +51,75 @@ function detectItemType(name: string, category: string): EquipmentType | null {
 function getEquipmentTypesForOrder(order: any, items: any[]): EquipmentType[] {
   const serviceType = (order?.service_type || "").toLowerCase();
 
-  // Build list from items WITH quantities (e.g. 2 TV boxes = ["tv_box","tv_box"])
+  // 1) Priority: checkout snapshot in order.equipment_details.line_items
+  //    (contains equipment lines with name + qty as they were sold)
+  const snapshot = order?.equipment_details;
+  const snapshotLines: any[] =
+    snapshot && !Array.isArray(snapshot) && Array.isArray(snapshot.line_items)
+      ? snapshot.line_items
+      : [];
+
+  const fromSnapshot: EquipmentType[] = [];
+  for (const line of snapshotLines) {
+    const cat = String(line?.category || "").toLowerCase();
+    const type = String(line?.type || "").toLowerCase();
+    if (cat !== "equipment" && type !== "equipment") continue;
+    const name = String(line?.name || "");
+    const qty = Math.max(1, Number(line?.qty || line?.quantity || 1));
+    const detected = detectItemType(name, cat);
+    if (detected) {
+      for (let i = 0; i < qty; i++) fromSnapshot.push(detected);
+    }
+  }
+  if (fromSnapshot.length > 0) return fromSnapshot;
+
+  // 2) Build list from order_items with quantities
   const fromItems: EquipmentType[] = [];
   for (const item of items) {
     const name = item.product_name || item.plan_name || item.item_name || "";
-    const cat = item.category || item.item_category || "";
+    const cat = item.category || item.item_category || item.service_type || "";
     const qty = Math.max(1, Number(item.quantity || item.qty || 1));
     const detected = detectItemType(name, cat);
     if (detected) {
       for (let i = 0; i < qty; i++) fromItems.push(detected);
     }
   }
-
   if (fromItems.length > 0) return fromItems;
 
-  // Fallback: infer from service type string
-  const types: EquipmentType[] = [];
-  const combined = serviceType + " " + items.map(i => (i.product_name || i.plan_name || "").toLowerCase()).join(" ");
+  // 3) Fallback: infer from service_type string + item plan names
+  //    Business rules (canonical):
+  //      Internet plan → 1× Borne WiFi
+  //      TV plan       → 1× Borne WiFi + 1× Terminal TV (per TV plan)
+  //      Mobile plan   → 1× SIM (or eSIM)
+  const combined = serviceType + " " + items.map(i => String(i.plan_name || i.product_name || "").toLowerCase()).join(" ");
+  const snapshotServiceNames = snapshotLines
+    .filter((l) => {
+      const c = String(l?.category || "").toLowerCase();
+      const t = String(l?.type || "").toLowerCase();
+      return c === "service" || ["internet", "tv", "mobile"].includes(t);
+    })
+    .map((l) => `${String(l?.type || "")} ${String(l?.name || "")}`.toLowerCase())
+    .join(" ");
+  const haystack = (combined + " " + snapshotServiceNames).toLowerCase();
 
-  if (combined.includes("internet") || combined.includes("fibre")) {
-    types.push(combined.includes("borne") ? "borne_wifi" : "router");
-    if (combined.includes("modem")) types.push("modem");
+  const hasInternet = /internet|fibre|giga|mbps/.test(haystack);
+  const hasTv = /\btv\b|iptv|télé|tele|terminal|chaîne|chaine/.test(haystack);
+  const hasMobile = /mobile|cellulaire|forfait\s*mobile|\bsim\b|esim/.test(haystack);
+
+  const types: EquipmentType[] = [];
+  // Internet OR TV both require the Borne WiFi Nivra
+  if (hasInternet || hasTv) types.push("borne_wifi");
+  if (hasTv) {
+    // Count TV plans if present in snapshot, otherwise assume 1
+    const tvCount = snapshotLines.filter((l) => String(l?.type || "").toLowerCase() === "tv").length || 1;
+    for (let i = 0; i < tvCount; i++) types.push("tv_box");
   }
-  if (combined.includes("tv") || combined.includes("télé") || combined.includes("iptv") || combined.includes("box")) {
-    types.push("tv_box");
-  }
-  if (combined.includes("mobile") || combined.includes("cellulaire") || combined.includes("sim")) {
-    types.push(combined.includes("esim") ? "esim" : "sim");
-  }
-  if (combined.includes("routeur") && !types.includes("router") && !types.includes("borne_wifi")) {
-    types.push("borne_wifi");
-  }
+  if (hasMobile) types.push(/esim/.test(haystack) ? "esim" : "sim");
 
   if (types.length === 0) {
-    if (serviceType.includes("internet")) types.push("router");
+    if (serviceType.includes("internet")) types.push("borne_wifi");
     else if (serviceType.includes("mobile")) types.push("sim");
-    else if (serviceType.includes("tv")) types.push("tv_box");
+    else if (serviceType.includes("tv")) { types.push("borne_wifi"); types.push("tv_box"); }
     else types.push("other");
   }
 
@@ -167,8 +200,16 @@ export function EquipmentStep({ proc }: Props) {
     }
     // If still empty, create one unit per suggested type (respects quantities from order items)
     if (initialUnits.length === 0) {
+      const typeCounts = new Map<EquipmentType, number>();
+      const typeTotals = new Map<EquipmentType, number>();
+      for (const t of suggestedTypes) typeTotals.set(t, (typeTotals.get(t) || 0) + 1);
       for (const t of suggestedTypes) {
-        initialUnits.push(createEmptyUnit(t));
+        const idx = (typeCounts.get(t) || 0) + 1;
+        typeCounts.set(t, idx);
+        const total = typeTotals.get(t) || 1;
+        const unit = createEmptyUnit(t);
+        if (total > 1) unit.label = `${EQUIPMENT_LABELS[t]} #${idx}`;
+        initialUnits.push(unit);
       }
     }
   }
