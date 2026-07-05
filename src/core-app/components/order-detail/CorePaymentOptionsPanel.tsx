@@ -55,16 +55,19 @@ export function CorePaymentOptionsPanel({
     setBusy("email");
     try {
       const { error } = await (supabase as any).from("email_queue").insert({
+        event_key: `payment_link:${orderId}:${Date.now()}`,
         template_key: "payment_link",
         to_email: clientEmail,
         entity_type: "order",
         entity_id: orderId,
-        variables: {
+        template_vars: {
           order_number: orderNumber,
           amount: totalAmount,
           payment_url: paymentUrl,
+          client_email: clientEmail,
         },
         priority: 1,
+        status: "pending",
       });
       if (error) throw error;
       toast.success(`Lien de paiement Square envoyé à ${clientEmail}`);
