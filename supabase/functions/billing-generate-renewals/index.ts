@@ -30,7 +30,6 @@ serve(async (req) => {
   const rl = await enforceBillingRateLimit(req, "billing-generate-renewals", corsHeaders);
   if (rl) return rl;
 
-  try {
   const _cronStartedAt = new Date();
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
