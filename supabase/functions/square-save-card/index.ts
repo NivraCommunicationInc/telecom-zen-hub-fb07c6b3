@@ -35,19 +35,61 @@ Deno.serve(async (req) => {
     const {
       source_id,
       customer_id,
+      user_id,
       verification_token,
       channel = "portal",
       staff_actor_name = null,
     } = await req.json();
-    if (!source_id || !customer_id) throw new Error("source_id et customer_id requis");
+    if (!source_id) throw new Error("source_id requis");
+    if (!customer_id && !user_id) throw new Error("customer_id ou user_id requis");
 
-    // Get billing customer + ensure Square customer id
-    const { data: bc, error: bcErr } = await supabase
-      .from("billing_customers")
-      .select("id, email, first_name, last_name, square_customer_id, user_id")
-      .eq("id", customer_id)
-      .single();
-    if (bcErr || !bc) throw new Error("Client introuvable");
+    // Resolve or auto-create the billing_customers row.
+    let bc: any = null;
+    if (customer_id) {
+      const { data } = await supabase
+        .from("billing_customers")
+        .select("id, email, first_name, last_name, square_customer_id, user_id")
+        .eq("id", customer_id)
+        .maybeSingle();
+      bc = data;
+    }
+    if (!bc && user_id) {
+      const { data } = await supabase
+        .from("billing_customers")
+        .select("id, email, first_name, last_name, square_customer_id, user_id")
+        .eq("user_id", user_id)
+        .maybeSingle();
+      bc = data;
+    }
+    if (!bc && user_id) {
+      // Bootstrap from profile
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, full_name, email, phone")
+        .eq("user_id", user_id)
+        .maybeSingle();
+      const email = prof?.email || "";
+      const first_name =
+        prof?.first_name || (prof?.full_name ? String(prof.full_name).split(" ").slice(0, -1).join(" ") || prof.full_name : "Client");
+      const last_name =
+        prof?.last_name || (prof?.full_name ? String(prof.full_name).split(" ").slice(-1)[0] : "");
+      const phone = prof?.phone || "";
+      if (!email) throw new Error("Profil client incomplet (email manquant)");
+      const { data: created, error: createErr } = await supabase
+        .from("billing_customers")
+        .insert({
+          user_id,
+          email,
+          first_name: first_name || "Client",
+          last_name: last_name || "",
+          phone: phone || "",
+        })
+        .select("id, email, first_name, last_name, square_customer_id, user_id")
+        .single();
+      if (createErr) throw new Error(`Création client échouée: ${createErr.message}`);
+      bc = created;
+    }
+    if (!bc) throw new Error("Client introuvable");
 
     let squareCustomerId = bc.square_customer_id;
     if (!squareCustomerId) {
