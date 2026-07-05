@@ -570,8 +570,6 @@ export async function buildInvoicePdfAttachment(
     const orderNumber: string | undefined = order?.order_number || undefined;
     const orderClientFullAddress: string = (order as any).client_full_address || "";
     let linkedUserId: string | null = customer.user_id || null;
-    let accountRow: any = null;
-
     let accountNumber = String((invoice as any).billing_snapshot_account_number || "").trim();
     if (invoiceAccountId) {
       const { data } = await supabase
@@ -579,7 +577,6 @@ export async function buildInvoicePdfAttachment(
         .select("account_number, client_id")
         .eq("id", invoiceAccountId)
         .maybeSingle();
-      accountRow = data;
       if (!accountNumber) accountNumber = data?.account_number || "";
       if (!linkedUserId) linkedUserId = data?.client_id || null;
     }
