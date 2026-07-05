@@ -28478,11 +28478,30 @@ export type Database = {
         Args: { p_account_id?: string; p_client_id: string }
         Returns: Json
       }
+      _fmt_money: { Args: { _n: number }; Returns: string }
       _invoke_edge_function: {
         Args: { p_function_name: string; p_payload: Json }
         Returns: undefined
       }
+      _resolve_client_from_account: {
+        Args: { _account_id: string }
+        Returns: string
+      }
+      _resolve_client_from_billing_customer: {
+        Args: { _bc_id: string }
+        Returns: string
+      }
       _supplier_get_key: { Args: never; Returns: string }
+      _write_client_auto_note: {
+        Args: {
+          _body: string
+          _client_id: string
+          _entity_id?: string
+          _entity_type?: string
+          _event: string
+        }
+        Returns: undefined
+      }
       admin_promote_order_to_confirmed: {
         Args: { p_order_id: string }
         Returns: Json
