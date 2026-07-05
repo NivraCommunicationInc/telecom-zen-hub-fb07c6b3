@@ -154,11 +154,13 @@ serve(async (req) => {
       }
     }
 
+    await recordHeartbeat(supabase, "contract-signature-reminders-daily", "success", _cronStartedAt, stats);
     return new Response(JSON.stringify({ ok: true, stats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("[contract-signature-reminders] fatal:", err);
+    await recordHeartbeat(supabase, "contract-signature-reminders-daily", "error", _cronStartedAt, stats, err?.message || String(err));
     return new Response(JSON.stringify({ ok: false, error: err.message, stats }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
