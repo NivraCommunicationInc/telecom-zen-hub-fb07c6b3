@@ -2709,6 +2709,7 @@ export type Database = {
       }
       billing_invoices: {
         Row: {
+          account_id: string | null
           activation_fee: number | null
           address_snapshot: Json | null
           amount_paid: number | null
@@ -2749,6 +2750,7 @@ export type Database = {
           type: Database["public"]["Enums"]["billing_invoice_type"]
         }
         Insert: {
+          account_id?: string | null
           activation_fee?: number | null
           address_snapshot?: Json | null
           amount_paid?: number | null
@@ -2789,6 +2791,7 @@ export type Database = {
           type: Database["public"]["Enums"]["billing_invoice_type"]
         }
         Update: {
+          account_id?: string | null
           activation_fee?: number | null
           address_snapshot?: Json | null
           amount_paid?: number | null
@@ -2829,6 +2832,13 @@ export type Database = {
           type?: Database["public"]["Enums"]["billing_invoice_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "billing_invoices_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "billing_invoices_customer_id_fkey"
             columns: ["customer_id"]
@@ -29282,6 +29292,14 @@ export type Database = {
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
       get_account_service_tree: { Args: { _account_id: string }; Returns: Json }
+      get_accounts_due_for_renewal: {
+        Args: { p_window_end: string; p_window_start: string }
+        Returns: {
+          account_id: string
+          customer_id: string
+          earliest_cycle_end: string
+        }[]
+      }
       get_agent_available_discounts: {
         Args: { p_agent_id?: string }
         Returns: {
