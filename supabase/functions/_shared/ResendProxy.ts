@@ -148,8 +148,42 @@ function getSupabaseClient(): any {
   return createClient(url, key) as any;
 }
 
-function generateEventKey(to: string): string {
-  return `q_${to}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+/**
+ * Deterministic event_key derivation.
+ *
+ * Rule: same (template, entity, recipient) MUST produce the same key so that
+ * repeated triggers of the same logical event fold into a single email_queue
+ * row. NEVER include Date.now() or random — that defeats idempotency.
+ *
+ * Callers SHOULD pass their own eventKey when the entity/cycle differs from
+ * the defaults (e.g. reminders J+3 / J+7 need distinct suffixes). This is a
+ * safety fallback used when no explicit key is supplied.
+ */
+function deriveEventKey(params: EnqueueEmailParams): string {
+  const template = params.templateKey || "custom_html";
+  const entityType = params.entityType || "-";
+  const entityId = params.entityId || "-";
+  const to = (params.to || "").toLowerCase().trim();
+
+  // When we have full entity context → strictly deterministic
+  if (params.entityId && params.templateKey) {
+    return `${template}::${entityType}::${entityId}::${to}`;
+  }
+
+  // Fallback: content-hash (still deterministic — same content = same key)
+  // Uses subject + first 200 chars of HTML/text so callers without entity ids
+  // are still deduplicated on identical payloads.
+  const contentSample = (params.subject || "") + "|" +
+    (params.html || params.text || params.templateVars?._html || "").slice(0, 200);
+  let hash = 0;
+  for (let i = 0; i < contentSample.length; i++) {
+    hash = ((hash << 5) - hash + contentSample.charCodeAt(i)) | 0;
+  }
+  console.warn(
+    `[enqueueEmail] deriveEventKey fallback — no entityId/templateKey; ` +
+    `template=${template} to=${to}. Pass an explicit eventKey for reliable dedup.`
+  );
+  return `${template}::content::${(hash >>> 0).toString(36)}::${to}`;
 }
 
 function generateMessageId(): string {
@@ -221,17 +255,19 @@ async function isEmailSuppressed(
 export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueResult> {
   try {
     const supabase = getSupabaseClient();
-    const eventKey = params.eventKey || generateEventKey(params.to);
+    // Always derive deterministically when no explicit key given — NO random, NO Date.now.
+    const eventKey = params.eventKey || deriveEventKey(params);
 
-    // Idempotency check on email_queue table
-    if (params.eventKey) {
+    // Idempotency check ALWAYS runs (previously was gated by `if (params.eventKey)`,
+    // which is exactly what let the random-fallback path create duplicates).
+    {
       const { data: existing } = await supabase
         .from("email_queue")
         .select("id")
         .eq("event_key", eventKey)
         .maybeSingle();
       if (existing) {
-        console.log(`[enqueueEmail] Already queued: ${eventKey}`);
+        console.log(`[enqueueEmail] Deduplicated — already queued: ${eventKey}`);
         return { success: true, id: existing.id, alreadyQueued: true };
       }
     }
