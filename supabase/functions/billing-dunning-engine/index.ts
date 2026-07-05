@@ -199,9 +199,14 @@ Deno.serve(async (req) => {
     }
 
     console.log("[billing-dunning-engine] run complete", results);
+    await recordHeartbeat(supabase, "billing-dunning-engine", "success", _cronStartedAt, { processed: results.processed, errors: results.errors.length });
     return new Response(JSON.stringify({ ok: true, ...results }), { headers });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[billing-dunning-engine] fatal error:", err);
+    try {
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await recordHeartbeat(sb, "billing-dunning-engine", "error", _cronStartedAt, {}, err?.message || String(err));
+    } catch (_) {}
     return new Response(
       JSON.stringify({ ok: false, error: err?.message || String(err) }),
       { status: 500, headers },
