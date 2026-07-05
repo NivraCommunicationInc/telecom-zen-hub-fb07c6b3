@@ -371,9 +371,13 @@ serve(async (req) => {
         }
 
         // Calculate amounts via canonical tax module
-        const subtotal = Math.max(0, sub.plan_price - promoDiscount - autopayDiscount);
+        // Consolidate: sum primary plan_price + all sibling subscriptions' plan_prices
+        const siblingTotal = siblingSubs.reduce((s: number, x: any) => s + Number(x.plan_price || 0), 0);
+        const combinedPlanPrice = Number(sub.plan_price || 0) + siblingTotal;
+        const subtotal = Math.max(0, combinedPlanPrice - promoDiscount - autopayDiscount);
         const { tps: tpsAmount, tvq: tvqAmount, total: baseTotal } = computeTaxes(subtotal);
         let finalTotal = baseTotal; // updated after account_adjustments
+
         
         // Due date = current cycle end date (J0) - prepaid model requires payment BEFORE service expires
         const dueDate = sub.cycle_end_date;
