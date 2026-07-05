@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
             Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ customer_id }),
+          body: JSON.stringify({ customer_id: bc.id }),
         }
       );
       const createBody = await createRes.json();
