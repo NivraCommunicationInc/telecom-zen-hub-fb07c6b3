@@ -90,10 +90,6 @@ export const ClientPaymentMethodCard = () => {
 
   const handleSaveCard = async () => {
     if (!cardRef.current || !user?.id) return;
-    if (!cardData?.id) {
-      toast.error("Client introuvable — rechargez la page");
-      return;
-    }
     setSaving(true);
     try {
       const result = await cardRef.current.tokenize();
@@ -108,7 +104,12 @@ export const ClientPaymentMethodCard = () => {
           Authorization: `Bearer ${BACKEND_ANON_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ source_id: result.token, customer_id: cardData.id, channel: "portal" }),
+        body: JSON.stringify({
+          source_id: result.token,
+          customer_id: cardData?.id,
+          user_id: user.id,
+          channel: "portal",
+        }),
       });
       const data = await res.json();
       if (!data?.ok) { toast.error(data?.error || "Erreur lors de l'enregistrement"); return; }
