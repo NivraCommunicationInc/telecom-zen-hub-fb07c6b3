@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
     if (bc.email) {
       try {
         await supabase.from("email_queue").insert({
-          event_key: `autopay-activated-${customer_id}-${Date.now()}`,
+          event_key: `autopay-activated-${bc.id}-${Date.now()}`,
           to_email: bc.email,
           template_key: "autopay_activated",
           template_vars: {
