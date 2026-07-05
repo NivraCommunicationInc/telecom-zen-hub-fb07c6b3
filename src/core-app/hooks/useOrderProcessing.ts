@@ -911,9 +911,26 @@ export function useOrderProcessing(orderId: string | undefined) {
         });
       }
 
+      // ── BUG #19 fix: force portal snapshot refresh (belt-and-suspenders on top of triggers) ──
+      // This guarantees customer_portal_snapshots reflects the paid state BEFORE any client-side
+      // read (which uses get_customer_portal_snapshot RPC with a 15s cache window).
+      try {
+        const clientUserId = data?.profile?.user_id || data?.order?.user_id || null;
+        if (clientUserId) {
+          await supabase.rpc("refresh_customer_portal_snapshot", {
+            _user_id: clientUserId,
+            _event_source: "order_processing_payment_confirmed",
+            _event_id: null as any,
+          });
+        }
+      } catch (e: any) {
+        console.warn("[confirmPayment] portal snapshot refresh failed (non-fatal):", e?.message);
+      }
+
       invalidateAll();
       // ★ BUG 2 fix: force immediate refetch so UI updates without waiting for stale-time
       try { await orderQuery.refetch(); } catch (e: any) { console.warn("[confirmPayment] refetch failed:", e?.message); }
+
       toast.success("Paiement confirmé et synchronisé");
       noteClient("payment_confirmed", `${fmtMoney(Number(existingPayment.amount))} — Facture ${targetInvoice.invoice_number || ""} (commande #${data?.order?.order_number || ""})`, {
         invoice_id: targetInvoice.id,
