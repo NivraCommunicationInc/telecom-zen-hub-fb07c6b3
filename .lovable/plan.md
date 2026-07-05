@@ -1,76 +1,65 @@
+# Facture mensuelle consolidée par compte
 
-# Refonte "Adresses & Services" — Core + Portail Client
+Passer du modèle **1 facture = 1 abonnement** au modèle **1 facture = 1 compte** (peu importe le nombre d'adresses et de services).
 
-Ta demande en clair:
-1. **Ne PAS combiner** la liste d'adresses et le sélecteur/actions dans un seul bloc. Ils doivent être séparés visuellement et fonctionnellement.
-2. Le workspace actuel (cartes cliquables + gros bouton "Ajouter", 4 métriques, boutons flottants) fait **amateur**. Refaire au niveau des autres sections du 360.
-3. Les actions "par adresse" (commander, RDV, ticket, équipement, changer plan, suspendre, retirer, notes…) doivent apparaître **comme les sections Équipements/Factures** — barre d'actions cohérente en haut, listes dessous.
-4. Même niveau de finition côté **Portail Client**: gestion d'adresses digne d'un opérateur télécom, pas un formulaire nu.
+## Ce que ça change concrètement
 
-## Ce que je propose (Core — Nivra 360)
+Avant :
+- Oldo : 2 factures/mois (une pour Monet, une pour Moreau), 2 cycles indépendants, 2 paiements.
 
-### A. Structurer "Adresses & Services" comme les autres sections
-Format identique à *Équipements*: **titre + barre d'actions unifiée + tabs internes**.
+Après :
+- Oldo : **1 seule facture le 25 du mois** avec 2 sections adresses :
+  - Adresse 1 — 2352 Rue Monet, Laval : Internet 60 $
+  - Adresse 2 — 21 Rue Moreau, Gatineau : GIGA + TV Basic 110 $
+  - Sous-total 170 $ · TPS/TVQ · Rabais autopay -5 $ · Total unique
+  - 1 seul paiement, 1 seul PDF
 
-```text
-Adresses & Services (3)                 [+ Nouvelle adresse]  [Transférer service]  [Fusionner]
-────────────────────────────────────────────────────────────────
-[ 2352 Rue Monet, Laval          ▸ 1 svc · 3 équip · actif ]  ← sélectionnée
-[ 118 Boul. Saint-Martin, Laval  ▸ 0 svc · secondaire      ]
-[ + Ajouter une adresse ]
-────────────────────────────────────────────────────────────────
-DOSSIER: 2352 Rue Monet, Laval  ·  Compte #200756
-[Actions]  Commander ici │ Ajouter service │ RDV │ Ticket │ Équipement │ Notes │ Transférer │ Retirer
+## Étapes
 
-┌─ Services actifs (1) ─────────────┐  ┌─ Équipement (3) ──────────────┐
-│  Internet 100 Mbps  · 50$/mo · ▸  │  │  Terminal TV  S/N 3389…  · ▸  │
-└───────────────────────────────────┘  └───────────────────────────────┘
-┌─ RDV / Tech (0) ──────┐  ┌─ Support (1) ─────────┐  ┌─ Incidents (0) ─┐
-```
+### 1. Schéma DB (migration)
+- Ajouter `account_id` (uuid, FK accounts) sur `billing_invoices` — nullable pour rétrocompat, mais rempli sur toutes les nouvelles factures.
+- Assouplir la contrainte `unique_invoice_per_cycle` : quand `subscription_id IS NULL`, la clé unique devient `(account_id, cycle_start_date, type)`.
+- Backfill : remplir `account_id` sur toutes les factures existantes via `billing_customers.user_id → accounts.client_id`.
+- Aligner les cycles : forcer tous les abonnements actifs d'un même compte à partager `billing_anchor_date` et `cycle_start_date`/`cycle_end_date` basés sur `accounts.billing_cycle_day`.
 
-### B. Séparer le sélecteur d'adresse du dossier
-- **Colonne gauche** (dans la section) = liste des adresses (cartes compactes, une ligne, badge "principale"/"secondaire", cliquable).
-- **Colonne droite** = dossier de l'adresse sélectionnée avec **la même barre d'actions que la section Équipements** (boutons plats en haut, pas de gros CTA colorés qui flottent).
-- Le bouton "Ajouter adresse" est **au-dessus de la liste**, discret, pas mélangé avec les actions du service.
+### 2. Réécriture de `billing-generate-renewals`
+Basculer la boucle : au lieu de parcourir `billing_subscriptions`, parcourir les **comptes** dont le prochain cycle tombe dans la fenêtre J-60 → J+3.
 
-### C. Réutiliser le langage visuel des autres sections
-- Même typo, même densité, mêmes `Panel`/`PanelHeader`/`MiniTable` que `Account360Helpers.tsx`.
-- Retirer les gros badges colorés, cartes arrondies XL, ombres, etc. → on garde le style dashboard opérationnel dark green.
-- Chaque bloc (services, équip., RDV, tickets, incidents) devient un **Panel** cliquable menant à la section principale filtrée par `service_address_id`.
+Pour chaque compte :
+1. Lister tous les `billing_subscriptions` actifs du compte (via `billing_customers.user_id`).
+2. Vérifier l'idempotence : existe-t-il déjà une facture `renewal` pour `(account_id, cycle_start_date)` ?
+3. Calculer les rabais promo par service, appliquer autopay -5 $ **une seule fois par facture** (pas par service).
+4. Insérer une facture consolidée avec `subscription_id = NULL`, `account_id` renseigné, `notes` regroupant les mentions par service.
+5. Insérer les lignes de facture avec `service_address_id` sur chaque ligne pour permettre le groupement PDF.
+6. Un seul rappel autopay/email par cycle.
 
-### D. Actions réelles (pas juste des liens)
-Chaque bouton de la barre d'actions déclenche l'action correspondante **au bon endroit du 360**:
-- *Commander ici* → POS Core préfiltré par adresse
-- *Ajouter service* → même chose
-- *RDV* → dialog RDV avec adresse pré-sélectionnée
-- *Ticket* → dialog `QuickTicketDialog` avec adresse
-- *Équipement* → dialog assignation
-- *Notes* → note interne rattachée à l'adresse
-- *Transférer service vers autre adresse* → nouveau dialog (déplace `service_address_id` sur souscription/équipement)
-- *Retirer adresse* → soft delete si aucun service actif, sinon bloqué avec message
+### 3. Regroupement PDF par adresse
+- Modifier `pdfFromDb.ts` (renderer partagé) : quand la facture n'a pas de `subscription_id` unique, grouper les lignes par `service_address_id` avec un en-tête de section "Adresse X — <adresse complète>".
+- Ordre : adresse par défaut en premier, puis les autres par ordre d'ajout.
+- Ne rien changer au format visuel corporate #0066CC — juste ajouter les headers de section.
 
-## Portail Client (`/portal/service-addresses` + Dashboard)
+### 4. Autopay retry
+`square-autopay-retry` fonctionne déjà par `invoice_id` — aucune modif nécessaire, sauf s'assurer qu'il route les erreurs au bon `account_id` (déjà OK via `billing_customers.user_id`).
 
-### E. Même architecture, ton client
-- Page "Mes adresses" séparée en deux blocs:
-  1. **Mes adresses** (liste + bouton "Ajouter une adresse")
-  2. **Dossier de l'adresse sélectionnée** (Services, Équipement, RDV, Support) avec actions client: *Commander un service ici*, *Prendre RDV*, *Ouvrir un ticket*, *Voir factures*.
-- Sur le Dashboard, la carte "Adresse" liste toutes les adresses sous forme condensée avec lien "Gérer" → ouvre l'adresse dans le dossier.
+### 5. Portail client + Core admin
+- `ClientBillingHub` et `CoreInvoiceDetail` : afficher les lignes groupées par adresse quand la facture couvre plusieurs adresses.
+- Aucune migration UI cassante — l'ancien layout continue de marcher pour les factures avec `subscription_id` non NULL.
+
+### 6. Backfill du compte Oldo (test)
+Après les modifs, aligner manuellement les cycles des 2 abonnements SUB-001011 et SUB-001024 sur le jour 25 du compte, puis appeler `billing-generate-renewals` pour créer la 1ʳᵉ facture consolidée du prochain cycle et vérifier le PDF.
 
 ## Détails techniques
 
-- Nouveau composant `AccountAddressesSection.tsx` dans `src/core-app/components/account-360/` qui suit strictement le style des autres sections (Panel/PanelHeader). Remplace l'import de `AccountAddressesTab` dans `CoreAccountDetail.tsx`.
-- Retirer la logique `isAddressesSection` du grid (la section redevient normale à 3 colonnes → le panneau droit `Account360RightPanel` reste visible partout, comme tu le voulais indirectement en disant "les 2 menus doivent être séparés" — le résumé compte à droite ne bouge plus).
-- Nouveau composant `ClientAddressWorkspace.tsx` pour le portail (style clair, boutons primaires ronds cohérents avec le reste du portail client).
-- Barre d'actions par adresse implémentée via dialogs déjà existants (`QuickTicketDialog`, POS route, etc.) — pas de nouvelle logique métier.
-- Aucun changement DB requis: `service_addresses` + `service_address_id` sur tables enfants sont déjà en place.
+- **Triggers impactés** : `fn_block_orphan_invoice`, `fn_hydrate_invoice_account_snapshot`, `fn_lock_invoice_account_snapshot`, `enforce_invoice_invariants` — tous doivent accepter `subscription_id IS NULL` quand `account_id IS NOT NULL`.
+- **Nouveau service activé en cours de cycle** : ajouté au **prochain** cycle du compte, avec ligne prorata sur la même facture (edge `billing-create-prorata-invoice` génère toujours une facture séparée immédiate — inchangé).
+- **Résiliation en cours de cycle** : crédit prorata sur la facture consolidée du prochain cycle.
+- **Rétrocompat** : les factures existantes avec `subscription_id` non NULL restent lisibles et affichables comme avant.
 
-## Ce que je NE fais pas dans cette passe
-- Pas de refonte des sections Équipements/Factures elles-mêmes.
-- Pas de changement au moteur de facturation ni au RPC `resolve_or_create_service_address`.
-- Pas de nouveaux dialogs métier autres que "Transférer service" (à confirmer si tu le veux ou non).
+## Risques
 
-## Question avant de coder
-Confirme-moi 2 points rapides:
-1. Le bouton **"Transférer un service vers une autre adresse"** — tu le veux dès cette passe, ou on le garde pour plus tard?
-2. Dans le Portail Client, tu veux que **l'ajout d'adresse** reste libre (comme aujourd'hui) ou passe par une **validation Core** (l'agent doit approuver la nouvelle adresse avant qu'elle soit utilisable pour commander)?
+- **Contraintes uniques** : bien testées avant migration (`(account_id, cycle_start_date, type)` doit être partiel `WHERE subscription_id IS NULL`).
+- **Alignment des cycles** : les abonnements créés à des dates différentes doivent tous "sauter" vers le prochain jour de cycle du compte au premier renouvellement consolidé. Peut créer un cycle plus court pour l'un des services (prorata négatif appliqué automatiquement).
+- **Rollback** : si un bug émerge, le flag `account_id IS NULL` sur l'ancien modèle sert de fallback ; aucune facture existante n'est modifiée.
+
+## Livrable de test
+Après exécution : facture consolidée pour Oldo avec les 2 adresses, PDF regroupé, un seul paiement autopay attendu.
