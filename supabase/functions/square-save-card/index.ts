@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
         autopay_discount_active: true,
         autopay_consent_at: new Date().toISOString(),
       })
-      .eq("id", customer_id);
+      .eq("id", bc.id);
 
     // Auto-note (fire-and-forget)
     const channelLabel =
