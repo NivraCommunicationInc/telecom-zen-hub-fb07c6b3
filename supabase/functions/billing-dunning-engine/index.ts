@@ -12,6 +12,7 @@
  * All emails go through email_queue (never direct Resend).
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
