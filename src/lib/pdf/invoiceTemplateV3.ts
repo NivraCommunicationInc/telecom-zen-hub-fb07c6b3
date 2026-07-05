@@ -279,7 +279,7 @@ function drawPage1(doc: jsPDF, data: InvoiceDataV2 & { order_number?: string }) 
 
   const tiles: Array<[string, string, string]> = [
     ["1. Portail client", "portal.nivra-telecom.ca", "Interac, carte ou PayPal — instantané"],
-    ["2. Virement Interac", "billing@nivra-telecom.ca", "Question : votre n° de compte"],
+    ["2. Virement Interac", "support@nivra-telecom.ca", "Question : votre n° de compte"],
     ["3. PayPal", "PayPal.Me/nivratelecom", "Indiquez votre n° de facture"],
   ];
   const tileW = (PAGE_W - MARGIN * 2 - 8) / 3;
