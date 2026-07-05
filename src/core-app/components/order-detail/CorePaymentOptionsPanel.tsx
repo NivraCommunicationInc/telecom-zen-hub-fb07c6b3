@@ -45,7 +45,18 @@ export function CorePaymentOptionsPanel({
     ? `${Number(totalAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
     : "—";
 
-  const paymentUrl = `${window.location.origin}/pay/${orderId}`;
+  async function createPaymentLink(mode: "email" | "direct"): Promise<string | null> {
+    const { data, error } = await supabase.functions.invoke("core-square-payment-link", {
+      body: {
+        order_id: orderId,
+        customer_email: clientEmail || undefined,
+        mode: mode === "email" ? "email" : undefined,
+      },
+    });
+    if (error) throw error;
+    if (!(data as any)?.ok) throw new Error((data as any)?.error || "Erreur création du lien");
+    return (data as any).payment_url as string;
+  }
 
   async function sendByEmail() {
     if (!clientEmail) {
@@ -54,22 +65,7 @@ export function CorePaymentOptionsPanel({
     }
     setBusy("email");
     try {
-      const { error } = await (supabase as any).from("email_queue").insert({
-        event_key: `payment_link:${orderId}:${Date.now()}`,
-        template_key: "payment_link",
-        to_email: clientEmail,
-        entity_type: "order",
-        entity_id: orderId,
-        template_vars: {
-          order_number: orderNumber,
-          amount: totalAmount,
-          payment_url: paymentUrl,
-          client_email: clientEmail,
-        },
-        priority: 1,
-        status: "queued",
-      });
-      if (error) throw error;
+      await createPaymentLink("email");
       toast.success(`Lien de paiement Square envoyé à ${clientEmail}`);
       onChanged?.();
     } catch (e: any) {
@@ -79,11 +75,15 @@ export function CorePaymentOptionsPanel({
     }
   }
 
-  function openDirect() {
+  async function openDirect() {
     setBusy("direct");
     try {
-      window.open(paymentUrl, "_blank", "noopener,noreferrer");
-      toast.info("Page de paiement Square ouverte dans un nouvel onglet");
+      const url = await createPaymentLink("direct");
+      if (!url) throw new Error("Lien indisponible");
+      window.open(url, "_blank", "noopener,noreferrer");
+      toast.info("Page de paiement ouverte dans un nouvel onglet");
+    } catch (e: any) {
+      toast.error(e?.message || "Échec d'ouverture du lien");
     } finally {
       setBusy(null);
     }
