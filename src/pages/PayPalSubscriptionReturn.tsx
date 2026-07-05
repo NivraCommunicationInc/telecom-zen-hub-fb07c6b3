@@ -12,7 +12,7 @@
  */
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { portalClient } from "@/integrations/backend/portalClient";
 import { clearPayPalFlowActive } from "@/hooks/useClientAutoPayEnrollment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ const PayPalSubscriptionReturn = () => {
       try {
         // ── Étape 1: Vérifier côté Nivra Core que l'entente est bien ACTIVE chez PayPal
         // (au lieu de simplement faire confiance au query param)
-        const { data: verifyData, error: verifyErr } = await supabase.functions.invoke(
+        const { data: verifyData, error: verifyErr } = await portalClient.functions.invoke(
           "paypal-verify-subscription",
           { body: { paypal_subscription_id: subscriptionId } }
         );
@@ -84,7 +84,7 @@ const PayPalSubscriptionReturn = () => {
         // ── Étape 2: Marquer la commande comme récurrente (best-effort, le webhook reste source de vérité)
         if (orderId) {
           try {
-            await supabase
+            await portalClient
               .from("orders")
               .update({ recurring_payment_accepted: true } as any)
               .eq("id", orderId);
@@ -93,7 +93,7 @@ const PayPalSubscriptionReturn = () => {
           }
 
           try {
-            await supabase
+            await portalClient
               .from("checkout_consent_records" as any)
               .update({ recurring_payment_accepted: true })
               .eq("order_id", orderId);
