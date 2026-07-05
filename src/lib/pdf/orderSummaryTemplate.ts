@@ -254,25 +254,49 @@ function drawMetaGrid(doc: jsPDF, d: OrderSummaryV3Data, y: number): number {
   return y + rows.length * rowH + 2;
 }
 
+const isFirstMonthOnlyPromo = (p: { duration?: string; label?: string }) => {
+  const dur = String(p?.duration || "").toLowerCase();
+  const lbl = String(p?.label || "").toLowerCase();
+  return /1er\s*mois|premier\s*mois|first\s*month|^1\s*cycle$/.test(dur)
+    || (/1er\s+mois|premier\s+mois|first\s+month|gratuit/.test(lbl) && !/\/\s*mois/.test(lbl));
+};
+
 function computeSplitTotals(d: OrderSummaryV3Data) {
   const monthlyGross = d.subtotal_monthly || 0;
-  const discount = d.discount_amount || 0;
-  const monthlyNet = Math.max(0, monthlyGross - discount);
+  // Split discount: first-month-only credits vs recurring rebates
+  let discountFirstMonth = 0;
+  let discountRecurring = 0;
+  if (d.promotions && d.promotions.length > 0) {
+    for (const p of d.promotions) {
+      const amt = Math.abs(Number(p.monthly_discount || 0));
+      if (isFirstMonthOnlyPromo(p)) discountFirstMonth += amt;
+      else discountRecurring += amt;
+    }
+  } else {
+    discountRecurring = d.discount_amount || 0;
+  }
+  const discount = discountFirstMonth + discountRecurring;
+  // Monthly recurring net (used for TOTAL MENSUEL from 2nd cycle onward)
+  const monthlyNet = Math.max(0, monthlyGross - discountRecurring);
+  // Paid today reduction = both credits apply on the first cycle
+  const monthlyDueToday = Math.max(0, monthlyGross - discount);
   const onetime = d.subtotal_onetime || 0;
   const taxTotal = (d.tax_gst || 0) + (d.tax_qst || 0);
-  const preTax = monthlyNet + onetime;
-  const monthlyTaxShare = preTax > 0 ? (taxTotal * monthlyNet) / preTax : 0;
+  const preTax = monthlyDueToday + onetime;
+  const monthlyTaxShare = preTax > 0 ? (taxTotal * monthlyDueToday) / preTax : 0;
   const onetimeTaxShare = taxTotal - monthlyTaxShare;
   const monthlyGst = preTax > 0 ? ((d.tax_gst || 0) * monthlyNet) / preTax : 0;
   const monthlyQst = preTax > 0 ? ((d.tax_qst || 0) * monthlyNet) / preTax : 0;
   const onetimeGst = (d.tax_gst || 0) - monthlyGst;
   const onetimeQst = (d.tax_qst || 0) - monthlyQst;
-  const monthlyTotal = monthlyNet + monthlyTaxShare;
-  const paidToday = onetime + onetimeTaxShare + monthlyTotal; // total_due includes both
-  // Prefer canonical total_due when it exists
+  // Recurring total (from 2nd cycle) — uses recurring discount only
+  const monthlyTotal = monthlyNet + monthlyNet * 0.14975;
+  const paidToday = onetime + onetimeTaxShare + monthlyDueToday + monthlyTaxShare;
   return {
     monthlyGross,
     discount,
+    discountFirstMonth,
+    discountRecurring,
     monthlyNet,
     onetime,
     monthlyGst,
