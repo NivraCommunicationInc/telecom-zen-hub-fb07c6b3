@@ -200,8 +200,16 @@ export function EquipmentStep({ proc }: Props) {
     }
     // If still empty, create one unit per suggested type (respects quantities from order items)
     if (initialUnits.length === 0) {
+      const typeCounts = new Map<EquipmentType, number>();
+      const typeTotals = new Map<EquipmentType, number>();
+      for (const t of suggestedTypes) typeTotals.set(t, (typeTotals.get(t) || 0) + 1);
       for (const t of suggestedTypes) {
-        initialUnits.push(createEmptyUnit(t));
+        const idx = (typeCounts.get(t) || 0) + 1;
+        typeCounts.set(t, idx);
+        const total = typeTotals.get(t) || 1;
+        const unit = createEmptyUnit(t);
+        if (total > 1) unit.label = `${EQUIPMENT_LABELS[t]} #${idx}`;
+        initialUnits.push(unit);
       }
     }
   }
