@@ -442,17 +442,29 @@ serve(async (req) => {
         
         if (invoiceError) throw invoiceError;
         
-        // Create invoice lines
-        const invoiceLines: any[] = [
-          {
+        // Create invoice lines — one per subscription (primary + siblings),
+        // prefixed with the service address when the account has multiple addresses.
+        const allSubsForInvoice = [sub, ...siblingSubs];
+        const distinctAddressIds = new Set(allSubsForInvoice.map((s: any) => s.service_address_id).filter(Boolean));
+        const multiAddress = distinctAddressIds.size >= 2;
+
+        const invoiceLines: any[] = [];
+        for (const s of allSubsForInvoice) {
+          const addrLabel = multiAddress ? await resolveAddressLabel(s.service_address_id) : null;
+          const desc = addrLabel
+            ? `${addrLabel} — ${s.plan_name} – Renouvellement 30 jours`
+            : `${s.plan_name} – Renouvellement 30 jours`;
+          invoiceLines.push({
             invoice_id: invoice.id,
-            description: `${sub.plan_name} – Renouvellement 30 jours`,
-            unit_price: sub.plan_price,
+            description: desc,
+            unit_price: Number(s.plan_price || 0),
             quantity: 1,
-            line_total: sub.plan_price,
-            line_type: 'service'
-          }
-        ];
+            line_total: Number(s.plan_price || 0),
+            line_type: 'service',
+            service_address_id: s.service_address_id || null,
+          });
+        }
+
         
         // Add promo discount line if applicable
         if (promoDiscount > 0) {
