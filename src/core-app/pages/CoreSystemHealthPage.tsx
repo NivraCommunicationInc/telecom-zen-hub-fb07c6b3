@@ -276,6 +276,8 @@ export default function CoreSystemHealthPage() {
         })}
       </div>
 
+      <CronHealthSection />
+
       {check && (
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
