@@ -26,6 +26,7 @@ export interface CanonicalDocumentData {
   order: any;
   profile: any;
   account: any;
+  billingCustomer?: any;
   billingInvoice?: any;
   billingInvoiceLines?: any[];
   billingPayments?: any[];
@@ -43,6 +44,7 @@ export async function fetchCanonicalDocumentData(
 ): Promise<CanonicalDocumentData | null> {
   let order: any = null;
   let billingInvoice: any = null;
+  let billingCustomer: any = null;
 
   // Route 1: from orderId
   if (params.orderId) {
@@ -54,6 +56,14 @@ export async function fetchCanonicalDocumentData(
   if (params.invoiceId) {
     const { data: inv } = await client.from("billing_invoices").select("*").eq("id", params.invoiceId).maybeSingle();
     billingInvoice = inv;
+    if (inv?.customer_id) {
+      const { data: customer } = await client
+        .from("billing_customers")
+        .select("id, user_id, email, first_name, last_name, phone")
+        .eq("id", inv.customer_id)
+        .maybeSingle();
+      billingCustomer = customer;
+    }
     if (inv?.order_id && !order) {
       const { data } = await client.from("orders").select("*").eq("id", inv.order_id).maybeSingle();
       order = data;
@@ -69,21 +79,52 @@ export async function fetchCanonicalDocumentData(
     }
   }
 
+  if (!order && billingInvoice) {
+    const snap = billingInvoice.address_snapshot as any;
+    order = {
+      id: billingInvoice.order_id || billingInvoice.id,
+      user_id: billingCustomer?.user_id || params.userId || null,
+      created_at: billingInvoice.created_at,
+      updated_at: billingInvoice.created_at,
+      status: billingInvoice.status,
+      payment_status: billingInvoice.status,
+      paid_at: billingInvoice.paid_at,
+      client_first_name: billingCustomer?.first_name || null,
+      client_last_name: billingCustomer?.last_name || null,
+      client_email: billingCustomer?.email || null,
+      client_phone: billingCustomer?.phone || snap?.phone || null,
+      shipping_address: snap?.address || null,
+      shipping_city: snap?.city || null,
+      shipping_province: snap?.province || "QC",
+      shipping_postal_code: snap?.postal_code || null,
+      order_number: null,
+      category: billingInvoice.type === "renewal" ? "Monthly" : null,
+    };
+  }
+
   if (!order) {
     console.error("[CanonicalDocService] No order found for params:", params);
     return null;
   }
 
-  const userId = order.user_id || params.userId;
+  const userId = order.user_id || billingCustomer?.user_id || params.userId;
 
   // Fetch all related data in parallel
   const [profileRes, accountRes, invoiceRes, contractRes] = await Promise.all([
-    client.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
-    client.from("accounts").select("*").eq("client_id", userId).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+    userId
+      ? client.from("profiles").select("*").eq("user_id", userId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    billingInvoice?.account_id
+      ? client.from("accounts").select("*").eq("id", billingInvoice.account_id).maybeSingle()
+      : userId
+        ? client.from("accounts").select("*").eq("client_id", userId).order("created_at", { ascending: true }).limit(1).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
     billingInvoice
       ? Promise.resolve({ data: billingInvoice, error: null })
       : client.from("billing_invoices").select("*").eq("order_id", order.id).maybeSingle(),
-    client.from("contracts").select("*").eq("order_id", order.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    billingInvoice && !billingInvoice.order_id
+      ? Promise.resolve({ data: null, error: null })
+      : client.from("contracts").select("*").eq("order_id", order.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const invoice = invoiceRes.data;
@@ -111,6 +152,7 @@ export async function fetchCanonicalDocumentData(
     order,
     profile: profileRes.data,
     account: accountRes.data,
+    billingCustomer,
     billingInvoice: invoice,
     billingInvoiceLines,
     billingPayments,
@@ -255,7 +297,7 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
 // ============================================================================
 
 export function buildCanonicalInvoiceData(data: CanonicalDocumentData): InvoiceDataV2 {
-  const { order, profile, account, billingInvoice, billingInvoiceLines, billingPayments = [], breakdown } = data;
+  const { order, profile, account, billingCustomer, billingInvoice, billingInvoiceLines, billingPayments = [], breakdown } = data;
   const addr = buildCustomerAddress(order, profile, account);
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
@@ -286,8 +328,8 @@ export function buildCanonicalInvoiceData(data: CanonicalDocumentData): InvoiceD
 
     customer: {
       full_name: requireField(snapshotClient?.full_name || snapshotClient?.name || clientName, "client_name"),
-      email: requireField(snapshotClient?.email || order.client_email || profile?.email, "client_email"),
-      phone: requireField(snapshotClient?.phone || order.client_phone || profile?.phone, "client_phone"),
+      email: requireField(snapshotClient?.email || order.client_email || billingCustomer?.email || profile?.email, "client_email"),
+      phone: requireField(snapshotClient?.phone || order.client_phone || billingCustomer?.phone || profile?.phone, "client_phone"),
       address_line1: requireField(snapshotClient?.address_line1 || addr.address_line1, "address_line1"),
       city: requireField(snapshotClient?.city || addr.city, "city"),
       province: snapshotClient?.province || addr.province || "QC",
@@ -400,49 +442,8 @@ export async function generateCanonicalInvoicePDF(
   invoiceId: string
 ): Promise<PDFGenerationResult> {
   try {
-    // Get breakdown from RPC (canonical source of truth)
-    const breakdown = await fetchInvoiceBreakdown(invoiceId, client);
-    if (!breakdown) {
-      return { success: false, error: "Aucune donnée de facturation trouvée" };
-    }
-
-    // Get order data if available
-    let order: any = null;
-    if (breakdown.order_id) {
-      const { data } = await client.from("orders").select("*").eq("id", breakdown.order_id).maybeSingle();
-      order = data;
-    }
-
-    // If no order, build minimal order-like object from breakdown
-    if (!order) {
-      order = {
-        id: breakdown.order_id || invoiceId,
-        user_id: null,
-        created_at: breakdown.created_at,
-        status: breakdown.status,
-      };
-    }
-
-    const userId = order.user_id;
-    const [profileRes, accountRes] = await Promise.all([
-      userId ? client.from("profiles").select("*").eq("user_id", userId).maybeSingle() : Promise.resolve({ data: null }),
-      userId ? client.from("accounts").select("*").eq("client_id", userId).order("created_at", { ascending: true }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
-    ]);
-
-    // Fetch payments
-    const { data: payments } = await client.from("billing_payments").select("*").eq("invoice_id", invoiceId).order("created_at", { ascending: false });
-
-    // Get billing invoice for snapshot data
-    const { data: billingInvoice } = await client.from("billing_invoices").select("*").eq("id", invoiceId).maybeSingle();
-
-    const docData: CanonicalDocumentData = {
-      order,
-      profile: profileRes.data,
-      account: accountRes.data,
-      billingInvoice,
-      billingPayments: payments || [],
-      breakdown,
-    };
+    const docData = await fetchCanonicalDocumentData(client, { invoiceId });
+    if (!docData) return { success: false, error: "Données de facture introuvables" };
 
     const invoiceData = buildCanonicalInvoiceData(docData);
     return generateInvoiceV3PDF(invoiceData);

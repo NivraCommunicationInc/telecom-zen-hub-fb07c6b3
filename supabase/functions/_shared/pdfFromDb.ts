@@ -64,7 +64,7 @@ const CONDITION_LABEL_FR: Record<string, string> = {
  */
 async function resolveClientAddress(
   supabase: SupabaseClient,
-  opts: { userId?: string | null; orderId?: string | null },
+  opts: { userId?: string | null; orderId?: string | null; accountId?: string | null },
 ): Promise<{
   billing: { line1: string; city: string; province: string; postal: string };
   service: { line1: string; city: string; province: string; postal: string };
@@ -73,14 +73,14 @@ async function resolveClientAddress(
   let service = { line1: "", city: "", province: "QC", postal: "" };
 
   // 1) accounts.billing_*  +  accounts.primary_service_*
-  if (opts.userId) {
-    const { data: acct } = await supabase
+  if (opts.accountId || opts.userId) {
+    let q = supabase
       .from("accounts")
       .select(
         "billing_address, billing_city, billing_province, billing_postal_code, primary_service_address, primary_service_city, primary_service_province, primary_service_postal_code",
-      )
-      .eq("client_id", opts.userId)
-      .maybeSingle();
+      );
+    q = opts.accountId ? q.eq("id", opts.accountId) : q.eq("client_id", opts.userId);
+    const { data: acct } = await q.maybeSingle();
     if (acct?.billing_address) {
       billing = {
         line1: acct.billing_address || "",
@@ -547,8 +547,8 @@ export async function buildInvoicePdfAttachment(
       .select(`
         id, invoice_number, created_at, due_date, total, subtotal,
         tps_amount, tvq_amount, amount_paid, balance_due, status,
-        cycle_start_date, cycle_end_date, type, order_id,
-        address_snapshot,
+        cycle_start_date, cycle_end_date, type, order_id, account_id,
+        address_snapshot, billing_snapshot_client, billing_snapshot_account_number,
         customer:billing_customers(id, email, first_name, last_name, phone, user_id),
         order:orders(id, order_number, service_type, client_full_address),
         lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type)
@@ -565,17 +565,39 @@ export async function buildInvoicePdfAttachment(
     const lines: any[] = (invoice as any).lines || [];
     const order = (invoice as any).order || {};
     const orderId: string | null = (invoice as any).order_id || order?.id || null;
+    const invoiceAccountId: string | null = (invoice as any).account_id || null;
+    const snapshotClient = ((invoice as any).billing_snapshot_client || {}) as any;
     const orderNumber: string | undefined = order?.order_number || undefined;
     const orderClientFullAddress: string = (order as any).client_full_address || "";
-    // billing_customers.first_name/last_name are stable — no live profiles fallback
-    const clientName = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Client";
+    let linkedUserId: string | null = customer.user_id || null;
+    let accountNumber = String((invoice as any).billing_snapshot_account_number || "").trim();
+    if (invoiceAccountId) {
+      const { data } = await supabase
+        .from("accounts")
+        .select("account_number, client_id")
+        .eq("id", invoiceAccountId)
+        .maybeSingle();
+      if (!accountNumber) accountNumber = data?.account_number || "";
+      if (!linkedUserId) linkedUserId = data?.client_id || null;
+    }
 
-    let accountNumber = "";
-    if (customer.user_id) {
+    let clientName = String(snapshotClient?.full_name || snapshotClient?.name || "").trim()
+      || [customer.first_name, customer.last_name].filter(Boolean).join(" ");
+    if (!clientName && linkedUserId) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, first_name, last_name")
+        .eq("user_id", linkedUserId)
+        .maybeSingle();
+      clientName = (prof as any)?.full_name || [(prof as any)?.first_name, (prof as any)?.last_name].filter(Boolean).join(" ");
+    }
+    clientName = clientName || "Client";
+
+    if (!accountNumber && linkedUserId) {
       const { data } = await supabase
         .from("accounts")
         .select("account_number")
-        .eq("client_id", customer.user_id)
+        .eq("client_id", linkedUserId)
         .maybeSingle();
       if (!accountNumber) accountNumber = data?.account_number || "";
     }
@@ -601,7 +623,7 @@ export async function buildInvoicePdfAttachment(
       : null;
     const addr = invoiceAddr
       ? { billing: invoiceAddr, service: invoiceAddr }
-      : await resolveClientAddress(supabase, { userId: customer.user_id, orderId });
+      : await resolveClientAddress(supabase, { userId: linkedUserId, orderId, accountId: invoiceAccountId });
 
     // Phone enrichment if invoice ties to an order with phone(s)
     const hasEquipmentLine = lines.some(
@@ -681,12 +703,12 @@ export async function buildInvoicePdfAttachment(
       status: ((invoice as any).status || "Pending") as any,
       customer: {
         full_name: clientName,
-        email: customer.email || "",
-        phone: customer.phone || undefined,
-        address_line1: addr.billing.line1 || orderClientFullAddress || "",
-        city: addr.billing.city,
-        province: addr.billing.province,
-        postal_code: addr.billing.postal,
+        email: snapshotClient?.email || customer.email || "",
+        phone: snapshotClient?.phone || customer.phone || undefined,
+        address_line1: snapshotClient?.address_line1 || addr.billing.line1 || orderClientFullAddress || "",
+        city: snapshotClient?.city || addr.billing.city,
+        province: snapshotClient?.province || addr.billing.province,
+        postal_code: snapshotClient?.postal_code || addr.billing.postal,
       },
       items: items.length ? items : [{
         category: "Other",
@@ -761,8 +783,8 @@ export async function buildReceiptPdfAttachment(
       .select(`
         id, invoice_number, created_at, paid_at, total, subtotal,
         tps_amount, tvq_amount, amount_paid, payment_method, balance_due,
-        address_snapshot, order_id,
-        customer:billing_customers(email, first_name, last_name, phone, user_id),
+        address_snapshot, billing_snapshot_client, billing_snapshot_account_number, order_id, account_id,
+        customer:billing_customers(id, email, first_name, last_name, phone, user_id),
         order:orders(order_number, client_full_address),
         lines:billing_invoice_lines(description, quantity, unit_price, line_total, line_type)
       `)
@@ -787,15 +809,37 @@ export async function buildReceiptPdfAttachment(
     const customer = (invoice as any).customer || {};
     const order = (invoice as any).order || {};
     const lines: any[] = (invoice as any).lines || [];
-    // billing_customers.first_name/last_name are stable — no live profiles fallback
-    const clientName = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Client";
+    const invoiceAccountId: string | null = (invoice as any).account_id || null;
+    const snapshotClient = ((invoice as any).billing_snapshot_client || {}) as any;
+    let linkedUserId: string | null = customer.user_id || null;
+    let clientName = String(snapshotClient?.full_name || snapshotClient?.name || "").trim()
+      || [customer.first_name, customer.last_name].filter(Boolean).join(" ");
 
-    let accountNumber = "";
-    if (customer.user_id) {
+    let accountNumber = String((invoice as any).billing_snapshot_account_number || "").trim();
+    if (invoiceAccountId) {
+      const { data } = await supabase
+        .from("accounts")
+        .select("account_number, client_id")
+        .eq("id", invoiceAccountId)
+        .maybeSingle();
+      if (!accountNumber) accountNumber = data?.account_number || "";
+      if (!linkedUserId) linkedUserId = data?.client_id || null;
+    }
+    if (!clientName && linkedUserId) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, first_name, last_name")
+        .eq("user_id", linkedUserId)
+        .maybeSingle();
+      clientName = (prof as any)?.full_name || [(prof as any)?.first_name, (prof as any)?.last_name].filter(Boolean).join(" ");
+    }
+    clientName = clientName || "Client";
+
+    if (!accountNumber && linkedUserId) {
       const { data } = await supabase
         .from("accounts")
         .select("account_number")
-        .eq("client_id", customer.user_id)
+        .eq("client_id", linkedUserId)
         .maybeSingle();
       if (!accountNumber) accountNumber = data?.account_number || "";
     }
@@ -826,8 +870,9 @@ export async function buildReceiptPdfAttachment(
     }
     if (!clientAddress) {
       const addr = await resolveClientAddress(supabase, {
-        userId: customer.user_id,
+        userId: linkedUserId,
         orderId: (invoice as any).order_id || null,
+        accountId: invoiceAccountId,
       });
       const receiptOrderFullAddress: string = (order as any).client_full_address || "";
       clientAddress = joinAddress(addr.service) || joinAddress(addr.billing) || receiptOrderFullAddress || undefined;
@@ -918,8 +963,8 @@ export async function buildReceiptPdfAttachment(
       invoice_total: Number((invoice as any).total || 0),
       order_number: order.order_number || undefined,
       client_name: clientName,
-      client_email: customer.email || "",
-      client_phone: customer.phone || undefined,
+      client_email: snapshotClient?.email || customer.email || "",
+      client_phone: snapshotClient?.phone || customer.phone || undefined,
       client_address: clientAddress,
       account_number: accountNumber,
       billed_items: receiptDetailedItems.map((l) => ({
