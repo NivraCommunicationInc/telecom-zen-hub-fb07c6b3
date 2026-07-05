@@ -179,7 +179,15 @@ serve(async (req) => {
 
     for (const sub of subscriptions || []) {
       try {
-        // ═══ GUARD: NULL next_renewal_at ═══
+        // Skip siblings — their invoicing is consolidated into the primary sub of the account
+        if (!primarySubIds.has(sub.id)) {
+          console.log(`[billing-generate-renewals] Skipping sibling sub ${sub.id} — consolidated into primary`);
+          continue;
+        }
+        const accountKey = accountBySubId.get(sub.id) || `sub:${sub.id}`;
+        const consolidatedAccountId = accountIdByKey.get(accountKey) || null;
+        const siblingSubs: any[] = (subsByAccount.get(accountKey) || []).filter((s: any) => s.id !== sub.id);
+
         // If next_renewal_at is null on an active subscription, this is a data
         // integrity issue. Log and create an alert, but DO continue using
         // cycle_end_date which is the canonical scheduling column here.
