@@ -114,16 +114,80 @@ serve(async (req) => {
     if (subError) throw subError;
     
     console.log(`[billing-generate-renewals] Found ${subscriptions?.length || 0} subscriptions to renew`);
-    
+
+    // ═══ CONSOLIDATION MULTI-ADRESSES ═══
+    // Regroupe les abonnements par compte (accounts.id). Une seule facture
+    // par compte par cycle : le sub "primaire" (plus proche renouvellement)
+    // porte la facture, les siblings sont ajoutés comme lignes + cycles avancés.
+    const subsByAccount = new Map<string, any[]>();
+    const accountBySubId = new Map<string, string>();
+    const accountIdByKey = new Map<string, string | null>();
+    const primarySubIds = new Set<string>();
+    const addressByIdCache = new Map<string, { line1: string; city: string }>();
+
+    if (subscriptions?.length) {
+      const custIds = [...new Set(subscriptions.map((s: any) => s.customer_id).filter(Boolean))];
+      const { data: bcRows } = await supabase
+        .from("billing_customers").select("id, user_id").in("id", custIds);
+      const userByCust = new Map<string, string>();
+      for (const r of bcRows || []) if ((r as any).user_id) userByCust.set((r as any).id, (r as any).user_id);
+      const userIds = [...new Set([...userByCust.values()])];
+      const { data: acctRows } = userIds.length
+        ? await supabase.from("accounts").select("id, client_id").in("client_id", userIds)
+        : { data: [] as any[] };
+      const acctByUser = new Map<string, string>();
+      for (const r of acctRows || []) acctByUser.set((r as any).client_id, (r as any).id);
+
+      for (const s of subscriptions as any[]) {
+        const uid = userByCust.get(s.customer_id);
+        const aid = uid ? acctByUser.get(uid) : null;
+        const key = aid || `sub:${s.id}`;
+        if (!subsByAccount.has(key)) {
+          subsByAccount.set(key, []);
+          accountIdByKey.set(key, aid || null);
+        }
+        subsByAccount.get(key)!.push(s);
+        accountBySubId.set(s.id, key);
+      }
+      for (const [_key, group] of subsByAccount.entries()) {
+        group.sort((a: any, b: any) => String(a.cycle_end_date).localeCompare(String(b.cycle_end_date)));
+        primarySubIds.add(group[0].id);
+      }
+      console.log(`[billing-generate-renewals] Consolidation: ${subscriptions.length} subs → ${subsByAccount.size} account groups`);
+    }
+
+    async function resolveAddressLabel(saId: string | null | undefined): Promise<string | null> {
+      if (!saId) return null;
+      if (addressByIdCache.has(saId)) {
+        const c = addressByIdCache.get(saId)!;
+        return `${c.line1}, ${c.city}`;
+      }
+      const { data: sa } = await supabase
+        .from("service_addresses")
+        .select("address_line, city")
+        .eq("id", saId).maybeSingle();
+      if (!sa) return null;
+      addressByIdCache.set(saId, { line1: (sa as any).address_line || "", city: (sa as any).city || "" });
+      return `${(sa as any).address_line || ""}, ${(sa as any).city || ""}`;
+    }
+
     const results = {
       processed: 0,
       invoices_created: [] as string[],
       errors: [] as string[]
     };
-    
+
     for (const sub of subscriptions || []) {
       try {
-        // ═══ GUARD: NULL next_renewal_at ═══
+        // Skip siblings — their invoicing is consolidated into the primary sub of the account
+        if (!primarySubIds.has(sub.id)) {
+          console.log(`[billing-generate-renewals] Skipping sibling sub ${sub.id} — consolidated into primary`);
+          continue;
+        }
+        const accountKey = accountBySubId.get(sub.id) || `sub:${sub.id}`;
+        const consolidatedAccountId = accountIdByKey.get(accountKey) || null;
+        const siblingSubs: any[] = (subsByAccount.get(accountKey) || []).filter((s: any) => s.id !== sub.id);
+
         // If next_renewal_at is null on an active subscription, this is a data
         // integrity issue. Log and create an alert, but DO continue using
         // cycle_end_date which is the canonical scheduling column here.
@@ -307,9 +371,13 @@ serve(async (req) => {
         }
 
         // Calculate amounts via canonical tax module
-        const subtotal = Math.max(0, sub.plan_price - promoDiscount - autopayDiscount);
+        // Consolidate: sum primary plan_price + all sibling subscriptions' plan_prices
+        const siblingTotal = siblingSubs.reduce((s: number, x: any) => s + Number(x.plan_price || 0), 0);
+        const combinedPlanPrice = Number(sub.plan_price || 0) + siblingTotal;
+        const subtotal = Math.max(0, combinedPlanPrice - promoDiscount - autopayDiscount);
         const { tps: tpsAmount, tvq: tvqAmount, total: baseTotal } = computeTaxes(subtotal);
         let finalTotal = baseTotal; // updated after account_adjustments
+
         
         // Due date = current cycle end date (J0) - prepaid model requires payment BEFORE service expires
         const dueDate = sub.cycle_end_date;
@@ -374,17 +442,29 @@ serve(async (req) => {
         
         if (invoiceError) throw invoiceError;
         
-        // Create invoice lines
-        const invoiceLines: any[] = [
-          {
+        // Create invoice lines — one per subscription (primary + siblings),
+        // prefixed with the service address when the account has multiple addresses.
+        const allSubsForInvoice = [sub, ...siblingSubs];
+        const distinctAddressIds = new Set(allSubsForInvoice.map((s: any) => s.service_address_id).filter(Boolean));
+        const multiAddress = distinctAddressIds.size >= 2;
+
+        const invoiceLines: any[] = [];
+        for (const s of allSubsForInvoice) {
+          const addrLabel = multiAddress ? await resolveAddressLabel(s.service_address_id) : null;
+          const desc = addrLabel
+            ? `${addrLabel} — ${s.plan_name} – Renouvellement 30 jours`
+            : `${s.plan_name} – Renouvellement 30 jours`;
+          invoiceLines.push({
             invoice_id: invoice.id,
-            description: `${sub.plan_name} – Renouvellement 30 jours`,
-            unit_price: sub.plan_price,
+            description: desc,
+            unit_price: Number(s.plan_price || 0),
             quantity: 1,
-            line_total: sub.plan_price,
-            line_type: 'service'
-          }
-        ];
+            line_total: Number(s.plan_price || 0),
+            line_type: 'service',
+            service_address_id: s.service_address_id || null,
+          });
+        }
+
         
         // Add promo discount line if applicable
         if (promoDiscount > 0) {
@@ -610,13 +690,19 @@ serve(async (req) => {
         // Advance subscription cycle so billing-lifecycle at 8h does not re-process
         const nextRenewalDate = new Date(newCycleEnd);
         nextRenewalDate.setDate(nextRenewalDate.getDate() - 3);
-        await supabase.from("billing_subscriptions").update({
+        const cycleUpdate = {
           cycle_start_date: newCycleStart.toISOString().split('T')[0],
           cycle_end_date: newCycleEnd.toISOString().split('T')[0],
           next_renewal_at: nextRenewalDate.toISOString(),
           last_invoice_id: invoice.id,
           updated_at: new Date().toISOString(),
-        }).eq("id", sub.id);
+        };
+        await supabase.from("billing_subscriptions").update(cycleUpdate).eq("id", sub.id);
+        // Advance siblings' cycles onto the same consolidated schedule
+        for (const s of siblingSubs) {
+          await supabase.from("billing_subscriptions").update(cycleUpdate).eq("id", s.id).catch(() => {});
+        }
+
 
         // ═══ IDEMPOTENCY: never create a duplicate pending payment ═══
         // Check if a non-failed/cancelled payment already exists for this
