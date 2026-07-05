@@ -507,7 +507,7 @@ function drawPage3Modalites(doc: jsPDF) {
     { h: "Modèle prépayé",
       p: "Nivra est un fournisseur prépayé. Chaque cycle mensuel doit être payé à l'avance. Le paiement doit être confirmé au plus tard à la date d'échéance indiquée sur cette facture pour éviter la suspension du service." },
     { h: "Méthodes acceptées",
-      p: "• Virement Interac (billing@nivra-telecom.ca) — instantané.\n• PayPal (PayPal.Me/nivratelecom) — indiquez votre numéro de facture.\n• Carte de crédit / débit via le portail client (portal.nivra-telecom.ca).\n• Paiement automatique (PAD) — activable dans votre portail." },
+      p: "• Virement Interac (support@nivra-telecom.ca) — instantané.\n• PayPal (PayPal.Me/nivratelecom) — indiquez votre numéro de facture.\n• Carte de crédit / débit via le portail client (portal.nivra-telecom.ca).\n• Paiement automatique (PAD) — activable dans votre portail." },
     { h: "Cycle de facturation",
       p: "Le cycle commence à la date de confirmation du paiement initial. La date de renouvellement (J0) est identique chaque mois. Une facture de renouvellement est émise 7 jours avant J0." },
     { h: "Retard de paiement",
