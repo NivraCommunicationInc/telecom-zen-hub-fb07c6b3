@@ -35,9 +35,25 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    const { invoice_id, customer_email, customer_name, mode } = body;
+    const { invoice_id: rawInvoiceId, order_id, customer_email, customer_name, mode } = body;
 
-    if (!invoice_id) return json({ ok: false, error: "invoice_id requis" }, 400);
+    // Resolve invoice_id from order_id if only order_id was provided
+    let invoice_id: string | null = rawInvoiceId ?? null;
+    if (!invoice_id && order_id) {
+      const { data: invRow, error: invLookupErr } = await supabase
+        .from("billing_invoices")
+        .select("id, balance_due, total, created_at")
+        .eq("order_id", order_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (invLookupErr) {
+        console.error("[core-square-payment-link] order→invoice lookup error:", invLookupErr);
+      }
+      if (invRow?.id) invoice_id = invRow.id;
+    }
+
+    if (!invoice_id) return json({ ok: false, error: "Facture introuvable pour cette commande" }, 404);
 
     // Try to extract caller's user_id from JWT (for agent_id audit trail)
     let agentId = SYSTEM_AGENT_ID;
