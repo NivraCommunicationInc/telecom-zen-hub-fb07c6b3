@@ -138,7 +138,7 @@ export default function MarketingTemplatesPage() {
       {editing && (
         <MKCard className="overflow-hidden">
           <div className="border-b border-border px-5 py-4">
-            <DialogTitle>{editing?.id ? "Éditer" : "Nouveau"} template</DialogTitle>
+            <h2 className="text-lg font-black leading-tight text-foreground">{editing?.id ? "Éditer" : "Nouveau"} template</h2>
           </div>
           <div className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-2">
             <div className="space-y-3 overflow-y-auto pr-2">
@@ -176,7 +176,7 @@ export default function MarketingTemplatesPage() {
       {preview && (
         <MKCard className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <DialogTitle>Aperçu</DialogTitle>
+            <h2 className="text-lg font-black leading-tight text-foreground">Aperçu</h2>
             <Button variant="outline" size="sm" onClick={() => setPreview(null)}>Fermer</Button>
           </div>
           <iframe srcDoc={preview ?? ""} className="h-[720px] w-full border-0 bg-white" />

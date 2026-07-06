@@ -257,7 +257,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
   return (
     <MKCard className="overflow-hidden">
       <div className="border-b border-border px-5 py-4">
-          <DialogTitle>Nouvelle campagne — étape {step}/4</DialogTitle>
+          <h2 className="text-lg font-black leading-tight text-foreground">Nouvelle campagne — étape {step}/4</h2>
           <div className="flex gap-1 mt-2">
             {[1, 2, 3, 4].map(n => (
               <div key={n} className={`h-1 flex-1 rounded ${n <= step ? "bg-[#7C3AED]" : "bg-[#1E1E2E]"}`} />

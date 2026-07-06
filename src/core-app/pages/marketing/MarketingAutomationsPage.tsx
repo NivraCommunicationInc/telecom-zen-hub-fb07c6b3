@@ -110,7 +110,7 @@ export default function MarketingAutomationsPage() {
 
       {open && (
         <MKCard className="overflow-hidden">
-          <div className="border-b border-border px-5 py-4"><DialogTitle>Builder automation</DialogTitle></div>
+          <div className="border-b border-border px-5 py-4"><h2 className="text-lg font-black leading-tight text-foreground">Builder automation</h2></div>
           <div className="grid gap-5 p-5 md:grid-cols-[.8fr_1.2fr]">
             <div className="space-y-3">
               <div><Label>Nom</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>

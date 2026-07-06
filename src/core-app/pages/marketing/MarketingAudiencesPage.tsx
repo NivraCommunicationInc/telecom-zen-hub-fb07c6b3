@@ -164,7 +164,7 @@ export default function MarketingAudiencesPage() {
       {dialogOpen && (
         <MKCard>
           <div className="border-b border-border px-5 py-4">
-            <DialogTitle>Nouvelle audience</DialogTitle>
+            <h2 className="text-lg font-black leading-tight text-foreground">Nouvelle audience</h2>
           </div>
           <div className="space-y-4 p-5">
             <div>

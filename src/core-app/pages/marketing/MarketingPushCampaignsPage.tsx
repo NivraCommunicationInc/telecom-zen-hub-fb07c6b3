@@ -102,7 +102,7 @@ export default function MarketingPushCampaignsPage() {
 
       {dialogOpen && (
         <MKCard>
-          <div className="border-b border-border px-5 py-4"><DialogTitle>Nouvelle campagne push</DialogTitle></div>
+          <div className="border-b border-border px-5 py-4"><h2 className="text-lg font-black leading-tight text-foreground">Nouvelle campagne push</h2></div>
           <div className="grid gap-5 p-5 md:grid-cols-[1fr_320px]">
             <div className="space-y-4">
               <div><Label>Titre</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
@@ -146,7 +146,7 @@ export default function MarketingPushCampaignsPage() {
 
       {previewOpen && (
         <MKCard className="max-w-md">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4"><DialogTitle>Aperçu push</DialogTitle><Button variant="outline" size="sm" onClick={() => setPreviewOpen(false)}>Fermer</Button></div>
+          <div className="flex items-center justify-between border-b border-border px-5 py-4"><h2 className="text-lg font-black leading-tight text-foreground">Aperçu push</h2><Button variant="outline" size="sm" onClick={() => setPreviewOpen(false)}>Fermer</Button></div>
           <div className="p-5"><PushPreview title={form.title} body={form.body} url={form.url} /></div>
         </MKCard>
       )}
