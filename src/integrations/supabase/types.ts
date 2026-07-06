@@ -8038,8 +8038,9 @@ export type Database = {
           click_count: number | null
           click_urls: Json | null
           clicked_at: string | null
-          client_id: string
+          client_id: string | null
           created_at: string
+          crm_contact_id: string | null
           delivered_at: string | null
           error_message: string | null
           failed_at: string | null
@@ -8061,8 +8062,9 @@ export type Database = {
           click_count?: number | null
           click_urls?: Json | null
           clicked_at?: string | null
-          client_id: string
+          client_id?: string | null
           created_at?: string
+          crm_contact_id?: string | null
           delivered_at?: string | null
           error_message?: string | null
           failed_at?: string | null
@@ -8084,8 +8086,9 @@ export type Database = {
           click_count?: number | null
           click_urls?: Json | null
           clicked_at?: string | null
-          client_id?: string
+          client_id?: string | null
           created_at?: string
+          crm_contact_id?: string | null
           delivered_at?: string | null
           error_message?: string | null
           failed_at?: string | null
@@ -8113,6 +8116,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_sends_crm_contact_id_fkey"
+            columns: ["crm_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
             referencedColumns: ["id"]
           },
           {

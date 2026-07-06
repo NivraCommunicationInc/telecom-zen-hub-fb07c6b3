@@ -1,0 +1,1 @@
+ALTER TABLE public.email_sends ALTER COLUMN client_id DROP NOT NULL; ALTER TABLE public.email_sends ADD COLUMN IF NOT EXISTS crm_contact_id UUID REFERENCES public.crm_contacts(id) ON DELETE SET NULL; CREATE INDEX IF NOT EXISTS idx_email_sends_crm_contact_id ON public.email_sends(crm_contact_id);
