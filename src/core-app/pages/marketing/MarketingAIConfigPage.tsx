@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Save, Bot, Languages, Tag, Activity, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { MKPage } from "./_marketing-ui";
+import MarketingNav from "./MarketingNav";
 
 type Cfg = {
   id: string;
@@ -127,9 +129,12 @@ export default function MarketingAIConfigPage() {
 
   if (loading || !cfg) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin mr-2" /> Chargement…
-      </div>
+      <MKPage title="IA" subtitle="Configuration de l'agent marketing">
+        <MarketingNav />
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" /> Chargement…
+        </div>
+      </MKPage>
     );
   }
 
@@ -137,13 +142,12 @@ export default function MarketingAIConfigPage() {
   const failCount = replies.length - successCount;
 
   return (
-    <div className="space-y-4 max-w-5xl">
+    <MKPage title="IA" subtitle="Configuration de l'agent marketing qui répond aux SMS entrants.">
+      <MarketingNav />
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Agent IA — Ventes</h1>
-          <p className="text-sm text-muted-foreground">
-            Configuration de l'agent IA qui répond automatiquement aux SMS entrants via OpenPhone.
-          </p>
+          <h2 className="text-xl font-black tracking-normal">Agent IA — Ventes</h2>
+          <p className="text-sm text-muted-foreground">Activation, modèle, prompt, rabais et dernières réponses.</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={cfg.is_enabled ? "default" : "secondary"}>
@@ -353,6 +357,6 @@ export default function MarketingAIConfigPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </MKPage>
   );
 }

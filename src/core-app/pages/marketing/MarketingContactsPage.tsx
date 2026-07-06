@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, Users, Loader2, RefreshCw } from "lucide-react";
+import { Search, Download, Users, Loader2, RefreshCw, Target, Send } from "lucide-react";
 import { toast } from "sonner";
 import { MKPage, MKCard, MKCardHeader, MKStat } from "./_marketing-ui";
 import MarketingNav from "./MarketingNav";
@@ -88,6 +88,23 @@ export default function MarketingContactsPage() {
     toast.success(`${target.length} contacts exportés`);
   };
 
+  const createAudienceFromSelection = async () => {
+    if (!selected.size) {
+      toast.error("Sélectionne au moins un contact");
+      return;
+    }
+    const emails = filtered.filter((r) => selected.has(r.id)).map((r) => r.email.toLowerCase());
+    const { error } = await supabase.from("mkt_audiences").insert({
+      name: `Sélection contacts · ${new Date().toLocaleDateString("fr-CA")}`,
+      description: `${emails.length} contacts sélectionnés manuellement depuis la liste marketing`,
+      rules: { source: "selected_emails", filters: { emails } },
+      member_count: emails.length,
+      last_refreshed_at: new Date().toISOString(),
+    });
+    if (error) return toast.error(error.message);
+    toast.success(`Audience créée · ${emails.length} contacts`);
+  };
+
   const counts = useMemo(() => ({
     total: rows.length,
     client: rows.filter(r => r.source === "client").length,
@@ -107,6 +124,9 @@ export default function MarketingContactsPage() {
           <Button size="sm" onClick={exportCsv} className="bg-[#7C3AED] hover:bg-[#6D28D9]">
             <Download className="h-4 w-4 mr-1.5" /> Exporter CSV
           </Button>
+          <Button size="sm" onClick={createAudienceFromSelection} disabled={!selected.size} className="rounded-full font-black">
+            <Target className="h-4 w-4 mr-1.5" /> Audience sélection
+          </Button>
         </>
       }
     >
@@ -121,7 +141,7 @@ export default function MarketingContactsPage() {
 
       <MKCard>
         <MKCardHeader title={`Contacts (${filtered.length})`} action={
-          selected.size ? <Badge className="bg-[#7C3AED]">{selected.size} sélectionnés</Badge> : null
+          selected.size ? <Badge className="bg-[#7C3AED]"><Send className="mr-1 h-3 w-3" />{selected.size} sélectionnés</Badge> : null
         } />
         <div className="p-4 flex flex-wrap gap-2 border-b border-[#1E1E2E]">
           <div className="relative flex-1 min-w-[240px]">

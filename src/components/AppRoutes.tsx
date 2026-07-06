@@ -217,6 +217,8 @@ const MarketingCampaignsPage = lazy(() => import("@/core-app/pages/marketing/Mar
 const MarketingContactsPage = lazy(() => import("@/core-app/pages/marketing/MarketingContactsPage"));
 const MarketingAnalyticsPage = lazy(() => import("@/core-app/pages/marketing/MarketingAnalyticsPage"));
 const MarketingAutomationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingAutomationsPage"));
+const MarketingPlanningPage = lazy(() => import("@/core-app/pages/marketing/MarketingPlanningPage"));
+const MarketingPushCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingPushCampaignsPage"));
 // Field Management
 const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
 const CoreFieldSubmissionsPage = lazy(() => import("@/core-app/pages/CoreFieldSubmissionsPage"));
@@ -969,6 +971,8 @@ const AppRoutes = () => {
           <Route path="contacts" element={<Suspense fallback={null}><MarketingContactsPage /></Suspense>} />
           <Route path="analytics" element={<Suspense fallback={null}><MarketingAnalyticsPage /></Suspense>} />
           <Route path="automations" element={<Suspense fallback={null}><MarketingAutomationsPage /></Suspense>} />
+          <Route path="planning" element={<Suspense fallback={null}><MarketingPlanningPage /></Suspense>} />
+          <Route path="push-campaigns" element={<Suspense fallback={null}><MarketingPushCampaignsPage /></Suspense>} />
           <Route path="live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
         </Route>
@@ -1063,6 +1067,9 @@ const AppRoutes = () => {
           <Route path="marketing/contacts" element={<Suspense fallback={null}><MarketingContactsPage /></Suspense>} />
           <Route path="marketing/analytics" element={<Suspense fallback={null}><MarketingAnalyticsPage /></Suspense>} />
           <Route path="marketing/automations" element={<Suspense fallback={null}><MarketingAutomationsPage /></Suspense>} />
+          <Route path="marketing/planning" element={<Suspense fallback={null}><MarketingPlanningPage /></Suspense>} />
+          <Route path="marketing/push-campaigns" element={<Suspense fallback={null}><MarketingPushCampaignsPage /></Suspense>} />
+          <Route path="marketing/live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="marketing/settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
           <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />

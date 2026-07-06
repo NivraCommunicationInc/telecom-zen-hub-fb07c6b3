@@ -112,3 +112,52 @@
    These components already use semantic tokens (bg-popover, text-foreground)
    so they render correctly when opened from a public page. We do NOT
    override :root here on purpose to keep the public marketing site intact. */
+
+/* ── Marketing portal: Mailchimp-style workbench ────────────────── */
+.internal-ui[data-marketing-portal] {
+  --background: 45 35% 94%;
+  --foreground: 28 28% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 28 28% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 28 28% 11%;
+  --primary: 52 100% 55%;
+  --primary-foreground: 28 28% 11%;
+  --secondary: 46 30% 88%;
+  --secondary-foreground: 28 28% 11%;
+  --muted: 46 25% 90%;
+  --muted-foreground: 28 15% 36%;
+  --accent: 185 100% 27%;
+  --accent-foreground: 0 0% 100%;
+  --border: 32 18% 78%;
+  --input: 32 18% 78%;
+  --ring: 185 100% 27%;
+  --sidebar-background: 45 35% 94%;
+  --sidebar-foreground: 28 28% 11%;
+  --sidebar-primary: 52 100% 55%;
+  --sidebar-primary-foreground: 28 28% 11%;
+  --sidebar-accent: 46 30% 88%;
+  --sidebar-accent-foreground: 28 28% 11%;
+  --sidebar-border: 32 18% 78%;
+  --success: 160 84% 30%;
+  color-scheme: light;
+}
+
+.internal-ui[data-marketing-portal] [data-marketing-workbench] .text-white,
+.internal-ui[data-marketing-portal] [data-marketing-workbench] [class*="text-[#888]"],
+.internal-ui[data-marketing-portal] [data-marketing-workbench] [class*="text-[#666]"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.internal-ui[data-marketing-portal] [data-marketing-workbench] [class*="bg-[#0D0D1A]"],
+.internal-ui[data-marketing-portal] [data-marketing-workbench] [class*="bg-[#111118]"] {
+  background-color: hsl(var(--card)) !important;
+}
+
+.internal-ui[data-marketing-portal] [data-marketing-workbench] [class*="bg-[#1E1E2E]"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+.internal-ui[data-marketing-portal] [data-marketing-workbench] [class*="border-[#1E1E2E]"] {
+  border-color: hsl(var(--border)) !important;
+}

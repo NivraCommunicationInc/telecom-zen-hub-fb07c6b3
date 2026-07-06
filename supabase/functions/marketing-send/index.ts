@@ -258,6 +258,14 @@ async function resolveAudience(admin: any, audienceId: string | null): Promise<R
     }
   }
 
+  if (source === "selected_emails") {
+    const emails = Array.isArray(filters.emails) ? filters.emails : [];
+    for (const email of emails) {
+      const normalized = String(email || "").trim().toLowerCase();
+      if (normalized && normalized.includes("@")) out.push({ email: normalized });
+    }
+  }
+
   return out;
 }
 
