@@ -55,11 +55,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY not configured");
-    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const body: SendRequest = await req.json();
@@ -126,7 +121,7 @@ serve(async (req) => {
 
     // Test email mode
     if (test_email) {
-      const result = await sendEmail(resendApiKey, {
+      const result = await sendEmail({
         to: test_email,
         subject: subjectOverride || template.subject,
         html: replaceVariables(template.html_content, {
@@ -259,7 +254,7 @@ serve(async (req) => {
         const subject = replaceVariables(subjectOverride || template.subject, variables);
         const html = injectTracking(renderedHtml, campaign_id ?? null, sendId);
 
-        const result = await sendEmail(resendApiKey, {
+        const result = await sendEmail({
           to: client.email,
           subject,
           html,
@@ -355,7 +350,6 @@ function replaceVariables(content: string, variables: Record<string, string>): s
 }
 
 async function sendEmail(
-  _apiKey: string,
   params: { to: string; subject: string; html: string; unsubscribeUrl?: string },
 ) {
   const result = await enqueueEmail({

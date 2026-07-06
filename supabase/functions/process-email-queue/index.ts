@@ -1,3 +1,4 @@
+import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const MAX_RETRIES = 5
@@ -34,10 +35,6 @@ function getRetryAfterSeconds(error: unknown): number {
 }
 
 function parseJwtClaims(token: string): Record<string, unknown> | null {
-  // Supabase new opaque key format (non-JWT): prefix encodes the role
-  if (token.startsWith('sb_secret_')) return { role: 'service_role' }
-  if (token.startsWith('sb_publishable_')) return { role: 'anon' }
-
   const parts = token.split('.')
   if (parts.length < 2) {
     return null
@@ -50,7 +47,7 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
       .padEnd(Math.ceil(parts[1].length / 4) * 4, '=')
 
     return JSON.parse(atob(payload)) as Record<string, unknown>
-  } catch (_e) {
+  } catch {
     return null
   }
 }
@@ -82,12 +79,12 @@ async function moveToDlq(
 }
 
 Deno.serve(async (req) => {
+  const apiKey = Deno.env.get('LOVABLE_API_KEY')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  const resendApiKey = Deno.env.get('RESEND_API_KEY')
 
-  if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
-    console.error('Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY')
+  if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing required environment variables')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -252,34 +249,26 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const resendBody: Record<string, unknown> = {
-          from: typeof payload.from === 'string' ? payload.from : 'Nivra Telecom <support@nivra-telecom.ca>',
-          to: Array.isArray(payload.to) ? payload.to : [payload.to],
-          subject: payload.subject,
-          html: payload.html,
-        }
-        if (payload.text) resendBody.text = payload.text
-        if (payload.reply_to) resendBody.reply_to = payload.reply_to
-        if (Array.isArray(payload.bcc) && payload.bcc.length > 0) resendBody.bcc = payload.bcc
-        if (payload.headers && typeof payload.headers === 'object') resendBody.headers = payload.headers
-        if (Array.isArray(payload.attachments) && payload.attachments.length > 0) {
-          resendBody.attachments = (payload.attachments as Array<Record<string, unknown>>).map((a) => ({
-            filename: a.filename,
-            content: a.content,
-          }))
-        }
-
-        const r = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendApiKey}` },
-          body: JSON.stringify(resendBody),
-        })
-        if (!r.ok) {
-          const errText = (await r.text()).slice(0, 500)
-          // Create a structured error so isRateLimited / isForbidden work
-          const err = Object.assign(new Error(`Resend ${r.status}: ${errText}`), { status: r.status })
-          throw err
-        }
+        await sendLovableEmail(
+          {
+            run_id: payload.run_id,
+            to: payload.to,
+            from: payload.from,
+            sender_domain: payload.sender_domain,
+            subject: payload.subject,
+            html: payload.html,
+            text: payload.text,
+            purpose: payload.purpose,
+            label: payload.label,
+            idempotency_key: payload.idempotency_key,
+            unsubscribe_token: payload.unsubscribe_token,
+            message_id: payload.message_id,
+          },
+          // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
+          // falls back to the default Lovable API endpoint (https://api.lovable.dev).
+          // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
+          { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
+        )
 
         // Log success
         await supabase.from('email_send_log').insert({
