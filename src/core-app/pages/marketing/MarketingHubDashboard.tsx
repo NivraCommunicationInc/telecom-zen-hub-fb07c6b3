@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MKPage, MKCard, MKCardHeader, MKStat, MK_CARD } from "./_marketing-ui";
+import MarketingNav from "./MarketingNav";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -160,6 +161,7 @@ export default function MarketingHubDashboard() {
         </Link>
       }
     >
+      <MarketingNav />
       {/* 8 KPIs in 2 rows of 4 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MKStat label="Conversations actives" value={stats.active_conversations_today} icon={MessageSquare} accent="#7C3AED" />

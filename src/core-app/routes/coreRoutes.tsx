@@ -180,6 +180,9 @@ const MarketingAIConfigPage = lazy(() => import("@/core-app/pages/marketing/Mark
 const MarketingSMSCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSMSCampaignsPage"));
 const MarketingEmailCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingEmailCampaignsPage"));
 const MarketingSettingsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSettingsPage"));
+const MarketingAudiencesPage = lazy(() => import("@/core-app/pages/marketing/MarketingAudiencesPage"));
+const MarketingTemplatesPage = lazy(() => import("@/core-app/pages/marketing/MarketingTemplatesPage"));
+const MarketingCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingCampaignsPage"));
 
 export const coreRoutes: RouteObject = {
   path: "/core",
@@ -351,6 +354,9 @@ export const coreRoutes: RouteObject = {
     { path: "marketing/ai-config", element: <MarketingAIConfigPage /> },
     { path: "marketing/sms-campaigns", element: <MarketingSMSCampaignsPage /> },
     { path: "marketing/email-campaigns", element: <MarketingEmailCampaignsPage /> },
+    { path: "marketing/audiences", element: <MarketingAudiencesPage /> },
+    { path: "marketing/templates", element: <MarketingTemplatesPage /> },
+    { path: "marketing/campaigns", element: <MarketingCampaignsPage /> },
     { path: "marketing/settings", element: <MarketingSettingsPage /> },
   ],
 };
