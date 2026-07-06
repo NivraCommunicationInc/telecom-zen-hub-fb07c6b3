@@ -7,6 +7,15 @@ import App from "./App.tsx";
 import "./index.css";
 import "./styles/internal-portal.css";
 import "./core-app/styles/core-dark-processing.css";
+import "@fontsource/outfit/400.css";
+import "@fontsource/outfit/600.css";
+import "@fontsource/outfit/700.css";
+import "@fontsource/outfit/800.css";
+import "@fontsource/figtree/400.css";
+import "@fontsource/figtree/500.css";
+import "@fontsource/figtree/600.css";
+import "@fontsource/figtree/700.css";
+import "./tech-app/styles/tech-portal.css";
 
 // Initialize Sentry FIRST so it can capture any boot-time error.
 // No-op when VITE_SENTRY_DSN is not set (safe to ship without it).
