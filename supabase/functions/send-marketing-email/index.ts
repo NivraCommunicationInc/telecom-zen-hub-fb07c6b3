@@ -142,12 +142,20 @@ serve(async (req) => {
     // Get clients to send to
     let clients: Client[] = [];
 
-    if (client_ids && client_ids.length > 0) {
+    if (crm_contact_ids && crm_contact_ids.length > 0) {
+      const { data } = await supabase
+        .from("crm_contacts")
+        .select("id, email, first_name, last_name, phone")
+        .in("id", crm_contact_ids)
+        .not("email", "is", null)
+        .neq("email", "");
+      clients = (data || []).map((c: any) => ({ ...c, source: "crm_contacts" as const }));
+    } else if (client_ids && client_ids.length > 0) {
       const { data } = await supabase
         .from("clients")
         .select("id, email, first_name, last_name, phone")
         .in("id", client_ids);
-      clients = data || [];
+      clients = (data || []).map((c: any) => ({ ...c, source: "clients" as const }));
     } else {
       // Build query based on segment filters
       let query = supabase
