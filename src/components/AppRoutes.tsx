@@ -214,6 +214,9 @@ const MarketingSettingsPage = lazy(() => import("@/core-app/pages/marketing/Mark
 const MarketingAudiencesPage = lazy(() => import("@/core-app/pages/marketing/MarketingAudiencesPage"));
 const MarketingTemplatesPage = lazy(() => import("@/core-app/pages/marketing/MarketingTemplatesPage"));
 const MarketingCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingCampaignsPage"));
+const MarketingContactsPage = lazy(() => import("@/core-app/pages/marketing/MarketingContactsPage"));
+const MarketingAnalyticsPage = lazy(() => import("@/core-app/pages/marketing/MarketingAnalyticsPage"));
+const MarketingAutomationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingAutomationsPage"));
 // Field Management
 const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
 const CoreFieldSubmissionsPage = lazy(() => import("@/core-app/pages/CoreFieldSubmissionsPage"));
@@ -963,6 +966,10 @@ const AppRoutes = () => {
           <Route path="audiences" element={<Suspense fallback={null}><MarketingAudiencesPage /></Suspense>} />
           <Route path="templates" element={<Suspense fallback={null}><MarketingTemplatesPage /></Suspense>} />
           <Route path="campaigns" element={<Suspense fallback={null}><MarketingCampaignsPage /></Suspense>} />
+          <Route path="contacts" element={<Suspense fallback={null}><MarketingContactsPage /></Suspense>} />
+          <Route path="analytics" element={<Suspense fallback={null}><MarketingAnalyticsPage /></Suspense>} />
+          <Route path="automations" element={<Suspense fallback={null}><MarketingAutomationsPage /></Suspense>} />
+          <Route path="live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
         </Route>
       </Route>
@@ -1053,6 +1060,9 @@ const AppRoutes = () => {
           <Route path="marketing/audiences" element={<Suspense fallback={null}><MarketingAudiencesPage /></Suspense>} />
           <Route path="marketing/templates" element={<Suspense fallback={null}><MarketingTemplatesPage /></Suspense>} />
           <Route path="marketing/campaigns" element={<Suspense fallback={null}><MarketingCampaignsPage /></Suspense>} />
+          <Route path="marketing/contacts" element={<Suspense fallback={null}><MarketingContactsPage /></Suspense>} />
+          <Route path="marketing/analytics" element={<Suspense fallback={null}><MarketingAnalyticsPage /></Suspense>} />
+          <Route path="marketing/automations" element={<Suspense fallback={null}><MarketingAutomationsPage /></Suspense>} />
           <Route path="marketing/settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
           <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />
