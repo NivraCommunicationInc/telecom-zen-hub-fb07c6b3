@@ -360,6 +360,13 @@ Deno.serve(async (req) => {
       errors: result.errors.length,
     });
 
+    await recordHeartbeat(supabase, "paypal-reconcile", "success", _hbStarted, {
+      total: result.total_checked,
+      new: result.new_payments_found,
+      existing: result.already_recorded,
+      errors: result.errors.length,
+    });
+
     return new Response(
       JSON.stringify({ 
         ok: true, 
@@ -373,11 +380,13 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("[PayPalReconcile] Unexpected error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[PayPalReconcile] Unexpected error:", msg);
+    await recordHeartbeat(supabase, "paypal-reconcile", "error", _hbStarted, {}, msg);
     return new Response(
       JSON.stringify({ 
         error: "Internal server error", 
-        message: String(error),
+        message: msg,
         ok: false 
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
