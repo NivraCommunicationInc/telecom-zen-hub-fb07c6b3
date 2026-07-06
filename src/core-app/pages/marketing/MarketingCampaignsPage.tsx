@@ -15,7 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Plus, Loader2, Send, Eye, TestTube2, Users, Mail, CheckCircle2, XCircle, Clock,
+  Plus, Loader2, Send, Eye, TestTube2, Users, CheckCircle2, Clock, CalendarClock,
+  SplitSquareHorizontal, Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -27,7 +28,10 @@ interface Campaign {
   status: string;
   subject: string | null;
   html_content: string | null;
+  channel: string;
   audience_id: string | null;
+  scheduled_at: string | null;
+  ab_config: any;
   total_recipients: number;
   sent_count: number;
   opened_count: number;
@@ -62,9 +66,9 @@ export default function MarketingCampaignsPage() {
   return (
     <MKPage
       title="Campagnes"
-      subtitle="Emails marketing via Resend — logs, taux d'ouverture, clics"
+      subtitle="Builder avancé: audience, contenu, aperçu WYSIWYG, A/B testing, test et planification."
       actions={
-        <Button size="sm" onClick={() => setWizardOpen(true)} className="bg-[#7C3AED] hover:bg-[#6D28D9]">
+        <Button size="sm" onClick={() => setWizardOpen(true)} className="rounded-full font-black">
           <Plus className="h-4 w-4 mr-1" /> Nouvelle campagne
         </Button>
       }
@@ -90,6 +94,9 @@ export default function MarketingCampaignsPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge className={STATUS_STYLES[c.status] ?? ""}>{c.status}</Badge>
+                      <Badge variant="outline" className="rounded-full capitalize">{c.channel ?? "email"}</Badge>
+                      {c.ab_config?.enabled && <Badge variant="outline" className="rounded-full"><SplitSquareHorizontal className="mr-1 h-3 w-3" />A/B</Badge>}
+                      {c.scheduled_at && <Badge variant="outline" className="rounded-full"><CalendarClock className="mr-1 h-3 w-3" />{format(new Date(c.scheduled_at), "d MMM HH:mm", { locale: fr })}</Badge>}
                       <div className="text-sm font-semibold text-white truncate">{c.name}</div>
                     </div>
                     <div className="text-xs text-[#888] mt-1 truncate">{c.subject}</div>
@@ -139,9 +146,14 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
 
   const [f, setF] = useState({
     name: "",
+    channel: "email",
     audience_id: "",
     template_id: "",
     subject: "",
+    subject_b: "",
+    ab_enabled: false,
+    ab_split: "50",
+    scheduled_at: "",
     preheader: "",
     html_content: "",
     from_name: "Nivra",
@@ -164,27 +176,39 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
     setF({ ...f, template_id: id, html_content: t?.html ?? "" });
   };
 
-  const saveDraft = async (): Promise<string | null> => {
+  const saveDraft = async (status: "draft" | "scheduled" = "draft"): Promise<string | null> => {
     if (!f.name.trim()) { toast.error("Nom requis"); return null; }
     setSaving(true);
     const { data, error } = await supabase.from("mkt_campaigns").insert({
       name: f.name.trim(),
+      channel: f.channel,
       audience_id: f.audience_id || null,
       template_id: f.template_id || null,
       subject: f.subject.trim() || null,
       preheader: f.preheader.trim() || null,
       html_content: f.html_content || null,
+      scheduled_at: f.scheduled_at || null,
+      ab_config: f.ab_enabled ? {
+        enabled: true,
+        split: Number(f.ab_split) || 50,
+        variants: [
+          { key: "A", subject: f.subject.trim() },
+          { key: "B", subject: f.subject_b.trim() || f.subject.trim() },
+        ],
+        winner_metric: "click_rate",
+      } : null,
       from_name: f.from_name,
       from_email: f.from_email,
-      status: "draft",
+      status,
     }).select("id").single();
     setSaving(false);
     if (error) { toast.error(error.message); return null; }
-    toast.success("Brouillon sauvegardé");
+    toast.success(status === "scheduled" ? "Campagne planifiée" : "Brouillon sauvegardé");
     return data.id;
   };
 
   const sendTest = async () => {
+    if (f.channel !== "email") { toast.info("Le test direct est disponible pour les emails."); return; }
     if (!testEmail.trim()) { toast.error("Email test requis"); return; }
     if (!f.subject || !f.html_content) { toast.error("Sujet et HTML requis"); return; }
     setTesting(true);
@@ -201,6 +225,14 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
   };
 
   const launch = async () => {
+    if (f.channel !== "email") {
+      const id = await saveDraft(f.scheduled_at ? "scheduled" : "draft");
+      if (id) {
+        toast.success(f.channel === "push" ? "Campagne push préparée" : "Campagne sauvegardée");
+        onDone();
+      }
+      return;
+    }
     const id = await saveDraft();
     if (!id) return;
     setSending(true);
@@ -214,6 +246,12 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
     }
     toast.success(`Campagne envoyée · ${data.sent}/${data.total} livrés`);
     onDone();
+  };
+
+  const schedule = async () => {
+    if (!f.scheduled_at) { toast.error("Date de planification requise"); return; }
+    const id = await saveDraft("scheduled");
+    if (id) onDone();
   };
 
   return (
@@ -231,6 +269,19 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
         <div className="flex-1 overflow-y-auto space-y-4">
           {step === 1 && (
             <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { value: "email", label: "Email", icon: Send, desc: "Envoi Resend" },
+                  { value: "push", label: "Push web", icon: Smartphone, desc: "Notification navigateur" },
+                ].map((ch) => (
+                  <button key={ch.value} type="button" onClick={() => setF({ ...f, channel: ch.value })}
+                    className={`rounded-2xl border p-4 text-left transition-colors ${f.channel === ch.value ? "border-primary bg-primary/10" : "border-border hover:bg-secondary"}`}>
+                    <ch.icon className="mb-3 h-5 w-5 text-primary" />
+                    <div className="text-sm font-black text-foreground">{ch.label}</div>
+                    <div className="text-xs text-muted-foreground">{ch.desc}</div>
+                  </button>
+                ))}
+              </div>
               <div>
                 <Label>Nom interne de la campagne *</Label>
                 <Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })}
@@ -246,9 +297,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
                   <Input value={f.from_email} onChange={e => setF({ ...f, from_email: e.target.value })} />
                 </div>
               </div>
-              <p className="text-[11px] text-[#888]">
-                Le domaine doit être vérifié dans Resend. Par défaut: notify.nivra-telecom.ca
-              </p>
+              <p className="text-[11px] text-muted-foreground">Le domaine Resend doit être actif pour que l'envoi réel passe; les brouillons, previews et planifications restent disponibles.</p>
             </div>
           )}
 
@@ -291,6 +340,16 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 h-[400px]">
                 <div className="flex flex-col">
                   <Label>HTML</Label>
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {[
+                      ["Header", '<div style="background:#0066CC;padding:24px;text-align:center;color:white;font-size:24px;font-weight:700">Nivra Telecom</div>'],
+                      ["Texte", '<p style="font-size:16px;line-height:1.6;color:#1f2937">Bonjour {{first_name}}, votre message ici.</p>'],
+                      ["Bouton", '<p style="text-align:center"><a href="https://nivra-telecom.ca" style="background:#0066CC;color:white;padding:14px 26px;border-radius:999px;text-decoration:none;font-weight:700">Voir l’offre</a></p>'],
+                      ["Footer", '<div style="padding:18px;text-align:center;font-size:12px;color:#6b7280">Nivra Telecom · <a href="{{unsubscribe_url}}">Se désabonner</a></div>'],
+                    ].map(([label, html]) => (
+                      <Button key={label} type="button" size="sm" variant="outline" onClick={() => setF({ ...f, html_content: `${f.html_content}\n${html}` })}>{label}</Button>
+                    ))}
+                  </div>
                   <Textarea className="flex-1 font-mono text-xs" value={f.html_content}
                     onChange={e => setF({ ...f, html_content: e.target.value })} />
                 </div>
@@ -316,20 +375,41 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
                 <Label>Preheader (texte de prévisualisation dans la boîte)</Label>
                 <Input value={f.preheader} onChange={e => setF({ ...f, preheader: e.target.value })} />
               </div>
+              <div className="rounded-2xl border border-border bg-secondary/40 p-4 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-black text-foreground">
+                  <input type="checkbox" checked={f.ab_enabled} onChange={(e) => setF({ ...f, ab_enabled: e.target.checked })} />
+                  <SplitSquareHorizontal className="h-4 w-4 text-primary" /> Activer A/B testing sujet
+                </label>
+                {f.ab_enabled && (
+                  <div className="grid gap-3 md:grid-cols-[1fr_110px]">
+                    <div>
+                      <Label>Sujet variante B</Label>
+                      <Input value={f.subject_b} onChange={e => setF({ ...f, subject_b: e.target.value })} placeholder="Variante de sujet" />
+                    </div>
+                    <div>
+                      <Label>Split A</Label>
+                      <Input type="number" min="10" max="90" value={f.ab_split} onChange={e => setF({ ...f, ab_split: e.target.value })} />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div>
+                <Label>Planifier l'envoi</Label>
+                <Input type="datetime-local" value={f.scheduled_at} onChange={e => setF({ ...f, scheduled_at: e.target.value })} />
+              </div>
               <div className="border-t border-[#1E1E2E] pt-3">
                 <Label>Envoyer un test à :</Label>
                 <div className="flex gap-2 mt-1">
                   <Input value={testEmail} onChange={e => setTestEmail(e.target.value)}
-                    placeholder="ton@email.com" />
-                  <Button onClick={sendTest} disabled={testing} variant="outline">
+                    placeholder="ton@email.com" disabled={f.channel !== "email"} />
+                  <Button onClick={sendTest} disabled={testing || f.channel !== "email"} variant="outline">
                     {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube2 className="h-4 w-4" />}
                     <span className="ml-1">Test</span>
                   </Button>
                 </div>
               </div>
-              <div className="rounded-[10px] border border-[#F59E0B]/30 bg-[#F59E0B]/5 p-3 text-xs text-[#F59E0B]">
-                ⚠️ Assure-toi d'avoir vérifié le domaine <code>notify.nivra-telecom.ca</code> dans le tableau de bord Resend.
-                Sinon les envois échoueront avec "domain not verified".
+              <div className="rounded-2xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+                Le domaine notify.nivra-telecom.ca doit être actif chez Resend avant l'envoi réel.
               </div>
             </div>
           )}
@@ -346,12 +426,15 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
           )}
           {step === 4 && (
             <>
-              <Button variant="outline" onClick={saveDraft} disabled={saving}>
+              <Button variant="outline" onClick={() => saveDraft()} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Sauver brouillon
+              </Button>
+              <Button variant="outline" onClick={schedule} disabled={saving || !f.scheduled_at || !f.subject}>
+                <CalendarClock className="h-4 w-4 mr-1" /> Planifier
               </Button>
               <Button onClick={launch} disabled={sending || !f.subject} className="bg-[#10B981] hover:bg-[#059669]">
                 {sending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
-                Envoyer maintenant
+                {f.channel === "email" ? "Envoyer maintenant" : "Préparer"}
               </Button>
             </>
           )}

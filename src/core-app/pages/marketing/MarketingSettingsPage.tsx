@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MKPage, MKCard, MKCardHeader } from "./_marketing-ui";
+import MarketingNav from "./MarketingNav";
 import { cn } from "@/lib/utils";
 
 const SETTING_PHONE_ID = "openphone_phone_number_id";
@@ -142,6 +143,7 @@ const MarketingSettingsPage = () => {
 
   return (
     <MKPage title="Paramètres" subtitle="Configuration des intégrations Marketing Hub">
+      <MarketingNav />
       {/* OpenPhone */}
       <MKCard>
         <MKCardHeader title="OpenPhone — SMS sortants" />

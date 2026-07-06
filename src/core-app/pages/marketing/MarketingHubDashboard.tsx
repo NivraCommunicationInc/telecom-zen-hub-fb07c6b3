@@ -6,9 +6,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, MessageSquare, Send, TrendingUp, AlertCircle, DollarSign,
-  Bot, MailCheck, MessageCircle, Activity, Tag, Sparkles,
+  Bot, MailCheck, MessageCircle, Activity, Tag, Sparkles, Target,
+  Users, LayoutTemplate, CalendarClock, Bell, Zap, BarChart3,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { MKPage, MKCard, MKCardHeader, MKStat, MK_CARD } from "./_marketing-ui";
 import MarketingNav from "./MarketingNav";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,8 @@ const DISCOUNT_LABELS: Record<string, string> = {
 };
 
 export default function MarketingHubDashboard() {
+  const { pathname } = useLocation();
+  const base = pathname === "/core/marketing" || pathname.startsWith("/core/marketing/") ? "/core/marketing" : "/marketing";
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,57 +133,110 @@ export default function MarketingHubDashboard() {
     return () => { clearInterval(t); supabase.removeChannel(channel); };
   }, []);
 
+  const quickActions = [
+    { to: `${base}/audiences`, title: "Créer une audience", desc: "Segments dynamiques CRM, clients et imports", icon: Target },
+    { to: `${base}/contacts`, title: "Gérer les contacts", desc: "Recherche, sélection et export CSV", icon: Users },
+    { to: `${base}/templates`, title: "Designer un email", desc: "Éditeur HTML avec aperçu WYSIWYG", icon: LayoutTemplate },
+    { to: `${base}/campaigns`, title: "Lancer une campagne", desc: "Email Resend, test, A/B et planification", icon: Send },
+    { to: `${base}/push-campaigns`, title: "Préparer un push web", desc: "Notification navigateur avec aperçu", icon: Bell },
+    { to: `${base}/automations`, title: "Construire une séquence", desc: "Bienvenue, relance, réactivation", icon: Zap },
+  ];
+
   if (loading) {
     return (
       <MKPage title="Marketing Hub" subtitle="Vue d'ensemble">
-        <div className="flex items-center justify-center py-16 text-[#888]">
+        <MarketingNav />
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Chargement…
         </div>
-      </MKPage>
-    );
-  }
-  if (error || !stats) {
-    return (
-      <MKPage title="Marketing Hub">
-        <div className="text-sm text-[#EF4444]">Erreur de chargement: {error}</div>
       </MKPage>
     );
   }
 
   return (
     <MKPage
-      title="Marketing Hub"
-      subtitle="Vue d'ensemble · IA, conversations, campagnes — temps réel"
+      title="Nivra Marketing Hub"
+      subtitle="Plateforme campagnes type Mailchimp: audiences, emails, SMS, push, séquences, tests et analytics."
       actions={
         <Link
-          to="/marketing/sms-campaigns"
-          className="px-3.5 h-9 inline-flex items-center rounded-[10px] text-sm font-semibold text-white"
-          style={{ background: "#7C3AED" }}
+          to={`${base}/campaigns`}
+          className="px-4 h-11 inline-flex items-center rounded-full bg-primary text-sm font-black text-primary-foreground shadow-sm hover:opacity-90"
         >
           <Sparkles className="h-4 w-4 mr-1.5" /> Nouvelle campagne
         </Link>
       }
     >
       <MarketingNav />
-      {/* 8 KPIs in 2 rows of 4 */}
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          Données temps réel temporairement indisponibles: {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
+        <div className="rounded-3xl border border-border bg-primary p-6 text-primary-foreground shadow-sm">
+          <div className="max-w-2xl">
+            <div className="mb-3 inline-flex rounded-full bg-primary-foreground/15 px-3 py-1 text-xs font-black uppercase tracking-normal">
+              Centre de croissance
+            </div>
+            <h2 className="text-3xl font-black leading-tight tracking-normal md:text-4xl">
+              Crée, cible, teste et envoie depuis un seul endroit.
+            </h2>
+            <p className="mt-3 max-w-xl text-sm font-medium opacity-90">
+              Les modules ci-dessous ouvrent directement les vraies sections: contacts, audiences, templates, campagnes, push, automations et analytics.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link to={`${base}/audiences`} className="rounded-full bg-primary-foreground px-4 py-2 text-sm font-black text-primary">Audiences</Link>
+              <Link to={`${base}/templates`} className="rounded-full bg-primary-foreground/15 px-4 py-2 text-sm font-black text-primary-foreground">Templates</Link>
+              <Link to={`${base}/analytics`} className="rounded-full bg-primary-foreground/15 px-4 py-2 text-sm font-black text-primary-foreground">Analytics</Link>
+            </div>
+          </div>
+        </div>
+        <MKCard className="p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs font-black uppercase text-muted-foreground">Santé campagnes</div>
+              <div className="mt-2 text-4xl font-black text-foreground">{stats?.emails_delivered_pct ?? "—"}%</div>
+              <div className="text-sm text-muted-foreground">Emails délivrés · 30 derniers jours</div>
+            </div>
+            <BarChart3 className="h-12 w-12 text-primary" />
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="rounded-xl bg-secondary p-3"><div className="font-black text-foreground">{stats?.sms_today ?? "—"}</div><div className="text-muted-foreground">SMS/jour</div></div>
+            <div className="rounded-xl bg-secondary p-3"><div className="font-black text-foreground">{stats?.waiting_human ?? "—"}</div><div className="text-muted-foreground">À traiter</div></div>
+            <div className="rounded-xl bg-secondary p-3"><div className="font-black text-foreground">{stats?.response_rate_pct ?? "—"}%</div><div className="text-muted-foreground">Réponse</div></div>
+          </div>
+        </MKCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {quickActions.map((a) => (
+          <Link key={a.to} to={a.to} className="group rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/60 hover:bg-secondary/60">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground"><a.icon className="h-5 w-5" /></div>
+            <div className="text-base font-black text-foreground">{a.title}</div>
+            <div className="mt-1 text-sm text-muted-foreground">{a.desc}</div>
+          </Link>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MKStat label="Conversations actives" value={stats.active_conversations_today} icon={MessageSquare} accent="#7C3AED" />
-        <MKStat label="SMS aujourd'hui" value={stats.sms_today} icon={Send} accent="#10B981" />
-        <MKStat label="SMS cette semaine" value={stats.sms_week} icon={Send} accent="#10B981" />
-        <MKStat label="SMS ce mois" value={stats.sms_month} icon={Send} accent="#10B981" />
-        <MKStat label="Ventes IA conclues" value={stats.sales_closed} icon={Bot} accent="#7C3AED" hint={`$${stats.revenue_total.toFixed(2)} attribués`} />
-        <MKStat label="Taux de réponse" value={`${stats.response_rate_pct}%`} icon={TrendingUp} accent="#10B981" hint="7 derniers jours" />
-        <MKStat label="Live chats en attente" value={stats.live_chats_waiting ?? 0} icon={MessageCircle} accent="#F59E0B" hint="à reprendre" />
-        <MKStat label="Emails délivrés" value={`${stats.emails_delivered_pct ?? 0}%`} icon={MailCheck} accent="#10B981" hint="30 derniers jours" />
+        <MKStat label="Conversations actives" value={stats?.active_conversations_today ?? "—"} icon={MessageSquare} />
+        <MKStat label="SMS aujourd'hui" value={stats?.sms_today ?? "—"} icon={Send} accent="hsl(var(--success))" />
+        <MKStat label="SMS cette semaine" value={stats?.sms_week ?? "—"} icon={Send} accent="hsl(var(--success))" />
+        <MKStat label="SMS ce mois" value={stats?.sms_month ?? "—"} icon={Send} accent="hsl(var(--success))" />
+        <MKStat label="Ventes IA conclues" value={stats?.sales_closed ?? "—"} icon={Bot} hint={stats ? `$${stats.revenue_total.toFixed(2)} attribués` : undefined} />
+        <MKStat label="Taux de réponse" value={stats ? `${stats.response_rate_pct}%` : "—"} icon={TrendingUp} accent="hsl(var(--success))" hint="7 derniers jours" />
+        <MKStat label="Live chats en attente" value={stats?.live_chats_waiting ?? "—"} icon={MessageCircle} accent="hsl(var(--core-warning))" hint="à reprendre" />
+        <MKStat label="Emails délivrés" value={stats ? `${stats.emails_delivered_pct ?? 0}%` : "—"} icon={MailCheck} accent="hsl(var(--success))" hint="30 derniers jours" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Activity feed */}
         <MKCard className="lg:col-span-2">
           <MKCardHeader title="Activité temps réel" />
-          <div className="divide-y divide-[#1E1E2E]">
+          <div className="divide-y divide-border">
             {feed.length === 0 ? (
-              <div className="p-6 text-sm text-[#888] text-center">Aucune activité récente</div>
+              <div className="p-6 text-sm text-muted-foreground text-center">Aucune activité récente</div>
             ) : (
               feed.map((f) => (
                 <div key={f.id} className="flex items-start gap-3 px-5 py-3">
@@ -188,19 +244,16 @@ export default function MarketingHubDashboard() {
                     className="h-8 w-8 rounded-md flex items-center justify-center shrink-0 text-sm"
                     style={{
                       background:
-                        f.kind === "sale" ? "#10B98122" :
-                        f.kind === "takeover" ? "#F59E0B22" :
-                        f.kind === "campaign" ? "#7C3AED22" :
-                        "#1E1E2E",
+                        "hsl(var(--secondary))",
                     }}
                   >
                     {f.kind === "sale" ? "💰" : f.kind === "takeover" ? "👤" : f.kind === "campaign" ? "📣" : f.kind === "chat" ? "🌐" : "💬"}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-white truncate">{f.label}</div>
-                    {f.detail && <div className="text-xs text-[#888] truncate mt-0.5">{f.detail}</div>}
+                    <div className="text-sm text-foreground truncate">{f.label}</div>
+                    {f.detail && <div className="text-xs text-muted-foreground truncate mt-0.5">{f.detail}</div>}
                   </div>
-                  <span className="text-[11px] text-[#888] whitespace-nowrap">
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
                     {formatDistanceToNow(new Date(f.at), { addSuffix: true, locale: fr })}
                   </span>
                 </div>
@@ -213,15 +266,16 @@ export default function MarketingHubDashboard() {
         <MKCard>
           <MKCardHeader title="Rabais offerts par l'IA" />
           <div className="p-5 grid grid-cols-2 gap-3">
-            {Object.entries(stats.discount_breakdown || {}).map(([key, v]) => (
+            {Object.entries(stats?.discount_breakdown || {}).map(([key, v]) => (
               <div key={key} className={cn("rounded-[10px] p-3", MK_CARD)}>
-                <div className="text-[10px] uppercase tracking-[2px] text-[#888] flex items-center gap-1">
+                <div className="text-xs font-black uppercase tracking-normal text-muted-foreground flex items-center gap-1">
                   <Tag className="h-3 w-3" /> {DISCOUNT_LABELS[key] || key}
                 </div>
-                <div className="text-xl font-bold text-white mt-1">{v.offered}</div>
-                <div className="text-[11px] text-[#10B981] mt-0.5">Acceptés: {v.accepted}</div>
+                <div className="text-xl font-bold text-foreground mt-1">{v.offered}</div>
+                <div className="text-[11px] text-primary mt-0.5">Acceptés: {v.accepted}</div>
               </div>
             ))}
+            {!Object.keys(stats?.discount_breakdown || {}).length && <div className="col-span-2 text-sm text-muted-foreground">Aucune donnée de rabais.</div>}
           </div>
         </MKCard>
       </div>
@@ -231,19 +285,19 @@ export default function MarketingHubDashboard() {
         <MKCardHeader title="Statut système" />
         <div className="px-5 py-4 grid sm:grid-cols-3 gap-4 text-sm">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#10B981]" />
-            <span className="text-[#888]">Webhook OpenPhone</span>
-            <span className="text-white font-medium">Actif</span>
+            <span className="h-2 w-2 rounded-full bg-primary" />
+            <span className="text-muted-foreground">Webhook OpenPhone</span>
+            <span className="text-foreground font-medium">Actif</span>
           </div>
           <div className="flex items-center gap-2">
-            <Activity className="h-3.5 w-3.5 text-[#7C3AED]" />
-            <span className="text-[#888]">Agent IA</span>
-            <Link to="/marketing/ai-config" className="text-[#7C3AED] hover:underline">Configurer</Link>
+            <Activity className="h-3.5 w-3.5 text-primary" />
+            <span className="text-muted-foreground">Agent IA</span>
+            <Link to={`${base}/ai-config`} className="text-primary hover:underline">Configurer</Link>
           </div>
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-3.5 w-3.5 text-[#F59E0B]" />
-            <span className="text-[#888]">À reprendre</span>
-            <span className="text-white font-medium">{stats.waiting_human}</span>
+            <AlertCircle className="h-3.5 w-3.5 text-primary" />
+            <span className="text-muted-foreground">À reprendre</span>
+            <span className="text-foreground font-medium">{stats?.waiting_human ?? "—"}</span>
           </div>
         </div>
       </MKCard>

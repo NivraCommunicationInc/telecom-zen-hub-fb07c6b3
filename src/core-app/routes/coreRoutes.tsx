@@ -183,6 +183,12 @@ const MarketingSettingsPage = lazy(() => import("@/core-app/pages/marketing/Mark
 const MarketingAudiencesPage = lazy(() => import("@/core-app/pages/marketing/MarketingAudiencesPage"));
 const MarketingTemplatesPage = lazy(() => import("@/core-app/pages/marketing/MarketingTemplatesPage"));
 const MarketingCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingCampaignsPage"));
+const MarketingContactsPage = lazy(() => import("@/core-app/pages/marketing/MarketingContactsPage"));
+const MarketingAnalyticsPage = lazy(() => import("@/core-app/pages/marketing/MarketingAnalyticsPage"));
+const MarketingAutomationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingAutomationsPage"));
+const MarketingPlanningPage = lazy(() => import("@/core-app/pages/marketing/MarketingPlanningPage"));
+const MarketingLiveChatPage = lazy(() => import("@/core-app/pages/marketing/MarketingLiveChatPage"));
+const MarketingPushCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingPushCampaignsPage"));
 
 export const coreRoutes: RouteObject = {
   path: "/core",
@@ -357,6 +363,12 @@ export const coreRoutes: RouteObject = {
     { path: "marketing/audiences", element: <MarketingAudiencesPage /> },
     { path: "marketing/templates", element: <MarketingTemplatesPage /> },
     { path: "marketing/campaigns", element: <MarketingCampaignsPage /> },
+    { path: "marketing/contacts", element: <MarketingContactsPage /> },
+    { path: "marketing/analytics", element: <MarketingAnalyticsPage /> },
+    { path: "marketing/automations", element: <MarketingAutomationsPage /> },
+    { path: "marketing/planning", element: <MarketingPlanningPage /> },
+    { path: "marketing/push-campaigns", element: <MarketingPushCampaignsPage /> },
+    { path: "marketing/live-chat", element: <MarketingLiveChatPage /> },
     { path: "marketing/settings", element: <MarketingSettingsPage /> },
   ],
 };

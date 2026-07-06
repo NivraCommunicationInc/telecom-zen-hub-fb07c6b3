@@ -233,5 +233,9 @@ async function countMembers(rules: any): Promise<number> {
     const { count } = await q;
     total += count ?? 0;
   }
+  if (source === "selected_emails") {
+    const emails = Array.isArray(filters.emails) ? filters.emails : [];
+    total += new Set(emails.map((e: string) => String(e).toLowerCase()).filter(Boolean)).size;
+  }
   return total;
 }
