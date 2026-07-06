@@ -31,10 +31,11 @@ interface SendRequest {
   automation_rule_id?: string;
   template_id?: string;
   client_ids?: string[];
+  crm_contact_ids?: string[];
   test_email?: string;
   subject_override?: string;
-  preview_count?: boolean;       // returns recipient count only, no send
-  segment_filters?: Record<string, unknown>; // for preview without a campaign row
+  preview_count?: boolean;
+  segment_filters?: Record<string, unknown>;
 }
 
 interface Client {
@@ -43,6 +44,7 @@ interface Client {
   first_name: string;
   last_name: string;
   phone?: string;
+  source?: "clients" | "crm_contacts";
 }
 
 serve(async (req) => {
