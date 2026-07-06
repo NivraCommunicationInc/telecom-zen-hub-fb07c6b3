@@ -32,6 +32,8 @@ const TechInstallation = lazy(() => import("@/tech-app/pages/TechInstallation"))
 const TechActive = lazy(() => import("@/tech-app/pages/TechActive"));
 const TechScanner = lazy(() => import("@/tech-app/pages/TechScanner"));
 const TechProfile = lazy(() => import("@/tech-app/pages/TechProfile"));
+const TechMap = lazy(() => import("@/tech-app/pages/TechMap"));
+const TechStock = lazy(() => import("@/tech-app/pages/TechStock"));
 
 // HR Portal (lazy-loaded, fully isolated)
 const HrAppLayout = lazy(() => import("@/hr-app/HrAppLayout"));
@@ -780,6 +782,8 @@ const AppRoutes = () => {
           <Route path="installation/:id" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
           <Route path="installation/:assignmentId" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
           <Route path="scanner" element={<Suspense fallback={null}><TechScanner /></Suspense>} />
+          <Route path="map" element={<Suspense fallback={null}><TechMap /></Suspense>} />
+          <Route path="stock" element={<Suspense fallback={null}><TechStock /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><TechProfile /></Suspense>} />
         </Route>
       </Route>

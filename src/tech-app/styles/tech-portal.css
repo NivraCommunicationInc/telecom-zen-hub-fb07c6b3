@@ -133,3 +133,11 @@
   box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45), 0 0 0 6px var(--tp-bg);
   border: none;
 }
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Mapbox popups on dark theme */
+[data-portal="tech"] .mapboxgl-ctrl-bottom-right,
+[data-portal="tech"] .mapboxgl-ctrl-bottom-left { display: none; }
