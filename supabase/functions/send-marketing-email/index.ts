@@ -121,7 +121,7 @@ serve(async (req) => {
 
     // Test email mode
     if (test_email) {
-      const result = await sendEmail(resendApiKey, {
+      const result = await sendEmail({
         to: test_email,
         subject: subjectOverride || template.subject,
         html: replaceVariables(template.html_content, {
