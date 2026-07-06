@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Plus, Loader2, Send, Eye, TestTube2, Users, CheckCircle2, Clock, CalendarClock,
-  SplitSquareHorizontal, Blocks, Smartphone,
+  SplitSquareHorizontal, Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -264,7 +264,6 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
                 {[
                   { value: "email", label: "Email", icon: Send, desc: "Envoi Resend" },
                   { value: "push", label: "Push web", icon: Smartphone, desc: "Notification navigateur" },
-                  { value: "automation", label: "Séquence", icon: Blocks, desc: "Workflow multi-étapes" },
                 ].map((ch) => (
                   <button key={ch.value} type="button" onClick={() => setF({ ...f, channel: ch.value })}
                     className={`rounded-2xl border p-4 text-left transition-colors ${f.channel === ch.value ? "border-primary bg-primary/10" : "border-border hover:bg-secondary"}`}>
