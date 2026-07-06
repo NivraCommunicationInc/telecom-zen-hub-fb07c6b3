@@ -53,7 +53,7 @@ function escapeHtml(value: unknown): string {
     .replace(/'/g, "&#039;");
 }
 
-function normalizeMarketingBodyHtml(html: string): string {
+export function normalizeOfficialMarketingBody(html: string): string {
   return String(html || OFFICIAL_MARKETING_BODY)
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
     .replace(/<!doctype[\s\S]*?>/gi, "")
@@ -61,6 +61,8 @@ function normalizeMarketingBodyHtml(html: string): string {
     .replace(/<\/?html[^>]*>/gi, "")
     .replace(/<body[^>]*>/gi, "")
     .replace(/<\/body>/gi, "")
+    .replace(/<div[^>]*background\s*:\s*#0066CC[^>]*>[\s\S]*?Nivra Telecom[\s\S]*?<\/div>/i, "")
+    .replace(/<div[^>]*background\s*:\s*#f5f5f5[\s\S]*?Se désabonner[\s\S]*?<\/div>\s*<\/div>\s*$/i, "")
     .trim();
 }
 
@@ -84,7 +86,7 @@ export function renderOfficialMarketingEmail({
   bodyHtml?: string;
   showUnsubscribe?: boolean;
 }) {
-  const previewBody = personalizePreview(normalizeMarketingBodyHtml(bodyHtml));
+  const previewBody = personalizePreview(normalizeOfficialMarketingBody(bodyHtml));
   const unsubscribe = showUnsubscribe
     ? `<div style="border-top:1px solid ${COLORS.borderLight};margin-top:24px;padding-top:16px;text-align:center;font-size:12px;line-height:1.6;color:${COLORS.textMuted};font-family:${FONT}">Vous recevez ce message parce que vous êtes inscrit aux communications Nivra.<br><a href="#desabonnement" style="color:${COLORS.primary};text-decoration:underline">Se désabonner</a></div>`
     : "";
