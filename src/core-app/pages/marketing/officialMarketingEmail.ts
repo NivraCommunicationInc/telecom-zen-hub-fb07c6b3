@@ -66,11 +66,11 @@ function normalizeMarketingBodyHtml(html: string): string {
 
 function personalizePreview(html: string): string {
   return html
-    .replaceAll("{{first_name}}", "Alex")
-    .replaceAll("{{full_name}}", "Alex Tremblay")
-    .replaceAll("{{city}}", "Montréal")
-    .replaceAll("{{email}}", "alex@example.com")
-    .replaceAll("{{unsubscribe_url}}", "#desabonnement");
+    .replace(/\{\{first_name\}\}/g, "Alex")
+    .replace(/\{\{full_name\}\}/g, "Alex Tremblay")
+    .replace(/\{\{city\}\}/g, "Montréal")
+    .replace(/\{\{email\}\}/g, "alex@example.com")
+    .replace(/\{\{unsubscribe_url\}\}/g, "#desabonnement");
 }
 
 export function renderOfficialMarketingEmail({
