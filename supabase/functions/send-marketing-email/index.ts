@@ -294,12 +294,14 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Failed to send to ${client.email}:`, error);
 
+        const isCrmErr = client.source === "crm_contacts";
         await supabase.from("email_sends").insert({
           id: sendId,
           campaign_id,
           automation_rule_id,
           template_id: template.id,
-          client_id: client.id,
+          client_id: isCrmErr ? null : client.id,
+          crm_contact_id: isCrmErr ? client.id : null,
           to_email: client.email,
           to_name: `${client.first_name} ${client.last_name}`.trim(),
           subject: subjectOverride || template.subject,
