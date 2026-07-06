@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { MKPage, MKCard, MKCardHeader } from "./_marketing-ui";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import MarketingNav from "./MarketingNav";
 
 type Campaign = {
   id: string;
@@ -275,6 +276,7 @@ export default function MarketingSMSCampaignsPage() {
 
   return (
     <MKPage title="Campagnes SMS" subtitle="Importez une liste de numéros et envoyez un SMS à tous via OpenPhone">
+      <MarketingNav />
       <div className="grid lg:grid-cols-2 gap-4">
         {/* Composer */}
         <MKCard>
