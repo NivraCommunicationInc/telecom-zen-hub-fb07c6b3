@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTechAssignments } from "../lib/useTechAssignments";
 import { useAvailableAssignments } from "../lib/useAvailableAssignments";
 import { useOpenPunch, usePunchIn, usePunchOut } from "../lib/usePunch";
+import { useVanStock } from "../lib/useVanStock";
 
 function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -26,6 +27,7 @@ export default function TechDashboard() {
   const { data: assignments = [], isLoading } = useTechAssignments();
   const { data: available = [] } = useAvailableAssignments();
   const { data: openPunch } = useOpenPunch();
+  const { data: vanStock } = useVanStock();
   const punchIn = usePunchIn();
   const punchOut = usePunchOut();
   const [profile, setProfile] = useState<{ full_name?: string; first_name?: string } | null>(null);
@@ -247,7 +249,7 @@ export default function TechDashboard() {
 
           {/* Mini map placeholder / GPS */}
           <Link
-            to="/tech/assignments"
+            to="/tech/map"
             className="tp-card tp-card-hover overflow-hidden relative min-h-[128px] flex flex-col justify-end"
             style={{
               background: "linear-gradient(180deg, #1a1a2e 0%, #14142a 100%)",
@@ -285,27 +287,37 @@ export default function TechDashboard() {
             </div>
           </Link>
 
-          {/* Van stock */}
+          {/* Van stock (real) */}
           <Link
-            to="/tech/active"
+            to="/tech/stock"
             className="tp-card tp-card-hover p-4 flex flex-col justify-between min-h-[128px]"
           >
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: "var(--tp-text-dim)" }}>Stock van</p>
-              <Package className="h-4 w-4" style={{ color: "var(--tp-text-dim)" }} />
+              {vanStock?.lowStock ? (
+                <AlertTriangle className="h-4 w-4" style={{ color: "var(--tp-warning)" }} />
+              ) : (
+                <Package className="h-4 w-4" style={{ color: "var(--tp-text-dim)" }} />
+              )}
             </div>
             <div className="space-y-1.5 text-[12px]">
               <div className="flex items-center justify-between">
                 <span style={{ color: "var(--tp-text-muted)" }}>Modems</span>
-                <span className="tp-kpi text-[15px]" style={{ color: "var(--tp-text)" }}>—</span>
+                <span className="tp-kpi text-[15px]" style={{ color: (vanStock?.modems ?? 0) < 2 ? "var(--tp-warning)" : "var(--tp-text)" }}>
+                  {vanStock ? vanStock.modems : "—"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span style={{ color: "var(--tp-text-muted)" }}>Terminaux TV</span>
-                <span className="tp-kpi text-[15px]" style={{ color: "var(--tp-text)" }}>—</span>
+                <span className="tp-kpi text-[15px]" style={{ color: (vanStock?.terminals ?? 0) < 2 ? "var(--tp-warning)" : "var(--tp-text)" }}>
+                  {vanStock ? vanStock.terminals : "—"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span style={{ color: "var(--tp-text-muted)" }}>SIM</span>
-                <span className="tp-kpi text-[15px]" style={{ color: "var(--tp-text)" }}>—</span>
+                <span className="tp-kpi text-[15px]" style={{ color: (vanStock?.sims ?? 0) < 5 ? "var(--tp-warning)" : "var(--tp-text)" }}>
+                  {vanStock ? vanStock.sims : "—"}
+                </span>
               </div>
             </div>
           </Link>
