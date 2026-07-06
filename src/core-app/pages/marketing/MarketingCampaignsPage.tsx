@@ -217,6 +217,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
       body: {
         mode: "test", test_email: testEmail.trim(),
         subject: f.subject, html: normalizeOfficialMarketingBody(f.html_content),
+        preheader: f.preheader,
         from_name: f.from_name, from_email: f.from_email,
       },
     });
