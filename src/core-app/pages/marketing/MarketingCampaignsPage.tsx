@@ -208,6 +208,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
   };
 
   const sendTest = async () => {
+    if (f.channel !== "email") { toast.info("Le test direct est disponible pour les emails."); return; }
     if (!testEmail.trim()) { toast.error("Email test requis"); return; }
     if (!f.subject || !f.html_content) { toast.error("Sujet et HTML requis"); return; }
     setTesting(true);
@@ -224,6 +225,14 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
   };
 
   const launch = async () => {
+    if (f.channel !== "email") {
+      const id = await saveDraft(f.scheduled_at ? "scheduled" : "draft");
+      if (id) {
+        toast.success(f.channel === "push" ? "Campagne push préparée" : "Campagne sauvegardée");
+        onDone();
+      }
+      return;
+    }
     const id = await saveDraft();
     if (!id) return;
     setSending(true);
@@ -392,8 +401,8 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
                 <Label>Envoyer un test à :</Label>
                 <div className="flex gap-2 mt-1">
                   <Input value={testEmail} onChange={e => setTestEmail(e.target.value)}
-                    placeholder="ton@email.com" />
-                  <Button onClick={sendTest} disabled={testing} variant="outline">
+                    placeholder="ton@email.com" disabled={f.channel !== "email"} />
+                  <Button onClick={sendTest} disabled={testing || f.channel !== "email"} variant="outline">
                     {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube2 className="h-4 w-4" />}
                     <span className="ml-1">Test</span>
                   </Button>
@@ -425,7 +434,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
               </Button>
               <Button onClick={launch} disabled={sending || !f.subject} className="bg-[#10B981] hover:bg-[#059669]">
                 {sending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
-                Envoyer maintenant
+                {f.channel === "email" ? "Envoyer maintenant" : "Préparer"}
               </Button>
             </>
           )}
