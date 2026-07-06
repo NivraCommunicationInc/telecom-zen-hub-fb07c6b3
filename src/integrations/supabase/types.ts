@@ -15685,6 +15685,440 @@ export type Database = {
           },
         ]
       }
+      mkt_audiences: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_archived: boolean
+          last_refreshed_at: string | null
+          member_count: number
+          name: string
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_archived?: boolean
+          last_refreshed_at?: string | null
+          member_count?: number
+          name: string
+          rules?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_archived?: boolean
+          last_refreshed_at?: string | null
+          member_count?: number
+          name?: string
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_audiences_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mkt_campaigns: {
+        Row: {
+          ab_config: Json | null
+          audience_id: string | null
+          bounced_count: number
+          channel: string
+          clicked_count: number
+          complained_count: number
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          delivered_count: number
+          from_email: string
+          from_name: string
+          html_content: string | null
+          id: string
+          name: string
+          opened_count: number
+          preheader: string | null
+          reply_to: string | null
+          scheduled_at: string | null
+          sent_count: number
+          started_at: string | null
+          status: string
+          subject: string | null
+          template_id: string | null
+          text_content: string | null
+          total_recipients: number
+          unsubscribed_count: number
+          updated_at: string
+        }
+        Insert: {
+          ab_config?: Json | null
+          audience_id?: string | null
+          bounced_count?: number
+          channel?: string
+          clicked_count?: number
+          complained_count?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number
+          from_email?: string
+          from_name?: string
+          html_content?: string | null
+          id?: string
+          name: string
+          opened_count?: number
+          preheader?: string | null
+          reply_to?: string | null
+          scheduled_at?: string | null
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+          text_content?: string | null
+          total_recipients?: number
+          unsubscribed_count?: number
+          updated_at?: string
+        }
+        Update: {
+          ab_config?: Json | null
+          audience_id?: string | null
+          bounced_count?: number
+          channel?: string
+          clicked_count?: number
+          complained_count?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number
+          from_email?: string
+          from_name?: string
+          html_content?: string | null
+          id?: string
+          name?: string
+          opened_count?: number
+          preheader?: string | null
+          reply_to?: string | null
+          scheduled_at?: string | null
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          subject?: string | null
+          template_id?: string | null
+          text_content?: string | null
+          total_recipients?: number
+          unsubscribed_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_campaigns_audience_id_fkey"
+            columns: ["audience_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_audiences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "mkt_campaigns_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_contacts_custom: {
+        Row: {
+          city: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          import_id: string | null
+          is_active: boolean
+          last_name: string | null
+          meta: Json
+          phone: string | null
+          source: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          import_id?: string | null
+          is_active?: boolean
+          last_name?: string | null
+          meta?: Json
+          phone?: string | null
+          source?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          import_id?: string | null
+          is_active?: boolean
+          last_name?: string | null
+          meta?: Json
+          phone?: string | null
+          source?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mkt_contacts_imports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          duplicate_count: number
+          error_count: number
+          errors: Json
+          filename: string | null
+          id: string
+          imported_count: number
+          mapping: Json
+          row_count: number
+          tags: string[]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          duplicate_count?: number
+          error_count?: number
+          errors?: Json
+          filename?: string | null
+          id?: string
+          imported_count?: number
+          mapping?: Json
+          row_count?: number
+          tags?: string[]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          duplicate_count?: number
+          error_count?: number
+          errors?: Json
+          filename?: string | null
+          id?: string
+          imported_count?: number
+          mapping?: Json
+          row_count?: number
+          tags?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_contacts_imports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mkt_send_log: {
+        Row: {
+          campaign_id: string | null
+          channel: string
+          click_count: number
+          client_id: string | null
+          created_at: string
+          crm_contact_id: string | null
+          custom_contact_id: string | null
+          delivered_at: string | null
+          error: string | null
+          first_clicked_at: string | null
+          first_opened_at: string | null
+          id: string
+          meta: Json
+          open_count: number
+          provider: string
+          provider_message_id: string | null
+          recipient_email: string | null
+          recipient_phone: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          channel?: string
+          click_count?: number
+          client_id?: string | null
+          created_at?: string
+          crm_contact_id?: string | null
+          custom_contact_id?: string | null
+          delivered_at?: string | null
+          error?: string | null
+          first_clicked_at?: string | null
+          first_opened_at?: string | null
+          id?: string
+          meta?: Json
+          open_count?: number
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email?: string | null
+          recipient_phone?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          channel?: string
+          click_count?: number
+          client_id?: string | null
+          created_at?: string
+          crm_contact_id?: string | null
+          custom_contact_id?: string | null
+          delivered_at?: string | null
+          error?: string | null
+          first_clicked_at?: string | null
+          first_opened_at?: string | null
+          id?: string
+          meta?: Json
+          open_count?: number
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email?: string | null
+          recipient_phone?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_send_log_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_send_log_crm_contact_id_fkey"
+            columns: ["crm_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_send_log_custom_contact_id_fkey"
+            columns: ["custom_contact_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_contacts_custom"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_templates: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          design: Json
+          html: string | null
+          id: string
+          is_archived: boolean
+          is_system: boolean
+          name: string
+          thumbnail_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          design?: Json
+          html?: string | null
+          id?: string
+          is_archived?: boolean
+          is_system?: boolean
+          name: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          design?: Json
+          html?: string | null
+          id?: string
+          is_archived?: boolean
+          is_system?: boolean
+          name?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mkt_webhook_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean
+          provider: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload: Json
+          processed?: boolean
+          provider?: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          provider?: string
+        }
+        Relationships: []
+      }
       mobile_addons: {
         Row: {
           account_id: string | null
