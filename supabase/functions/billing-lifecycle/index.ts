@@ -1251,6 +1251,9 @@ serve(async (req) => {
         .eq("id", runId);
     }
 
+
+    await recordHeartbeat(supabase, "billing-lifecycle", "error", _hbStarted, { run_id: runId }, msg);
+
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
