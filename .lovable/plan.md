@@ -1,119 +1,85 @@
 
-# Refonte Marketing Hub Nivra — Style Mailchimp
+# Refonte Portail Technicien Nivra
 
-Objectif: remplacer le portail marketing actuel par une suite complète type Mailchimp (Audiences, Éditeur visuel, Campagnes, Automations, Analytics, A/B, Planification), migrer l'envoi vers **Resend** (fiable, plus d'échecs), garder Push web comme canal secondaire.
+Cible: 3-10 techs sur téléphone/tablette. Palette locked: fond `#0f0f1a`, surfaces `#1a1a2e`, primary `#7c3aed`, glow `#a78bfa`. Typo: Outfit + Figtree. Layout: bento-grid.
 
-## 1. Réparer l'envoi d'abord (bloqueur)
+## Phase 1 — Fondation visuelle + Dashboard (livrable immédiat)
 
-- Connecter **Resend** via `standard_connectors--connect` (tu vas voir un écran pour lier ton compte Resend une seule fois).
-- Nouvelle edge function `marketing-send` unifiée qui envoie via Resend (au lieu du queue Lovable qui échoue).
-- Vérifier le domaine `notify.nivra-telecom.ca` côté Resend (ou utiliser un sous-domaine dédié `mail.nivra-telecom.ca`).
-- Table `marketing_send_log` (une ligne par destinataire, avec message_id Resend, status, opens, clicks, bounces via webhook Resend).
-- Webhook Resend → edge function `marketing-resend-webhook` qui met à jour statuts (delivered/opened/clicked/bounced/complained).
+**Design system tech**
+- Créer `src/tech-app/styles/tech-portal.css` avec tokens dédiés (dérivés Nivra Purple Bold)
+- Installer `@fontsource/outfit` + `@fontsource/figtree`, configurer Tailwind
+- Layout global `TechAppLayout`: header sticky (avatar + statut live pulsant), bottom nav flottante 5 tabs avec Scanner central surélevé
 
-## 2. Nouveau modèle de données
+**Refonte `TechDashboard`** (bento-grid)
+- Card XL "Prochain job": client, adresse, ETA, type de service, distance, bouton "Démarrer"
+- Grille 2×2: mini-map GPS · KPIs jour (jobs faits/total, commission $) · Punch in/out timer · Stock van (alerte si bas)
+- Feed notifications dispatch avec dot pulsant
 
-Nouvelles tables (avec GRANT + RLS admin only):
-- `mkt_audiences` — audiences nommées avec règles JSON (segments dynamiques)
-- `mkt_audience_members` — lien contact/client → audience (matérialisé + rafraîchi)
-- `mkt_contacts_imports` — imports CSV (fichier, mapping, tags, rowCount)
-- `mkt_contacts_custom` — contacts importés hors CRM (nom, email, tel, tags[])
-- `mkt_templates` — templates visuels (JSON blocks + HTML compilé + thumbnail)
-- `mkt_campaigns` — campagne (email/push), status draft/scheduled/sending/sent, audience_id, template_id, A/B config, scheduled_at
-- `mkt_campaign_variants` — variantes A/B (subject, template, % traffic, winner metric)
-- `mkt_automations` — flows visuels (trigger + steps JSON)
-- `mkt_automation_runs` — exécutions par contact avec position dans le flow
-- `mkt_send_log` — log unifié (déduplication par message_id, ouvertures, clics)
-- `mkt_webhooks_events` — events Resend bruts pour audit
+**Navigation refaite**
+- Bottom nav: Jobs · Carte · Scanner (centre) · Stock · Profil
+- Composants `TechCard`, `TechStat`, `TechBadge`, `LiveDot` réutilisables
 
-Trigger: chaque nouveau `crm_contact`, `client`, ou membre importé recalcule automatiquement les audiences dynamiques.
+## Phase 2 — Synchro temps réel (Realtime)
 
-## 3. Frontend — refonte complète `/marketing`
+**Realtime Supabase**
+- Activer publication sur `technician_assignments`, `installation_jobs`, `field_sales_orders`, `staff_notifications`
+- Hook `useTechRealtime` avec un seul channel par tech, cleanup unmount
+- Toast + son + vibration quand nouvelle assignation ou changement statut
+- Invalidation React Query automatique
 
-Remplacement de `src/core-app/pages/marketing/*` par une nouvelle IA style Mailchimp:
+**Notifications push**
+- Utiliser `push_subscriptions` (déjà en place) pour envois background dispatch → tech
+- Sons contextuels: nouveau job / annulation / urgence
 
-```text
-/marketing
-  Dashboard        → KPIs 30j (envoyés, open rate, click rate, bounces, désabo)
-  Audiences        → Liste segments + builder de segments (règles + preview count)
-  Contacts         → Table unifiée (CRM + clients + imports) + import CSV + tags
-  Campagnes        → Liste + création wizard 4 étapes:
-                       1) Type (email / push)
-                       2) Audience
-                       3) Template (choisir ou éditer)
-                       4) Sujet + A/B + planification
-                     → Preview HTML fidèle avant envoi
-                     → Envoyer maintenant / Planifier / Sauver brouillon
-  Templates        → Galerie + éditeur visuel drag-drop (blocs Header/Text/Image/Button/
-                     Columns/Divider/Spacer/Footer)
-  Automations      → Éditeur visuel de flows (Trigger → Attente → Email → Condition)
-  Analytics        → Par campagne: opens/clicks/bounces/désabo + heatmap horaire
-  Paramètres       → Domaine Resend, from name, reply-to, footer légal, unsubscribe
-```
+## Phase 3 — Workflow d'installation guidé
 
-Composants clés à créer (src/core-app/pages/marketing/):
-- `MarketingLayout.tsx` (sidebar interne + header)
-- `pages/DashboardPage.tsx`
-- `pages/AudiencesPage.tsx` + `AudienceBuilderDialog.tsx` (règles: ville, statut CRM, dernière activité, forfait, tags…)
-- `pages/ContactsPage.tsx` + `ImportCsvDialog.tsx`
-- `pages/CampaignsPage.tsx` + `campaign-wizard/*` (Step1Type, Step2Audience, Step3Template, Step4ReviewSchedule)
-- `pages/TemplatesPage.tsx` + `visual-editor/` (BlockCanvas, BlockPalette, BlockSettings)
-- `pages/AutomationsPage.tsx` + `flow-editor/` (nodes React Flow)
-- `pages/AnalyticsPage.tsx`
-- `pages/SettingsPage.tsx`
+**Refonte `TechInstallation` en machine à états**
+- 6 étapes verrouillées séquentiellement:
+  1. Arrivée sur site (check-in GPS obligatoire)
+  2. Photos avant (min 2)
+  3. Installation équipement (checklist par service: modem/terminal TV/SIM)
+  4. Tests (speedtest obligatoire pour Internet, canaux TV, signal mobile)
+  5. Photos après + signature client
+  6. Récap + soumission
+- Barre de progression persistante
+- Sauvegarde brouillon locale + `installation_jobs.state` server-side
+- Photos vers `service-photos` bucket avec compression client
 
-Hooks: `useAudiences`, `useContacts`, `useCampaigns`, `useTemplates`, `useAutomations`, `useAnalytics`.
+**Scanner équipement amélioré**
+- Scan code-barres/QR (déjà présent) → auto-remplir modem MAC/serial
+- Validation contre `equipment_inventory`
+- Assignation instantanée à `installations`
 
-## 4. Éditeur visuel (drag-drop)
+## Phase 4 — Hors-ligne + Outils terrain
 
-- Basé sur `@dnd-kit/core` (déjà OK pour Tailwind).
-- Modèle JSON: `{ blocks: [{ id, type, props, children? }] }`.
-- Compilation JSON → HTML via un compiler dédié `mkt/templateCompiler.ts` qui produit du HTML compatible email (tables inline), garde le style Nivra bleu #0066CC.
-- Preview desktop/mobile toggle.
+**Mode hors-ligne**
+- Cache local IndexedDB (dexie): jobs du jour, catalogue équipement, checklist
+- Queue d'actions (check-in, photos, notes) → replay au retour du réseau
+- Indicateur "hors ligne" visible dans le header
+- Service worker via `vite-plugin-pwa` (mode PWA installable seulement en prod, guards Lovable OK)
 
-## 5. Automations
+**Outils terrain**
+- Optimisation d'itinéraire: appel Mapbox Directions avec liste des jobs du jour → ordre optimal
+- Timer job automatique (start au check-in, stop au submit) → alimente `time_entries`
+- Géolocalisation live optionnelle (opt-in) → `technician_locations`
 
-- Éditeur avec `reactflow`.
-- Triggers: `contact.created`, `contact.tag_added`, `client.checkout_completed`, `contact.no_activity_days`, `date.anniversary`, `campaign.opened`, `campaign.clicked`, `manual`.
-- Steps: `wait`, `send_email`, `send_push`, `add_tag`, `remove_tag`, `condition_if`, `end`.
-- Runner: edge function `mkt-automation-tick` en cron 5min qui avance chaque `mkt_automation_runs`.
+## Section technique
 
-## 6. Canaux d'envoi
+**Tables déjà en place utilisées:**
+`technician_assignments`, `installation_jobs`, `installation_job_logs`, `installation_steps_template`, `installations`, `equipment_inventory`, `inventory_assignments`, `technician_locations`, `time_entries`, `staff_notifications`, `push_subscriptions`, `speedtest_results`
 
-- **Email**: Resend via gateway Lovable (`connector-gateway.lovable.dev/resend/emails`). From: `Nivra <marketing@notify.nivra-telecom.ca>`. Unsubscribe HMAC signé (déjà en place).
-- **Push web**: table `push_subscriptions` existe déjà → nouvelle edge function `marketing-send-push` avec web-push (VAPID).
-- **SMS**: hors scope (pas demandé), on garde une slot vide pour plus tard.
+**Nouvelles migrations minimales:**
+- Ajouter `installation_jobs.workflow_state` (jsonb) pour brouillon
+- Enable realtime sur 4 tables citées
+- Storage bucket `installation-photos` (privé, RLS par tech assigné)
 
-## 7. A/B testing + planification
+**Aucune donnée fictive** — placeholders `[À COMPLÉTER]` si prix/plans manquants (respect memory).
 
-- `mkt_campaign_variants` avec % de trafic + métrique gagnante (open ou click).
-- Cron `mkt-abtest-decide` qui, après X heures, promeut la variante gagnante et envoie au reste.
-- Planification: `scheduled_at` + cron `mkt-scheduler` qui déclenche les campaigns à l'heure dite.
+## Ordre de livraison recommandé
 
-## 8. Suppressions & désabonnement
+1. **Phase 1 seule d'abord** (2-3 heures de travail) — tu vois immédiatement le nouveau look, on itère
+2. Puis phases 2/3/4 une à la fois selon retour terrain
 
-- Table `mkt_unsubscribes` (déjà `email_unsubscribes` existante — on la réutilise).
-- Cross-check systématique avant tout envoi.
-- Bounces Resend → auto-suppression.
+## Question avant de démarrer
 
-## 9. Nettoyage
-
-- Désactiver définitivement `agent-crm-email-blast` (déjà fait) + supprimer route associée.
-- Ne pas casser les emails transactionnels existants (factures, KYC, etc.) — ils gardent Lovable Emails, seul le marketing bascule vers Resend.
-
-## Détails techniques
-- Resend: connecteur standard Lovable, on passe par le gateway (pas de clé API à gérer côté user au-delà de la connexion).
-- Domaine sender: `marketing@notify.nivra-telecom.ca` (DNS SPF/DKIM Resend à valider — je te guiderai).
-- RLS: toutes les tables `mkt_*` réservées à `has_role(auth.uid(),'admin')` + `service_role`.
-- Types Supabase régénérés après migration.
-- Aucune modification des flows facturation/PayPal/KYC.
-
-## Livraison en 3 vagues
-
-**Vague 1 (cette session)**: Resend connecté, `marketing-send` opérationnel, nouvelles tables, refonte des pages Dashboard/Audiences/Contacts/Campagnes + wizard basique + envoi email réel qui fonctionne. Import CSV.
-
-**Vague 2**: Éditeur visuel drag-drop + Templates + preview.
-
-**Vague 3**: Automations (react-flow) + A/B + planification + Push web + Analytics avancés (heatmap).
-
-Je te confirme la vague 1 dès que tu approuves le plan, et je t'invite à connecter ton compte Resend au moment voulu.
+Je démarre par **Phase 1 uniquement** (fondation visuelle + Dashboard refait), ou tu veux que j'attaque plusieurs phases en parallèle?
