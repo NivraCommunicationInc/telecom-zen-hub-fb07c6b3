@@ -13,6 +13,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { generateUnsubscribeToken } from "../_shared/unsubscribeToken.ts";
+import { violetShell } from "../_shared/violetEmailShell.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +36,7 @@ interface Body {
   test_email?: string;
   subject?: string;
   html?: string;
+  preheader?: string;
   from_name?: string;
   from_email?: string;
 }
@@ -80,8 +82,12 @@ Deno.serve(async (req) => {
       const r = await sendOne({
         to: body.test_email,
         subject: `[TEST] ${body.subject}`,
-        html: body.html,
-        fromName: body.from_name ?? "Nivra",
+        html: personalize(
+          buildOfficialMarketingHtml(body.html, body.subject, body.preheader, "{{unsubscribe_url}}"),
+          { email: body.test_email, first_name: "Client" },
+          `${UNSUB_BASE}?token=${encodeURIComponent(await generateUnsubscribeToken(body.test_email))}`,
+        ),
+        fromName: body.from_name ?? "Nivra Telecom",
         fromEmail: body.from_email ?? "marketing@notify.nivra-telecom.ca",
       });
       return json({ ok: r.ok, id: r.id, error: r.error });
@@ -130,7 +136,11 @@ Deno.serve(async (req) => {
       try {
         const unsubToken = await generateUnsubscribeToken(t.email);
         const unsubUrl = `${UNSUB_BASE}?token=${encodeURIComponent(unsubToken)}`;
-        const htmlPersonalized = personalize(campaign.html_content, t, unsubUrl);
+        const htmlPersonalized = personalize(
+          buildOfficialMarketingHtml(campaign.html_content, campaign.subject, campaign.preheader ?? "", "{{unsubscribe_url}}"),
+          t,
+          unsubUrl,
+        );
         const subjectPersonalized = personalize(campaign.subject, t, unsubUrl);
 
         const r = await sendOne({
@@ -273,11 +283,41 @@ function personalize(text: string, r: Recipient, unsubUrl: string): string {
   const first = r.first_name || "Client";
   const full = [r.first_name, r.last_name].filter(Boolean).join(" ") || "Client";
   return String(text)
-    .replaceAll("{{first_name}}", escapeHtml(first))
-    .replaceAll("{{full_name}}", escapeHtml(full))
-    .replaceAll("{{city}}", escapeHtml(r.city ?? ""))
-    .replaceAll("{{unsubscribe_url}}", unsubUrl)
-    .replaceAll("{{email}}", escapeHtml(r.email));
+    .replace(/\{\{first_name\}\}/g, escapeHtml(first))
+    .replace(/\{\{full_name\}\}/g, escapeHtml(full))
+    .replace(/\{\{city\}\}/g, escapeHtml(r.city ?? ""))
+    .replace(/\{\{unsubscribe_url\}\}/g, unsubUrl)
+    .replace(/\{\{email\}\}/g, escapeHtml(r.email));
+}
+
+function buildOfficialMarketingHtml(bodyHtml: string, subject: string, preheader = "", unsubUrl = "{{unsubscribe_url}}") {
+  const cleanBody = normalizeMarketingBody(bodyHtml);
+  const unsubscribeBlock = `
+    <div style="border-top:1px solid #E5E7EB;margin-top:24px;padding-top:16px;text-align:center;font-size:12px;line-height:1.6;color:#6B7280;font-family:Arial,Helvetica,sans-serif">
+      Vous recevez ce message parce que vous êtes inscrit aux communications Nivra.<br>
+      <a href="${unsubUrl}" style="color:#0066CC;text-decoration:underline">Se désabonner</a>
+    </div>`;
+
+  return violetShell({
+    preheader: preheader || subject,
+    badge: "NIVRA TELECOM",
+    heroTitle: subject || "Nivra Telecom",
+    heroSub: preheader || undefined,
+    bodyHtml: `${cleanBody}${unsubscribeBlock}`,
+  });
+}
+
+function normalizeMarketingBody(html: string): string {
+  return String(html || "")
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/<!doctype[\s\S]*?>/gi, "")
+    .replace(/<head[\s\S]*?>[\s\S]*?<\/head>/gi, "")
+    .replace(/<\/?html[^>]*>/gi, "")
+    .replace(/<body[^>]*>/gi, "")
+    .replace(/<\/body>/gi, "")
+    .replace(/<div[^>]*background\s*:\s*#0066CC[^>]*>[\s\S]*?Nivra Telecom[\s\S]*?<\/div>/i, "")
+    .replace(/<div[^>]*background\s*:\s*#f5f5f5[\s\S]*?Se désabonner[\s\S]*?<\/div>\s*<\/div>\s*$/i, "")
+    .trim();
 }
 
 function escapeHtml(s: string): string {
