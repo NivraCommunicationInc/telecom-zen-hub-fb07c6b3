@@ -30,6 +30,7 @@ import { format, subDays, startOfDay } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { MKPage, MKCard, MKCardHeader, MKStat } from "./_marketing-ui";
+import MarketingContactsPanel from "./MarketingContactsPanel";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -433,6 +434,34 @@ const MarketingEmailCampaignsPage = () => {
     loadUnsubs();
   };
 
+  const handleSendToSelected = async ({
+    client_ids, crm_contact_ids,
+  }: { client_ids: string[]; crm_contact_ids: string[] }) => {
+    if (!subjectFr.trim() || !bodyFr.trim()) {
+      toast.error("Sujet et corps FR requis — remplissez l'onglet Nouveau"); return;
+    }
+    try {
+      const tpl = await ensureTemplate();
+      const total = client_ids.length + crm_contact_ids.length;
+      // Send in two shots — the edge function targets one source per invocation.
+      if (client_ids.length > 0) {
+        const { error } = await supabase.functions.invoke("send-marketing-email", {
+          body: { template_id: tpl.id, client_ids, subject_override: subjectFr },
+        });
+        if (error) throw error;
+      }
+      if (crm_contact_ids.length > 0) {
+        const { error } = await supabase.functions.invoke("send-marketing-email", {
+          body: { template_id: tpl.id, crm_contact_ids, subject_override: subjectFr },
+        });
+        if (error) throw error;
+      }
+      toast.success(`Envoi lancé vers ${total} contacts`);
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de l'envoi");
+    }
+  };
+
   // ── Global stats ─────────────────────────────────────────────────────────
 
   const stats = useMemo(() => {
@@ -473,6 +502,7 @@ const MarketingEmailCampaignsPage = () => {
         <TabsList className="bg-[#0D0D1A] border border-[#1E1E2E] rounded-[10px] p-1 h-auto flex-wrap">
           <TabTrigger value="campaigns" icon={Mail}>Campagnes</TabTrigger>
           <TabTrigger value="new" icon={Plus}>Nouveau</TabTrigger>
+          <TabTrigger value="contacts" icon={Users}>Contacts</TabTrigger>
           <TabTrigger value="templates" icon={FileText}>Templates</TabTrigger>
           <TabTrigger value="unsubs" icon={Ban}>Désabonnements</TabTrigger>
           <TabTrigger value="stats" icon={BarChart3}>Statistiques</TabTrigger>
@@ -730,6 +760,14 @@ const MarketingEmailCampaignsPage = () => {
         </TabsContent>
 
         {/* ─── Templates ─────────────────────────────────────────────── */}
+        {/* ─── Contacts (targeted send) ──────────────────────────────── */}
+        <TabsContent value="contacts" className="mt-4">
+          <MarketingContactsPanel
+            builderReady={!!subjectFr.trim() && !!bodyFr.trim()}
+            onSendToSelected={handleSendToSelected}
+          />
+        </TabsContent>
+
         <TabsContent value="templates" className="mt-4 space-y-4">
           <MKCard>
             <MKCardHeader title="Templates pré-construits" />

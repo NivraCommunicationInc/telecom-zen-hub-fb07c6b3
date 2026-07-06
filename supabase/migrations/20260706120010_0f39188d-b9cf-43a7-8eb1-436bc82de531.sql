@@ -1,0 +1,1 @@
+SELECT cron.unschedule('agent-crm-email-blast-2h') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'agent-crm-email-blast-2h'); UPDATE public.agent_registry SET status = 'disabled', cron_schedule = NULL, cron_job_name = NULL WHERE agent_name = 'crm-email-blast';

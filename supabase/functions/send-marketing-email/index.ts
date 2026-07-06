@@ -31,10 +31,11 @@ interface SendRequest {
   automation_rule_id?: string;
   template_id?: string;
   client_ids?: string[];
+  crm_contact_ids?: string[];
   test_email?: string;
   subject_override?: string;
-  preview_count?: boolean;       // returns recipient count only, no send
-  segment_filters?: Record<string, unknown>; // for preview without a campaign row
+  preview_count?: boolean;
+  segment_filters?: Record<string, unknown>;
 }
 
 interface Client {
@@ -43,6 +44,7 @@ interface Client {
   first_name: string;
   last_name: string;
   phone?: string;
+  source?: "clients" | "crm_contacts";
 }
 
 serve(async (req) => {
@@ -58,7 +60,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const body: SendRequest = await req.json();
-    const { campaign_id, automation_rule_id, template_id, client_ids, test_email, subject_override: reqSubjectOverride, preview_count } = body;
+    const { campaign_id, automation_rule_id, template_id, client_ids, crm_contact_ids, test_email, subject_override: reqSubjectOverride, preview_count } = body;
 
     // Get template and campaign/automation info
     let template: any = null;
@@ -140,12 +142,20 @@ serve(async (req) => {
     // Get clients to send to
     let clients: Client[] = [];
 
-    if (client_ids && client_ids.length > 0) {
+    if (crm_contact_ids && crm_contact_ids.length > 0) {
+      const { data } = await supabase
+        .from("crm_contacts")
+        .select("id, email, first_name, last_name, phone")
+        .in("id", crm_contact_ids)
+        .not("email", "is", null)
+        .neq("email", "");
+      clients = (data || []).map((c: any) => ({ ...c, source: "crm_contacts" as const }));
+    } else if (client_ids && client_ids.length > 0) {
       const { data } = await supabase
         .from("clients")
         .select("id, email, first_name, last_name, phone")
         .in("id", client_ids);
-      clients = data || [];
+      clients = (data || []).map((c: any) => ({ ...c, source: "clients" as const }));
     } else {
       // Build query based on segment filters
       let query = supabase
@@ -261,13 +271,14 @@ serve(async (req) => {
           unsubscribeUrl: unsubLink,
         });
 
-        // Log with the same id we used in tracking links
+        const isCrm = client.source === "crm_contacts";
         await supabase.from("email_sends").insert({
           id: sendId,
           campaign_id,
           automation_rule_id,
           template_id: template.id,
-          client_id: client.id,
+          client_id: isCrm ? null : client.id,
+          crm_contact_id: isCrm ? client.id : null,
           to_email: client.email,
           to_name: `${client.first_name} ${client.last_name}`.trim(),
           subject,
@@ -283,12 +294,14 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Failed to send to ${client.email}:`, error);
 
+        const isCrmErr = client.source === "crm_contacts";
         await supabase.from("email_sends").insert({
           id: sendId,
           campaign_id,
           automation_rule_id,
           template_id: template.id,
-          client_id: client.id,
+          client_id: isCrmErr ? null : client.id,
+          crm_contact_id: isCrmErr ? client.id : null,
           to_email: client.email,
           to_name: `${client.first_name} ${client.last_name}`.trim(),
           subject: subjectOverride || template.subject,
