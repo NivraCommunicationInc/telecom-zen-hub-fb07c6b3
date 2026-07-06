@@ -11,9 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Loader2, Upload, Send, Users, MessageSquare, AlertTriangle, FileSpreadsheet, RefreshCw, Download } from "lucide-react";
 import { toast } from "sonner";
 import { MKPage, MKCard, MKCardHeader } from "./_marketing-ui";
@@ -409,15 +407,31 @@ export default function MarketingSMSCampaignsPage() {
               </div>
             )}
 
-            <Button
-              onClick={() => setConfirmOpen(true)}
-              disabled={sending || !message.trim() || recipients.length === 0}
-              className="w-full rounded-[10px] text-white border-0 h-11 font-semibold"
-              style={{ background: sending ? "#1E1E2E" : "#7C3AED" }}
-            >
-              {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-              Envoyer à {recipients.length} contacts
-            </Button>
+            {confirmOpen ? (
+              <div className="rounded-[10px] border border-border bg-secondary/40 p-4 space-y-3">
+                <div className="text-sm font-black text-foreground">Confirmer l'envoi</div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-[10px] bg-card p-3"><div className="text-muted-foreground">Contacts</div><div className="font-black tabular-nums text-foreground">{recipients.length}</div></div>
+                  <div className="rounded-[10px] bg-card p-3"><div className="text-muted-foreground">Caractères</div><div className="font-black tabular-nums text-foreground">{charCount}</div></div>
+                  <div className="rounded-[10px] bg-card p-3"><div className="text-muted-foreground">Temps</div><div className="font-black tabular-nums text-foreground">~{estimatedSec}s</div></div>
+                </div>
+                <div className="rounded-[10px] border border-border bg-card p-3 text-xs text-foreground whitespace-pre-wrap">{message}</div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setConfirmOpen(false)}>Annuler</Button>
+                  <Button onClick={send}><Send className="h-4 w-4 mr-1.5" /> Confirmer l'envoi</Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <Button
+                onClick={() => setConfirmOpen(true)}
+                disabled={sending || !message.trim() || recipients.length === 0}
+                className="w-full rounded-[10px] text-white border-0 h-11 font-semibold"
+                style={{ background: sending ? "#1E1E2E" : "#7C3AED" }}
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                Envoyer à {recipients.length} contacts
+              </Button>
+            )}
           </div>
         </MKCard>
 
@@ -469,38 +483,6 @@ export default function MarketingSMSCampaignsPage() {
         </MKCard>
       </div>
 
-      {/* Confirm Dialog */}
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="bg-[#0D0D1A] border-[#1E1E2E] text-white rounded-[10px]">
-          <DialogHeader>
-            <DialogTitle className="text-white">Confirmer l'envoi</DialogTitle>
-            <DialogDescription className="text-[#888]">
-              Cette action enverra le SMS à tous les contacts importés.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="rounded-[10px] bg-[#1E1E2E] p-3 text-sm">
-              <div className="flex justify-between"><span className="text-[#888]">Contacts</span><span className="font-semibold tabular-nums">{recipients.length}</span></div>
-              <div className="flex justify-between mt-1"><span className="text-[#888]">Caractères</span><span className="font-semibold tabular-nums">{charCount}</span></div>
-              <div className="flex justify-between mt-1"><span className="text-[#888]">Temps estimé</span><span className="font-semibold tabular-nums">~{estimatedSec}s</span></div>
-            </div>
-            <div className="rounded-[10px] bg-[#0D0D1A] border border-[#1E1E2E] p-3 text-xs text-white whitespace-pre-wrap">
-              {message}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}
-              className="rounded-[10px] border-[#1E1E2E] bg-transparent text-white hover:bg-[#1E1E2E]">
-              Annuler
-            </Button>
-            <Button onClick={send}
-              className="rounded-[10px] text-white border-0"
-              style={{ background: "#7C3AED" }}>
-              <Send className="h-4 w-4 mr-1.5" /> Confirmer l'envoi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </MKPage>
   );
 }
