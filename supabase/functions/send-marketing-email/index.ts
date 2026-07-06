@@ -271,13 +271,14 @@ serve(async (req) => {
           unsubscribeUrl: unsubLink,
         });
 
-        // Log with the same id we used in tracking links
+        const isCrm = client.source === "crm_contacts";
         await supabase.from("email_sends").insert({
           id: sendId,
           campaign_id,
           automation_rule_id,
           template_id: template.id,
-          client_id: client.id,
+          client_id: isCrm ? null : client.id,
+          crm_contact_id: isCrm ? client.id : null,
           to_email: client.email,
           to_name: `${client.first_name} ${client.last_name}`.trim(),
           subject,
