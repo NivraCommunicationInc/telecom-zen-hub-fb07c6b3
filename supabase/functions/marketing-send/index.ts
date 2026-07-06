@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
           `${UNSUB_BASE}?token=${encodeURIComponent(await generateUnsubscribeToken(body.test_email))}`,
         ),
         fromName: body.from_name ?? "Nivra Telecom",
-        fromEmail: body.from_email ?? "marketing@notify.nivra-telecom.ca",
+        fromEmail: body.from_email ?? "marketing@nivra-telecom.ca",
       });
       return json({ ok: r.ok, id: r.id, error: r.error });
     }
