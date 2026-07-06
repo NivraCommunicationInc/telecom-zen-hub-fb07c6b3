@@ -144,6 +144,7 @@ serve(async (req) => {
     }
 
     console.log(`[reminders] day=${today} queued=${queued} skipped=${skipped} total=${list.length}`);
+    await recordHeartbeat(supabase, "billing-daily-overdue-reminders", "success", _hbStarted, { date: today, queued, skipped, total_unpaid: list.length });
     return new Response(JSON.stringify({
       success: true, date: today, queued, skipped, total_unpaid: list.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -151,6 +152,7 @@ serve(async (req) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : JSON.stringify(err);
     console.error("[reminders] error:", msg);
+    await recordHeartbeat(supabase, "billing-daily-overdue-reminders", "error", _hbStarted, {}, msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
