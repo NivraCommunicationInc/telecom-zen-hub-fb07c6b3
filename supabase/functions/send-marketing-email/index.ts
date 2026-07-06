@@ -254,7 +254,7 @@ serve(async (req) => {
         const subject = replaceVariables(subjectOverride || template.subject, variables);
         const html = injectTracking(renderedHtml, campaign_id ?? null, sendId);
 
-        const result = await sendEmail(resendApiKey, {
+        const result = await sendEmail({
           to: client.email,
           subject,
           html,
