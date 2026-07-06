@@ -4,6 +4,7 @@ import { computeTaxes } from "../_shared/tax-constants.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 import { suspendNivraPayPalSubscription, cancelNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 // Test isolation: when set, all client emails are redirected to this address.
 // Set via body.test_email — never persists across requests.
