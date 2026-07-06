@@ -10,6 +10,7 @@
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,6 +30,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabase: any = createClient<any>(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const _hbStarted = new Date();
   const today = todayStr();
   const todayDate = new Date(today);
 
@@ -142,6 +144,7 @@ serve(async (req) => {
     }
 
     console.log(`[reminders] day=${today} queued=${queued} skipped=${skipped} total=${list.length}`);
+    await recordHeartbeat(supabase, "billing-daily-overdue-reminders", "success", _hbStarted, { date: today, queued, skipped, total_unpaid: list.length });
     return new Response(JSON.stringify({
       success: true, date: today, queued, skipped, total_unpaid: list.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -149,6 +152,7 @@ serve(async (req) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : JSON.stringify(err);
     console.error("[reminders] error:", msg);
+    await recordHeartbeat(supabase, "billing-daily-overdue-reminders", "error", _hbStarted, {}, msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
     });

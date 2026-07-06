@@ -13,6 +13,7 @@
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,6 +72,7 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
+  const _hbStarted = new Date();
 
   try {
     // Authentication: Check for cron secret or admin token
@@ -358,6 +360,13 @@ Deno.serve(async (req) => {
       errors: result.errors.length,
     });
 
+    await recordHeartbeat(supabase, "paypal-reconcile", "success", _hbStarted, {
+      total: result.total_checked,
+      new: result.new_payments_found,
+      existing: result.already_recorded,
+      errors: result.errors.length,
+    });
+
     return new Response(
       JSON.stringify({ 
         ok: true, 
@@ -371,11 +380,13 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("[PayPalReconcile] Unexpected error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[PayPalReconcile] Unexpected error:", msg);
+    await recordHeartbeat(supabase, "paypal-reconcile", "error", _hbStarted, {}, msg);
     return new Response(
       JSON.stringify({ 
         error: "Internal server error", 
-        message: String(error),
+        message: msg,
         ok: false 
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

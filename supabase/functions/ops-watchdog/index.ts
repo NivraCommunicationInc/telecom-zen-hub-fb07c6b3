@@ -20,7 +20,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ALERT_EMAIL = "oldo.lavaud3112@icloud.com";
+const ALERT_EMAIL = "support@nivra-telecom.ca";
 const APP_ORIGIN = "https://www.nivra-telecom.ca";
 
 // Crons that MUST run daily or more often. If any of these hasn't produced a

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 /**
  * BILLING RECONCILIATION JOB
@@ -21,11 +22,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
+  const _hbStarted = new Date();
 
+  try {
     console.log("[billing-reconcile] Starting reconciliation...");
 
     const { data, error } = await supabase.rpc("reconcile_all_invoices");
@@ -51,14 +53,18 @@ serve(async (req) => {
       });
     }
 
+    await recordHeartbeat(supabase, "billing-reconcile-invoices", "success", _hbStarted, { scanned: result.scanned, fixed: result.fixed });
+
     return new Response(
       JSON.stringify({ success: true, ...result }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("[billing-reconcile] Error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[billing-reconcile] Error:", msg);
+    await recordHeartbeat(supabase, "billing-reconcile-invoices", "error", _hbStarted, {}, msg);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

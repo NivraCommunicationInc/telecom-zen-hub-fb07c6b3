@@ -4,6 +4,7 @@ import { computeTaxes } from "../_shared/tax-constants.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 import { suspendNivraPayPalSubscription, cancelNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
+import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 // Test isolation: when set, all client emails are redirected to this address.
 // Set via body.test_email — never persists across requests.
@@ -1134,6 +1135,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const _hbStarted = new Date();
   const rl = await enforceBillingRateLimit(req, "billing-lifecycle", corsHeaders);
   if (rl) return rl;
 
@@ -1218,6 +1220,8 @@ serve(async (req) => {
 
     console.log(`[lifecycle] Completed: ${summary}`);
 
+    await recordHeartbeat(supabase, "billing-lifecycle", "success", _hbStarted, { mode, run_id: runId, ...stats });
+
     return new Response(
       JSON.stringify({ success: true, run_id: runId, mode, summary, stats }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -1246,6 +1250,9 @@ serve(async (req) => {
         })
         .eq("id", runId);
     }
+
+
+    await recordHeartbeat(supabase, "billing-lifecycle", "error", _hbStarted, { run_id: runId }, msg);
 
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
