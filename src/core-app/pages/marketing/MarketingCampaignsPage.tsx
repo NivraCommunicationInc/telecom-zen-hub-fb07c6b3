@@ -255,18 +255,17 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-        <DialogHeader>
+    <MKCard className="overflow-hidden">
+      <div className="border-b border-border px-5 py-4">
           <DialogTitle>Nouvelle campagne — étape {step}/4</DialogTitle>
           <div className="flex gap-1 mt-2">
             {[1, 2, 3, 4].map(n => (
               <div key={n} className={`h-1 flex-1 rounded ${n <= step ? "bg-[#7C3AED]" : "bg-[#1E1E2E]"}`} />
             ))}
           </div>
-        </DialogHeader>
+      </div>
 
-        <div className="flex-1 overflow-y-auto space-y-4">
+      <div className="space-y-4 p-5">
           {step === 1 && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -413,9 +412,9 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
               </div>
             </div>
           )}
-        </div>
+      </div>
 
-        <DialogFooter className="flex-shrink-0">
+      <DialogFooter className="border-t border-border p-5 flex-shrink-0">
           <Button variant="outline" onClick={onClose}>Annuler</Button>
           {step > 1 && <Button variant="outline" onClick={() => setStep(step - 1)}>Précédent</Button>}
           {step < 4 && (
@@ -438,8 +437,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </DialogFooter>
+    </MKCard>
   );
 }

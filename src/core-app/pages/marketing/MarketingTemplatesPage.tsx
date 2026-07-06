@@ -135,13 +135,12 @@ export default function MarketingTemplatesPage() {
         )}
       </MKCard>
 
-      {/* Editor dialog */}
-      <Dialog open={!!editing} onOpenChange={o => !o && setEditing(null)}>
-        <DialogContent className="max-w-5xl h-[85vh] flex flex-col">
-          <DialogHeader>
+      {editing && (
+        <MKCard className="overflow-hidden">
+          <div className="border-b border-border px-5 py-4">
             <DialogTitle>{editing?.id ? "Éditer" : "Nouveau"} template</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 overflow-hidden">
+          </div>
+          <div className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-2">
             <div className="space-y-3 overflow-y-auto pr-2">
               <div>
                 <Label>Nom</Label>
@@ -160,26 +159,29 @@ export default function MarketingTemplatesPage() {
                 </p>
               </div>
             </div>
-            <div className="border border-[#1E1E2E] rounded-[10px] overflow-hidden bg-white">
-              <iframe srcDoc={editing?.html ?? ""} className="w-full h-full border-0" title="preview" />
+            <div className="min-h-[520px] overflow-hidden rounded-[10px] border border-[#1E1E2E] bg-white">
+              <iframe srcDoc={editing?.html ?? ""} className="h-full min-h-[520px] w-full border-0" title="preview" />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t border-border p-5">
             <Button variant="outline" onClick={() => setEditing(null)}>Annuler</Button>
             <Button onClick={save} disabled={saving} className="bg-[#7C3AED] hover:bg-[#6D28D9]">
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
               Sauvegarder
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </MKCard>
+      )}
 
-      <Dialog open={!!preview} onOpenChange={o => !o && setPreview(null)}>
-        <DialogContent className="max-w-3xl h-[80vh]">
-          <DialogHeader><DialogTitle>Aperçu</DialogTitle></DialogHeader>
-          <iframe srcDoc={preview ?? ""} className="w-full h-full border-0 rounded bg-white" />
-        </DialogContent>
-      </Dialog>
+      {preview && (
+        <MKCard className="overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <DialogTitle>Aperçu</DialogTitle>
+            <Button variant="outline" size="sm" onClick={() => setPreview(null)}>Fermer</Button>
+          </div>
+          <iframe srcDoc={preview ?? ""} className="h-[720px] w-full border-0 bg-white" />
+        </MKCard>
+      )}
     </MKPage>
   );
 }

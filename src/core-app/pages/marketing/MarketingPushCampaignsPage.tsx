@@ -100,9 +100,31 @@ export default function MarketingPushCampaignsPage() {
         )}
       </MKCard>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>Nouvelle campagne push</DialogTitle></DialogHeader>
+      {dialogOpen && (
+        <MKCard>
+          <div className="border-b border-border px-5 py-4"><DialogTitle>Nouvelle campagne push</DialogTitle></div>
+          <div className="grid gap-5 p-5 md:grid-cols-[1fr_320px]">
+            <div className="space-y-4">
+              <div><Label>Titre</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+              <div><Label>Message</Label><Textarea rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></div>
+              <div><Label>URL de destination</Label><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div>
+              <div><Label>Audience</Label><Input value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} /></div>
+              <div><Label>Date/heure planifiée</Label><Input type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} /></div>
+            </div>
+            <PushPreview title={form.title} body={form.body} url={form.url} />
+          </div>
+          <DialogFooter className="border-t border-border p-5">
+            <Button variant="outline" onClick={() => { saveDraft("draft"); }}>Sauver brouillon</Button>
+            <Button variant="outline" onClick={() => saveDraft("scheduled")} disabled={!form.scheduledAt}><Clock className="mr-2 h-4 w-4" /> Planifier</Button>
+            <Button onClick={() => saveDraft("ready")}><Send className="mr-2 h-4 w-4" /> Préparer</Button>
+          </DialogFooter>
+        </MKCard>
+      )}
+
+      {false && (
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader><DialogTitle>Nouvelle campagne push</DialogTitle></DialogHeader>
           <div className="grid gap-5 md:grid-cols-[1fr_320px]">
             <div className="space-y-4">
               <div><Label>Titre</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
@@ -118,12 +140,16 @@ export default function MarketingPushCampaignsPage() {
             <Button variant="outline" onClick={() => saveDraft("scheduled")} disabled={!form.scheduledAt}><Clock className="mr-2 h-4 w-4" /> Planifier</Button>
             <Button onClick={() => saveDraft("ready")}><Send className="mr-2 h-4 w-4" /> Préparer</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
 
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-sm"><DialogHeader><DialogTitle>Aperçu push</DialogTitle></DialogHeader><PushPreview title={form.title} body={form.body} url={form.url} /></DialogContent>
-      </Dialog>
+      {previewOpen && (
+        <MKCard className="max-w-md">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4"><DialogTitle>Aperçu push</DialogTitle><Button variant="outline" size="sm" onClick={() => setPreviewOpen(false)}>Fermer</Button></div>
+          <div className="p-5"><PushPreview title={form.title} body={form.body} url={form.url} /></div>
+        </MKCard>
+      )}
     </MKPage>
   );
 }
