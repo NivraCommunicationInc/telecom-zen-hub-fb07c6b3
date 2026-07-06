@@ -30,6 +30,7 @@ import { format, subDays, startOfDay } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { MKPage, MKCard, MKCardHeader, MKStat } from "./_marketing-ui";
+import MarketingContactsPanel from "./MarketingContactsPanel";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
