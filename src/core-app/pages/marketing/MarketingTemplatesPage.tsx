@@ -13,7 +13,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Plus, Loader2, Trash2, LayoutTemplate, Eye, Save } from "lucide-react";
 import { toast } from "sonner";
-import { OFFICIAL_MARKETING_BODY, MARKETING_EMAIL_SNIPPETS, renderOfficialMarketingEmail } from "./officialMarketingEmail";
+import { OFFICIAL_MARKETING_BODY, MARKETING_EMAIL_SNIPPETS, normalizeOfficialMarketingBody, renderOfficialMarketingEmail } from "./officialMarketingEmail";
 
 interface Template {
   id: string;
@@ -49,7 +49,7 @@ export default function MarketingTemplatesPage() {
     const payload = {
       name: editing.name.trim(),
       description: editing.description?.trim() || null,
-      html: editing.html || STARTER_HTML,
+      html: normalizeOfficialMarketingBody(editing.html || STARTER_HTML),
       category: editing.category || "general",
     };
     const { error } = editing.id
