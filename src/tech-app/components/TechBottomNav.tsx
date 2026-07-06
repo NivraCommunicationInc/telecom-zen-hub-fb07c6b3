@@ -23,9 +23,9 @@ export default function TechBottomNav() {
 
   const tabs: Tab[] = [
     { to: "/tech", icon: ClipboardList, label: "Jobs", end: true, badge: available.length, urgent: urgentCount > 0 },
-    { to: "/tech/assignments", icon: Map, label: "Carte" },
+    { to: "/tech/map", icon: Map, label: "Carte" },
     { to: "/tech/scanner", icon: ScanLine, label: "Scanner", center: true },
-    { to: "/tech/active", icon: Package, label: "Stock" },
+    { to: "/tech/stock", icon: Package, label: "Stock" },
     { to: "/tech/profile", icon: User, label: "Profil" },
   ];
 
