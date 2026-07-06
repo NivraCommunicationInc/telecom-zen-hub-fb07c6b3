@@ -964,7 +964,7 @@ const AppRoutes = () => {
           <Route path="conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
           <Route path="ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
           <Route path="sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
-          <Route path="email-campaigns" element={<Suspense fallback={null}><MarketingEmailCampaignsPage /></Suspense>} />
+          <Route path="email-campaigns" element={<Navigate to="/marketing/campaigns" replace />} />
           <Route path="audiences" element={<Suspense fallback={null}><MarketingAudiencesPage /></Suspense>} />
           <Route path="templates" element={<Suspense fallback={null}><MarketingTemplatesPage /></Suspense>} />
           <Route path="campaigns" element={<Suspense fallback={null}><MarketingCampaignsPage /></Suspense>} />
@@ -1056,21 +1056,21 @@ const AppRoutes = () => {
           <Route path="contracts" element={<Suspense fallback={null}><CoreContractsPage /></Suspense>} />
           <Route path="equipment" element={<Suspense fallback={null}><EquipmentInventoryPage /></Suspense>} />
           {/* Marketing */}
-          <Route path="marketing" element={<Suspense fallback={null}><MarketingHubDashboard /></Suspense>} />
-          <Route path="marketing/conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
-          <Route path="marketing/ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
-          <Route path="marketing/sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
-          <Route path="marketing/email-campaigns" element={<Suspense fallback={null}><MarketingEmailCampaignsPage /></Suspense>} />
-          <Route path="marketing/audiences" element={<Suspense fallback={null}><MarketingAudiencesPage /></Suspense>} />
-          <Route path="marketing/templates" element={<Suspense fallback={null}><MarketingTemplatesPage /></Suspense>} />
-          <Route path="marketing/campaigns" element={<Suspense fallback={null}><MarketingCampaignsPage /></Suspense>} />
-          <Route path="marketing/contacts" element={<Suspense fallback={null}><MarketingContactsPage /></Suspense>} />
-          <Route path="marketing/analytics" element={<Suspense fallback={null}><MarketingAnalyticsPage /></Suspense>} />
-          <Route path="marketing/automations" element={<Suspense fallback={null}><MarketingAutomationsPage /></Suspense>} />
-          <Route path="marketing/planning" element={<Suspense fallback={null}><MarketingPlanningPage /></Suspense>} />
-          <Route path="marketing/push-campaigns" element={<Suspense fallback={null}><MarketingPushCampaignsPage /></Suspense>} />
-          <Route path="marketing/live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
-          <Route path="marketing/settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
+          <Route path="marketing" element={<Navigate to="/marketing" replace />} />
+          <Route path="marketing/conversations" element={<Navigate to="/marketing/conversations" replace />} />
+          <Route path="marketing/ai-config" element={<Navigate to="/marketing/ai-config" replace />} />
+          <Route path="marketing/sms-campaigns" element={<Navigate to="/marketing/sms-campaigns" replace />} />
+          <Route path="marketing/email-campaigns" element={<Navigate to="/marketing/campaigns" replace />} />
+          <Route path="marketing/audiences" element={<Navigate to="/marketing/audiences" replace />} />
+          <Route path="marketing/templates" element={<Navigate to="/marketing/templates" replace />} />
+          <Route path="marketing/campaigns" element={<Navigate to="/marketing/campaigns" replace />} />
+          <Route path="marketing/contacts" element={<Navigate to="/marketing/contacts" replace />} />
+          <Route path="marketing/analytics" element={<Navigate to="/marketing/analytics" replace />} />
+          <Route path="marketing/automations" element={<Navigate to="/marketing/automations" replace />} />
+          <Route path="marketing/planning" element={<Navigate to="/marketing/planning" replace />} />
+          <Route path="marketing/push-campaigns" element={<Navigate to="/marketing/push-campaigns" replace />} />
+          <Route path="marketing/live-chat" element={<Navigate to="/marketing/live-chat" replace />} />
+          <Route path="marketing/settings" element={<Navigate to="/marketing/settings" replace />} />
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
           <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />
           <Route path="email-marketing" element={<Suspense fallback={null}><CoreEmailMarketingPage /></Suspense>} />

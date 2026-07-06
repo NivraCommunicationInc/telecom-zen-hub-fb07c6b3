@@ -143,6 +143,32 @@
   color-scheme: light;
 }
 
+body:has(.internal-ui[data-marketing-portal]) {
+  --background: 45 35% 94%;
+  --foreground: 28 28% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 28 28% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 28 28% 11%;
+  --primary: 52 100% 55%;
+  --primary-foreground: 28 28% 11%;
+  --secondary: 46 30% 88%;
+  --secondary-foreground: 28 28% 11%;
+  --muted: 46 25% 90%;
+  --muted-foreground: 28 15% 36%;
+  --accent: 185 100% 27%;
+  --accent-foreground: 0 0% 100%;
+  --border: 32 18% 78%;
+  --input: 32 18% 78%;
+  --ring: 185 100% 27%;
+  --success: 160 84% 30%;
+  color-scheme: light;
+}
+
+body:has(.internal-ui[data-marketing-portal]) [role="dialog"] {
+  color: hsl(var(--foreground));
+}
+
 .internal-ui[data-marketing-portal] [data-marketing-workbench] .text-white,
 .internal-ui[data-marketing-portal] [data-marketing-workbench] [class*="text-[#888]"],
 .internal-ui[data-marketing-portal] [data-marketing-workbench] [class*="text-[#666]"] {

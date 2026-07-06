@@ -4,7 +4,7 @@ import { Bell, CheckCircle2, Clock, Eye, Plus, Send, Users } from "lucide-react"
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -100,10 +100,10 @@ export default function MarketingPushCampaignsPage() {
         )}
       </MKCard>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>Nouvelle campagne push</DialogTitle></DialogHeader>
-          <div className="grid gap-5 md:grid-cols-[1fr_320px]">
+      {dialogOpen && (
+        <MKCard>
+          <div className="border-b border-border px-5 py-4"><h2 className="text-lg font-black leading-tight text-foreground">Nouvelle campagne push</h2></div>
+          <div className="grid gap-5 p-5 md:grid-cols-[1fr_320px]">
             <div className="space-y-4">
               <div><Label>Titre</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
               <div><Label>Message</Label><Textarea rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></div>
@@ -113,17 +113,20 @@ export default function MarketingPushCampaignsPage() {
             </div>
             <PushPreview title={form.title} body={form.body} url={form.url} />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => saveDraft("draft")}>Sauver brouillon</Button>
+          <DialogFooter className="border-t border-border p-5">
+            <Button variant="outline" onClick={() => { saveDraft("draft"); }}>Sauver brouillon</Button>
             <Button variant="outline" onClick={() => saveDraft("scheduled")} disabled={!form.scheduledAt}><Clock className="mr-2 h-4 w-4" /> Planifier</Button>
             <Button onClick={() => saveDraft("ready")}><Send className="mr-2 h-4 w-4" /> Préparer</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </MKCard>
+      )}
 
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-sm"><DialogHeader><DialogTitle>Aperçu push</DialogTitle></DialogHeader><PushPreview title={form.title} body={form.body} url={form.url} /></DialogContent>
-      </Dialog>
+      {previewOpen && (
+        <MKCard className="max-w-md">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4"><h2 className="text-lg font-black leading-tight text-foreground">Aperçu push</h2><Button variant="outline" size="sm" onClick={() => setPreviewOpen(false)}>Fermer</Button></div>
+          <div className="p-5"><PushPreview title={form.title} body={form.body} url={form.url} /></div>
+        </MKCard>
+      )}
     </MKPage>
   );
 }

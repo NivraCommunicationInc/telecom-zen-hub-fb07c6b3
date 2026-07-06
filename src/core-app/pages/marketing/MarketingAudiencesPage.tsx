@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Plus, Users, Loader2, Trash2, RefreshCw, Target } from "lucide-react";
 import { toast } from "sonner";
@@ -161,12 +161,12 @@ export default function MarketingAudiencesPage() {
         )}
       </MKCard>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nouvelle audience</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
+      {dialogOpen && (
+        <MKCard>
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-lg font-black leading-tight text-foreground">Nouvelle audience</h2>
+          </div>
+          <div className="space-y-4 p-5">
             <div>
               <Label>Nom *</Label>
               <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
@@ -196,14 +196,14 @@ export default function MarketingAudiencesPage() {
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t border-border p-5">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
             <Button onClick={create} disabled={saving} className="bg-[#7C3AED] hover:bg-[#6D28D9]">
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Créer
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </MKCard>
+      )}
     </MKPage>
   );
 }

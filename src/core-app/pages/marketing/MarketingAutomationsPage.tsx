@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 type Step = { id: string; type: "email" | "sms" | "push" | "wait"; title: string; detail: string };
@@ -108,10 +108,10 @@ export default function MarketingAutomationsPage() {
         </div>
       </MKCard>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Builder automation</DialogTitle></DialogHeader>
-          <div className="grid gap-5 md:grid-cols-[.8fr_1.2fr]">
+      {open && (
+        <MKCard className="overflow-hidden">
+          <div className="border-b border-border px-5 py-4"><h2 className="text-lg font-black leading-tight text-foreground">Builder automation</h2></div>
+          <div className="grid gap-5 p-5 md:grid-cols-[.8fr_1.2fr]">
             <div className="space-y-3">
               <div><Label>Nom</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
               <div><Label>Déclencheur</Label><Input value={trigger} onChange={(e) => setTrigger(e.target.value)} /></div>
@@ -141,12 +141,12 @@ export default function MarketingAutomationsPage() {
               })}
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t border-border p-5">
             <Button variant="outline" onClick={() => save("draft")}>Sauver brouillon</Button>
             <Button onClick={() => save("active")}><Play className="mr-2 h-4 w-4" /> Activer</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </MKCard>
+      )}
     </MKPage>
   );
 }
