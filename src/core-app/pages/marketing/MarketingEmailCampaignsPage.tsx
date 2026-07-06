@@ -502,6 +502,7 @@ const MarketingEmailCampaignsPage = () => {
         <TabsList className="bg-[#0D0D1A] border border-[#1E1E2E] rounded-[10px] p-1 h-auto flex-wrap">
           <TabTrigger value="campaigns" icon={Mail}>Campagnes</TabTrigger>
           <TabTrigger value="new" icon={Plus}>Nouveau</TabTrigger>
+          <TabTrigger value="contacts" icon={Users}>Contacts</TabTrigger>
           <TabTrigger value="templates" icon={FileText}>Templates</TabTrigger>
           <TabTrigger value="unsubs" icon={Ban}>Désabonnements</TabTrigger>
           <TabTrigger value="stats" icon={BarChart3}>Statistiques</TabTrigger>
