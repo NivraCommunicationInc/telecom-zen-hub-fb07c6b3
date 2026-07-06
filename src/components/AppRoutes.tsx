@@ -211,6 +211,9 @@ const MarketingSMSCampaignsPage = lazy(() => import("@/core-app/pages/marketing/
 const MarketingLiveChatPage = lazy(() => import("@/core-app/pages/marketing/MarketingLiveChatPage"));
 const MarketingEmailCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingEmailCampaignsPage"));
 const MarketingSettingsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSettingsPage"));
+const MarketingAudiencesPage = lazy(() => import("@/core-app/pages/marketing/MarketingAudiencesPage"));
+const MarketingTemplatesPage = lazy(() => import("@/core-app/pages/marketing/MarketingTemplatesPage"));
+const MarketingCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingCampaignsPage"));
 // Field Management
 const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
 const CoreFieldSubmissionsPage = lazy(() => import("@/core-app/pages/CoreFieldSubmissionsPage"));
@@ -957,6 +960,9 @@ const AppRoutes = () => {
           <Route path="ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
           <Route path="sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
           <Route path="email-campaigns" element={<Suspense fallback={null}><MarketingEmailCampaignsPage /></Suspense>} />
+          <Route path="audiences" element={<Suspense fallback={null}><MarketingAudiencesPage /></Suspense>} />
+          <Route path="templates" element={<Suspense fallback={null}><MarketingTemplatesPage /></Suspense>} />
+          <Route path="campaigns" element={<Suspense fallback={null}><MarketingCampaignsPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
         </Route>
       </Route>
