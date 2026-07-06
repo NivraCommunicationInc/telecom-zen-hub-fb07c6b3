@@ -158,7 +158,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
     preheader: "",
     html_content: OFFICIAL_MARKETING_BODY,
     from_name: "Nivra",
-    from_email: "marketing@notify.nivra-telecom.ca",
+    from_email: "marketing@nivra-telecom.ca",
   });
 
   useEffect(() => {
