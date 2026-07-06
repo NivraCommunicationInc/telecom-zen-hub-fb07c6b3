@@ -214,6 +214,9 @@ const MarketingSettingsPage = lazy(() => import("@/core-app/pages/marketing/Mark
 const MarketingAudiencesPage = lazy(() => import("@/core-app/pages/marketing/MarketingAudiencesPage"));
 const MarketingTemplatesPage = lazy(() => import("@/core-app/pages/marketing/MarketingTemplatesPage"));
 const MarketingCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingCampaignsPage"));
+const MarketingContactsPage = lazy(() => import("@/core-app/pages/marketing/MarketingContactsPage"));
+const MarketingAnalyticsPage = lazy(() => import("@/core-app/pages/marketing/MarketingAnalyticsPage"));
+const MarketingAutomationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingAutomationsPage"));
 // Field Management
 const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
 const CoreFieldSubmissionsPage = lazy(() => import("@/core-app/pages/CoreFieldSubmissionsPage"));
