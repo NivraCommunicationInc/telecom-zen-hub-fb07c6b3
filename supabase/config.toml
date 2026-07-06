@@ -296,3 +296,9 @@ verify_jwt = false
 
 
 
+
+[functions.marketing-send]
+verify_jwt = true
+
+[functions.marketing-resend-webhook]
+verify_jwt = false
