@@ -964,7 +964,7 @@ const AppRoutes = () => {
           <Route path="conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
           <Route path="ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
           <Route path="sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
-          <Route path="email-campaigns" element={<Suspense fallback={null}><MarketingEmailCampaignsPage /></Suspense>} />
+          <Route path="email-campaigns" element={<Navigate to="/marketing/campaigns" replace />} />
           <Route path="audiences" element={<Suspense fallback={null}><MarketingAudiencesPage /></Suspense>} />
           <Route path="templates" element={<Suspense fallback={null}><MarketingTemplatesPage /></Suspense>} />
           <Route path="campaigns" element={<Suspense fallback={null}><MarketingCampaignsPage /></Suspense>} />
@@ -1060,7 +1060,7 @@ const AppRoutes = () => {
           <Route path="marketing/conversations" element={<Navigate to="/marketing/conversations" replace />} />
           <Route path="marketing/ai-config" element={<Navigate to="/marketing/ai-config" replace />} />
           <Route path="marketing/sms-campaigns" element={<Navigate to="/marketing/sms-campaigns" replace />} />
-          <Route path="marketing/email-campaigns" element={<Navigate to="/marketing/email-campaigns" replace />} />
+          <Route path="marketing/email-campaigns" element={<Navigate to="/marketing/campaigns" replace />} />
           <Route path="marketing/audiences" element={<Navigate to="/marketing/audiences" replace />} />
           <Route path="marketing/templates" element={<Navigate to="/marketing/templates" replace />} />
           <Route path="marketing/campaigns" element={<Navigate to="/marketing/campaigns" replace />} />
