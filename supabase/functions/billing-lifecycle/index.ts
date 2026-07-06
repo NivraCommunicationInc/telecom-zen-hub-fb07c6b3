@@ -1220,6 +1220,8 @@ serve(async (req) => {
 
     console.log(`[lifecycle] Completed: ${summary}`);
 
+    await recordHeartbeat(supabase, "billing-lifecycle", "success", _hbStarted, { mode, run_id: runId, ...stats });
+
     return new Response(
       JSON.stringify({ success: true, run_id: runId, mode, summary, stats }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
