@@ -1,0 +1,1 @@
+ALTER TABLE public.activity_logs ALTER COLUMN user_id DROP NOT NULL;
