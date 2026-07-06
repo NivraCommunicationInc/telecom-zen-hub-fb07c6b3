@@ -1135,6 +1135,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const _hbStarted = new Date();
   const rl = await enforceBillingRateLimit(req, "billing-lifecycle", corsHeaders);
   if (rl) return rl;
 
