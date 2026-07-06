@@ -966,6 +966,10 @@ const AppRoutes = () => {
           <Route path="audiences" element={<Suspense fallback={null}><MarketingAudiencesPage /></Suspense>} />
           <Route path="templates" element={<Suspense fallback={null}><MarketingTemplatesPage /></Suspense>} />
           <Route path="campaigns" element={<Suspense fallback={null}><MarketingCampaignsPage /></Suspense>} />
+          <Route path="contacts" element={<Suspense fallback={null}><MarketingContactsPage /></Suspense>} />
+          <Route path="analytics" element={<Suspense fallback={null}><MarketingAnalyticsPage /></Suspense>} />
+          <Route path="automations" element={<Suspense fallback={null}><MarketingAutomationsPage /></Suspense>} />
+          <Route path="live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
         </Route>
       </Route>
