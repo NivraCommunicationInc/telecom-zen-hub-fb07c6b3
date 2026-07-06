@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { MARKETING_EMAIL_SNIPPETS, OFFICIAL_MARKETING_BODY, normalizeOfficialMarketingBody, renderOfficialMarketingEmail } from "./officialMarketingEmail";
 
 interface Campaign {
   id: string;
@@ -155,7 +156,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
     ab_split: "50",
     scheduled_at: "",
     preheader: "",
-    html_content: "",
+    html_content: OFFICIAL_MARKETING_BODY,
     from_name: "Nivra",
     from_email: "marketing@notify.nivra-telecom.ca",
   });
@@ -173,7 +174,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
 
   const pickTemplate = (id: string) => {
     const t = templates.find(x => x.id === id);
-    setF({ ...f, template_id: id, html_content: t?.html ?? "" });
+    setF({ ...f, template_id: id, html_content: normalizeOfficialMarketingBody(t?.html ?? OFFICIAL_MARKETING_BODY) });
   };
 
   const saveDraft = async (status: "draft" | "scheduled" = "draft"): Promise<string | null> => {
@@ -186,7 +187,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
       template_id: f.template_id || null,
       subject: f.subject.trim() || null,
       preheader: f.preheader.trim() || null,
-      html_content: f.html_content || null,
+      html_content: normalizeOfficialMarketingBody(f.html_content) || null,
       scheduled_at: f.scheduled_at || null,
       ab_config: f.ab_enabled ? {
         enabled: true,
@@ -210,12 +211,12 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
   const sendTest = async () => {
     if (f.channel !== "email") { toast.info("Le test direct est disponible pour les emails."); return; }
     if (!testEmail.trim()) { toast.error("Email test requis"); return; }
-    if (!f.subject || !f.html_content) { toast.error("Sujet et HTML requis"); return; }
+    if (!f.subject || !f.html_content) { toast.error("Sujet et contenu requis"); return; }
     setTesting(true);
     const { data, error } = await supabase.functions.invoke("marketing-send", {
       body: {
         mode: "test", test_email: testEmail.trim(),
-        subject: f.subject, html: f.html_content,
+        subject: f.subject, html: normalizeOfficialMarketingBody(f.html_content),
         from_name: f.from_name, from_email: f.from_email,
       },
     });
@@ -336,29 +337,24 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 h-[400px]">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div className="flex flex-col">
-                  <Label>HTML</Label>
+                  <Label>Corps du message officiel Nivra</Label>
                   <div className="mb-2 flex flex-wrap gap-1">
-                    {[
-                      ["Header", '<div style="background:#0066CC;padding:24px;text-align:center;color:white;font-size:24px;font-weight:700">Nivra Telecom</div>'],
-                      ["Texte", '<p style="font-size:16px;line-height:1.6;color:#1f2937">Bonjour {{first_name}}, votre message ici.</p>'],
-                      ["Bouton", '<p style="text-align:center"><a href="https://nivra-telecom.ca" style="background:#0066CC;color:white;padding:14px 26px;border-radius:999px;text-decoration:none;font-weight:700">Voir l’offre</a></p>'],
-                      ["Footer", '<div style="padding:18px;text-align:center;font-size:12px;color:#6b7280">Nivra Telecom · <a href="{{unsubscribe_url}}">Se désabonner</a></div>'],
-                    ].map(([label, html]) => (
-                      <Button key={label} type="button" size="sm" variant="outline" onClick={() => setF({ ...f, html_content: `${f.html_content}\n${html}` })}>{label}</Button>
+                    {MARKETING_EMAIL_SNIPPETS.map((snippet) => (
+                      <Button key={snippet.label} type="button" size="sm" variant="outline" onClick={() => setF({ ...f, html_content: `${f.html_content}\n${snippet.html}` })}>{snippet.label}</Button>
                     ))}
                   </div>
-                  <Textarea className="flex-1 font-mono text-xs" value={f.html_content}
+                  <Textarea className="min-h-[400px] font-mono text-xs" value={f.html_content}
                     onChange={e => setF({ ...f, html_content: e.target.value })} />
                 </div>
                 <div className="flex flex-col">
                   <Label>Aperçu</Label>
-                  <iframe srcDoc={f.html_content} className="flex-1 border border-[#1E1E2E] rounded bg-white" />
+                  <iframe srcDoc={renderOfficialMarketingEmail({ title: f.subject || f.name || "Nivra Telecom", preheader: f.preheader, bodyHtml: f.html_content })} className="min-h-[520px] flex-1 rounded border border-[#1E1E2E] bg-white" />
                 </div>
               </div>
               <p className="text-[10px] text-[#888]">
-                Variables: <code>{"{{first_name}}"}</code>, <code>{"{{full_name}}"}</code>, <code>{"{{city}}"}</code>, <code>{"{{unsubscribe_url}}"}</code>
+                L'en-tête, le footer officiel, le support et le désabonnement Nivra sont appliqués automatiquement à l'aperçu, au test et à l'envoi réel. Variables: <code>{"{{first_name}}"}</code>, <code>{"{{full_name}}"}</code>, <code>{"{{city}}"}</code>, <code>{"{{unsubscribe_url}}"}</code>
               </p>
             </div>
           )}
