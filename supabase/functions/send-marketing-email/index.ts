@@ -60,7 +60,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const body: SendRequest = await req.json();
-    const { campaign_id, automation_rule_id, template_id, client_ids, test_email, subject_override: reqSubjectOverride, preview_count } = body;
+    const { campaign_id, automation_rule_id, template_id, client_ids, crm_contact_ids, test_email, subject_override: reqSubjectOverride, preview_count } = body;
 
     // Get template and campaign/automation info
     let template: any = null;
