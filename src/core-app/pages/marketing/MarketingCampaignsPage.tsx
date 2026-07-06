@@ -405,7 +405,7 @@ function CampaignWizard({ onClose, onDone }: { onClose: () => void; onDone: () =
                 </div>
               </div>
               <div className="rounded-2xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
-                Le domaine notify.nivra-telecom.ca doit être actif chez Resend avant l'envoi réel.
+                Envoi via le domaine vérifié <strong>nivra-telecom.ca</strong> chez Resend.
               </div>
             </div>
           )}
