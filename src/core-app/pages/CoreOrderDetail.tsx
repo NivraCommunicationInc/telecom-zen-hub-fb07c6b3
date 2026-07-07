@@ -28,7 +28,7 @@ import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickAc
 import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
 import { CorePaymentOptionsPanel } from "@/core-app/components/order-detail/CorePaymentOptionsPanel";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
-import { Loader2, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
 import { resolveOrderRouteParam } from "@/shared-ops/orderRouteResolver";
 
 const CoreOrderDetail = () => {
