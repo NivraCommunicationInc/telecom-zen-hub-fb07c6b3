@@ -2950,11 +2950,16 @@ export type Database = {
           method: Database["public"]["Enums"]["billing_payment_method"]
           nivra_reference: string | null
           payer_ip: string | null
+          payment_kind: string
           payment_number: string
+          processed_at: string | null
           provider: string | null
+          provider_created_at: string | null
+          provider_event_id: string | null
           provider_payment_id: string | null
           received_at: string | null
           reference: string | null
+          rpc_used: string | null
           source: string | null
           square_payment_id: string | null
           square_receipt_url: string | null
@@ -2982,11 +2987,16 @@ export type Database = {
           method?: Database["public"]["Enums"]["billing_payment_method"]
           nivra_reference?: string | null
           payer_ip?: string | null
+          payment_kind?: string
           payment_number: string
+          processed_at?: string | null
           provider?: string | null
+          provider_created_at?: string | null
+          provider_event_id?: string | null
           provider_payment_id?: string | null
           received_at?: string | null
           reference?: string | null
+          rpc_used?: string | null
           source?: string | null
           square_payment_id?: string | null
           square_receipt_url?: string | null
@@ -3014,11 +3024,16 @@ export type Database = {
           method?: Database["public"]["Enums"]["billing_payment_method"]
           nivra_reference?: string | null
           payer_ip?: string | null
+          payment_kind?: string
           payment_number?: string
+          processed_at?: string | null
           provider?: string | null
+          provider_created_at?: string | null
+          provider_event_id?: string | null
           provider_payment_id?: string | null
           received_at?: string | null
           reference?: string | null
+          rpc_used?: string | null
           source?: string | null
           square_payment_id?: string | null
           square_receipt_url?: string | null
@@ -27895,6 +27910,48 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_events_processed: {
+        Row: {
+          event_id: string
+          invoice_id: string | null
+          outcome: string
+          payload_hash: string | null
+          payment_id: string | null
+          processed_at: string
+          provider: string
+          provider_created_at: string | null
+          provider_event_type: string | null
+          received_at: string
+          rpc_used: string | null
+        }
+        Insert: {
+          event_id: string
+          invoice_id?: string | null
+          outcome?: string
+          payload_hash?: string | null
+          payment_id?: string | null
+          processed_at?: string
+          provider: string
+          provider_created_at?: string | null
+          provider_event_type?: string | null
+          received_at?: string
+          rpc_used?: string | null
+        }
+        Update: {
+          event_id?: string
+          invoice_id?: string | null
+          outcome?: string
+          payload_hash?: string | null
+          payment_id?: string | null
+          processed_at?: string
+          provider?: string
+          provider_created_at?: string | null
+          provider_event_type?: string | null
+          received_at?: string
+          rpc_used?: string | null
+        }
+        Relationships: []
+      }
       work_order_files: {
         Row: {
           created_at: string
@@ -29384,6 +29441,21 @@ export type Database = {
         Args: { _email: string; _user_id: string }
         Returns: Json
       }
+      apply_payment_from_webhook: {
+        Args: {
+          p_amount: number
+          p_context?: Json
+          p_event_id: string
+          p_event_type: string
+          p_external_reference: string
+          p_invoice_id: string
+          p_method: string
+          p_provider: string
+          p_provider_created_at: string
+          p_source?: string
+        }
+        Returns: string
+      }
       apply_payment_to_invoice:
         | {
             Args: {
@@ -30682,6 +30754,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_webhook_event: {
+        Args: {
+          p_event_id: string
+          p_event_type?: string
+          p_payload_hash?: string
+          p_provider: string
+          p_provider_created_at?: string
+        }
+        Returns: boolean
+      }
       recover_error_captured_payment: {
         Args: {
           p_action: string
@@ -30702,6 +30784,19 @@ export type Database = {
       refresh_customer_portal_snapshot_internal: {
         Args: { _event_id?: string; _event_source?: string; _user_id: string }
         Returns: Json
+      }
+      refund_payment: {
+        Args: {
+          p_amount: number
+          p_context?: Json
+          p_event_id: string
+          p_external_reference: string
+          p_original_payment_id: string
+          p_provider: string
+          p_provider_created_at?: string
+          p_reason?: string
+        }
+        Returns: string
       }
       regenerate_contract_pdf: {
         Args: { p_contract_id: string; p_create_new_version?: boolean }
