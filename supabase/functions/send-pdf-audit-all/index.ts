@@ -33,33 +33,24 @@ const CORS = {
 const BUSINESS_EMAIL = "support@nivra-telecom.ca";
 const FROM_EMAIL = "Nivra Telecom <support@nivra-telecom.ca>";
 
-// â"€â"€ Resend direct (bypass pgmq for this one-shot audit) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Resend via Lovable connector gateway (bypass pgmq for this one-shot audit) ──
+import { sendResendEmail } from "../_shared/resendGateway.ts";
 async function sendViaResend(
-  resendKey: string,
+  _resendKey: string,
   subject: string,
   html: string,
   attachments: Array<{ filename: string; content: string; contentType: string }>,
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [BUSINESS_EMAIL],
-      subject,
-      html,
-      attachments,
-    }),
+  const r = await sendResendEmail({
+    from: FROM_EMAIL,
+    to: [BUSINESS_EMAIL],
+    subject,
+    html,
+    attachments,
   });
-  if (!res.ok) {
-    const err = await res.text();
-    return { ok: false, error: err };
-  }
-  return { ok: true };
+  return r.ok ? { ok: true } : { ok: false, error: r.error };
 }
+
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });

@@ -8,6 +8,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,38 +35,26 @@ interface QueueRow {
 }
 
 async function sendViaResend(
-  apiKey: string,
+  _apiKey: string,
   to: string,
   subject: string,
   html: string,
   fromEmail?: string | null,
   attachments?: Array<{ filename: string; content?: string; path?: string }> | null,
 ): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const payload: Record<string, unknown> = {
-      from: fromEmail || CANONICAL_FROM,
-      to: [to],
-      subject,
-      html,
-    };
-    if (attachments && attachments.length > 0) {
-      payload.attachments = attachments;
-    }
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    if (r.ok) return { ok: true };
-    const txt = await r.text();
-    return { ok: false, error: `Resend ${r.status}: ${txt.slice(0, 300)}` };
-  } catch (e) {
-    return { ok: false, error: String(e) };
+  const payload: Record<string, unknown> = {
+    from: fromEmail || CANONICAL_FROM,
+    to: [to],
+    subject,
+    html,
+  };
+  if (attachments && attachments.length > 0) {
+    payload.attachments = attachments;
   }
+  const r = await sendResendEmail(payload);
+  return r.ok ? { ok: true } : { ok: false, error: r.error };
 }
+
 
 /**
  * fallbackHtml — Emit a MINIMAL branded body ONLY when the queue row carries

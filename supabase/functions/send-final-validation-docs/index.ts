@@ -1,5 +1,7 @@
-﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { jsPDF } from "npm:jspdf@2.5.2";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -580,25 +582,18 @@ serve(async (req: Request) => {
     console.log("[final-validation] PDFs generated. Sending 3 separate emails...");
 
     const sendEmail = async (subject: string, html: string, filename: string, b64: string) => {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_KEY}`,
-        },
-        body: JSON.stringify({
-          from: "Nivra Telecom <Support@nivra-telecom.ca>",
-          to: [to],
-          reply_to: "Support@nivra-telecom.ca",
-          subject,
-          html,
-          attachments: [{ filename, content: b64 }],
-        }),
+      const r = await sendResendEmail({
+        from: "Nivra Telecom <Support@nivra-telecom.ca>",
+        to: [to],
+        reply_to: "Support@nivra-telecom.ca",
+        subject,
+        html,
+        attachments: [{ filename, content: b64 }],
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(`Resend error: ${JSON.stringify(data)}`);
-      return data;
+      if (!r.ok) throw new Error(`Resend gateway error: ${r.error}`);
+      return r.data;
     };
+
 
     // Send 3 separate emails
     const [r1, r2, r3] = await Promise.all([

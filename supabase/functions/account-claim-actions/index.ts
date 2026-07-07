@@ -13,6 +13,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { violetShell } from "../_shared/violetEmailShell.ts";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -132,30 +134,25 @@ Deno.serve(async (req) => {
         });
       if (insertErr) throw insertErr;
 
-      // Send email via Resend
+      // Send email via Resend connector gateway
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (resendKey) {
         try {
           const html = buildEmailHtml(code, userEmail, counts);
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${resendKey}`,
-            },
-            body: JSON.stringify({
-              from: FROM_EMAIL,
-              to: [userEmail],
-              subject: "Code de vérification Nivra — Rattachement de vos commandes",
-              html,
-            }),
+          const r = await sendResendEmail({
+            from: FROM_EMAIL,
+            to: [userEmail],
+            subject: "Code de vérification Nivra — Rattachement de vos commandes",
+            html,
           });
+          if (!r.ok) console.error("Resend gateway send failed", r.error);
         } catch (e) {
           console.error("Resend send failed", e);
         }
       } else {
         console.warn("RESEND_API_KEY not set — code generated but not emailed:", code);
       }
+
 
       // Audit
       await admin.from("admin_audit_log").insert({

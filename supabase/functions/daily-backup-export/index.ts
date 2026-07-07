@@ -7,6 +7,8 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as XLSX from "npm:xlsx@0.18.5";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const RECIPIENTS = [
   "support@nivra-telecom.ca",
@@ -297,22 +299,13 @@ Deno.serve(async (req) => {
       ],
     };
 
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(resendPayload),
-    });
-
-    if (!resendRes.ok) {
-      const errText = await resendRes.text();
-      throw new Error(`Resend API error (${resendRes.status}): ${errText}`);
+    const resendResp = await sendResendEmail(resendPayload);
+    if (!resendResp.ok) {
+      throw new Error(resendResp.error || `Resend gateway ${resendResp.status}`);
     }
+    const resendResultId = resendResp.data?.id as string | undefined;
+    console.log(`[DAILY-BACKUP] Email sent successfully via Resend gateway: ${resendResultId}`);
 
-    const resendResult = await resendRes.json();
-    console.log(`[DAILY-BACKUP] Email sent successfully via Resend: ${resendResult.id}`);
 
     // ── UPDATE LOG ─────────────────────────────────────────────────
     if (logId) {
@@ -320,7 +313,7 @@ Deno.serve(async (req) => {
         .from("daily_backup_log")
         .update({
           status: "success",
-          email_id: resendResult.id,
+          email_id: resendResultId,
           row_counts: {
             clients: clientsRows.length,
             orders: ordersRows.length,
@@ -338,7 +331,7 @@ Deno.serve(async (req) => {
       success: true,
       date: today,
       filename,
-      email_id: resendResult.id,
+      email_id: resendResultId,
       rows: {
         clients: clientsRows.length,
         orders: ordersRows.length,
@@ -366,17 +359,11 @@ Deno.serve(async (req) => {
     // Send failure alert via Resend
     if (resendApiKey) {
       try {
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "Nivra Telecom <support@nivra-telecom.ca>",
-            to: RECIPIENTS,
-            subject: `Nivra Daily Backup FAILED - ${today}`,
-            html: `
+        await sendResendEmail({
+          from: "Nivra Telecom <support@nivra-telecom.ca>",
+          to: RECIPIENTS,
+          subject: `Nivra Daily Backup FAILED - ${today}`,
+          html: `
               <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2 style="color: #dc2626;">⚠️ Daily Backup Failed</h2>
                 <p><strong>Date:</strong> ${today}</p>
@@ -385,8 +372,8 @@ Deno.serve(async (req) => {
                 <p style="color: #666; font-size: 12px;">Investigate immediately — backup data not delivered.</p>
               </div>
             `,
-          }),
         });
+
         console.log(`[DAILY-BACKUP] Failure alert sent to recipients.`);
       } catch (alertErr) {
         console.error(`[DAILY-BACKUP] Could not send failure alert:`, alertErr);

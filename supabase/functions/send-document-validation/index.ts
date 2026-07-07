@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import jsPDF from "npm:jspdf@2.5.2";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1428,24 +1430,20 @@ async function sendEmail(to: string, subject: string, htmlBody: string, pdfBytes
 
   const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: "Nivra Telecom <no-reply@nivra-telecom.ca>",
-      to: [to],
-      subject,
-      html: htmlBody,
-      attachments: [{ filename, content: base64 }],
-    }),
+  const r = await sendResendEmail({
+    from: "Nivra Telecom <no-reply@nivra-telecom.ca>",
+    to: [to],
+    subject,
+    html: htmlBody,
+    attachments: [{ filename, content: base64 }],
   });
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Resend error: ${res.status} ${err}`);
+  if (!r.ok) {
+    throw new Error(`Resend gateway error: ${r.status} ${r.error}`);
   }
-  return await res.json();
+  return r.data;
 }
+
 
 function wrapEmailHtml(docTitle: string, docDescription: string): string {
   return `<!DOCTYPE html>

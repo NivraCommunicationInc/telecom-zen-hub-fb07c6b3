@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -198,19 +200,13 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: BACKUP_FROM,
-        to: [BACKUP_EMAIL],
-        subject: `📦 Backup Nivra — ${new Date().toLocaleDateString("fr-CA")} — ${successCount} tables / ${totalRows.toLocaleString()} rows`,
-        html,
-      }),
+    await sendResendEmail({
+      from: BACKUP_FROM,
+      to: [BACKUP_EMAIL],
+      subject: `📦 Backup Nivra — ${new Date().toLocaleDateString("fr-CA")} — ${successCount} tables / ${totalRows.toLocaleString()} rows`,
+      html,
     });
+
 
     return new Response(
       JSON.stringify({ success: true, tables: successCount, rows: totalRows, elapsed }),

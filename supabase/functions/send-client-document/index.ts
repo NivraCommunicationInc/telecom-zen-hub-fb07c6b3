@@ -4,6 +4,8 @@
 // document delivery emails. NEVER use a custom navy/teal template here.
 // ============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -150,21 +152,17 @@ Deno.serve(async (req: Request) => {
       || null;
     const filename = job.storage_path.split("/").pop() || `${job.doc_type}.pdf`;
 
-    // 4. Send email using the OFFICIAL corporate blue template
-    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
-    const emailRespRaw = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
-      body: JSON.stringify({
-        from: FROM_ADDRESS,
-        to: [recipient],
-        reply_to: REPLY_TO,
-        subject: `${label} – Nivra Telecom`,
-        html: buildEmailHtml({ label, clientName, docNumber: docNum, docType: job.doc_type }),
-        attachments: [{ filename, content: pdfBase64 }],
-      }),
+    // 4. Send email using the OFFICIAL corporate blue template (via Lovable Resend gateway)
+    const emailSendResult = await sendResendEmail({
+      from: FROM_ADDRESS,
+      to: [recipient],
+      reply_to: REPLY_TO,
+      subject: `${label} – Nivra Telecom`,
+      html: buildEmailHtml({ label, clientName, docNumber: docNum, docType: job.doc_type }),
+      attachments: [{ filename, content: pdfBase64 }],
     });
-    const emailResp = emailRespRaw.ok ? await emailRespRaw.json() : {};
+    const emailResp = emailSendResult.ok ? (emailSendResult.data ?? {}) : {};
+
 
     // 5. Mark job + client_auto_documents as sent
     await admin

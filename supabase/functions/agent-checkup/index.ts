@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 serve(async () => {
   const supabase = createClient(
@@ -323,19 +325,11 @@ serve(async () => {
   const today = new Date().toLocaleDateString("fr-CA");
   const filename = `rapport-clients-nivra-${today}.csv`;
 
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-
-  const emailRes = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      to: ["support@nivra-telecom.ca"],
-      subject: `📊 Rapport hebdomadaire clients Nivra — ${today} (${accounts.length} clients actifs)`,
-      html: `
+  const emailResult = await sendResendEmail({
+    from: "Nivra Telecom <noreply@nivra-telecom.ca>",
+    to: ["support@nivra-telecom.ca"],
+    subject: `📊 Rapport hebdomadaire clients Nivra — ${today} (${accounts.length} clients actifs)`,
+    html: `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
   <div style="background: #0066CC; padding: 32px 24px; color: #ffffff;">
     <h1 style="margin: 0; font-size: 24px;">📊 Rapport Hebdomadaire</h1>
@@ -356,13 +350,11 @@ serve(async () => {
   </div>
 </div>
       `,
-      attachments: [
-        { filename, content: base64CSV, content_type: "text/csv" },
-      ],
-    }),
+    attachments: [
+      { filename, content: base64CSV, content_type: "text/csv" },
+    ],
   });
 
-  const emailResult = await emailRes.json();
 
   await supabase.from("agent_audit_log").insert({
     agent_name: "checkup",
@@ -371,7 +363,7 @@ serve(async () => {
     details: {
       clients_count: accounts.length,
       filename,
-      email_id: emailResult.id,
+      email_id: emailResult.data?.id,
       date: today,
     },
   });
@@ -396,7 +388,7 @@ serve(async () => {
       ok: true,
       clients_count: accounts.length,
       filename,
-      email_sent: !!emailResult.id,
+      email_sent: !!emailResult.data?.id,
       sample: rows[0] ? Object.fromEntries(headers.map((h, i) => [h, rows[0][i].slice(1, -1)])) : null,
     }),
     { headers: { "Content-Type": "application/json" } }
