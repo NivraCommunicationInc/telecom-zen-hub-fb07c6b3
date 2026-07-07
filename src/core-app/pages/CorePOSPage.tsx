@@ -87,9 +87,9 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.Elemen
 ];
 
 const DELIVERY_PRESETS = [
-  { name: "Livraison standard", amount: 30 },
-  { name: "Livraison Express", amount: 45 },
-  { name: "Expédition", amount: 15 },
+  { name: "Livraison standard (2-5 jours)", amount: 20 },
+  { name: "Livraison Express (Uber Direct)", amount: 40 },
+  { name: "Auto-installation (livraison standard)", amount: 20 },
 ];
 
 const INSTALL_PRESETS = [
