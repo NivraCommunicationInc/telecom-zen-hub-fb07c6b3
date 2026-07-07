@@ -56,12 +56,14 @@ Deno.serve(async (req) => {
   let overrideBegin: string | undefined;
   let overrideEnd: string | undefined;
   try {
-    if (req.method === "POST" && req.headers.get("content-length") !== "0") {
-      const body = await req.json().catch(() => ({}));
+    const raw = await req.text();
+    if (raw && raw.trim().length > 0) {
+      const body = JSON.parse(raw);
       if (typeof body?.begin_time === "string") overrideBegin = body.begin_time;
       if (typeof body?.end_time === "string") overrideEnd = body.end_time;
     }
-  } catch { /* ignore */ }
+  } catch (e) { console.log("[square-orphan] body parse skipped:", String(e)); }
+  console.log("[square-orphan] override_begin=", overrideBegin, "override_end=", overrideEnd);
   const beginTime = overrideBegin ?? new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
   // ─── 1. Fetch recent Square payments ─────────────────────────────────
