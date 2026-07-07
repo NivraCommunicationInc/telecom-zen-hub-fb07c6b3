@@ -35,26 +35,33 @@ export default function TechMap() {
 
   const points = useMemo(() => (data?.points || []).filter((p) => matchesFilter(p, filter)), [data, filter]);
 
-  // Init map once we have a token
+  // Init map once we have a token AND the container is mounted
   useEffect(() => {
     if (!data?.token || !mapEl.current || mapRef.current) return;
-    mapboxgl.accessToken = data.token;
-    const styleUrl =
-      style === "dark"
-        ? "mapbox://styles/mapbox/dark-v11"
-        : "mapbox://styles/mapbox/streets-v12";
-    mapRef.current = new mapboxgl.Map({
-      container: mapEl.current,
-      style: styleUrl,
-      center: [-73.5674, 45.5019], // Montréal
-      zoom: 10,
-      attributionControl: false,
-    });
-    mapRef.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
-    return () => {
-      mapRef.current?.remove();
-      mapRef.current = null;
-    };
+    try {
+      mapboxgl.accessToken = data.token;
+      const styleUrl =
+        style === "dark"
+          ? "mapbox://styles/mapbox/dark-v11"
+          : "mapbox://styles/mapbox/streets-v12";
+      mapRef.current = new mapboxgl.Map({
+        container: mapEl.current,
+        style: styleUrl,
+        center: [-73.5674, 45.5019],
+        zoom: 10,
+        attributionControl: false,
+      });
+      mapRef.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
+      // Force resize once layout settles (fixes 0-height flash on mobile 100dvh)
+      const t = setTimeout(() => mapRef.current?.resize(), 250);
+      return () => {
+        clearTimeout(t);
+        mapRef.current?.remove();
+        mapRef.current = null;
+      };
+    } catch (e) {
+      console.error("[TechMap] init failed", e);
+    }
   }, [data?.token]);
 
   // Update style
@@ -108,9 +115,12 @@ export default function TechMap() {
   }, [data]);
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden" style={{ background: "var(--tp-bg)" }}>
-      {/* Map container */}
-      <div ref={mapEl} className="absolute inset-0" />
+    <div
+      className="fixed inset-0 overflow-hidden"
+      style={{ background: "var(--tp-bg)", zIndex: 1 }}
+    >
+      {/* Map container — explicit size, not dependent on 100dvh */}
+      <div ref={mapEl} className="absolute inset-0" style={{ width: "100%", height: "100%" }} />
 
       {/* Loader / no token */}
       {(isLoading || !data?.token) && (
