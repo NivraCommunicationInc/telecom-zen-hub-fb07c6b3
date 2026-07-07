@@ -1241,6 +1241,31 @@ function ManualOrderDialog({
             </div>
           </Section>
 
+          {/* SECTION 4B — Fulfillment / Livraison */}
+          <Section icon={<Truck className="h-4 w-4" />} title="4B. Mode de livraison / installation">
+            <div className="grid grid-cols-1 gap-2">
+              {FULFILLMENT_OPTIONS.map((opt) => {
+                const active = fulfillmentMode === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setFulfillmentMode(opt.key)}
+                    className={`flex items-start justify-between gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
+                      active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                    </div>
+                    <span className="text-sm font-bold whitespace-nowrap">{opt.fee.toFixed(2)} $</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+
           {/* SECTION 5 — Pricing */}
           <Section icon={<DollarSign className="h-4 w-4" />} title="5. Tarification">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1265,13 +1290,15 @@ function ManualOrderDialog({
               </div>
             </div>
             <div className="mt-3 rounded border bg-muted/30 p-3 text-sm space-y-1">
-              <div className="flex justify-between"><span>Sous-total</span><span>{finalPrice.toFixed(2)} $</span></div>
+              <div className="flex justify-between"><span>Sous-total appareil</span><span>{finalPrice.toFixed(2)} $</span></div>
+              <div className="flex justify-between"><span>Livraison / installation</span><span>{deliveryFee.toFixed(2)} $</span></div>
               <div className="flex justify-between text-muted-foreground"><span>TPS (5%)</span><span>{tps.toFixed(2)} $</span></div>
               <div className="flex justify-between text-muted-foreground"><span>TVQ (9.975%)</span><span>{tvq.toFixed(2)} $</span></div>
               <div className="flex justify-between font-bold border-t pt-1 mt-1"><span>Prix final</span><span>{totalAmount.toFixed(2)} $</span></div>
               <p className="text-xs text-muted-foreground pt-2">Paiement sera traité via PayPal ou enregistré manuellement.</p>
             </div>
           </Section>
+
 
           {/* SECTION 6 — Payment */}
           <Section icon={<CreditCard className="h-4 w-4" />} title="6. Paiement">
