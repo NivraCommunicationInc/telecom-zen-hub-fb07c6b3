@@ -119,26 +119,16 @@ async function processExpirations(
       // J+10+: VOID the invoice (reactivation window closed)
       // P1 GAP #3+#4: Set subscription AND account status to 'cancelled' (not 'expired'/'suspended')
       if (daysPastDue >= 10) {
-        // Mark subscription as cancelled (final terminal state)
-        await supabase
-          .from("billing_subscriptions")
-          .update({
-            status: "cancelled",
-            auto_billing_enabled: false,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", sub.id);
-
-        // Cancel PayPal subscription so no further charges occur
-        if (sub.paypal_subscription_id) {
-          const { success: ppOk, error: ppErr } = await cancelNivraPayPalSubscription(
-            sub.paypal_subscription_id,
-            `Annulé J+${daysPastDue} — fenêtre de réactivation expirée (facture ${inv.invoice_number})`,
-          );
-          console.log(ppOk
-            ? `[lifecycle] ✓ PayPal subscription ${sub.paypal_subscription_id} cancelled`
-            : `[lifecycle] ⚠ PayPal cancel failed ${sub.paypal_subscription_id}: ${ppErr}`
-          );
+        // Canonical RPC: cancel subscription (handles status, provider-side, audit trace)
+        const { error: cancelErr } = await supabase.rpc("cancel_subscription", {
+          p_subscription_id: sub.id,
+          p_reason: `Annulé J+${daysPastDue} — fenêtre de réactivation expirée (facture ${inv.invoice_number})`,
+          p_context: { source: "billing-lifecycle", invoice_id: inv.id, days_past_due: daysPastDue },
+        });
+        if (cancelErr) {
+          stats.errors.push(`Failed to cancel ${sub.id}: ${cancelErr.message}`);
+          stats.errors_count++;
+          continue;
         }
 
         // Mark related account as cancelled + stamp cancelled_at
