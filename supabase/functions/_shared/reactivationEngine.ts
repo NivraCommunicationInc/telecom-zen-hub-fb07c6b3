@@ -66,35 +66,21 @@ export async function reactivateIfSuspended(
 
     const now = new Date().toISOString();
 
-    // ── 2. Reactivate billing_subscriptions ──────────────────────────
-    const { error: reactivateErr } = await supabase
-      .from("billing_subscriptions")
-      .update({
-        status: "active",
-        suspension_reason: null,
-        suspension_date: null,
-        updated_at: now,
-      })
-      .eq("id", subscriptionId)
-      .in("status", ["suspended", "paused"]); // Guard against race conditions
+    // ── 2. Reactivate subscription via canonical RPC ─────────────────
+    // The RPC handles: state transition (suspended/paused → active),
+    // clearing suspension_reason/suspension_date, audit trace, and
+    // race-condition safety. Never mutate billing_subscriptions directly.
+    const { error: reactivateErr } = await supabase.rpc("reactivate_subscription", {
+      p_subscription_id: subscriptionId,
+      p_context: { trigger, invoice_id: invoiceId, previous_status: base.previousStatus },
+    });
 
     if (reactivateErr) {
-      console.error(`[reactivation] Failed to reactivate subscription ${subscriptionId}:`, reactivateErr);
+      console.error(`[reactivation] reactivate_subscription RPC failed ${subscriptionId}:`, reactivateErr);
       return { ...base, message: `reactivation_failed: ${reactivateErr.message}` };
     }
 
-    // ── 2b. Reactivate PayPal subscription so billing resumes ────────
-    if (sub.paypal_subscription_id) {
-      const { success: ppOk, error: ppErr } = await activateNivraPayPalSubscription(
-        sub.paypal_subscription_id,
-        `Paiement reçu — réactivation (trigger: ${trigger}, invoice: ${invoiceId})`,
-      );
-      if (ppOk) {
-        console.log(`[reactivation] ✓ PayPal subscription ${sub.paypal_subscription_id} reactivated`);
-      } else {
-        console.error(`[reactivation] ⚠ PayPal reactivation failed ${sub.paypal_subscription_id}: ${ppErr}`);
-      }
-    }
+    // Phase 3.C.3: PayPal decommissioned — no provider-side reactivation call.
 
     // ── 3. Reactivate linked order ───────────────────────────────────
     if (sub.order_id) {
