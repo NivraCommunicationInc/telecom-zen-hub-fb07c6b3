@@ -441,6 +441,19 @@ Deno.serve(async (req) => {
         // Each item carries kind='service' | 'equipment' from FieldNewSale.
         const rawItems = Array.isArray(sale.services) ? sale.services : [];
         const services = rawItems; // backward-compat alias for downstream refs
+        let quoteSubtotalHint = 0;
+        let quoteTotalHint = 0;
+
+        if (sale.source_quote_id) {
+          const { data: quoteFinancials } = await supabaseAdmin
+            .from("field_quotes")
+            .select("subtotal, total")
+            .eq("id", sale.source_quote_id)
+            .maybeSingle();
+          quoteSubtotalHint = numberFrom((quoteFinancials as any)?.subtotal);
+          quoteTotalHint = numberFrom((quoteFinancials as any)?.total);
+        }
+
         const isSpecialFeeLine = (x: any) => {
           const kind = String(x?.kind || "").toLowerCase();
           return kind === "fulfillment_fee" || kind === "custom_adjustment";
@@ -587,9 +600,9 @@ Deno.serve(async (req) => {
           quoteAdjustmentProjected = true;
         }
 
-        const saleSubtotalHint = numberFrom((sale as any)?.subtotal);
+        const saleSubtotalHint = quoteSubtotalHint;
         const saleTaxesHint = computeTaxes(saleSubtotalHint);
-        const saleTotalHint = numberFrom((sale as any)?.total_amount);
+        const saleTotalHint = quoteTotalHint || numberFrom((sale as any)?.total_amount);
         const hasAuthoritativeSaleSubtotal = saleSubtotalHint > 0 && saleTotalHint > 0 && Math.abs(saleTaxesHint.total - saleTotalHint) <= 0.05;
 
         if (!quoteAdjustmentProjected && hasAuthoritativeSaleSubtotal && monthlyTotal > 0) {
@@ -747,7 +760,7 @@ Deno.serve(async (req) => {
               service_type: serviceTypeLabel,
               category: sale.services?.[0]?.category || 'Field Sales',
 
-              subtotal: subtotal,
+              subtotal: baseAmount,
               activation_fee: activationFee,
               delivery_fee: deliveryFee,
               installation_fee: installationFee,
@@ -908,7 +921,7 @@ Deno.serve(async (req) => {
               order_id: canonicalOrder.id,
               type: "initial",
               status: invoiceStatus,
-              subtotal: subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal,
+              subtotal: baseAmount,
               tps_amount: tpsAmount,
               tvq_amount: tvqAmount,
               total: totalAmount,
