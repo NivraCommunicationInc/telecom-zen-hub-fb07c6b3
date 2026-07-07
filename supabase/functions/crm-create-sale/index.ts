@@ -412,38 +412,15 @@ Deno.serve(async (req) => {
     const equipTotal = equipmentLines.reduce((s, e) => s + e.unit_price * e.quantity, 0);
     const commissionEstimate = Number((monthlyAfterDiscount * 0.30 + equipTotal * 0.05).toFixed(2));
 
-    // Step 8: PayPal order (best-effort — paypal-create-order ne touche pas
-    // aux tables billing_*, la capture passera par apply_payment_to_invoice)
-    let paypalApproveUrl: string | null = null;
-    let paypalOrderId: string | null = null;
-    try {
-      const ppResp = await fetch(`${supabaseUrl}/functions/v1/paypal-create-order`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json", apikey: serviceKey },
-        body: JSON.stringify({
-          order_id: order.id,
-          invoice_id: invoice.id,
-          amount: invoice.total,
-          currency: "CAD",
-          description: `Commande Nivra ${orderNumber}`,
-          customer_info: {
-            first_name: payload.client.first_name,
-            last_name: payload.client.last_name,
-            email: payload.client.email,
-            phone: payload.client.phone,
-          },
-        }),
-      });
-      const ppData = await ppResp.json().catch(() => ({}));
-      paypalOrderId = ppData?.paypal_order_id ?? null;
-      paypalApproveUrl = (ppData?.links ?? []).find((l: any) => l?.rel === "approve")?.href ?? null;
-    } catch (e) { console.error("[crm-create-sale] paypal-create-order failed", e); }
-
+    // Step 8: Phase 3.C.4 — PayPal décommissionné. Le paiement suit désormais
+    // exclusivement le chemin Square (core-square-payment-link) déclenché
+    // séparément par le client depuis le portail. Aucun lien d'approbation
+    // PayPal n'est plus généré ici.
     try {
       await fetch(`${supabaseUrl}/functions/v1/send-order-confirmation`, {
         method: "POST",
         headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json", apikey: serviceKey },
-        body: JSON.stringify({ order_id: order.id, paypal_approve_url: paypalApproveUrl }),
+        body: JSON.stringify({ order_id: order.id }),
       });
     } catch (e) { console.error("[crm-create-sale] send-order-confirmation failed", e); }
 
@@ -455,8 +432,8 @@ Deno.serve(async (req) => {
       invoice_number: invoice.invoice_number,
       total: invoice.total,
       commission_estimate: commissionEstimate,
-      paypal_approve_url: paypalApproveUrl,
-      paypal_order_id: paypalOrderId,
+      paypal_approve_url: null, // Phase 3.C.4 — champ conservé pour compat clients
+      paypal_order_id: null,
       canonical: true,
     });
   } catch (e) {

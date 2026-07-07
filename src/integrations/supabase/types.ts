@@ -30370,10 +30370,6 @@ export type Database = {
         Args: { p_referral_id: string }
         Returns: undefined
       }
-      fn_generate_subscription_renewal: {
-        Args: { p_subscription_id: string }
-        Returns: Json
-      }
       fn_is_equipment_label: { Args: { _label: string }; Returns: boolean }
       fn_repair_activated_order_canonical_chain: {
         Args: { _order_id: string }
@@ -30387,10 +30383,6 @@ export type Database = {
           plan_price: number
           service_category: string
         }[]
-      }
-      fn_run_subscription_renewals: {
-        Args: { p_lookahead_days?: number }
-        Returns: Json
       }
       fn_start_final_exam: {
         Args: { _portal: string; _question_count?: number }
@@ -30421,7 +30413,6 @@ export type Database = {
       generate_agent_number: { Args: { p_role: string }; Returns: string }
       generate_appointment_number: { Args: never; Returns: string }
       generate_billing_invoice_number: { Args: never; Returns: string }
-      generate_billing_renewals: { Args: never; Returns: undefined }
       generate_client_number: { Args: never; Returns: string }
       generate_client_referral_code: {
         Args: { p_user_id: string }

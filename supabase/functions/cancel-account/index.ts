@@ -259,49 +259,25 @@ serve(async (req) => {
     }
 
     // ────────────────────────────────────────────────────────────────
-    // STEP 1 — Cancel PayPal billing agreements for every active sub.
+    // STEP 1 — Cancel active subscriptions.
+    // Phase 3.C.4 : PayPal est décommissionné. Aucune annulation d'entente
+    // PayPal côté API n'est plus effectuée — les paypal_subscription_id
+    // historiques restent en base pour audit uniquement.
     // ────────────────────────────────────────────────────────────────
-    let paypalCancellations = 0;
+    const paypalCancellations = 0; // legacy metric kept for report shape
     let subscriptionsCancelled = 0;
     const cancellableStatuses = ["active", "pending", "suspended"];
 
     const subsQuery = supabase
       .from("billing_subscriptions")
-      .select("id, status, paypal_subscription_id, customer_id, plan_name, plan_price, cycle_start_date, cycle_end_date")
+      .select("id, status, customer_id, plan_name, plan_price, cycle_start_date, cycle_end_date")
       .in("status", cancellableStatuses);
     const { data: subs } = billingCustomerIds.length > 0
       ? await subsQuery.in("customer_id", billingCustomerIds)
       : { data: [] };
 
     for (const sub of subs ?? []) {
-      // 1a. PayPal cancel (only if a binding exists)
-      if (sub.paypal_subscription_id) {
-        try {
-          const resp = await fetch(
-            `${SUPABASE_URL}/functions/v1/paypal-cancel-subscription`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${SERVICE_KEY}`,
-              },
-              body: JSON.stringify({
-                subscription_id: sub.id,
-                account_id: account.id,
-                reason: `cancel-account run ${runId}: ${reason}`,
-              }),
-            },
-          );
-          const ok = resp.ok;
-          const text = await resp.text();
-          recordStep(`paypal_cancel_${sub.id}`, ok, { http: resp.status, body: text.slice(0, 500) });
-          if (ok) paypalCancellations++;
-        } catch (e) {
-          recordStep(`paypal_cancel_${sub.id}`, false, {
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
-      }
+
 
       // 1b. Force-update the local status to 'cancelled' (covers the case
       //     where paypal-cancel-subscription left the row in another state,
