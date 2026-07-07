@@ -141,34 +141,27 @@ Deno.serve(async (req) => {
 
   let emailId: string | null = null;
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Nivra Telecom <support@nivra-telecom.ca>",
-        to: [email],
-        subject,
-        html,
-        scheduled_at: scheduledAt,
-        tags: [
-          { name: "type", value: "cart_abandonment" },
-          { name: "session_id", value: session_id || "unknown" },
-        ],
-      }),
+    const r = await sendResendEmail({
+      from: "Nivra Telecom <support@nivra-telecom.ca>",
+      to: [email],
+      subject,
+      html,
+      scheduled_at: scheduledAt,
+      tags: [
+        { name: "type", value: "cart_abandonment" },
+        { name: "session_id", value: session_id || "unknown" },
+      ],
     });
-    const data = await res.json();
-    emailId = data?.id || null;
-    if (!res.ok) {
-      console.error("[abandonment-track] Resend schedule failed:", data);
-      return json({ ok: false, error: "resend_failed", detail: data }, 500);
+    emailId = (r.data?.id as string | undefined) || null;
+    if (!r.ok) {
+      console.error("[abandonment-track] Resend schedule failed:", r.error);
+      return json({ ok: false, error: "resend_failed", detail: r.error }, 500);
     }
   } catch (e) {
     console.error("[abandonment-track] Resend error:", e);
     return json({ ok: false, error: "resend_exception" }, 500);
   }
+
 
   // Log to DB (best-effort, non-fatal)
   try {
