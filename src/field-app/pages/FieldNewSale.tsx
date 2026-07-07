@@ -554,27 +554,12 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     setIsSubmitting(true);
     setSubmitMessage("Préparation du paiement…");
     try {
-      const { saveQuoteAndEmail } = await import("@/field-app/lib/fieldQuoteService");
+      const { saveQuoteAndEmail, sendPaymentLinkFromQuote } = await import("@/field-app/lib/fieldQuoteService");
       const quote = await saveQuoteAndEmail({ draft, agentName, activationFee, subtotal, tps, tvq, total, agentGps, skipClientEmail: true });
-      const customerName = `${draft.customer.first_name} ${draft.customer.last_name}`.trim();
-      const { data: intentData, error: intentErr } = await supabase
-        .from("field_payment_intents" as any)
-        .insert({
-          quote_id: quote.id,
-          agent_id: user.id,
-          amount: total,
-          currency: "CAD",
-          status: "pending",
-          payment_method: "square_inline",
-          customer_email: draft.customer.email || null,
-          customer_name: customerName || null,
-        })
-        .select("id")
-        .single();
-      if (intentErr || !intentData) throw intentErr ?? new Error("Erreur création intent paiement");
+      const link = await sendPaymentLinkFromQuote(quote.id, "link_only");
       setDraft((d) => ({
         ...d,
-        payment: { ...d.payment, status: "pending", fieldOrderId: (intentData as any).id, paypalApprovalUrl: null },
+        payment: { ...d.payment, status: "pending", fieldOrderId: link.intent_id, paypalApprovalUrl: link.payment_url },
       }));
       toast.success("Prêt — entrez les informations de carte ci-dessous.");
     } catch (err: any) {
