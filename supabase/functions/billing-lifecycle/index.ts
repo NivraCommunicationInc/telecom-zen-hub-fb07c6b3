@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
-import { suspendNivraPayPalSubscription, cancelNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
+// Phase 3.C.3: PayPal decommissioned — Square exclusive. No provider-side sub state calls here.
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 // Test isolation: when set, all client emails are redirected to this address.
