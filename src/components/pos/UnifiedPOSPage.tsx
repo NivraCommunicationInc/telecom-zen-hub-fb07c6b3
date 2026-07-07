@@ -36,6 +36,7 @@ import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
 import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 import CoaxialSurvey, { initialCoaxialAnswers, type CoaxialAnswers } from "@/components/shared/CoaxialSurvey";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
 
 
 
@@ -118,6 +119,7 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [precreatedCardOrder, setPrecreatedCardOrder] = useState<POSDraftInvoiceResult | null>(null);
   const [installSlot, setInstallSlot] = useState<{ date: string; time_slot: string } | null>(null);
   const [coaxSurvey, setCoaxSurvey] = useState<CoaxialAnswers>(initialCoaxialAnswers());
   const [draftDismissed, setDraftDismissed] = useState(false);
@@ -263,6 +265,42 @@ export default function UnifiedPOSPage({
     setStep("confirmation");
   };
 
+  const createCardInvoiceBeforeCharge = async () => {
+    if (!customerData || pos.isEmpty) throw new Error("Client ou panier manquant");
+    if (precreatedCardOrder) {
+      return {
+        invoice_id: precreatedCardOrder.invoiceId,
+        order_id: precreatedCardOrder.orderId,
+        order_number: precreatedCardOrder.orderNumber,
+      };
+    }
+
+    const custInfo = buildCustomerInfo();
+    if (!custInfo) throw new Error("Client invalide");
+    const payload = pos.getOrderPayload();
+    const draft = await createPOSDraftInvoice({
+      customer: custInfo,
+      services: pos.services,
+      equipment: pos.equipment,
+      adjustments: pos.adjustments,
+      totals: pos.totals,
+      portalType,
+      notes: "Paiement Square initialisé avant encaissement",
+      orderPayload: {
+        customer: custInfo,
+        services: payload.services,
+        equipment: payload.equipment,
+        adjustments: payload.adjustments,
+        installation: requiresInstall && installSlot
+          ? { date: installSlot.date, time_slot: installSlot.time_slot, required: true }
+          : { required: false },
+        coaxial_survey: requiresCoax ? coaxSurvey : null,
+      },
+    });
+    setPrecreatedCardOrder(draft);
+    return { invoice_id: draft.invoiceId, order_id: draft.orderId, order_number: draft.orderNumber };
+  };
+
   // ── Build customer info shared by both card and non-card flows ──
   const buildCustomerInfo = () => {
     if (!customerData) return null;
@@ -347,6 +385,22 @@ export default function UnifiedPOSPage({
       const paymentMethod = paymentData.payment_method;
       const paymentReference = 'payment_reference' in paymentData ? paymentData.payment_reference : undefined;
       const squarePaymentId = 'square_payment_id' in paymentData ? (paymentData as AdminPaymentData).square_payment_id : undefined;
+      const precreatedOrderId = 'precreated_order_id' in paymentData ? (paymentData as AdminPaymentData).precreated_order_id : undefined;
+
+      if (precreatedOrderId) {
+        await finalizePOSCardPayment(precreatedOrderId, portalType);
+        onOrderComplete?.(precreatedOrderId);
+        toast.success("🎉 Commande créée avec succès!", {
+          description: `Total: ${payload.totals.first_month_total.toFixed(2)} $`,
+        });
+        pos.clearCart();
+        clearDraft();
+        setCustomerData(null);
+        setPaymentData(null);
+        setPrecreatedCardOrder(null);
+        setStep("catalog");
+        return;
+      }
 
       const { data: newOrder, error } = await supabase
         .from("orders")
@@ -685,6 +739,9 @@ export default function UnifiedPOSPage({
                     onSubmit={handlePaymentSubmit}
                     isSubmitting={isSubmitting}
                     totalAmount={pos.totals.firstMonthTotal}
+                    customerName={customerData?.full_name}
+                    customerEmail={customerData?.email}
+                    onBeforeCardCharge={createCardInvoiceBeforeCharge}
                   />
                 ) : (
                   <POSPaymentForm
