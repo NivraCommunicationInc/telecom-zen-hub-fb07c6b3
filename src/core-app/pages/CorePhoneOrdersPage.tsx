@@ -661,6 +661,10 @@ function ManualOrderDialog({
   const [discount, setDiscount] = useState<number>(0);
   const [discountReason, setDiscountReason] = useState<DiscountReason>("promotion");
 
+  // SECTION 4B — Fulfillment (livraison / installation)
+  const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>("self_standard");
+  const deliveryFee = FULFILLMENT_OPTIONS.find(o => o.key === fulfillmentMode)?.fee ?? 0;
+
   // SECTION 6 — Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("paypal_done");
   const [paymentRef, setPaymentRef] = useState("");
