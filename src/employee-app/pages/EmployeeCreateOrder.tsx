@@ -819,39 +819,34 @@ export default function EmployeeCreateOrder() {
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Wrench className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Type d'installation</h2>
+            <h2 className="text-sm font-semibold text-foreground">Mode de livraison / installation</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setInstallType("auto")}
-              className={`p-4 rounded-lg border text-left transition-colors ${
-                installType === "auto" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold text-foreground">Auto-installation</p>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Le client recevra par courriel le guide PDF officiel d'installation (template Nivra).
-              </p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInstallType("professional")}
-              className={`p-4 rounded-lg border text-left transition-colors ${
-                installType === "professional" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Calendar className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold text-foreground">Installation professionnelle</p>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Un technicien se déplace à la date et plage horaire choisies par le client.
-              </p>
-            </button>
+          <div className="grid grid-cols-1 gap-2">
+            {FULFILLMENT_OPTIONS.map((opt) => {
+              const active = fulfillmentMode === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => {
+                    setFulfillmentMode(opt.key);
+                    setInstallType(opt.installType);
+                  }}
+                  className={`flex items-start justify-between gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
+                    active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      {opt.installType === "auto" ? <Sparkles className="h-4 w-4 text-primary" /> : <Calendar className="h-4 w-4 text-primary" />}
+                      <p className="text-sm font-semibold text-foreground">{opt.label}</p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{opt.desc}</p>
+                  </div>
+                  <span className="text-sm font-bold whitespace-nowrap">{opt.fee.toFixed(2)} $</span>
+                </button>
+              );
+            })}
           </div>
 
           {installType === "professional" && (
