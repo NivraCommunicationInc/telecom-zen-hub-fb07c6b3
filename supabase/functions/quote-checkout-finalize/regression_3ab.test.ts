@@ -9,7 +9,7 @@
  *   4. Idempotence : deuxième appel = même invoice_id.
  *   5. Aucune ligne fantôme sur billing_invoice_lines.
  */
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+// dotenv skipped; env comes from runtime
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 

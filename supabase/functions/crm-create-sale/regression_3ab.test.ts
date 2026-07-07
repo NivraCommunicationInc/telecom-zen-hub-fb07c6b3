@@ -9,7 +9,7 @@
  *   4. Abonnement récurrent figé (frozen_unit_price = prix brut du plan).
  *   5. Aucun paiement n'est créé côté RPC — la capture est déléguée.
  */
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+// dotenv skipped; env comes from runtime
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
