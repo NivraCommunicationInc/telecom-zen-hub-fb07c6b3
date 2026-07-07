@@ -14,6 +14,7 @@ import { useTechAssignments } from "../lib/useTechAssignments";
 import { useAvailableAssignments } from "../lib/useAvailableAssignments";
 import { useOpenPunch, usePunchIn, usePunchOut } from "../lib/usePunch";
 import { useVanStock } from "../lib/useVanStock";
+import TechMiniMap from "../components/TechMiniMap";
 
 function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000);
