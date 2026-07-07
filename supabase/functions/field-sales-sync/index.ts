@@ -777,7 +777,7 @@ Deno.serve(async (req) => {
               service_type: serviceTypeLabel,
               category: sale.services?.[0]?.category || 'Field Sales',
 
-              subtotal: baseAmount,
+              subtotal: Number((baseAmount - activationFee - deliveryFee - installationFee).toFixed(2)),
               activation_fee: activationFee,
               delivery_fee: deliveryFee,
               installation_fee: installationFee,
