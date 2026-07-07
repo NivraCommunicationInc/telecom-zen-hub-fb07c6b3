@@ -24,9 +24,39 @@ declare global {
   }
 }
 
-const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+const PROD_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 const E2E_MODE = import.meta.env.VITE_E2E_MODE === "true";
 const SCRIPT_ID = "cf-turnstile-script";
+
+/**
+ * Cloudflare Turnstile test key — always passes, invisible.
+ * Used on localhost / preview / non-production hosts so we never hit
+ * error 110200 ("Domain not permitted for this sitekey"). The real
+ * production key is registered only for nivra-telecom.ca.
+ * https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+ */
+const TEST_ALWAYS_PASS_KEY = "1x00000000000000000000AA";
+
+const PROD_HOSTS = new Set([
+  "nivra-telecom.ca",
+  "www.nivra-telecom.ca",
+  "core2617.nivra-telecom.ca",
+  "nivra-telecom-ca.lovable.app",
+]);
+
+function resolveSiteKey(): string | undefined {
+  if (!PROD_SITE_KEY) return undefined;
+  if (typeof window === "undefined") return PROD_SITE_KEY;
+  const host = window.location.hostname;
+  // Any non-production host (localhost, 127.0.0.1, *.lovable.app previews, Playwright)
+  // gets the Cloudflare-provided always-pass test key so the widget renders
+  // without triggering 110200. Production hosts use the real registered key.
+  if (PROD_HOSTS.has(host)) return PROD_SITE_KEY;
+  return TEST_ALWAYS_PASS_KEY;
+}
+
+const SITE_KEY = resolveSiteKey();
+
 
 export default function CloudflareTurnstile({ onVerify, onExpire, onError, className }: CloudflareTurnstileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
