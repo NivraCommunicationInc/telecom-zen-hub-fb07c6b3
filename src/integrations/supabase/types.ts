@@ -2628,10 +2628,13 @@ export type Database = {
       }
       billing_invoice_lines: {
         Row: {
+          adjustment_reason: string | null
           created_at: string | null
+          created_by_user_id: string | null
           description: string
           id: string
           invoice_id: string
+          line_kind: string
           line_total: number
           line_type: string
           metadata: Json | null
@@ -2639,13 +2642,18 @@ export type Database = {
           quantity: number | null
           service_address_id: string | null
           service_location_id: string | null
+          source_order_item_id: string | null
+          source_ref: string
           unit_price: number
         }
         Insert: {
+          adjustment_reason?: string | null
           created_at?: string | null
+          created_by_user_id?: string | null
           description: string
           id?: string
           invoice_id: string
+          line_kind?: string
           line_total: number
           line_type?: string
           metadata?: Json | null
@@ -2653,13 +2661,18 @@ export type Database = {
           quantity?: number | null
           service_address_id?: string | null
           service_location_id?: string | null
+          source_order_item_id?: string | null
+          source_ref?: string
           unit_price: number
         }
         Update: {
+          adjustment_reason?: string | null
           created_at?: string | null
+          created_by_user_id?: string | null
           description?: string
           id?: string
           invoice_id?: string
+          line_kind?: string
           line_total?: number
           line_type?: string
           metadata?: Json | null
@@ -2667,9 +2680,18 @@ export type Database = {
           quantity?: number | null
           service_address_id?: string | null
           service_location_id?: string | null
+          source_order_item_id?: string | null
+          source_ref?: string
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "billing_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_integrity_report"
+            referencedColumns: ["invoice_id"]
+          },
           {
             foreignKeyName: "billing_invoice_lines_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -2703,6 +2725,13 @@ export type Database = {
             columns: ["service_location_id"]
             isOneToOne: false
             referencedRelation: "account_service_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_invoice_lines_source_order_item_id_fkey"
+            columns: ["source_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
             referencedColumns: ["id"]
           },
         ]
@@ -2881,6 +2910,13 @@ export type Database = {
             referencedRelation: "billing_subscriptions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "billing_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       billing_payments: {
@@ -2999,6 +3035,13 @@ export type Database = {
             foreignKeyName: "billing_payments_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "billing_integrity_report"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "billing_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "billing_invoices"
             referencedColumns: ["id"]
           },
@@ -3062,6 +3105,13 @@ export type Database = {
             referencedRelation: "billing_subscriptions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "billing_subscription_services_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       billing_subscription_trace_audit: {
@@ -3123,6 +3173,13 @@ export type Database = {
             referencedRelation: "billing_subscriptions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "billing_subscription_trace_audit_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       billing_subscriptions: {
@@ -3136,6 +3193,13 @@ export type Database = {
           cycle_end_date: string | null
           cycle_start_date: string | null
           environment: string
+          frozen_anchor_date: string | null
+          frozen_code: string | null
+          frozen_currency: string | null
+          frozen_cycle: string | null
+          frozen_frequency: string | null
+          frozen_name: string | null
+          frozen_unit_price: number | null
           id: string
           last_invoice_id: string | null
           next_renewal_at: string | null
@@ -3161,10 +3225,13 @@ export type Database = {
           service_category: string | null
           service_location_id: string | null
           source_id: string | null
+          source_order_item_id: string | null
           source_type: string | null
           status:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          superseded_by_subscription_id: string | null
+          supersedes_subscription_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -3177,6 +3244,13 @@ export type Database = {
           cycle_end_date?: string | null
           cycle_start_date?: string | null
           environment?: string
+          frozen_anchor_date?: string | null
+          frozen_code?: string | null
+          frozen_currency?: string | null
+          frozen_cycle?: string | null
+          frozen_frequency?: string | null
+          frozen_name?: string | null
+          frozen_unit_price?: number | null
           id?: string
           last_invoice_id?: string | null
           next_renewal_at?: string | null
@@ -3202,10 +3276,13 @@ export type Database = {
           service_category?: string | null
           service_location_id?: string | null
           source_id?: string | null
+          source_order_item_id?: string | null
           source_type?: string | null
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          superseded_by_subscription_id?: string | null
+          supersedes_subscription_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -3218,6 +3295,13 @@ export type Database = {
           cycle_end_date?: string | null
           cycle_start_date?: string | null
           environment?: string
+          frozen_anchor_date?: string | null
+          frozen_code?: string | null
+          frozen_currency?: string | null
+          frozen_cycle?: string | null
+          frozen_frequency?: string | null
+          frozen_name?: string | null
+          frozen_unit_price?: number | null
           id?: string
           last_invoice_id?: string | null
           next_renewal_at?: string | null
@@ -3243,10 +3327,13 @@ export type Database = {
           service_category?: string | null
           service_location_id?: string | null
           source_id?: string | null
+          source_order_item_id?: string | null
           source_type?: string | null
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          superseded_by_subscription_id?: string | null
+          supersedes_subscription_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -3319,6 +3406,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "account_service_locations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_source_order_item_id_fkey"
+            columns: ["source_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_superseded_by_subscription_id_fkey"
+            columns: ["superseded_by_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_superseded_by_subscription_id_fkey"
+            columns: ["superseded_by_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_supersedes_subscription_id_fkey"
+            columns: ["supersedes_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_supersedes_subscription_id_fkey"
+            columns: ["supersedes_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
           },
         ]
       }
@@ -20673,6 +20795,13 @@ export type Database = {
             foreignKeyName: "public_payment_links_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "billing_integrity_report"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "public_payment_links_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "billing_invoices"
             referencedColumns: ["id"]
           },
@@ -22670,6 +22799,13 @@ export type Database = {
             referencedRelation: "billing_subscriptions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "service_cancellation_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       service_change_requests: {
@@ -22764,6 +22900,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing_subscriptions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_change_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
           },
         ]
       }
@@ -25121,6 +25264,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing_subscriptions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspension_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
           },
         ]
       }
@@ -27925,6 +28075,42 @@ export type Database = {
       }
     }
     Views: {
+      billing_integrity_report: {
+        Row: {
+          integrity_status: string | null
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_total: number | null
+          legacy_lines_count: number | null
+          legacy_lines_total: number | null
+          order_id: string | null
+          order_items_total: number | null
+          product_lines_total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cac_metric: {
         Row: {
           cac_per_client: number | null
@@ -28658,6 +28844,42 @@ export type Database = {
           sort_order?: number | null
         }
         Relationships: []
+      }
+      subscription_integrity_report: {
+        Row: {
+          customer_id: string | null
+          frozen_name: string | null
+          frozen_unit_price: number | null
+          integrity_status: string | null
+          plan_name: string | null
+          plan_price: number | null
+          source_item_is_recurring: boolean | null
+          source_order_item_id: string | null
+          subscription_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscriptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_source_order_item_id_fkey"
+            columns: ["source_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_metrics: {
         Row: {
