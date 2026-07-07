@@ -2,18 +2,23 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 /**
- * PORTAL-ADD-CREDIT — Apply a PayPal capture as account credit
+ * PORTAL-ADD-CREDIT — Apply a Square capture as account credit
  *
- * Logic:
+ * Logic (Phase 3 V2 — Square-only):
  * 1. Authenticate the user
- * 2. Idempotency check on paypal_capture_id
+ * 2. Idempotency check on square capture id
  * 3. Resolve billing_customer
  * 4. Find unpaid invoices (oldest first)
- * 5. Apply payment to invoices via apply_payment_to_invoice RPC
- * 6. Any remaining amount → create a credit invoice + payment pair
+ * 5. Apply payment to invoices via apply_payment_to_invoice RPC (provider=square)
+ * 6. Any remaining amount → credit invoice + billing_payment (provider=square)
  * 7. Queue confirmation email
  *
- * Note: Stripe was decommissioned 2026-05-18. PayPal is the sole live provider.
+ * Historique :
+ * - Stripe décommissionné 2026-05-18.
+ * - PayPal décommissionné Phase 3.C.4 (2026-07-07) — remplacé par Square.
+ * Compat : le paramètre entrant peut encore s'appeler `paypal_capture_id`
+ * pour rétrocompat frontend, mais il est traité comme un capture id neutre
+ * (Square).
  */
 
 const corsHeaders = {
@@ -43,7 +48,9 @@ serve(async (req) => {
     if (authError || !user) throw new Error("Non autorisé");
 
     const body = await req.json();
-    const { amount, paypal_capture_id } = body;
+    // Accepte capture_id (nouveau, Square) OU paypal_capture_id (legacy rétrocompat frontend)
+    const captureId: string | undefined = body.capture_id ?? body.paypal_capture_id;
+    const { amount } = body;
     const userId = user.id;
 
     if (!amount || amount < 5) throw new Error("Montant minimum: 5$");
