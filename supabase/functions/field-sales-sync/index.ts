@@ -639,6 +639,16 @@ Deno.serve(async (req) => {
         const baseAmount = Number((subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal + projectedDiscountTotal).toFixed(2));
         const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
+        const invoiceLineKind = (li: any): string => {
+          if (li.category === "discount") return "discount";
+          if (li.category === "equipment") return "equipment";
+          if (li.category === "service") return "product_recurring";
+          if (li.type === "activation") return "activation_fee";
+          if (li.type === "shipping" || li.type === "delivery") return "shipping";
+          if (li.type === "installation") return "installation_fee";
+          return "manual_adjustment";
+        };
+
         const agentTotal = Number(sale.total_amount || 0);
         if (agentTotal > 0 && Math.abs(agentTotal - totalAmount) > 0.05) {
           throw new Error(
@@ -965,7 +975,7 @@ Deno.serve(async (req) => {
                 line_total: li.unit_price * li.qty,
                 line_type: li.category === "equipment" ? "equipment" : li.category === "fee" ? "fee" : li.category === "discount" ? "discount" : "service",
                 source_ref: li.category === "discount" ? "promotion_applied" : "manual_admin",
-                line_kind: li.category === "discount" ? "discount" : li.category === "equipment" ? "equipment" : li.category === "fee" ? "fee" : "service",
+                line_kind: invoiceLineKind(li),
                 service_address_id: staffServiceAddress?.id || null,
               });
               if (lineErr) {
