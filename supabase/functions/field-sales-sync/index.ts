@@ -903,6 +903,7 @@ Deno.serve(async (req) => {
         // Field orders must enter the same billing pipeline as website orders
         let invoiceId: string | null = null;
         let paymentId: string | null = null;
+        let billingCustomerId: string | null = null;
 
         const { data: verifiedOrder, error: verifyOrderBeforeBillingError } = await supabaseAdmin
           .from("orders")
@@ -922,7 +923,6 @@ Deno.serve(async (req) => {
           if (invNumErr || !invoiceNum) throw new Error(`generate_invoice_number failed: ${invNumErr?.message}`);
 
           // Get or create billing customer
-          let billingCustomerId: string | null = null;
           const { data: existingBillingCustomer } = await supabaseAdmin
             .from("billing_customers")
             .select("id")
@@ -1353,7 +1353,7 @@ Deno.serve(async (req) => {
 
             // Also write to field_commissions (the payroll-eligible table read by pay-commissions-friday).
             // Status starts as "pending" â€” a supervisor must approve before payday.
-            await supabaseAdmin
+            const { error: fieldCommissionErr } = await supabaseAdmin
               .from("field_commissions")
               .upsert({
                 agent_id: sale.salesperson_id,
@@ -1366,8 +1366,10 @@ Deno.serve(async (req) => {
               }, {
                 onConflict: "field_order_id",
                 ignoreDuplicates: true,
-              })
-              .catch((e: any) => console.error("[field-sales-sync] field_commissions upsert failed (non-blocking):", e?.message));
+              });
+            if (fieldCommissionErr) {
+              console.error("[field-sales-sync] field_commissions upsert failed (non-blocking):", fieldCommissionErr.message);
+            }
 
             console.log(`[field-sales-sync] Commission created: ${totalCommission.toFixed(2)}$ (rate: ${(commissionRate * 100).toFixed(0)}%, bonus: ${bonusAmount}) for agent ${sale.salesperson_id}`);
           }
