@@ -661,7 +661,7 @@ const GuestCheckout = () => {
   };
 
   // ── Submit order ──
-  const handleSubmit = async (captureOverride?: string) => {
+  const handleSubmit = async (captureOverride?: string, options?: { allowIncompleteLegal?: boolean }) => {
     if (submittingRef.current || isSubmitting) return;
     submittingRef.current = true;
     setIsSubmitting(true);
@@ -676,7 +676,7 @@ const GuestCheckout = () => {
         return;
       }
 
-      if (!isLegalComplete) {
+      if (!isLegalComplete && !options?.allowIncompleteLegal) {
         toast.error("Veuillez compléter la checklist des conditions essentielles");
         return;
       }
@@ -2306,6 +2306,9 @@ const GuestCheckout = () => {
                             setPaypalCaptureId(paymentId || "");
                             setPaymentComplete(true);
                             toast.success("Paiement confirmé !");
+                            if (paymentId) {
+                              void handleSubmit(paymentId, { allowIncompleteLegal: true });
+                            }
                           }}
                         />
                       )}
