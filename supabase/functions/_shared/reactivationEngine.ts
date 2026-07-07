@@ -1,19 +1,22 @@
 /**
- * reactivationEngine.ts — Shared reactivation logic
+ * reactivationEngine.ts — Shared reactivation logic (Phase 3.C.3)
  *
- * Called by every payment path (PayPal webhook, portal-add-credit,
- * paypal-balance-pay-capture) after apply_payment_to_invoice returns
- * is_fully_paid: true.
+ * Called by every Square payment path after apply_payment_to_invoice returns
+ * is_fully_paid: true. State transitions go exclusively through the canonical
+ * `reactivate_subscription()` RPC — no direct UPDATE on billing_subscriptions.
+ *
+ * PayPal is decommissioned (Phase 3.B). No provider-side reactivation call
+ * is issued from this engine anymore.
  *
  * Reactivation flow:
- *   billing_subscriptions (suspended → active)
+ *   reactivate_subscription() RPC → state, dates, audit trace
  *   orders (suspended/cancelled → active, if linked)
- *   email_queue  → service_reactivated template
+ *   account_adjustments → prorata credit for unused suspended window
+ *   email_queue → service_reactivated
  *   provisioning_log → action: reactivate
- *   admin_audit_log  → service_reactivated
+ *   admin_audit_log → service_reactivated
  */
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { activateNivraPayPalSubscription } from "./nivraPayPalSubscriptionFactory.ts";
 import { prorateWindow } from "./prorationMath.ts";
 
 export interface ReactivationResult {
@@ -32,7 +35,7 @@ export async function reactivateIfSuspended(
   supabase: SupabaseClient,
   subscriptionId: string,
   invoiceId: string,
-  trigger: "paypal_webhook" | "paypal_capture" | "portal_credit" | "balance_pay" | "manual",
+  trigger: "square_webhook" | "square_capture" | "portal_credit" | "balance_pay" | "manual" | "paypal_webhook" | "paypal_capture",
 ): Promise<ReactivationResult> {
   const base: ReactivationResult = {
     reactivated: false,
@@ -45,7 +48,7 @@ export async function reactivateIfSuspended(
     // ── 1. Fetch subscription ────────────────────────────────────────
     const { data: sub, error: subErr } = await supabase
       .from("billing_subscriptions")
-      .select("id, status, customer_id, plan_name, order_id, paypal_subscription_id, suspension_date, cycle_start_date, cycle_end_date, plan_price")
+      .select("id, status, customer_id, plan_name, order_id, suspension_date, cycle_start_date, cycle_end_date, plan_price")
       .eq("id", subscriptionId)
       .maybeSingle();
 
@@ -63,35 +66,21 @@ export async function reactivateIfSuspended(
 
     const now = new Date().toISOString();
 
-    // ── 2. Reactivate billing_subscriptions ──────────────────────────
-    const { error: reactivateErr } = await supabase
-      .from("billing_subscriptions")
-      .update({
-        status: "active",
-        suspension_reason: null,
-        suspension_date: null,
-        updated_at: now,
-      })
-      .eq("id", subscriptionId)
-      .in("status", ["suspended", "paused"]); // Guard against race conditions
+    // ── 2. Reactivate subscription via canonical RPC ─────────────────
+    // The RPC handles: state transition (suspended/paused → active),
+    // clearing suspension_reason/suspension_date, audit trace, and
+    // race-condition safety. Never mutate billing_subscriptions directly.
+    const { error: reactivateErr } = await supabase.rpc("reactivate_subscription", {
+      p_subscription_id: subscriptionId,
+      p_context: { trigger, invoice_id: invoiceId, previous_status: base.previousStatus },
+    });
 
     if (reactivateErr) {
-      console.error(`[reactivation] Failed to reactivate subscription ${subscriptionId}:`, reactivateErr);
+      console.error(`[reactivation] reactivate_subscription RPC failed ${subscriptionId}:`, reactivateErr);
       return { ...base, message: `reactivation_failed: ${reactivateErr.message}` };
     }
 
-    // ── 2b. Reactivate PayPal subscription so billing resumes ────────
-    if (sub.paypal_subscription_id) {
-      const { success: ppOk, error: ppErr } = await activateNivraPayPalSubscription(
-        sub.paypal_subscription_id,
-        `Paiement reçu — réactivation (trigger: ${trigger}, invoice: ${invoiceId})`,
-      );
-      if (ppOk) {
-        console.log(`[reactivation] ✓ PayPal subscription ${sub.paypal_subscription_id} reactivated`);
-      } else {
-        console.error(`[reactivation] ⚠ PayPal reactivation failed ${sub.paypal_subscription_id}: ${ppErr}`);
-      }
-    }
+    // Phase 3.C.3: PayPal decommissioned — no provider-side reactivation call.
 
     // ── 3. Reactivate linked order ───────────────────────────────────
     if (sub.order_id) {

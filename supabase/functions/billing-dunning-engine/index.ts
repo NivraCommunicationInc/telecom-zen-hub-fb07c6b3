@@ -158,17 +158,16 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Suspend subscription at J+14
+        // Suspend subscription at J+14 via canonical RPC (never a direct UPDATE)
         if (actionType === "j14_final" && inv.subscription_id) {
-          await supabase
-            .from("billing_subscriptions")
-            .update({
-              status: "suspended",
-              suspension_reason: `Non-paiement — facture ${inv.invoice_number} (${daysOverdue} jours de retard)`,
-              suspension_date: todayStr,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", inv.subscription_id);
+          const { error: rpcErr } = await supabase.rpc("suspend_subscription", {
+            p_subscription_id: inv.subscription_id,
+            p_reason: `Non-paiement — facture ${inv.invoice_number} (${daysOverdue} jours de retard)`,
+            p_context: { source: "billing-dunning-engine", invoice_id: inv.id, days_overdue: daysOverdue },
+          });
+          if (rpcErr) {
+            results.errors.push(`Invoice ${inv.id}: suspend_subscription RPC error: ${rpcErr.message}`);
+          }
         }
 
         // Log action in activity_logs (idempotency key)

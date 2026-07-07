@@ -135,19 +135,31 @@ serve(async (req) => {
     const proratableAmount = changeType === "add_service" ? newPrice : (newPrice - prevPrice);
 
     // Update subscription record immediately (upgrade only — add_service does not replace plan)
-    if (changeType === "upgrade") {
-      if (subscription_id) {
-        await admin
-          .from("subscriptions")
-          .update({ plan_name: new_plan_name, monthly_price: newPrice, amount: newPrice })
-          .eq("id", subscription_id);
-      }
-      // billing_subscriptions drives renewal invoices — must stay in sync
+    if (changeType === "upgrade" && subscription_id) {
+      // Legacy `subscriptions` table mirror (non-canonical, informational)
       await admin
-        .from("billing_subscriptions")
-        .update({ plan_name: new_plan_name, plan_price: newPrice })
-        .eq("customer_id", bc.id)
-        .eq("status", "active");
+        .from("subscriptions")
+        .update({ plan_name: new_plan_name, monthly_price: newPrice, amount: newPrice })
+        .eq("id", subscription_id);
+      // CANONICAL: apply_plan_change closes the old billing_subscription and creates
+      // a new one with fresh frozen_* snapshot + supersedes/superseded_by link.
+      // Never mutate plan_name/plan_price directly on billing_subscriptions.
+      const { error: pcErr } = await admin.rpc("apply_plan_change", {
+        p_old_subscription_id: subscription_id,
+        p_new_plan_code: new_plan_id ?? new_plan_name,
+        p_new_plan_name: new_plan_name,
+        p_new_plan_price: newPrice,
+        p_context: {
+          source: "client-plan-change",
+          change_type: changeType,
+          service_change_request_id: scr.id,
+          initiated_by: user.id,
+        },
+      });
+      if (pcErr) {
+        console.error("[client-plan-change] apply_plan_change failed:", pcErr);
+        return json(500, { error: `apply_plan_change: ${pcErr.message}` });
+      }
     }
 
     // Prorated charge (only if there's something positive to bill)

@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
-import { suspendNivraPayPalSubscription, cancelNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
+// Phase 3.C.3: PayPal decommissioned — Square exclusive. No provider-side sub state calls here.
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 // Test isolation: when set, all client emails are redirected to this address.
@@ -78,7 +78,7 @@ async function processExpirations(
 
   const { data: pastGraceInvoices, error } = await supabase
     .from("billing_invoices")
-    .select("*, subscription:billing_subscriptions(id, status, plan_name, customer_id, paypal_subscription_id), customer:billing_customers(id, email, first_name, last_name)")
+    .select("*, subscription:billing_subscriptions(id, status, plan_name, customer_id), customer:billing_customers(id, email, first_name, last_name)")
     .in("status", ["pending", "overdue"])
     .lte("due_date", suspendCutoff);
 
@@ -119,26 +119,16 @@ async function processExpirations(
       // J+10+: VOID the invoice (reactivation window closed)
       // P1 GAP #3+#4: Set subscription AND account status to 'cancelled' (not 'expired'/'suspended')
       if (daysPastDue >= 10) {
-        // Mark subscription as cancelled (final terminal state)
-        await supabase
-          .from("billing_subscriptions")
-          .update({
-            status: "cancelled",
-            auto_billing_enabled: false,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", sub.id);
-
-        // Cancel PayPal subscription so no further charges occur
-        if (sub.paypal_subscription_id) {
-          const { success: ppOk, error: ppErr } = await cancelNivraPayPalSubscription(
-            sub.paypal_subscription_id,
-            `Annulé J+${daysPastDue} — fenêtre de réactivation expirée (facture ${inv.invoice_number})`,
-          );
-          console.log(ppOk
-            ? `[lifecycle] ✓ PayPal subscription ${sub.paypal_subscription_id} cancelled`
-            : `[lifecycle] ⚠ PayPal cancel failed ${sub.paypal_subscription_id}: ${ppErr}`
-          );
+        // Canonical RPC: cancel subscription (handles status, provider-side, audit trace)
+        const { error: cancelErr } = await supabase.rpc("cancel_subscription", {
+          p_subscription_id: sub.id,
+          p_reason: `Annulé J+${daysPastDue} — fenêtre de réactivation expirée (facture ${inv.invoice_number})`,
+          p_context: { source: "billing-lifecycle", invoice_id: inv.id, days_past_due: daysPastDue },
+        });
+        if (cancelErr) {
+          stats.errors.push(`Failed to cancel ${sub.id}: ${cancelErr.message}`);
+          stats.errors_count++;
+          continue;
         }
 
         // Mark related account as cancelled + stamp cancelled_at
@@ -234,29 +224,17 @@ async function processExpirations(
 
       // J+5 to J+9: SUSPEND subscription, keep invoice OVERDUE
       if (sub.status === "active" || sub.status === "pending") {
-        const { error: suspErr } = await supabase
-          .from("billing_subscriptions")
-          .update({ status: "suspended", updated_at: new Date().toISOString() })
-          .eq("id", sub.id);
+        // Canonical RPC: suspend subscription (state + audit + provider-side handled server-side)
+        const { error: suspErr } = await supabase.rpc("suspend_subscription", {
+          p_subscription_id: sub.id,
+          p_reason: `Non-paiement — suspendu J+${daysPastDue} (facture ${inv.invoice_number})`,
+          p_context: { source: "billing-lifecycle", invoice_id: inv.id, days_past_due: daysPastDue },
+        });
 
         if (suspErr) {
           stats.errors.push(`Failed to suspend ${sub.id}: ${suspErr.message}`);
           stats.errors_count++;
           continue;
-        }
-
-        // Suspend PayPal subscription so no further charges occur
-        if (sub.paypal_subscription_id) {
-          const { success: ppOk, error: ppErr } = await suspendNivraPayPalSubscription(
-            sub.paypal_subscription_id,
-            `Non-paiement — suspendu J+${daysPastDue} (facture ${inv.invoice_number})`,
-          );
-          if (ppOk) {
-            console.log(`[lifecycle] ✓ PayPal subscription ${sub.paypal_subscription_id} suspended`);
-          } else {
-            console.error(`[lifecycle] ⚠ PayPal suspend failed ${sub.paypal_subscription_id}: ${ppErr}`);
-            stats.errors.push(`PayPal suspend failed for sub ${sub.id}: ${ppErr}`);
-          }
         }
 
         if (inv.status === "pending") {
