@@ -1395,3 +1395,32 @@ function CustomAdjustmentForm({ onAdd }: { onAdd: (name: string, amount: number)
     </div>
   );
 }
+
+function CustomCreditForm({ onAdd }: { onAdd: (name: string, amount: number) => void }) {
+  const [reason, setReason] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const handleAdd = () => {
+    const val = parseFloat(amount);
+    if (!reason.trim() || isNaN(val) || val <= 0) return;
+    onAdd(`Crédit — ${reason.trim()}`, val);
+    setReason("");
+    setAmount("");
+  };
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="flex-1">
+        <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Raison du crédit"
+          className="h-8 text-xs bg-[hsl(220,20%,12%)] border-emerald-600/30 text-white" />
+      </div>
+      <div className="w-24">
+        <Input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00"
+          className="h-8 text-xs bg-[hsl(220,20%,12%)] border-emerald-600/30 text-white" />
+      </div>
+      <Button size="sm" onClick={handleAdd} disabled={!reason.trim() || !amount} className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white">
+        <Minus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
