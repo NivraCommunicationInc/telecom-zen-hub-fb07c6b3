@@ -299,22 +299,13 @@ Deno.serve(async (req) => {
       ],
     };
 
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(resendPayload),
-    });
-
-    if (!resendRes.ok) {
-      const errText = await resendRes.text();
-      throw new Error(`Resend API error (${resendRes.status}): ${errText}`);
+    const resendResp = await sendResendEmail(resendPayload);
+    if (!resendResp.ok) {
+      throw new Error(resendResp.error || `Resend gateway ${resendResp.status}`);
     }
+    const resendResultId = resendResp.data?.id as string | undefined;
+    console.log(`[DAILY-BACKUP] Email sent successfully via Resend gateway: ${resendResultId}`);
 
-    const resendResult = await resendRes.json();
-    console.log(`[DAILY-BACKUP] Email sent successfully via Resend: ${resendResult.id}`);
 
     // ── UPDATE LOG ─────────────────────────────────────────────────
     if (logId) {
