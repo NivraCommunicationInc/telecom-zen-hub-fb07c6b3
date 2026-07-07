@@ -239,38 +239,13 @@ serve(async (req) => {
       signature_verified: signatureVerified,
     });
 
-    // ─── IDEMPOTENCE 3.B.1 — verrou DB atomique (provider,event_id) ─────
-    // Remplace l'ancien check via activity_logs (non-atomique, race-condition-prone).
-    // Le registre webhook_events_processed a une PK (provider,event_id) et
-    // ON CONFLICT DO NOTHING : deux appels concurrents ne produisent qu'un seul
-    // traitement métier — quel que soit le nombre de retries PayPal.
-    const { data: isNewEvent, error: idempotencyErr } = await supabase.rpc(
-      "record_webhook_event",
-      {
-        p_provider: "paypal",
-        p_event_id: event.id,
-        p_event_type: event.event_type,
-        p_provider_created_at: event.create_time || null,
-        p_payload_hash: null,
-      }
-    );
-    if (idempotencyErr) {
-      console.error("[PayPal Webhook] record_webhook_event error:", idempotencyErr);
-      return new Response(
-        JSON.stringify({ error: "idempotency_check_failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    if (isNewEvent === false) {
-      console.log(`[PayPal Webhook] Event ${event.id} (${event.event_type}) déjà traité — short-circuit (webhook_events_processed)`);
-      return new Response(
-        JSON.stringify({ received: true, already_processed: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Trace audit (activity_logs) — conservée pour cohérence avec les autres
-    // audits Nivra, mais N'EST PLUS le verrou d'idempotence.
+    // ─── IDEMPOTENCE 3.B.1 ─────────────────────────────────────────────
+    // L'idempotence est portée atomiquement par les RPC canoniques via
+    // record_webhook_event() (PK provider+event_id, ON CONFLICT DO NOTHING) :
+    //   - événements de capture → apply_payment_from_webhook()
+    //   - événements de refund  → refund_payment()
+    //   - événements de cycle de vie → dedup par ressource (provider_subscription_id)
+    // Ce trace audit est purement informatif — plus jamais le verrou.
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
       entity_type: "paypal_webhook",
