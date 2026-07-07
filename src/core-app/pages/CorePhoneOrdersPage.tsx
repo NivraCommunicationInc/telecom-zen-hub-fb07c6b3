@@ -603,6 +603,7 @@ type PaymentMethod = "paypal_done" | "etransfer" | "cash" | "to_invoice";
 type PaymentStatus = "paid" | "pending";
 type KycChoice = "approved" | "required" | "not_required";
 type DiscountReason = "promotion" | "loyalty" | "employee" | "exchange" | "other";
+type FulfillmentMode = "self_standard" | "self_express" | "technician";
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   paypal_done: "PayPal déjà traité",
@@ -618,6 +619,12 @@ const DISCOUNT_LABELS: Record<DiscountReason, string> = {
   exchange: "Échange",
   other: "Autre",
 };
+
+const FULFILLMENT_OPTIONS: { key: FulfillmentMode; label: string; desc: string; fee: number }[] = [
+  { key: "self_standard", label: "Auto-installation — Livraison standard", desc: "Livraison 2-5 jours ouvrables. Client installe lui-même.", fee: 20 },
+  { key: "self_express",  label: "Auto-installation — Livraison Express (Uber Direct)", desc: "Livraison le jour même ou lendemain. Client installe lui-même.", fee: 40 },
+  { key: "technician",    label: "Installation par technicien",           desc: "Un technicien Nivra se déplace pour installer.", fee: 50 },
+];
 
 function ManualOrderDialog({
   open,
@@ -654,6 +661,10 @@ function ManualOrderDialog({
   const [discount, setDiscount] = useState<number>(0);
   const [discountReason, setDiscountReason] = useState<DiscountReason>("promotion");
 
+  // SECTION 4B — Fulfillment (livraison / installation)
+  const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>("self_standard");
+  const deliveryFee = FULFILLMENT_OPTIONS.find(o => o.key === fulfillmentMode)?.fee ?? 0;
+
   // SECTION 6 — Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("paypal_done");
   const [paymentRef, setPaymentRef] = useState("");
@@ -678,6 +689,7 @@ function ManualOrderDialog({
     setOrderType("phone_only"); setSelectedPlanId("");
     setAddress(""); setCity(""); setProvince("QC"); setPostalCode("");
     setDiscount(0); setDiscountReason("promotion");
+    setFulfillmentMode("self_standard");
     setPaymentMethod("paypal_done"); setPaymentRef(""); setPaymentStatus("paid");
     setFraudScore(null); setFraudFactors({}); setFraudOverrideAck(false);
     setKycChoice("not_required");
@@ -794,9 +806,10 @@ function ManualOrderDialog({
   // Pricing
   const basePrice = selectedPhone?.price_cad ?? 0;
   const finalPrice = Math.max(0, basePrice - discount);
-  const tps = +(finalPrice * 0.05).toFixed(2);
-  const tvq = +(finalPrice * 0.09975).toFixed(2);
-  const totalAmount = +(finalPrice + tps + tvq).toFixed(2);
+  const taxable = +(finalPrice + deliveryFee).toFixed(2);
+  const tps = +(taxable * 0.05).toFixed(2);
+  const tvq = +(taxable * 0.09975).toFixed(2);
+  const totalAmount = +(taxable + tps + tvq).toFixed(2);
 
   // Recompute fraud whenever client + amount ready
   useMemo(() => {
@@ -922,11 +935,12 @@ function ManualOrderDialog({
           tvq_amount: tvq,
           total_amount: totalAmount,
           discount_amount: discount > 0 ? discount : null,
-          delivery_fee: 0,
+          delivery_fee: deliveryFee,
+          fulfillment_type: fulfillmentMode === "technician" ? "technician" : "self_install",
           created_by: "core_admin",
           processed_by: agent?.id ?? null,
           processed_at: new Date().toISOString(),
-          internal_notes: `${planNote}${discountNote}${internalNotes ? ` | Notes: ${internalNotes}` : ""}`,
+          internal_notes: `${planNote}${discountNote} | Livraison: ${FULFILLMENT_OPTIONS.find(o => o.key === fulfillmentMode)?.label} (${deliveryFee}$)${internalNotes ? ` | Notes: ${internalNotes}` : ""}`,
           notes: planNote,
           order_type: "manual",
         } as never)
@@ -1227,6 +1241,31 @@ function ManualOrderDialog({
             </div>
           </Section>
 
+          {/* SECTION 4B — Fulfillment / Livraison */}
+          <Section icon={<Truck className="h-4 w-4" />} title="4B. Mode de livraison / installation">
+            <div className="grid grid-cols-1 gap-2">
+              {FULFILLMENT_OPTIONS.map((opt) => {
+                const active = fulfillmentMode === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setFulfillmentMode(opt.key)}
+                    className={`flex items-start justify-between gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
+                      active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                    </div>
+                    <span className="text-sm font-bold whitespace-nowrap">{opt.fee.toFixed(2)} $</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+
           {/* SECTION 5 — Pricing */}
           <Section icon={<DollarSign className="h-4 w-4" />} title="5. Tarification">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1251,13 +1290,15 @@ function ManualOrderDialog({
               </div>
             </div>
             <div className="mt-3 rounded border bg-muted/30 p-3 text-sm space-y-1">
-              <div className="flex justify-between"><span>Sous-total</span><span>{finalPrice.toFixed(2)} $</span></div>
+              <div className="flex justify-between"><span>Sous-total appareil</span><span>{finalPrice.toFixed(2)} $</span></div>
+              <div className="flex justify-between"><span>Livraison / installation</span><span>{deliveryFee.toFixed(2)} $</span></div>
               <div className="flex justify-between text-muted-foreground"><span>TPS (5%)</span><span>{tps.toFixed(2)} $</span></div>
               <div className="flex justify-between text-muted-foreground"><span>TVQ (9.975%)</span><span>{tvq.toFixed(2)} $</span></div>
               <div className="flex justify-between font-bold border-t pt-1 mt-1"><span>Prix final</span><span>{totalAmount.toFixed(2)} $</span></div>
               <p className="text-xs text-muted-foreground pt-2">Paiement sera traité via PayPal ou enregistré manuellement.</p>
             </div>
           </Section>
+
 
           {/* SECTION 6 — Payment */}
           <Section icon={<CreditCard className="h-4 w-4" />} title="6. Paiement">

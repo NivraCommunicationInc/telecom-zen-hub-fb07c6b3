@@ -65,6 +65,13 @@ const SLOTS = [
   { key: "evening",   label: "Soir (17h - 20h)" },
 ] as const;
 
+type FulfillmentMode = "self_standard" | "self_express" | "technician";
+const FULFILLMENT_OPTIONS: { key: FulfillmentMode; label: string; desc: string; fee: number; installType: "auto" | "professional" }[] = [
+  { key: "self_standard", label: "Auto-installation — Livraison standard",              desc: "Livraison 2-5 jours ouvrables. Client installe lui-même (guide PDF officiel envoyé par courriel).", fee: 20, installType: "auto" },
+  { key: "self_express",  label: "Auto-installation — Livraison Express (Uber Direct)", desc: "Livraison jour même ou lendemain. Client installe lui-même.",                                     fee: 40, installType: "auto" },
+  { key: "technician",    label: "Installation professionnelle (technicien)",           desc: "Un technicien Nivra se déplace à la date choisie.",                                              fee: 50, installType: "professional" },
+];
+
 function minInstallDate(): string {
   const d = new Date();
   d.setDate(d.getDate() + 2);
@@ -109,6 +116,8 @@ export default function EmployeeCreateOrder() {
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null);
   const [equipment, setEquipment] = useState<EquipLine[]>(DEFAULT_EQUIPMENT.map(e => ({ ...e })));
   const [installType, setInstallType] = useState<"auto" | "professional">("auto");
+  const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>("self_standard");
+  const deliveryFee = FULFILLMENT_OPTIONS.find(o => o.key === fulfillmentMode)?.fee ?? 0;
   const [installDate, setInstallDate] = useState<string>(minInstallDate());
   const [installSlot, setInstallSlot] = useState<typeof SLOTS[number]["key"]>("morning");
   const [address, setAddress] = useState({ street: "", city: "", postal: "", province: "QC" });
@@ -135,6 +144,7 @@ export default function EmployeeCreateOrder() {
       if (s.selectedPlan)     setSelectedPlan(s.selectedPlan);
       if (s.equipment)        setEquipment(s.equipment);
       if (s.installType)      setInstallType(s.installType);
+      if (s.fulfillmentMode)  setFulfillmentMode(s.fulfillmentMode);
       if (s.installDate)      setInstallDate(s.installDate);
       if (s.installSlot)      setInstallSlot(s.installSlot);
       if (s.address)          setAddress(s.address);
@@ -149,10 +159,10 @@ export default function EmployeeCreateOrder() {
     try {
       sessionStorage.setItem(ECO_SESSION_KEY, JSON.stringify({
         step, selectedClient, selectedPlan, equipment,
-        installType, installDate, installSlot, address, agentNotes, selectedDiscount,
+        installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount,
       }));
     } catch { /* quota exceeded */ }
-  }, [step, selectedClient, selectedPlan, equipment, installType, installDate, installSlot, address, agentNotes, selectedDiscount]);
+  }, [step, selectedClient, selectedPlan, equipment, installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount]);
 
   // If preset client, load directly
   useEffect(() => {
@@ -470,7 +480,8 @@ export default function EmployeeCreateOrder() {
         payment: { method: "manual", status: "pending", reference: null },
         installation: {
           type: installType,
-          delivery_fee: 0,
+          fulfillment_mode: fulfillmentMode,
+          delivery_fee: deliveryFee,
           installation_fee: 0,
           scheduled_date: installType === "professional" ? installDate : null,
           scheduled_time: installType === "professional" ? installSlot : null,
@@ -808,39 +819,34 @@ export default function EmployeeCreateOrder() {
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Wrench className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Type d'installation</h2>
+            <h2 className="text-sm font-semibold text-foreground">Mode de livraison / installation</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setInstallType("auto")}
-              className={`p-4 rounded-lg border text-left transition-colors ${
-                installType === "auto" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold text-foreground">Auto-installation</p>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Le client recevra par courriel le guide PDF officiel d'installation (template Nivra).
-              </p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInstallType("professional")}
-              className={`p-4 rounded-lg border text-left transition-colors ${
-                installType === "professional" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Calendar className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold text-foreground">Installation professionnelle</p>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Un technicien se déplace à la date et plage horaire choisies par le client.
-              </p>
-            </button>
+          <div className="grid grid-cols-1 gap-2">
+            {FULFILLMENT_OPTIONS.map((opt) => {
+              const active = fulfillmentMode === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => {
+                    setFulfillmentMode(opt.key);
+                    setInstallType(opt.installType);
+                  }}
+                  className={`flex items-start justify-between gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
+                    active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      {opt.installType === "auto" ? <Sparkles className="h-4 w-4 text-primary" /> : <Calendar className="h-4 w-4 text-primary" />}
+                      <p className="text-sm font-semibold text-foreground">{opt.label}</p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{opt.desc}</p>
+                  </div>
+                  <span className="text-sm font-bold whitespace-nowrap">{opt.fee.toFixed(2)} $</span>
+                </button>
+              );
+            })}
           </div>
 
           {installType === "professional" && (
