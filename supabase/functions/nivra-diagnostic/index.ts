@@ -336,255 +336,26 @@ Deno.serve(async (req) => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  if (body.action === "paypal_health") {
-    const since7d = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-
-    const [attempts, alerts, planCache, subsSample] = await Promise.all([
-      sb.from("paypal_autopay_attempts")
-        .select("id, user_id, customer_id, billing_subscription_id, paypal_subscription_id, status, error_message, current_step, created_at, completed_at")
-        .gte("created_at", since7d)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      sb.from("billing_system_alerts")
-        .select("id, alert_type, entity_id, entity_reference, details, created_at")
-        .in("alert_type", ["orphan_subscription_activation", "paypal_subscription_creation_failed"])
-        .order("created_at", { ascending: false })
-        .limit(20),
-      sb.from("paypal_plan_cache")
-        .select("paypal_plan_id, amount_cad, is_active, last_used_at, created_at")
-        .eq("is_active", true)
-        .order("last_used_at", { ascending: false }),
-      sb.from("billing_subscriptions")
-        .select("id, customer_id, plan_name, plan_price, paypal_subscription_id, recurring_setup_status, recurring_provider, status, updated_at")
-        .not("recurring_provider", "is", null)
-        .order("updated_at", { ascending: false })
-        .limit(20),
-    ]);
-
-    const failedAttempts = (attempts.data ?? []).filter((a: any) => a.status === "failed");
-    const pendingAttempts = (attempts.data ?? []).filter((a: any) => a.status === "awaiting_approval");
-
+  // PayPal diagnostic actions — DÉCOMMISSIONNÉES (Phase 3.C.4 finale)
+  // Toutes les actions paypal_* et fix_orphan* sont neutralisées.
+  // Square est l'unique processeur de paiement actif.
+  // ─────────────────────────────────────────────────────────────────────────
+  if (
+    body.action === "paypal_health" ||
+    body.action === "paypal_webhook_check" ||
+    body.action === "paypal_webhook_update" ||
+    body.action === "paypal_sub_lookup" ||
+    body.action === "paypal_deep_check" ||
+    body.action === "fix_orphan" ||
+    body.action === "fix_orphan_by_paypal_id"
+  ) {
     return json({
-      window: "last 7 days",
-      attempts_total: (attempts.data ?? []).length,
-      attempts_failed: failedAttempts.map((a: any) => ({
-        id: a.id,
-        created: a.created_at,
-        step: a.current_step,
-        error: a.error_message,
-        has_customer: !!a.customer_id,
-        has_paypal_sub: !!a.paypal_subscription_id,
-      })),
-      attempts_awaiting_approval: pendingAttempts.map((a: any) => ({
-        id: a.id,
-        created: a.created_at,
-        paypal_sub: a.paypal_subscription_id,
-      })),
-      orphan_alerts: (alerts.data ?? []).map((a: any) => ({
-        id: a.id,
-        type: a.alert_type,
-        entity_id: a.entity_id,
-        entity_reference: a.entity_reference,
-        details: a.details,
-        created: a.created_at,
-      })),
-      paypal_plan_cache: (planCache.data ?? []).map((p: any) => ({
-        plan_id: p.paypal_plan_id,
-        amount: p.amount_cad,
-        last_used: p.last_used_at,
-      })),
-      billing_subs_with_paypal: (subsSample.data ?? []).map((s: any) => ({
-        id: s.id,
-        plan: s.plan_name,
-        price: s.plan_price,
-        paypal_sub_id: s.paypal_subscription_id,
-        setup_status: s.recurring_setup_status,
-        status: s.status,
-        updated: s.updated_at,
-      })),
-      errors: [attempts.error?.message, alerts.error?.message, planCache.error?.message, subsSample.error?.message].filter(Boolean),
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  if (body.action === "fix_orphan") {
-    // Manually link an orphan PayPal subscription to a billing_subscriptions record.
-    // Required body fields: paypal_subscription_id, billing_subscription_id
-    const { paypal_subscription_id, billing_subscription_id } = body;
-    if (!paypal_subscription_id || !billing_subscription_id) {
-      return json({ error: "Required: paypal_subscription_id, billing_subscription_id" }, 400);
-    }
-
-    const { data: sub, error: fetchErr } = await sb
-      .from("billing_subscriptions")
-      .select("id, customer_id, plan_name, paypal_subscription_id, recurring_setup_status")
-      .eq("id", billing_subscription_id)
-      .maybeSingle();
-
-    if (fetchErr) return json({ error: fetchErr.message }, 500);
-    if (!sub) return json({ error: "billing_subscription not found" }, 404);
-    if (sub.paypal_subscription_id && sub.paypal_subscription_id !== paypal_subscription_id) {
-      return json({ error: "Subscription already has a different paypal_subscription_id", existing: sub.paypal_subscription_id }, 409);
-    }
-
-    const { error: updateErr } = await sb
-      .from("billing_subscriptions")
-      .update({
-        paypal_subscription_id,
-        recurring_setup_status: "active",
-        recurring_provider: "paypal",
-        auto_billing_enabled: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", billing_subscription_id);
-
-    if (updateErr) return json({ error: updateErr.message }, 500);
-
-    // Log the manual fix
-    await sb.from("billing_subscription_trace_audit").insert({
-      subscription_id: billing_subscription_id,
-      customer_id: sub.customer_id,
-      action: "paypal_orphan_manually_linked",
-      source_type: "admin",
-      source_id: "nivra-diagnostic",
-      details: { paypal_subscription_id, fixed_at: new Date().toISOString() },
-      reason: `Orphan PayPal subscription ${paypal_subscription_id} manually linked via nivra-diagnostic`,
-    });
-
-    return json({ success: true, billing_subscription_id, paypal_subscription_id, previous_status: sub.recurring_setup_status });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  if (body.action === "paypal_webhook_check") {
-    // List current PayPal webhooks and show which URL they point to
-    const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
-    const clientSecret = Deno.env.get("PAYPAL_SECRET");
-    if (!clientId || !clientSecret) return json({ error: "PAYPAL_CLIENT_ID or PAYPAL_SECRET not set" }, 500);
-
-    const auth = btoa(`${clientId}:${clientSecret}`);
-    const tokenRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
-      method: "POST",
-      headers: { "Authorization": `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: "grant_type=client_credentials",
-    });
-    if (!tokenRes.ok) return json({ error: "PayPal token failed", status: tokenRes.status, body: await tokenRes.text() }, 500);
-    const { access_token } = await tokenRes.json();
-
-    const webhookRes = await fetch("https://api-m.paypal.com/v1/notifications/webhooks", {
-      headers: { "Authorization": `Bearer ${access_token}`, "Content-Type": "application/json" },
-    });
-    const webhooks = await webhookRes.json();
-    return json({ paypal_webhooks: webhooks, this_project_url: `https://${Deno.env.get("SUPABASE_URL")?.split("//")[1]}/functions/v1/paypal-webhook` });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  if (body.action === "paypal_webhook_update") {
-    // Update a PayPal webhook URL. Required: webhook_id, new_url
-    const { webhook_id, new_url } = body;
-    if (!webhook_id || !new_url) return json({ error: "Required: webhook_id, new_url" }, 400);
-
-    const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
-    const clientSecret = Deno.env.get("PAYPAL_SECRET");
-    if (!clientId || !clientSecret) return json({ error: "PAYPAL_CLIENT_ID or PAYPAL_SECRET not set" }, 500);
-
-    const auth = btoa(`${clientId}:${clientSecret}`);
-    const tokenRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
-      method: "POST",
-      headers: { "Authorization": `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: "grant_type=client_credentials",
-    });
-    if (!tokenRes.ok) return json({ error: "PayPal token failed" }, 500);
-    const { access_token } = await tokenRes.json();
-
-    const patchRes = await fetch(`https://api-m.paypal.com/v1/notifications/webhooks/${webhook_id}`, {
-      method: "PATCH",
-      headers: { "Authorization": `Bearer ${access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify([{ op: "replace", path: "/url", value: new_url }]),
-    });
-    const patchBody = await patchRes.json();
-    return json({ status: patchRes.status, ok: patchRes.ok, result: patchBody });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  if (body.action === "paypal_sub_lookup") {
-    // Query PayPal API for a subscription's current status.
-    // Required: paypal_subscription_id
-    const { paypal_subscription_id } = body;
-    if (!paypal_subscription_id) return json({ error: "Required: paypal_subscription_id" }, 400);
-
-    const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
-    const clientSecret = Deno.env.get("PAYPAL_SECRET");
-    if (!clientId || !clientSecret) return json({ error: "PAYPAL_CLIENT_ID or PAYPAL_SECRET not set" }, 500);
-
-    const auth = btoa(`${clientId}:${clientSecret}`);
-    const tokenRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
-      method: "POST",
-      headers: { "Authorization": `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: "grant_type=client_credentials",
-    });
-    if (!tokenRes.ok) return json({ error: "PayPal token failed", status: tokenRes.status }, 500);
-    const { access_token } = await tokenRes.json();
-
-    const subRes = await fetch(`https://api-m.paypal.com/v1/billing/subscriptions/${paypal_subscription_id}`, {
-      headers: { "Authorization": `Bearer ${access_token}`, "Content-Type": "application/json" },
-    });
-    const subData = await subRes.json();
-
-    // Also check Nivra DB for this subscription
-    const { data: nivraSub } = await sb
-      .from("billing_subscriptions")
-      .select("id, customer_id, plan_name, plan_price, recurring_setup_status, recurring_provider, status, auto_billing_enabled, updated_at")
-      .eq("paypal_subscription_id", paypal_subscription_id)
-      .maybeSingle();
-
-    return json({
-      paypal_subscription_id,
-      paypal_status: subRes.status,
-      paypal_data: { status: subData.status, plan_id: subData.plan_id, create_time: subData.create_time, start_time: subData.start_time, billing_info: subData.billing_info, subscriber: subData.subscriber },
-      nivra_billing_subscription: nivraSub,
-      needs_fix: nivraSub?.recurring_setup_status !== "active" && subData.status === "ACTIVE",
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  if (body.action === "fix_orphan_by_paypal_id") {
-    // Fix an orphan by looking up billing_subscriptions via paypal_subscription_id.
-    // Required: paypal_subscription_id
-    const { paypal_subscription_id } = body;
-    if (!paypal_subscription_id) return json({ error: "Required: paypal_subscription_id" }, 400);
-
-    const { data: sub, error: fetchErr } = await sb
-      .from("billing_subscriptions")
-      .select("id, customer_id, plan_name, paypal_subscription_id, recurring_setup_status")
-      .eq("paypal_subscription_id", paypal_subscription_id)
-      .maybeSingle();
-
-    if (fetchErr) return json({ error: fetchErr.message }, 500);
-    if (!sub) return json({ error: "No billing_subscription found with this paypal_subscription_id" }, 404);
-    if (sub.recurring_setup_status === "active") return json({ info: "Already active, no fix needed", sub }, 200);
-
-    const { error: updateErr } = await sb
-      .from("billing_subscriptions")
-      .update({
-        recurring_setup_status: "active",
-        auto_billing_enabled: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sub.id);
-
-    if (updateErr) return json({ error: updateErr.message }, 500);
-
-    await sb.from("billing_subscription_trace_audit").insert({
-      subscription_id: sub.id,
-      customer_id: sub.customer_id,
-      action: "paypal_orphan_manually_linked",
-      source_type: "admin",
-      source_id: "nivra-diagnostic",
-      details: { paypal_subscription_id, fixed_at: new Date().toISOString() },
-      reason: `Orphan ${paypal_subscription_id} fixed via fix_orphan_by_paypal_id`,
-    });
-
-    return json({ success: true, billing_subscription_id: sub.id, paypal_subscription_id, previous_status: sub.recurring_setup_status });
+      error: "paypal_decommissioned",
+      code: "PAYPAL_DECOMMISSIONED",
+      phase: "3.C.4",
+      message:
+        "Les diagnostics et outils de réparation PayPal ont été retirés. Square est l'unique processeur de paiement actif. Consulter les tables historiques en lecture directe si un audit rétrospectif est requis.",
+    }, 410);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -608,54 +379,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  if (body.action === "paypal_deep_check") {
-    // Check PayPal credentials, cached plans status, and table schema integrity.
-    const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
-    const clientSecret = Deno.env.get("PAYPAL_SECRET");
-    if (!clientId || !clientSecret) return json({ error: "PAYPAL_CLIENT_ID or PAYPAL_SECRET not set" }, 500);
 
-    const auth = btoa(`${clientId}:${clientSecret}`);
-    const tokenRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
-      method: "POST",
-      headers: { "Authorization": `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-      body: "grant_type=client_credentials",
-    });
-    if (!tokenRes.ok) return json({ error: "PayPal token failed", status: tokenRes.status, body: await tokenRes.text() }, 500);
-    const { access_token } = await tokenRes.json();
 
-    // Check each cached plan's status on PayPal
-    const { data: plans } = await sb.from("paypal_plan_cache").select("paypal_plan_id, amount_cad, is_active").eq("is_active", true);
-    const planStatuses = await Promise.all((plans ?? []).map(async (p: any) => {
-      const r = await fetch(`https://api-m.paypal.com/v1/billing/plans/${p.paypal_plan_id}`, {
-        headers: { "Authorization": `Bearer ${access_token}` },
-      });
-      const data = await r.json();
-      return { plan_id: p.paypal_plan_id, amount: p.amount_cad, http_status: r.status, paypal_status: data.status, create_time: data.create_time };
-    }));
-
-    // Check paypal_autopay_attempts table schema (detect missing columns)
-    const { data: recentAttempts, error: attemptErr } = await sb
-      .from("paypal_autopay_attempts")
-      .select("id, user_id, status, current_step, error_message, steps, created_at")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    // Check PayPal account info
-    const acctRes = await fetch("https://api-m.paypal.com/v1/oauth2/token/userinfo?schema=paypalv1.1", {
-      headers: { "Authorization": `Bearer ${access_token}` },
-    });
-    const acctData = acctRes.ok ? await acctRes.json() : null;
-
-    return json({
-      credentials_valid: true,
-      client_id_prefix: clientId.substring(0, 8) + "...",
-      paypal_account: acctData,
-      paypal_plan_statuses: planStatuses,
-      recent_attempts: recentAttempts ?? [],
-      attempt_table_error: attemptErr?.message ?? null,
-    });
-  }
-
-  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | fix_orphan_by_paypal_id | paypal_sub_lookup | generate_magic_link | paypal_deep_check | email_audit | auth_sync_check" }, 400);
+  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | generate_magic_link | email_audit | auth_sync_check" }, 400);
 });
