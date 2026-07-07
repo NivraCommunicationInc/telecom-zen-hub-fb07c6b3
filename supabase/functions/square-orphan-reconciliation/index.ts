@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
   // ─── Auth ────────────────────────────────────────────────────────────
   const providedSecret = req.headers.get("x-cron-secret");
-  const expectedSecret = Deno.env.get("SQUARE_ORPHAN_CRON_SECRET");
+  const expectedSecret = Deno.env.get("SQUARE_ORPHAN_CRON_TOKEN");
   if (!expectedSecret || providedSecret !== expectedSecret) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
