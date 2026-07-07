@@ -449,8 +449,8 @@ export default function EmployeeCreateOrder({
 
       const pricingSnapshot = {
         ...serverPricing,
-        portal: "employee",
-        source: "nivra_oneview_cs",
+        portal,
+        source,
         plan_id: selectedPlan.id,
         plan_name: selectedPlan.name,
         plan_price: selectedPlan.price,
@@ -466,7 +466,6 @@ export default function EmployeeCreateOrder({
         install_slot: installType === "professional" ? installSlot : null,
         created_by_agent: agentProfile?.full_name ?? user.email,
         created_by_agent_id: user.id,
-        source,
         custom_credits: allowCustomCredit && Number(customCredit.amount) > 0 && customCredit.reason.trim()
           ? [{ reason: customCredit.reason.trim(), amount: Number(customCredit.amount) }]
           : [],
