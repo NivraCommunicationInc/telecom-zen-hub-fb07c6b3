@@ -280,7 +280,7 @@ serve(async (req) => {
             if (bc?.id) {
               const { data: bSub } = await admin
                 .from("billing_subscriptions")
-                .select("id, customer_id, cycle_end_date, paypal_subscription_id, payment_method")
+                .select("id, customer_id, cycle_end_date, payment_method")
                 .eq("customer_id", bc.id)
                 .eq("status", "active")
                 .order("created_at", { ascending: false })
