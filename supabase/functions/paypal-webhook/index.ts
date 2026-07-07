@@ -239,27 +239,38 @@ serve(async (req) => {
       signature_verified: signatureVerified,
     });
 
-    // IDEMPOTENCY: PayPal retries the same event on transient failures. Check whether
-    // we've already processed this exact event.id and short-circuit if so. The capture
-    // RPC also dedupes by provider_payment_id, but we still want to avoid duplicate
-    // trace_audit rows and email queue inserts.
-    const { data: existingEvent } = await supabase
-      .from("activity_logs")
-      .select("id")
-      .eq("entity_type", "paypal_webhook")
-      .eq("action", event.event_type)
-      .filter("details->>paypal_event_id", "eq", event.id)
-      .maybeSingle();
-
-    if (existingEvent) {
-      console.log(`[PayPal Webhook] Event ${event.id} (${event.event_type}) already processed — short-circuit`);
+    // ─── IDEMPOTENCE 3.B.1 — verrou DB atomique (provider,event_id) ─────
+    // Remplace l'ancien check via activity_logs (non-atomique, race-condition-prone).
+    // Le registre webhook_events_processed a une PK (provider,event_id) et
+    // ON CONFLICT DO NOTHING : deux appels concurrents ne produisent qu'un seul
+    // traitement métier — quel que soit le nombre de retries PayPal.
+    const { data: isNewEvent, error: idempotencyErr } = await supabase.rpc(
+      "record_webhook_event",
+      {
+        p_provider: "paypal",
+        p_event_id: event.id,
+        p_event_type: event.event_type,
+        p_provider_created_at: event.create_time || null,
+        p_payload_hash: null,
+      }
+    );
+    if (idempotencyErr) {
+      console.error("[PayPal Webhook] record_webhook_event error:", idempotencyErr);
+      return new Response(
+        JSON.stringify({ error: "idempotency_check_failed" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (isNewEvent === false) {
+      console.log(`[PayPal Webhook] Event ${event.id} (${event.event_type}) déjà traité — short-circuit (webhook_events_processed)`);
       return new Response(
         JSON.stringify({ received: true, already_processed: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Log the webhook event (acts as idempotency lock for subsequent retries)
+    // Trace audit (activity_logs) — conservée pour cohérence avec les autres
+    // audits Nivra, mais N'EST PLUS le verrou d'idempotence.
     await supabase.from("activity_logs").insert({
       user_id: "00000000-0000-0000-0000-000000000000",
       entity_type: "paypal_webhook",
