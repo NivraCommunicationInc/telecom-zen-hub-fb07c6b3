@@ -2926,6 +2926,13 @@ export type Database = {
             referencedRelation: "subscription_integrity_report"
             referencedColumns: ["subscription_id"]
           },
+          {
+            foreignKeyName: "billing_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       billing_payments: {
@@ -3196,6 +3203,13 @@ export type Database = {
             referencedRelation: "subscription_integrity_report"
             referencedColumns: ["subscription_id"]
           },
+          {
+            foreignKeyName: "billing_subscription_services_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       billing_subscription_trace_audit: {
@@ -3264,6 +3278,13 @@ export type Database = {
             referencedRelation: "subscription_integrity_report"
             referencedColumns: ["subscription_id"]
           },
+          {
+            foreignKeyName: "billing_subscription_trace_audit_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       billing_subscriptions: {
@@ -3296,6 +3317,8 @@ export type Database = {
           plan_code: string
           plan_name: string
           plan_price: number
+          provider_plan_id: string | null
+          provider_subscription_id: string | null
           recurring_provider: string | null
           recurring_setup_status:
             | Database["public"]["Enums"]["recurring_setup_status"]
@@ -3347,6 +3370,8 @@ export type Database = {
           plan_code: string
           plan_name: string
           plan_price: number
+          provider_plan_id?: string | null
+          provider_subscription_id?: string | null
           recurring_provider?: string | null
           recurring_setup_status?:
             | Database["public"]["Enums"]["recurring_setup_status"]
@@ -3398,6 +3423,8 @@ export type Database = {
           plan_code?: string
           plan_name?: string
           plan_price?: number
+          provider_plan_id?: string | null
+          provider_subscription_id?: string | null
           recurring_provider?: string | null
           recurring_setup_status?:
             | Database["public"]["Enums"]["recurring_setup_status"]
@@ -3513,6 +3540,13 @@ export type Database = {
             referencedColumns: ["subscription_id"]
           },
           {
+            foreignKeyName: "billing_subscriptions_superseded_by_subscription_id_fkey"
+            columns: ["superseded_by_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
+            referencedColumns: ["subscription_id"]
+          },
+          {
             foreignKeyName: "billing_subscriptions_supersedes_subscription_id_fkey"
             columns: ["supersedes_subscription_id"]
             isOneToOne: false
@@ -3524,6 +3558,13 @@ export type Database = {
             columns: ["supersedes_subscription_id"]
             isOneToOne: false
             referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_supersedes_subscription_id_fkey"
+            columns: ["supersedes_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
             referencedColumns: ["subscription_id"]
           },
         ]
@@ -22920,6 +22961,13 @@ export type Database = {
             referencedRelation: "subscription_integrity_report"
             referencedColumns: ["subscription_id"]
           },
+          {
+            foreignKeyName: "service_cancellation_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       service_change_requests: {
@@ -23020,6 +23068,13 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
+          {
+            foreignKeyName: "service_change_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
             referencedColumns: ["subscription_id"]
           },
         ]
@@ -25438,6 +25493,13 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
+          {
+            foreignKeyName: "suspension_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
             referencedColumns: ["subscription_id"]
           },
         ]
@@ -29415,6 +29477,114 @@ export type Database = {
         }
         Relationships: []
       }
+      v_subscription_renewal_health: {
+        Row: {
+          customer_id: string | null
+          cycle_end_date: string | null
+          cycle_start_date: string | null
+          frozen_name: string | null
+          frozen_ok: boolean | null
+          frozen_unit_price: number | null
+          recurring_provider: string | null
+          renewal_invoice_count: number | null
+          status:
+            | Database["public"]["Enums"]["billing_subscription_status"]
+            | null
+          subscription_id: string | null
+          superseded_by_subscription_id: string | null
+          supersedes_subscription_id: string | null
+        }
+        Insert: {
+          customer_id?: string | null
+          cycle_end_date?: string | null
+          cycle_start_date?: string | null
+          frozen_name?: string | null
+          frozen_ok?: never
+          frozen_unit_price?: number | null
+          recurring_provider?: string | null
+          renewal_invoice_count?: never
+          status?:
+            | Database["public"]["Enums"]["billing_subscription_status"]
+            | null
+          subscription_id?: string | null
+          superseded_by_subscription_id?: string | null
+          supersedes_subscription_id?: string | null
+        }
+        Update: {
+          customer_id?: string | null
+          cycle_end_date?: string | null
+          cycle_start_date?: string | null
+          frozen_name?: string | null
+          frozen_ok?: never
+          frozen_unit_price?: number | null
+          recurring_provider?: string | null
+          renewal_invoice_count?: never
+          status?:
+            | Database["public"]["Enums"]["billing_subscription_status"]
+            | null
+          subscription_id?: string | null
+          superseded_by_subscription_id?: string | null
+          supersedes_subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscriptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_superseded_by_subscription_id_fkey"
+            columns: ["superseded_by_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_superseded_by_subscription_id_fkey"
+            columns: ["superseded_by_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_superseded_by_subscription_id_fkey"
+            columns: ["superseded_by_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
+            referencedColumns: ["subscription_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_supersedes_subscription_id_fkey"
+            columns: ["supersedes_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_supersedes_subscription_id_fkey"
+            columns: ["supersedes_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_integrity_report"
+            referencedColumns: ["subscription_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_supersedes_subscription_id_fkey"
+            columns: ["supersedes_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "v_subscription_renewal_health"
+            referencedColumns: ["subscription_id"]
+          },
+        ]
+      }
     }
     Functions: {
       _agent_get_supplier_passwords: {
@@ -29572,6 +29742,18 @@ export type Database = {
             }
             Returns: string
           }
+      apply_plan_change: {
+        Args: {
+          p_context?: Json
+          p_new_frozen_code?: string
+          p_new_frozen_name?: string
+          p_new_plan_code: string
+          p_new_plan_name: string
+          p_new_plan_price: number
+          p_old_subscription_id: string
+        }
+        Returns: string
+      }
       apply_promotion_to_order_item: {
         Args: {
           p_amount: number
@@ -29655,6 +29837,10 @@ export type Database = {
       }
       calculate_next_invoice_date: {
         Args: { p_billing_day: number; p_from_date?: string }
+        Returns: string
+      }
+      cancel_subscription: {
+        Args: { p_context?: Json; p_reason?: string; p_subscription_id: string }
         Returns: string
       }
       check_admin_otp_session: {
@@ -30799,6 +30985,10 @@ export type Database = {
         }
         Returns: string
       }
+      reactivate_subscription: {
+        Args: { p_context?: Json; p_subscription_id: string }
+        Returns: string
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -30942,6 +31132,14 @@ export type Database = {
       }
       reveal_supplier_password: { Args: { p_id: string }; Returns: string }
       run_customer_portal_integrity_check: { Args: never; Returns: Json }
+      run_subscription_renewals: {
+        Args: { p_context?: Json; p_lookahead_days?: number }
+        Returns: {
+          invoice_id: string
+          status: string
+          subscription_id: string
+        }[]
+      }
       search_clients_unified: {
         Args: {
           search_email?: string
@@ -31183,6 +31381,15 @@ export type Database = {
       }
       supersede_contract_version: {
         Args: { p_order_id: string }
+        Returns: string
+      }
+      suspend_subscription: {
+        Args: {
+          p_context?: Json
+          p_pause_until?: string
+          p_reason?: string
+          p_subscription_id: string
+        }
         Returns: string
       }
       tech_can_access_order: { Args: { p_order_id: string }; Returns: boolean }
