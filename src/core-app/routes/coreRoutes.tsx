@@ -20,6 +20,7 @@ const WorkQueuePage = lazy(() => import("@/core-app/pages/WorkQueuePage"));
 const CoreAcademyPage = lazy(() => import("@/core-app/pages/CoreAcademyPage"));
 const CoreSLAPage = lazy(() => import("@/core-app/pages/CoreSLAPage"));
 const OrdersPage = lazy(() => import("@/core-app/pages/OrdersPage"));
+const CoreManualOrderPage = lazy(() => import("@/core-app/pages/CoreManualOrderPage"));
 const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
 const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
 const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
@@ -211,6 +212,7 @@ export const coreRoutes: RouteObject = {
     { path: "academy", element: <CoreAcademyPage /> },
     { path: "sla", element: <CoreSLAPage /> },
     { path: "orders", element: <OrdersPage /> },
+    { path: "orders/manual", element: <CoreManualOrderPage /> },
     { path: "orders/:orderId", element: <CoreOrderDetail /> },
     { path: "pos", element: <CorePOSPage /> },
     { path: "kyc", element: <CoreKYCPage /> },
