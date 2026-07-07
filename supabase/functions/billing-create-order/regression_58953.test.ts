@@ -24,7 +24,8 @@
 //   VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 // ============================================================================
 
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
+try { await load({ export: true, allowEmptyValues: true, examplePath: null, defaultsPath: null }); } catch { /* .env optional */ }
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
