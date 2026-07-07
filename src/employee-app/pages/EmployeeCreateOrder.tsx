@@ -65,6 +65,13 @@ const SLOTS = [
   { key: "evening",   label: "Soir (17h - 20h)" },
 ] as const;
 
+type FulfillmentMode = "self_standard" | "self_express" | "technician";
+const FULFILLMENT_OPTIONS: { key: FulfillmentMode; label: string; desc: string; fee: number; installType: "auto" | "professional" }[] = [
+  { key: "self_standard", label: "Auto-installation — Livraison standard",              desc: "Livraison 2-5 jours ouvrables. Client installe lui-même (guide PDF officiel envoyé par courriel).", fee: 20, installType: "auto" },
+  { key: "self_express",  label: "Auto-installation — Livraison Express (Uber Direct)", desc: "Livraison jour même ou lendemain. Client installe lui-même.",                                     fee: 40, installType: "auto" },
+  { key: "technician",    label: "Installation professionnelle (technicien)",           desc: "Un technicien Nivra se déplace à la date choisie.",                                              fee: 50, installType: "professional" },
+];
+
 function minInstallDate(): string {
   const d = new Date();
   d.setDate(d.getDate() + 2);
