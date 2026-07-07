@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
-import { supabase } from "@/integrations/supabase/client";
 
 export type AdminPaymentMethod = "card" | "interac" | "cash" | "deferred";
 
