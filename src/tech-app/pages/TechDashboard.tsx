@@ -247,36 +247,18 @@ export default function TechDashboard() {
             </div>
           </div>
 
-          {/* Mini map placeholder / GPS */}
+          {/* Mini map — real Mapbox with all service addresses */}
           <Link
             to="/tech/map"
             className="tp-card tp-card-hover overflow-hidden relative min-h-[128px] flex flex-col justify-end"
-            style={{
-              background: "linear-gradient(180deg, #1a1a2e 0%, #14142a 100%)",
-            }}
+            style={{ background: "#14142a" }}
           >
+            <TechMiniMap />
+            {/* Bottom fade for label legibility */}
             <div
               aria-hidden
-              className="absolute inset-0 opacity-40"
-              style={{
-                backgroundImage: `
-                  linear-gradient(rgba(124,58,237,0.18) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(124,58,237,0.18) 1px, transparent 1px)
-                `,
-                backgroundSize: "18px 18px",
-                maskImage: "radial-gradient(ellipse at 60% 40%, black 30%, transparent 75%)",
-              }}
-            />
-            <div
-              aria-hidden
-              className="absolute"
-              style={{
-                top: "38%", left: "55%",
-                width: "12px", height: "12px",
-                background: "var(--tp-primary)",
-                borderRadius: "999px",
-                boxShadow: "0 0 0 4px rgba(124,58,237,0.35), 0 0 24px rgba(124,58,237,0.6)",
-              }}
+              className="absolute inset-x-0 bottom-0 h-16 pointer-events-none"
+              style={{ background: "linear-gradient(180deg, transparent 0%, rgba(15,15,26,0.92) 70%)" }}
             />
             <div className="relative p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.12em] mb-1" style={{ color: "var(--tp-text-dim)" }}>Itinéraire</p>
