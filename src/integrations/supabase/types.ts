@@ -24184,6 +24184,135 @@ export type Database = {
           },
         ]
       }
+      square_orphan_alerts: {
+        Row: {
+          amount_cents: number | null
+          buyer_display_name: string | null
+          buyer_email_address: string | null
+          created_at: string
+          currency: string | null
+          detection_reason: Database["public"]["Enums"]["square_orphan_detection_reason"]
+          id: string
+          last_seen_at: string
+          linked_invoice_id: string | null
+          linked_order_id: string | null
+          linked_payment_id: string | null
+          note: string | null
+          raw_square_payload: Json | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          square_created_at: string | null
+          square_payment_id: string
+          square_receipt_url: string | null
+          status: Database["public"]["Enums"]["square_orphan_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number | null
+          buyer_display_name?: string | null
+          buyer_email_address?: string | null
+          created_at?: string
+          currency?: string | null
+          detection_reason: Database["public"]["Enums"]["square_orphan_detection_reason"]
+          id?: string
+          last_seen_at?: string
+          linked_invoice_id?: string | null
+          linked_order_id?: string | null
+          linked_payment_id?: string | null
+          note?: string | null
+          raw_square_payload?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          square_created_at?: string | null
+          square_payment_id: string
+          square_receipt_url?: string | null
+          status?: Database["public"]["Enums"]["square_orphan_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number | null
+          buyer_display_name?: string | null
+          buyer_email_address?: string | null
+          created_at?: string
+          currency?: string | null
+          detection_reason?: Database["public"]["Enums"]["square_orphan_detection_reason"]
+          id?: string
+          last_seen_at?: string
+          linked_invoice_id?: string | null
+          linked_order_id?: string | null
+          linked_payment_id?: string | null
+          note?: string | null
+          raw_square_payload?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          square_created_at?: string | null
+          square_payment_id?: string
+          square_receipt_url?: string | null
+          status?: Database["public"]["Enums"]["square_orphan_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "square_orphan_alerts_linked_invoice_id_fkey"
+            columns: ["linked_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_integrity_report"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "square_orphan_alerts_linked_invoice_id_fkey"
+            columns: ["linked_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_orphan_alerts_linked_invoice_id_fkey"
+            columns: ["linked_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "square_orphan_alerts_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "square_orphan_alerts_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "square_orphan_alerts_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_orphan_alerts_linked_payment_id_fkey"
+            columns: ["linked_payment_id"]
+            isOneToOne: false
+            referencedRelation: "billing_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_orphan_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       square_payment_attempts: {
         Row: {
           amount: number | null
@@ -31838,6 +31967,11 @@ export type Database = {
         | "returned"
         | "lost"
         | "cancelled"
+      square_orphan_detection_reason:
+        | "not_in_billing_payments"
+        | "cmd_reference_no_order"
+        | "webhook_missed"
+      square_orphan_status: "open" | "investigating" | "resolved" | "ignored"
       staff_notification_type:
         | "new_order"
         | "invoice_created"
@@ -32362,6 +32496,12 @@ export const Constants = {
         "lost",
         "cancelled",
       ],
+      square_orphan_detection_reason: [
+        "not_in_billing_payments",
+        "cmd_reference_no_order",
+        "webhook_missed",
+      ],
+      square_orphan_status: ["open", "investigating", "resolved", "ignored"],
       staff_notification_type: [
         "new_order",
         "invoice_created",
