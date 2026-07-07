@@ -851,52 +851,73 @@ serve(async (req) => {
           .maybeSingle();
 
         if (v2Check && v2Check.status !== "paid") {
-          const { data: rpcResult, error: rpcError } = await supabase.rpc(
-            "apply_payment_to_invoice",
+          // Phase 3.B.1 — RPC canonique idempotente
+          const { data: appliedPaymentId, error: rpcError } = await supabase.rpc(
+            "apply_payment_from_webhook",
             {
+              p_provider: "paypal",
+              p_event_id: event.id,
+              p_event_type: event.event_type,
+              p_provider_created_at: event.create_time || null,
               p_invoice_id: v2Check.id,
               p_amount: captureAmount,
               p_method: "paypal",
-              p_provider: "paypal",
-              p_provider_payment_id: captureId,
+              p_external_reference: captureId,
               p_source: "webhook",
-              p_created_by_name: "PayPal Webhook",
-              p_created_by_role: "system",
+              p_context: { paypal_capture_id: captureId, phase: "one_time_capture" },
             }
           );
 
           if (rpcError) {
-            console.error("[PayPal Webhook] apply_payment_to_invoice error:", rpcError);
+            console.error("[PayPal Webhook] apply_payment_from_webhook error (capture):", rpcError);
+          } else if (!appliedPaymentId) {
+            console.log(`[PayPal Webhook] Capture ${captureId} déjà traitée (short-circuit)`);
           } else {
-            console.log(`[PayPal Webhook] ✓ Invoice updated via RPC:`, rpcResult);
+            console.log(`[PayPal Webhook] ✓ Capture appliquée: payment_id=${appliedPaymentId}`);
 
-            // Auto-reactivate if subscription was suspended
-            if (rpcResult?.is_fully_paid && rpcResult?.subscription_id) {
-              const { reactivateIfSuspended } = await import("../_shared/reactivationEngine.ts");
-              const reactivation = await reactivateIfSuspended(
-                supabase, rpcResult.subscription_id, v2Check.id, "paypal_capture"
-              );
-              if (reactivation.reactivated) {
-                console.log(`[PayPal Webhook] ✓ Auto-reactivated subscription ${rpcResult.subscription_id}`);
+            // Lire l'état à jour (jamais d'écriture directe)
+            const { data: freshInv } = await supabase
+              .from("billing_invoices")
+              .select("status, invoice_number, customer_id")
+              .eq("id", v2Check.id)
+              .maybeSingle();
+            const isFullyPaid = freshInv?.status === "paid";
+
+            if (isFullyPaid) {
+              // Retrouver l'abonnement lié (via facture) pour éventuelle réactivation
+              const { data: subRow } = await supabase
+                .from("billing_subscriptions")
+                .select("id, status")
+                .eq("customer_id", freshInv?.customer_id || null)
+                .in("status", ["suspended", "suspended_nonpayment"])
+                .order("updated_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (subRow?.id) {
+                const { reactivateIfSuspended } = await import("../_shared/reactivationEngine.ts");
+                const reactivation = await reactivateIfSuspended(
+                  supabase, subRow.id, v2Check.id, "paypal_capture"
+                );
+                if (reactivation.reactivated) {
+                  console.log(`[PayPal Webhook] ✓ Auto-reactivated subscription ${subRow.id}`);
+                }
               }
             }
 
-            // ── Auto-note: paiement reçu (capture PayPal one-time) ──
-            if (!rpcResult?.already_processed) {
-              await writePaymentAutoNote({
-                supabase,
-                billingCustomerId: rpcResult?.customer_id || null,
-                amount: captureAmount,
-                method: "paypal",
-                provider: "paypal",
-                invoiceNumber: rpcResult?.invoice_number || null,
-                invoiceId: v2Check.id,
-                nivraReference: rpcResult?.nivra_reference || null,
-                paymentNumber: rpcResult?.payment_number || null,
-                channel: "PayPal (capture)",
-              });
-            }
+            await writePaymentAutoNote({
+              supabase,
+              billingCustomerId: freshInv?.customer_id || null,
+              amount: captureAmount,
+              method: "paypal",
+              provider: "paypal",
+              invoiceNumber: freshInv?.invoice_number || null,
+              invoiceId: v2Check.id,
+              nivraReference: null,
+              paymentNumber: null,
+              channel: "PayPal (capture)",
+            });
           }
+
 
         } else if (v2Check?.status === "paid") {
           console.log(`[PayPal Webhook] Invoice ${customId} already paid — skipping`);
