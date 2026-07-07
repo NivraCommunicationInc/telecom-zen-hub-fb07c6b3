@@ -302,24 +302,27 @@ serve(async (req) => {
             .maybeSingle();
           
           if (pendingInvoice) {
-            const { data: rpcResult, error: rpcError } = await supabase.rpc(
-              "apply_payment_to_invoice",
+            // Phase 3.B.1 — passage strict par apply_payment_from_webhook
+            //   (idempotence event_id + délégation apply_payment_to_invoice + trace provider)
+            const { data: paymentId, error: rpcError } = await supabase.rpc(
+              "apply_payment_from_webhook",
               {
+                p_provider: "paypal",
+                p_event_id: `${event.id}:activation`,
+                p_event_type: event.event_type,
+                p_provider_created_at: event.create_time || null,
                 p_invoice_id: pendingInvoice.id,
                 p_amount: pendingInvoice.total,
                 p_method: "paypal",
-                p_provider: "paypal",
-                p_provider_payment_id: `sub_activation_${paypalSubscriptionId}`,
+                p_external_reference: `sub_activation_${paypalSubscriptionId}`,
                 p_source: "webhook_subscription",
-                p_created_by_name: "PayPal Webhook",
-                p_created_by_role: "system",
-                p_customer_id: sub.customer_id,
+                p_context: { paypal_subscription_id: paypalSubscriptionId, phase: "activation" },
               }
             );
             if (rpcError) {
-              console.error("[PayPal Webhook] RPC error on activation:", rpcError);
+              console.error("[PayPal Webhook] apply_payment_from_webhook error (activation):", rpcError);
             } else {
-              console.log(`[PayPal Webhook] ✓ Initial invoice paid:`, rpcResult);
+              console.log(`[PayPal Webhook] ✓ Initial invoice paid: payment_id=${paymentId}`);
             }
           }
 
