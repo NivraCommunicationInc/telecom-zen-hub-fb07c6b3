@@ -28,6 +28,33 @@ export interface SavedQuote {
   valid_until: string;
 }
 
+async function resolveFunctionError(error: any, fallback: string): Promise<Error> {
+  const context = error?.context;
+  if (context && typeof context.json === "function") {
+    try {
+      const body = await context.json();
+      if (body?.error) return new Error(String(body.error));
+    } catch {
+      // ignore body parse failures and use fallbacks below
+    }
+  }
+
+  if (context && typeof context.text === "function") {
+    try {
+      const text = await context.text();
+      if (text) return new Error(text);
+    } catch {
+      // ignore body parse failures and use fallbacks below
+    }
+  }
+
+  if (error?.message && error.message !== "Edge Function returned a non-2xx status code") {
+    return new Error(error.message);
+  }
+
+  return new Error(fallback);
+}
+
 /**
  * Persists the current draft as a `field_quote` row and emails the client a
  * link to finish the order. Throws on failure.
@@ -146,7 +173,7 @@ export async function sendPaymentLinkFromQuote(
   const { data, error } = await supabase.functions.invoke("field-payment-link-create", {
     body: { quote_id: quoteId, mode },
   });
-  if (error) throw error;
+  if (error) throw await resolveFunctionError(error, "Échec de la création du lien de paiement.");
   if (!data?.ok) throw new Error(data?.error || "Échec de la création du lien de paiement.");
   return {
     intent_id: data.intent_id,
