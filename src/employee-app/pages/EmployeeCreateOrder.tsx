@@ -116,6 +116,8 @@ export default function EmployeeCreateOrder() {
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null);
   const [equipment, setEquipment] = useState<EquipLine[]>(DEFAULT_EQUIPMENT.map(e => ({ ...e })));
   const [installType, setInstallType] = useState<"auto" | "professional">("auto");
+  const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>("self_standard");
+  const deliveryFee = FULFILLMENT_OPTIONS.find(o => o.key === fulfillmentMode)?.fee ?? 0;
   const [installDate, setInstallDate] = useState<string>(minInstallDate());
   const [installSlot, setInstallSlot] = useState<typeof SLOTS[number]["key"]>("morning");
   const [address, setAddress] = useState({ street: "", city: "", postal: "", province: "QC" });
