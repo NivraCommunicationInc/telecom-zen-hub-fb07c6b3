@@ -5,8 +5,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SAFE_PARAM_RE = /^[\w-]+$/;
 
 export type ResolvedOrderRoute =
-  | { kind: "order"; orderId: string }
-  | { kind: "field_payment_intent"; intentId: string };
+  | { kind: "order"; orderId: string };
 
 export async function resolveOrderRouteParam(param: string): Promise<ResolvedOrderRoute> {
   const value = decodeURIComponent(param).trim();
@@ -32,7 +31,7 @@ export async function resolveOrderRouteParam(param: string): Promise<ResolvedOrd
     if ((intent as any)?.converted_order_id)
       return { kind: "order", orderId: (intent as any).converted_order_id };
     if ((intent as any)?.id)
-      return { kind: "field_payment_intent", intentId: (intent as any).id };
+      throw new Error("Commande Core introuvable pour ce paiement — aucun dossier opérationnel ne sera affiché en format FIELD.");
   }
 
   const { data: byNumber, error: err3 } = await supabase
@@ -57,7 +56,7 @@ export async function resolveOrderRouteParam(param: string): Promise<ResolvedOrd
     if (intent?.converted_order_id)
       return { kind: "order", orderId: intent.converted_order_id as string };
     if (intent?.id)
-      return { kind: "field_payment_intent", intentId: intent.id as string };
+      throw new Error("Commande Core introuvable pour ce paiement — aucun dossier opérationnel ne sera affiché en format FIELD.");
   }
 
   throw new Error("Commande introuvable");
@@ -65,6 +64,5 @@ export async function resolveOrderRouteParam(param: string): Promise<ResolvedOrd
 
 export async function resolveCanonicalOrderId(param: string): Promise<string> {
   const resolved = await resolveOrderRouteParam(param);
-  if (resolved.kind === "order") return resolved.orderId;
-  throw new Error("Vente terrain en attente de paiement — la commande Core sera créée dès confirmation du paiement.");
+  return resolved.orderId;
 }

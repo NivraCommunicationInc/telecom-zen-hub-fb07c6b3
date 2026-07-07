@@ -54,19 +54,9 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
       if (error) throw error;
       const orderRows = orders || [];
 
-      const { data: fieldIntents } = environment === "test"
-        ? { data: [] as any[] }
-        : await supabase
-            .from("field_payment_intents" as any)
-            .select("id, agent_id, payment_method, status, amount, customer_email, customer_name, created_at, converted_order_id")
-            .is("converted_order_id", null)
-            .order("created_at", { ascending: false })
-            .limit(100);
-
       const userIds = [...new Set(orderRows.map((o) => o.user_id))];
       const agentIds = [...new Set([
         ...orderRows.map((o: any) => o.created_by_agent_id).filter(Boolean),
-        ...((fieldIntents || []) as any[]).map((i: any) => i.agent_id).filter(Boolean),
       ] as string[])];
       const allProfileIds = [...new Set([...userIds, ...agentIds])];
       const { data: profiles } = allProfileIds.length
@@ -143,33 +133,7 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
         };
       });
 
-      const pendingFieldOrders = (fieldIntents || []).map((intent: any): AdminOrder => ({
-        id: intent.id,
-        order_number: `FIELD-${String(intent.id).slice(0, 8).toUpperCase()}`,
-        user_id: intent.agent_id,
-        service_type: "Vente terrain en attente",
-        order_type: "field_payment_intent",
-        status: intent.status === "paid" || intent.status === "completed" ? "paid" : "pending_payment",
-        payment_status: intent.status,
-        total_amount: Number(intent.amount || 0),
-        risk_flags: null,
-        created_at: intent.created_at,
-        environment: "live",
-        client_full_name: intent.customer_name ?? null,
-        client_email: intent.customer_email ?? null,
-        account_number: null,
-        invoice_number: null,
-        invoice_status: null,
-        kyc_status: null,
-        sla_deadline: null,
-        sla_status: null,
-        payment_method: intent.payment_method ?? null,
-        source: "field_payment_intent",
-        created_by_agent_id: intent.agent_id ?? null,
-        agent_full_name: intent.agent_id ? (profileMap.get(intent.agent_id)?.full_name ?? null) : null,
-      }));
-
-      return [...pendingFieldOrders, ...canonicalOrders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return canonicalOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     },
   });
 }

@@ -168,6 +168,7 @@ export default function CorePOSPage() {
   const [paymentNote, setPaymentNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState<{ orderId: string; orderNumber: string } | null>(null);
+  const [paymentOrder, setPaymentOrder] = useState<{ id: string; order_number: string | null } | null>(null);
 
   // ── Square link (email) state ──
   const [squareLinkEmail, setSquareLinkEmail] = useState("");
@@ -392,109 +393,118 @@ export default function CorePOSPage() {
     setShowPayment(true);
   };
 
+  const createCoreOrder = async (options?: {
+    paymentStatus?: string;
+    paymentReference?: string | null;
+    paymentMethodOverride?: PaymentMethod;
+    noteOverride?: string;
+  }) => {
+    if (paymentOrder) return paymentOrder;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error("Session expirée");
+
+    const clientEmail = selectedClient?.email || newClient.email;
+    const clientPhone = selectedClient?.phone || newClient.phone;
+    const firstName = selectedClient ? (selectedClient.full_name?.split(" ")[0] || "") : newClient.first_name;
+    const lastName = selectedClient ? (selectedClient.full_name?.split(" ").slice(1).join(" ") || "") : newClient.last_name;
+    const dob = newClient.date_of_birth || null;
+    const clientId = selectedClient?.id || null;
+
+    if (!dob && !selectedClient) throw new Error("Date de naissance requise pour un nouveau client");
+
+    const orderPayload = {
+      services: services.map(s => ({
+        offer_id: s.offerId, name: s.name, category: s.category,
+        price_monthly: s.priceMonthly, price_setup: s.priceSetup, quantity: s.quantity,
+      })),
+      equipment: equipment.map(e => ({
+        type: e.type, name: e.name, description: e.description,
+        price: e.price, quantity: e.quantity, serial_number: e.serialNumber || null,
+      })),
+      adjustments: adjustments.map(a => ({ type: a.type, name: a.name, amount: a.amount })),
+      totals: {
+        monthly_subtotal: totals.monthlySubtotal,
+        equipment_total: totals.equipmentTotal,
+        adjustments_total: totals.adjustmentsTotal,
+        activation_fee: totals.activationFee,
+        tps: totals.tps,
+        tvq: totals.tvq,
+        first_month_total: totals.firstMonthTotal,
+        recurring_monthly: totals.recurringMonthly,
+      },
+      promo_code: promoCode || null,
+    };
+
+    const methodForOrder = options?.paymentMethodOverride ?? paymentMethod;
+    const note = options?.noteOverride ?? paymentNote;
+
+    const { data: newOrder, error: orderErr } = await supabase
+      .from("orders")
+      .insert([{
+        user_id: clientId,
+        service_type: services[0]?.category || "bundle",
+        client_email: clientEmail,
+        client_dob: dob,
+        client_first_name: firstName,
+        client_last_name: lastName,
+        client_phone: clientPhone,
+        service_address: newClient.service_address || undefined,
+        service_city: newClient.service_city || undefined,
+        service_postal_code: newClient.service_postal_code || undefined,
+        equipment_details: JSON.parse(JSON.stringify(orderPayload)),
+        subtotal: totals.taxableAmount,
+        tps_amount: totals.tps,
+        tvq_amount: totals.tvq,
+        total_amount: totals.firstMonthTotal,
+        payment_status: options?.paymentStatus ?? (methodForOrder !== "deferred" ? "confirmed" : "pending"),
+        payment_reference: options?.paymentReference ?? (paymentRef || null),
+        internal_notes: `[POS Core] ${note || ""}\nMéthode: ${methodForOrder}${paymentMode === "partial" ? ` (partiel: ${partialAmount}$)` : ""}`.trim(),
+        status: "pending",
+        promo_code: promoCode || null,
+      }])
+      .select("id, order_number")
+      .single();
+
+    if (orderErr) throw orderErr;
+
+    if (!clientId) {
+      try {
+        await supabase.functions.invoke("auto-create-client-account", {
+          body: {
+            email: clientEmail,
+            first_name: firstName,
+            last_name: lastName,
+            phone: clientPhone,
+            order_id: newOrder.id,
+            order_number: newOrder.order_number || undefined,
+            service_address: newClient.service_address,
+            service_city: newClient.service_city,
+            service_postal_code: newClient.service_postal_code,
+            date_of_birth: dob,
+          },
+        });
+      } catch (e) {
+        console.warn("[CorePOS] auto-create-client-account failed (non-blocking):", e);
+      }
+    }
+
+    try {
+      const { orchestrateOrder } = await import("@/lib/orderOrchestration");
+      await orchestrateOrder(newOrder.id);
+    } catch (e) {
+      console.warn("[CorePOS] Orchestration failed (non-blocking):", e);
+    }
+
+    setPaymentOrder(newOrder);
+    return newOrder;
+  };
+
   const handleConfirmOrder = async () => {
     setIsSubmitting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { toast.error("Session expirée"); return; }
-
-      const clientEmail = selectedClient?.email || newClient.email;
-      const clientName = selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim();
-      const clientPhone = selectedClient?.phone || newClient.phone;
-      const firstName = selectedClient ? (selectedClient.full_name?.split(" ")[0] || "") : newClient.first_name;
-      const lastName = selectedClient ? (selectedClient.full_name?.split(" ").slice(1).join(" ") || "") : newClient.last_name;
-      const dob = newClient.date_of_birth || null;
-      const clientId = selectedClient?.id || null;
-
-      if (!dob && !selectedClient) {
-        toast.error("Date de naissance requise pour un nouveau client");
-        return;
-      }
-
-      const orderPayload = {
-        services: services.map(s => ({
-          offer_id: s.offerId, name: s.name, category: s.category,
-          price_monthly: s.priceMonthly, price_setup: s.priceSetup, quantity: s.quantity,
-        })),
-        equipment: equipment.map(e => ({
-          type: e.type, name: e.name, description: e.description,
-          price: e.price, quantity: e.quantity, serial_number: e.serialNumber || null,
-        })),
-        adjustments: adjustments.map(a => ({ type: a.type, name: a.name, amount: a.amount })),
-        totals: {
-          monthly_subtotal: totals.monthlySubtotal,
-          equipment_total: totals.equipmentTotal,
-          adjustments_total: totals.adjustmentsTotal,
-          activation_fee: totals.activationFee,
-          tps: totals.tps,
-          tvq: totals.tvq,
-          first_month_total: totals.firstMonthTotal,
-          recurring_monthly: totals.recurringMonthly,
-        },
-        promo_code: promoCode || null,
-      };
-
       const isPaid = paymentMethod !== "deferred";
-
-      // Create order
-      const { data: newOrder, error: orderErr } = await supabase
-        .from("orders")
-        .insert([{
-          user_id: clientId,
-          service_type: services[0]?.category || "bundle",
-          client_email: clientEmail,
-          client_dob: dob,
-          client_first_name: firstName,
-          client_last_name: lastName,
-          client_phone: clientPhone,
-          service_address: newClient.service_address || undefined,
-          service_city: newClient.service_city || undefined,
-          service_postal_code: newClient.service_postal_code || undefined,
-          equipment_details: JSON.parse(JSON.stringify(orderPayload)),
-          subtotal: totals.taxableAmount,
-          tps_amount: totals.tps,
-          tvq_amount: totals.tvq,
-          total_amount: totals.firstMonthTotal,
-          payment_status: isPaid ? "confirmed" : "pending",
-          payment_reference: paymentRef || null,
-          internal_notes: `[POS Core] ${paymentNote || ""}\nMéthode: ${paymentMethod}${paymentMode === "partial" ? ` (partiel: ${partialAmount}$)` : ""}`.trim(),
-          status: "pending",
-          promo_code: promoCode || null,
-        }])
-        .select("id, order_number")
-        .single();
-
-      if (orderErr) throw orderErr;
-
-      // Auto-create client account if new client
-      if (!clientId) {
-        try {
-          await supabase.functions.invoke("auto-create-client-account", {
-            body: {
-              email: clientEmail,
-              first_name: firstName,
-              last_name: lastName,
-              phone: clientPhone,
-              order_id: newOrder.id,
-              order_number: newOrder.order_number || undefined,
-              service_address: newClient.service_address,
-              service_city: newClient.service_city,
-              service_postal_code: newClient.service_postal_code,
-              date_of_birth: dob,
-            },
-          });
-        } catch (e) {
-          console.warn("[CorePOS] auto-create-client-account failed (non-blocking):", e);
-        }
-      }
-
-      // Orchestrate order (non-blocking)
-      try {
-        const { orchestrateOrder } = await import("@/lib/orderOrchestration");
-        await orchestrateOrder(newOrder.id);
-      } catch (e) {
-        console.warn("[CorePOS] Orchestration failed (non-blocking):", e);
-      }
+      const newOrder = await createCoreOrder({ paymentStatus: isPaid ? "confirmed" : "pending" });
 
       setOrderComplete({ orderId: newOrder.id, orderNumber: newOrder.order_number || "" });
       setShowPayment(false);
@@ -523,6 +533,7 @@ export default function CorePOSPage() {
     });
     setPaymentRef("");
     setPaymentNote("");
+    setPaymentOrder(null);
     setOrderComplete(null);
     setClientMode("search");
   };
@@ -1204,15 +1215,17 @@ export default function CorePOSPage() {
                   customerEmail={selectedClient?.email || newClient.email || undefined}
                   invoiceNumber={`POS-${Date.now().toString().slice(-6)}`}
                   onBeforeCharge={async () => {
-                    const amt = paymentMode === "partial" && Number(partialAmount) > 0
-                      ? Number(partialAmount)
-                      : totals.firstMonthTotal;
-                    const { data, error } = await supabase.functions.invoke("pos-square-intent", {
+                    const order = await createCoreOrder({
+                      paymentStatus: "pending",
+                      paymentMethodOverride: "card",
+                      noteOverride: `${paymentNote || ""}\nPaiement Square initialisé avant encaissement`.trim(),
+                    });
+                    const { data, error } = await supabase.functions.invoke("core-square-payment-link", {
                       body: {
-                        amount: amt,
-                        mode: "inline",
+                        order_id: order.id,
                         customer_email: selectedClient?.email || newClient.email || null,
                         customer_name: selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim() || null,
+                        mode: "direct",
                       },
                     });
                     if (error || !(data as any)?.ok) {
@@ -1251,26 +1264,17 @@ export default function CorePOSPage() {
                       if (!targetEmail) { toast.error("Email requis"); return; }
                       setSquareLinkSending(true);
                       try {
-                        const amt = paymentMode === "partial" && Number(partialAmount) > 0
-                          ? Number(partialAmount)
-                          : totals.firstMonthTotal;
-                        const lineItems = [
-                          ...services.map((s: any) => ({ name: s.name, quantity: 1, price: s.monthlyPrice ?? s.price ?? 0, type: "service" })),
-                          ...equipment.map((e) => ({ name: e.name, quantity: e.quantity, price: e.price, type: "equipment" })),
-                          ...adjustments.map((a) => ({ name: a.name, quantity: 1, price: a.amount, type: "adjustment" })),
-                        ];
-                        const description = lineItems.length
-                          ? lineItems.map((li) => `${li.name}${li.quantity > 1 ? ` ×${li.quantity}` : ""}`).join(", ")
-                          : "Commande Nivra";
-                        const { data, error } = await supabase.functions.invoke("pos-square-intent", {
+                        const order = await createCoreOrder({
+                          paymentStatus: "pending",
+                          paymentMethodOverride: "square",
+                          noteOverride: `${paymentNote || ""}\nLien Square envoyé avant paiement`.trim(),
+                        });
+                        const { data, error } = await supabase.functions.invoke("core-square-payment-link", {
                           body: {
-                            amount: amt,
-                            mode: "email",
-                            send_email: true,
+                            order_id: order.id,
                             customer_email: targetEmail,
                             customer_name: selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim() || null,
-                            description,
-                            line_items: lineItems,
+                            mode: "email",
                           },
                         });
                         if (error || !(data as any)?.ok) {

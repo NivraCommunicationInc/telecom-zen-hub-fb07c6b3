@@ -661,10 +661,12 @@ const GuestCheckout = () => {
   };
 
   // ── Submit order ──
-  const handleSubmit = async () => {
+  const handleSubmit = async (captureOverride?: string, options?: { allowIncompleteLegal?: boolean }) => {
     if (submittingRef.current || isSubmitting) return;
     submittingRef.current = true;
     setIsSubmitting(true);
+    const effectiveCaptureId = captureOverride || paypalCaptureId;
+    const effectivePaymentDone = paymentComplete || !!effectiveCaptureId;
 
     try {
       // Validate DOB
@@ -674,22 +676,22 @@ const GuestCheckout = () => {
         return;
       }
 
-      if (!isLegalComplete) {
+      if (!isLegalComplete && !options?.allowIncompleteLegal) {
         toast.error("Veuillez compléter la checklist des conditions essentielles");
         return;
       }
 
 
-      if (!isPaymentDone) {
+      if (!effectivePaymentDone) {
         toast.error("Veuillez compléter le paiement");
         return;
       }
 
       // ── Sauvegarder le paiement immédiatement — avant toute autre opération ──
       // Si le client rafraîchit la page après paiement, on garde la trace
-      if (paypalCaptureId) {
+      if (effectiveCaptureId) {
         sessionStorage.setItem("nivra_pending_payment", JSON.stringify({
-          captureId: paypalCaptureId,
+          captureId: effectiveCaptureId,
           amount: todayTotal,
           email: email.trim().toLowerCase(),
           firstName: firstName.trim(),
@@ -753,10 +755,10 @@ const GuestCheckout = () => {
       // Si aucun userId — le paiement est confirmé mais on ne peut pas créer la commande.
       // On affiche quand même la confirmation avec le numéro de capture PayPal.
       if (!userId) {
-        console.error("[GuestCheckout] All account creation methods failed. Payment captured:", paypalCaptureId);
+        console.error("[GuestCheckout] All account creation methods failed. Payment captured:", effectiveCaptureId);
         setOrderResult({
-          orderNumber: paypalCaptureId,
-          orderId: paypalCaptureId,
+          orderNumber: effectiveCaptureId,
+          orderId: effectiveCaptureId,
           isNewAccount: false,
           paymentOnly: true,
         });
@@ -823,7 +825,7 @@ const GuestCheckout = () => {
         discount_total_combined: 0, promo_discount: 0, welcome_discount: 0, preauth_discount: 0,
       };
 
-      const paymentMethodValue = "paypal";
+      const paymentMethodValue = "card";
 
       // Step 4: Submit checkout
       // ★ FIX #8 — Persist guest language preference at checkout.
@@ -881,9 +883,9 @@ const GuestCheckout = () => {
         } : null,
         payment: {
           method: paymentMethodValue as any,
-          status: paymentMethod === "paypal" && paypalCaptureId ? "captured" : "pending",
-          reference: paypalCaptureId || etransferRef || null,
-          paypal_capture_id: paypalCaptureId || null,
+          status: paymentMethod === "paypal" && effectiveCaptureId ? "captured" : "pending",
+          reference: effectiveCaptureId || etransferRef || null,
+          paypal_capture_id: effectiveCaptureId || null,
         },
         identity: isStreamingOnlyOrder ? null : {
           verification_session_id: `guest_${clientRequestIdRef.current}`,
@@ -2304,6 +2306,9 @@ const GuestCheckout = () => {
                             setPaypalCaptureId(paymentId || "");
                             setPaymentComplete(true);
                             toast.success("Paiement confirmé !");
+                            if (paymentId) {
+                              void handleSubmit(paymentId, { allowIncompleteLegal: true });
+                            }
                           }}
                         />
                       )}
@@ -2363,7 +2368,7 @@ const GuestCheckout = () => {
                   <Button
                     className="flex-1 h-14 text-base font-bold rounded-xl text-white"
                     disabled={!isPaymentDone || !isLegalComplete || isSubmitting}
-                    onClick={handleSubmit}
+                    onClick={() => handleSubmit()}
                     style={(!isPaymentDone || !isLegalComplete || isSubmitting) ? {} : { background: '#0066CC', boxShadow: '0 4px 20px rgba(0,102,204,0.30)' }}
                     onMouseEnter={(e) => { if (isPaymentDone && isLegalComplete && !isSubmitting) e.currentTarget.style.background = '#0052A3'; }}
                     onMouseLeave={(e) => { if (isPaymentDone && isLegalComplete && !isSubmitting) e.currentTarget.style.background = '#0066CC'; }}
