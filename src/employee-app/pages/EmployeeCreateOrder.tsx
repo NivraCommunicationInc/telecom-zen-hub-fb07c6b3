@@ -479,7 +479,8 @@ export default function EmployeeCreateOrder() {
         payment: { method: "manual", status: "pending", reference: null },
         installation: {
           type: installType,
-          delivery_fee: 0,
+          fulfillment_mode: fulfillmentMode,
+          delivery_fee: deliveryFee,
           installation_fee: 0,
           scheduled_date: installType === "professional" ? installDate : null,
           scheduled_time: installType === "professional" ? installSlot : null,
