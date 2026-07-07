@@ -17,5 +17,5 @@ export { CheckoutPaymentSection } from './CheckoutPaymentSection';
 export { CheckoutPhoneField, validateCanadianPhone } from './CheckoutPhoneField';
 export { CheckoutServiceAddress, validateCanadianPostalCode, formatPostalCode, isAddressComplete } from './CheckoutServiceAddress';
 export { CheckoutEssentialTerms, ETransferStatusInfo } from './CheckoutEssentialTerms';
-export { AutoPayPalOption } from './AutoPayPalOption';
+// AutoPayPalOption removed in Phase 3.B.2 — PayPal decommissioned
 export { FirstMonthFreeExplanation } from './FirstMonthFreeExplanation';

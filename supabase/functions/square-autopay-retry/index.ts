@@ -1,22 +1,14 @@
 // ============================================================
-// square-autopay-retry — Retente les paiements autopay Square
+// square-autopay-retry — Retry paiements autopay Square
+// Phase 3.B.2 partie 2 :
+//   - AUCUN INSERT direct billing_payments (succès ET échec)
+//   - AUCUN UPDATE direct billing_invoices.status / balance / amount_paid
+//   - Succès → apply_payment_to_invoice (RPC canonique)
+//   - Échec  → square_payment_attempts (aucun effet billing)
+//   - Compteurs autopay (retry_count, next_attempt, stopped) restent gérés ici
+//     — colonnes de scheduling, pas de facturation
+// Politique retry : J+1..J+7 daily, J+8..J+10 every 2 days, max 10.
 // ============================================================
-// Politique de retry (validée avec le client) :
-//   • Tentative initiale (jour de génération) : faite par
-//     billing-generate-renewals → square-charge-subscription
-//   • Si échec :
-//       - Retries 1 à 7 : tous les jours (J+1 .. J+7)
-//       - Retries 8 à 10 : tous les 2 jours
-//       - Maximum 10 tentatives au total (initiale + 9 retries)
-//   • Après 10 tentatives sans succès → autopay_stopped=true,
-//     la facture reste avec son solde dû et l'engine dunning
-//     prend le relai (aucun nouvel essai automatique).
-//   • Toujours au maximum 1 tentative par jour par facture.
-//
-// Cron recommandé : quotidien à 09:00 UTC.
-// Auth : SERVICE_ROLE_KEY requis (cron-only).
-// ============================================================
-
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -29,11 +21,9 @@ const SQUARE_VERSION = "2024-11-20";
 const MAX_ATTEMPTS = 10;
 
 function nextAttemptDelayHours(newAttemptCount: number): number | null {
-  // newAttemptCount = nombre total de tentatives déjà effectuées
-  // (incluant celle qu'on vient de faire).
-  if (newAttemptCount >= MAX_ATTEMPTS) return null; // stop
-  if (newAttemptCount < 7) return 24;               // daily J+1..J+7
-  return 48;                                         // every 2 days
+  if (newAttemptCount >= MAX_ATTEMPTS) return null;
+  if (newAttemptCount < 7) return 24;
+  return 48;
 }
 
 Deno.serve(async (req) => {
@@ -44,29 +34,20 @@ Deno.serve(async (req) => {
   const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
   const locationId = Deno.env.get("SQUARE_LOCATION_ID") || "LQW27N70DQ2N8";
 
-  // Auth: only accept service role bearer
   const auth = req.headers.get("Authorization") ?? "";
   if (auth !== `Bearer ${SERVICE_KEY}`) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
-
   if (!squareToken) {
-    return new Response(JSON.stringify({ error: "SQUARE_ACCESS_TOKEN missing" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "SQUARE_ACCESS_TOKEN missing" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const supabase: any = createClient(SUPABASE_URL, SERVICE_KEY);
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
 
-  // Sélection: factures unpaid/overdue/failed, autopay actif (client a une carte),
-  // pas arrêtées, avec next_attempt <= now (ou null = éligible tout de suite),
-  // et jamais tentées aujourd'hui.
   const { data: candidates, error: selErr } = await supabase
     .from("billing_invoices")
     .select(`
@@ -81,50 +62,46 @@ Deno.serve(async (req) => {
     .limit(200);
 
   if (selErr) {
-    return new Response(JSON.stringify({ error: selErr.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: selErr.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const results = { processed: 0, charged: 0, failed: 0, skipped: 0, stopped: 0, errors: [] as string[] };
 
   for (const inv of candidates || []) {
     const bc = inv.customer as any;
-    // Skip si pas de carte Square ou autopay désactivé
-    if (!bc?.autopay_enabled || !bc?.square_customer_id || !bc?.square_card_id) {
-      results.skipped++;
-      continue;
-    }
-    // Skip si déjà tenté aujourd'hui (1/jour max)
-    if (inv.autopay_last_attempt_at && inv.autopay_last_attempt_at.startsWith(todayStr)) {
-      results.skipped++;
-      continue;
-    }
-    // Skip si déjà au max
+    if (!bc?.autopay_enabled || !bc?.square_customer_id || !bc?.square_card_id) { results.skipped++; continue; }
+    if (inv.autopay_last_attempt_at && inv.autopay_last_attempt_at.startsWith(todayStr)) { results.skipped++; continue; }
     if ((inv.autopay_retry_count || 0) >= MAX_ATTEMPTS) {
       await supabase.from("billing_invoices")
         .update({ autopay_stopped: true, autopay_next_attempt_at: null })
         .eq("id", inv.id);
-      results.stopped++;
-      continue;
+      results.stopped++; continue;
     }
 
     results.processed++;
     const amountCents = Math.round(Number(inv.balance_due) * 100);
+    const idempotencyKey = `autopay-retry-${inv.id}-${todayStr}`;
+
+    // Idempotence — si tentative déjà réussie aujourd'hui pour cette clé
+    const { data: existingAttempt } = await supabase
+      .from("square_payment_attempts")
+      .select("id, status, square_payment_id")
+      .eq("idempotency_key", idempotencyKey).maybeSingle();
+    if (existingAttempt?.status === "success") { results.skipped++; continue; }
 
     try {
       const res = await fetch(SQUARE_API, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${squareToken}`,
+          Authorization: `Bearer ${squareToken}`,
           "Content-Type": "application/json",
           "Square-Version": SQUARE_VERSION,
         },
         body: JSON.stringify({
           source_id: bc.square_card_id,
           customer_id: bc.square_customer_id,
-          idempotency_key: `autopay-retry-${inv.id}-${todayStr}`,
+          idempotency_key: idempotencyKey,
           amount_money: { amount: amountCents, currency: "CAD" },
           location_id: locationId,
           note: `Autopay retry — Facture ${inv.invoice_number || inv.id}`,
@@ -137,73 +114,90 @@ Deno.serve(async (req) => {
       const newCount = (inv.autopay_retry_count || 0) + 1;
 
       if (!res.ok || body.errors) {
+        // ── ÉCHEC : log dans square_payment_attempts UNIQUEMENT ─────────────
         const errMsg = body.errors?.map((e: any) => `${e.code}:${e.detail}`).join(" | ") || "square_error";
+        const code = body.errors?.[0]?.code || "UNKNOWN";
+        const category = body.errors?.[0]?.category || null;
         const delayH = nextAttemptDelayHours(newCount);
         const nextAt = delayH ? new Date(now.getTime() + delayH * 3600_000).toISOString() : null;
 
-        await supabase.from("billing_invoices")
-          .update({
-            autopay_retry_count: newCount,
-            autopay_last_attempt_at: now.toISOString(),
-            autopay_next_attempt_at: nextAt,
-            autopay_stopped: newCount >= MAX_ATTEMPTS,
-            autopay_last_error: errMsg.slice(0, 500),
-          })
-          .eq("id", inv.id);
+        // Colonnes de scheduling autopay (pas des colonnes financières)
+        await supabase.from("billing_invoices").update({
+          autopay_retry_count: newCount,
+          autopay_last_attempt_at: now.toISOString(),
+          autopay_next_attempt_at: nextAt,
+          autopay_stopped: newCount >= MAX_ATTEMPTS,
+          autopay_last_error: errMsg.slice(0, 500),
+        }).eq("id", inv.id);
+
+        await supabase.from("square_payment_attempts").insert({
+          invoice_id: inv.id,
+          customer_id: inv.customer_id,
+          amount: Number(inv.balance_due),
+          idempotency_key: idempotencyKey,
+          square_error_code: code,
+          square_error_detail: errMsg,
+          square_error_category: category,
+          status: "failed",
+          attempt_number: newCount,
+          response_raw: body,
+        }).catch(() => {});
 
         results.failed++;
         if (newCount >= MAX_ATTEMPTS) results.stopped++;
-
-        // Log une ligne payment failed pour traçabilité
-        await supabase.from("billing_payments").insert({
-          invoice_id: inv.id,
-          customer_id: inv.customer_id,
-          method: "card",
-          amount: Number(inv.balance_due),
-          status: "failed",
-          provider: "square",
-          source: "autopay_retry",
-          created_by_name: "Autopay Retry",
-          created_by_role: "system",
-          metadata: { retry_count: newCount, error: errMsg, square_errors: body.errors ?? null },
-        } as any).then(undefined, () => {});
         continue;
       }
 
-      // Succès: applique le paiement + marque facture payée
+      // ── SUCCÈS : RPC canonique + log tentative ───────────────────────────
       const payment = body.payment;
       const paymentId: string = payment.id;
       const receiptUrl: string | null = payment.receipt_url || null;
       const amountPaid = Number(payment.amount_money?.amount || 0) / 100;
 
-      await supabase.from("billing_payments").insert({
+      // Idempotence RPC : reference match
+      const { data: existingPayment } = await supabase
+        .from("billing_payments").select("id").eq("reference", paymentId).maybeSingle();
+
+      if (!existingPayment?.id) {
+        const { error: rpcErr } = await supabase.rpc("apply_payment_to_invoice", {
+          p_invoice_id: inv.id,
+          p_amount: amountPaid,
+          p_method: "card",
+          p_provider: "square",
+          p_external_reference: paymentId,
+          p_source: "autopay_retry",
+          p_context: {
+            square_payment_id: paymentId,
+            square_receipt_url: receiptUrl,
+            idempotency_key: idempotencyKey,
+            retry_count: newCount,
+          },
+        });
+        if (rpcErr) {
+          console.error("[square-autopay-retry] RPC failed for invoice", inv.id, rpcErr.message);
+          results.errors.push(`${inv.id}: rpc ${rpcErr.message}`);
+          continue;
+        }
+      }
+
+      await supabase.from("square_payment_attempts").insert({
         invoice_id: inv.id,
         customer_id: inv.customer_id,
-        method: "card",
         amount: amountPaid,
-        status: "confirmed",
-        provider: "square",
-        provider_payment_id: paymentId,
+        idempotency_key: idempotencyKey,
         square_payment_id: paymentId,
-        square_receipt_url: receiptUrl,
-        source: "autopay_retry",
-        created_by_name: "Autopay Retry",
-        created_by_role: "system",
-        received_at: now.toISOString(),
-      } as any);
+        status: "success",
+        attempt_number: newCount,
+        response_raw: payment,
+      }).catch(() => {});
 
-      await supabase.from("billing_invoices")
-        .update({
-          status: "paid",
-          balance_due: 0,
-          amount_paid: Number(inv.total),
-          paid_at: now.toISOString(),
-          autopay_retry_count: newCount,
-          autopay_last_attempt_at: now.toISOString(),
-          autopay_next_attempt_at: null,
-          autopay_last_error: null,
-        })
-        .eq("id", inv.id);
+      // Colonnes de scheduling autopay uniquement (aucun status/balance/amount_paid)
+      await supabase.from("billing_invoices").update({
+        autopay_retry_count: newCount,
+        autopay_last_attempt_at: now.toISOString(),
+        autopay_next_attempt_at: null,
+        autopay_last_error: null,
+      }).eq("id", inv.id);
 
       results.charged++;
     } catch (e: any) {
