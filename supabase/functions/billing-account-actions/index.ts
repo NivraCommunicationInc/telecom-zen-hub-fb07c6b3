@@ -611,7 +611,9 @@ serve(async (req) => {
           console.log(`[DirectRefund] refund_payment RPC id=${refundRpc}`);
         }
 
-        // PayPal confirmé (ou méthode non-PayPal) → enregistrer en DB
+        // Enregistrement du log métier (client_direct_refunds) — aucune
+        // mutation directe des tables financières ici : elles ont déjà été
+        // faites par la RPC `refund_payment` ci-dessus.
         const { data, error } = await admin.from("client_direct_refunds")
           .insert({
             user_id: client_user_id,
@@ -621,7 +623,7 @@ serve(async (req) => {
             amount,
             currency: "CAD",
             refund_method,
-            external_reference: paypalRefundId ?? body.external_reference ?? null,
+            external_reference: body.external_reference ?? null,
             reason: body.reason.trim(),
             status: "processed",
             approved_by: user.id,
@@ -630,7 +632,6 @@ serve(async (req) => {
             performed_by: user.id,
             metadata: {
               idempotency_key: body.idempotency_key,
-              ...(paypalRefundId ? { paypal_refund_id: paypalRefundId } : {}),
             },
           })
           .select("id")
@@ -639,19 +640,17 @@ serve(async (req) => {
 
         await audit("create_direct_refund", {
           refund_id: data.id, amount, refund_method,
-          external_reference: paypalRefundId ?? body.external_reference,
-          ...(paypalRefundId ? { paypal_refund_id: paypalRefundId } : {}),
+          external_reference: body.external_reference,
         });
         await enqueueEmail("client_direct_refund_processed", {
           amount: fmtMoney(amount),
           refund_method: METHOD_LABELS[refund_method] || refund_method,
-          external_reference: paypalRefundId ?? body.external_reference ?? "—",
+          external_reference: body.external_reference ?? "—",
           reason: body.reason.trim(),
         });
         return json(200, {
           ok: true,
           refund_id: data.id,
-          ...(paypalRefundId ? { paypal_refund_id: paypalRefundId } : {}),
         });
       }
 
