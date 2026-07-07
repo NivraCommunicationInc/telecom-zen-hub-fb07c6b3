@@ -29466,6 +29466,21 @@ export type Database = {
         }
         Returns: Json
       }
+      build_invoice_ad_hoc: {
+        Args: {
+          p_context?: Json
+          p_customer_id: string
+          p_cycle_end: string
+          p_cycle_start: string
+          p_due_date: string
+          p_lines: Json
+          p_notes?: string
+          p_order_id?: string
+          p_subscription_id: string
+          p_type: string
+        }
+        Returns: string
+      }
       build_invoice_from_order: {
         Args: { p_context?: Json; p_order_id: string }
         Returns: string
@@ -29702,6 +29717,23 @@ export type Database = {
           p_payment_method_snapshot?: Json
           p_selected_channels_snapshot?: Json
           p_services_snapshot?: Json
+        }
+        Returns: string
+      }
+      create_subscription_ad_hoc: {
+        Args: {
+          p_address_id?: string
+          p_auto_billing?: boolean
+          p_context?: Json
+          p_customer_id: string
+          p_cycle_end: string
+          p_cycle_start: string
+          p_order_id?: string
+          p_plan_code: string
+          p_plan_name: string
+          p_plan_price: number
+          p_service_category: string
+          p_status?: string
         }
         Returns: string
       }
