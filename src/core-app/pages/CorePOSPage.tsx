@@ -458,7 +458,7 @@ export default function CorePOSPage() {
         tvq_amount: totals.tvq,
         total_amount: totals.firstMonthTotal,
         payment_status: options?.paymentStatus ?? (methodForOrder !== "deferred" ? "confirmed" : "pending"),
-        payment_reference: options?.paymentReference ?? paymentRef || null,
+        payment_reference: options?.paymentReference ?? (paymentRef || null),
         internal_notes: `[POS Core] ${note || ""}\nMéthode: ${methodForOrder}${paymentMode === "partial" ? ` (partiel: ${partialAmount}$)` : ""}`.trim(),
         status: "pending",
         promo_code: promoCode || null,
@@ -1218,12 +1218,17 @@ export default function CorePOSPage() {
                     const amt = paymentMode === "partial" && Number(partialAmount) > 0
                       ? Number(partialAmount)
                       : totals.firstMonthTotal;
-                    const { data, error } = await supabase.functions.invoke("pos-square-intent", {
+                    const order = await createCoreOrder({
+                      paymentStatus: "pending",
+                      paymentMethodOverride: "card",
+                      noteOverride: `${paymentNote || ""}\nPaiement Square initialisé avant encaissement`.trim(),
+                    });
+                    const { data, error } = await supabase.functions.invoke("core-square-payment-link", {
                       body: {
-                        amount: amt,
-                        mode: "inline",
+                        order_id: order.id,
                         customer_email: selectedClient?.email || newClient.email || null,
                         customer_name: selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim() || null,
+                        mode: "direct",
                       },
                     });
                     if (error || !(data as any)?.ok) {
@@ -1273,15 +1278,17 @@ export default function CorePOSPage() {
                         const description = lineItems.length
                           ? lineItems.map((li) => `${li.name}${li.quantity > 1 ? ` ×${li.quantity}` : ""}`).join(", ")
                           : "Commande Nivra";
-                        const { data, error } = await supabase.functions.invoke("pos-square-intent", {
+                        const order = await createCoreOrder({
+                          paymentStatus: "pending",
+                          paymentMethodOverride: "square",
+                          noteOverride: `${paymentNote || ""}\nLien Square envoyé avant paiement`.trim(),
+                        });
+                        const { data, error } = await supabase.functions.invoke("core-square-payment-link", {
                           body: {
-                            amount: amt,
-                            mode: "email",
-                            send_email: true,
+                            order_id: order.id,
                             customer_email: targetEmail,
                             customer_name: selectedClient?.full_name || `${newClient.first_name} ${newClient.last_name}`.trim() || null,
-                            description,
-                            line_items: lineItems,
+                            mode: "email",
                           },
                         });
                         if (error || !(data as any)?.ok) {
