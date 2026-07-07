@@ -363,7 +363,7 @@ serve(async () => {
     details: {
       clients_count: accounts.length,
       filename,
-      email_id: emailResult.id,
+      email_id: emailResult.data?.id,
       date: today,
     },
   });
