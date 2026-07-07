@@ -87,9 +87,9 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.Elemen
 ];
 
 const DELIVERY_PRESETS = [
-  { name: "Livraison standard", amount: 30 },
-  { name: "Livraison Express", amount: 45 },
-  { name: "Expédition", amount: 15 },
+  { name: "Livraison standard (2-5 jours)", amount: 20 },
+  { name: "Livraison Express (Uber Direct)", amount: 40 },
+  { name: "Auto-installation (livraison standard)", amount: 20 },
 ];
 
 const INSTALL_PRESETS = [
@@ -977,10 +977,20 @@ export default function CorePOSPage() {
                       ))}
                     </div>
                   </div>
-                  {/* Custom */}
+                  {/* Custom fee */}
                   <div>
-                    <p className="text-[11px] font-semibold uppercase text-[#A1A1AA] mb-2">Ligne personnalisée</p>
+                    <p className="text-[11px] font-semibold uppercase text-[#A1A1AA] mb-2">Frais / ligne personnalisée</p>
                     <CustomAdjustmentForm onAdd={(name, amount) => addAdjustment(name, amount, amount < 0 ? "credit" : "fee")} />
+                  </div>
+                  {/* Real credit — Core only */}
+                  <div className="rounded-md border border-emerald-600/30 bg-emerald-600/5 p-3">
+                    <p className="text-[11px] font-semibold uppercase text-emerald-400 mb-1 flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" /> Crédit personnalisé (réservé Nivra Core)
+                    </p>
+                    <p className="text-[10px] text-[#A1A1AA] mb-2">
+                      Applique un vrai crédit au compte client. Non disponible sur les autres portails.
+                    </p>
+                    <CustomCreditForm onAdd={(name, amount) => addAdjustment(name, -Math.abs(amount), "credit")} />
                   </div>
                 </div>
               )}
@@ -1381,6 +1391,35 @@ function CustomAdjustmentForm({ onAdd }: { onAdd: (name: string, amount: number)
       </button>
       <Button size="sm" onClick={handleAdd} disabled={!name.trim() || !amount} className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white">
         <Plus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+function CustomCreditForm({ onAdd }: { onAdd: (name: string, amount: number) => void }) {
+  const [reason, setReason] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const handleAdd = () => {
+    const val = parseFloat(amount);
+    if (!reason.trim() || isNaN(val) || val <= 0) return;
+    onAdd(`Crédit — ${reason.trim()}`, val);
+    setReason("");
+    setAmount("");
+  };
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="flex-1">
+        <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Raison du crédit"
+          className="h-8 text-xs bg-[hsl(220,20%,12%)] border-emerald-600/30 text-white" />
+      </div>
+      <div className="w-24">
+        <Input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00"
+          className="h-8 text-xs bg-[hsl(220,20%,12%)] border-emerald-600/30 text-white" />
+      </div>
+      <Button size="sm" onClick={handleAdd} disabled={!reason.trim() || !amount} className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white">
+        <Minus className="h-3.5 w-3.5" />
       </Button>
     </div>
   );
