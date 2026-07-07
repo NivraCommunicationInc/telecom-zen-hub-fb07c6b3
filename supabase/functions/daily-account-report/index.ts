@@ -350,36 +350,29 @@ Deno.serve(async (req) => {
       `,
     });
 
-    // ── Send via Resend ───────────────────────────────────────────────
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendKey}`,
-      },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: [REPORT_TO],
-        subject: `📊 Rapport comptes Nivra — ${today}`,
-        html: emailHtml,
-      }),
+    // ── Send via Resend connector gateway ────────────────────────────
+    const r = await sendResendEmail({
+      from: FROM_EMAIL,
+      to: [REPORT_TO],
+      subject: `📊 Rapport comptes Nivra — ${today}`,
+      html: emailHtml,
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Resend error ${res.status}: ${errText}`);
+    if (!r.ok) {
+      throw new Error(r.error || `Resend gateway ${r.status}`);
     }
 
-    const resendData = await res.json();
-    console.log("[daily-account-report] Sent:", resendData.id);
+    const resendId = r.data?.id as string | undefined;
+    console.log("[daily-account-report] Sent:", resendId);
 
     return new Response(JSON.stringify({
       ok: true,
       sent_to: REPORT_TO,
       accounts: accounts?.length ?? 0,
       rows: rows.length,
-      resend_id: resendData.id,
+      resend_id: resendId,
     }), {
+
       headers: { "Content-Type": "application/json" },
     });
   } catch (e) {
