@@ -577,6 +577,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     setSubmitMessage("Validation de la commande Core…");
     try {
       const intentId = draft.payment.fieldOrderId || paymentId;
+      const commissionAmount = Math.max(0, Number((monthlyBeforeDiscount * 0.30 + equipmentTotal * 0.05).toFixed(2)));
       const { data: intent } = await supabase
         .from("field_payment_intents" as any)
         .select("converted_order_id, converted_field_order_id")
