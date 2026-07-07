@@ -359,17 +359,11 @@ Deno.serve(async (req) => {
     // Send failure alert via Resend
     if (resendApiKey) {
       try {
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "Nivra Telecom <support@nivra-telecom.ca>",
-            to: RECIPIENTS,
-            subject: `Nivra Daily Backup FAILED - ${today}`,
-            html: `
+        await sendResendEmail({
+          from: "Nivra Telecom <support@nivra-telecom.ca>",
+          to: RECIPIENTS,
+          subject: `Nivra Daily Backup FAILED - ${today}`,
+          html: `
               <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2 style="color: #dc2626;">⚠️ Daily Backup Failed</h2>
                 <p><strong>Date:</strong> ${today}</p>
@@ -378,8 +372,8 @@ Deno.serve(async (req) => {
                 <p style="color: #666; font-size: 12px;">Investigate immediately — backup data not delivered.</p>
               </div>
             `,
-          }),
         });
+
         console.log(`[DAILY-BACKUP] Failure alert sent to recipients.`);
       } catch (alertErr) {
         console.error(`[DAILY-BACKUP] Could not send failure alert:`, alertErr);
