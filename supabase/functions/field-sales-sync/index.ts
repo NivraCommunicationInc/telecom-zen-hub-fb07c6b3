@@ -96,6 +96,45 @@ function normalizeOrdersPaymentMethod(raw?: any): string | null {
   return null;
 }
 
+function numberFrom(...values: any[]): number {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function computeAgentDiscountLine(discountData: any, monthlyTotal: number, activationFee: number): { desc: string; amount: number } | null {
+  if (!discountData) return null;
+
+  const getDiscountLabel = (raw: string): string => {
+    const clean = String(raw || "Rabais").trim();
+    return /^rabais\b/i.test(clean) ? clean : `Rabais ${clean}`;
+  };
+
+  const dType = String(discountData.type || "");
+  const dAppliesTo = String(discountData.applies_to || "");
+  const dName = String(discountData.name || "Rabais agent");
+  const dAmt = numberFrom(discountData.amount, discountData.value);
+  const monthlyPrice = numberFrom(discountData.monthly_price, discountData.monthlyPrice, monthlyTotal);
+
+  if (dType === "remove_fee" && dAppliesTo === "installation" && activationFee > 0) {
+    return { desc: "Installation gratuite ✓", amount: -activationFee };
+  }
+  if (dType === "remove_fee" && dAppliesTo === "activation" && activationFee > 0) {
+    return { desc: "Activation gratuite ✓", amount: -activationFee };
+  }
+  if (dType === "first_month_free" && monthlyPrice > 0) {
+    return { desc: `1er mois offert — ${monthlyPrice.toFixed(2)}$/mois`, amount: -monthlyPrice };
+  }
+  if (dAmt > 0) {
+    return { desc: getDiscountLabel(dName), amount: -Math.min(dAmt, monthlyTotal || dAmt) };
+  }
+
+  return null;
+}
+
 const BILLABLE_ORDER_STATUSES = new Set([
   "pending",
   "pending_payment",
@@ -402,6 +441,19 @@ Deno.serve(async (req) => {
         // Each item carries kind='service' | 'equipment' from FieldNewSale.
         const rawItems = Array.isArray(sale.services) ? sale.services : [];
         const services = rawItems; // backward-compat alias for downstream refs
+        let quoteSubtotalHint = 0;
+        let quoteTotalHint = 0;
+
+        if (sale.source_quote_id) {
+          const { data: quoteFinancials } = await supabaseAdmin
+            .from("field_quotes")
+            .select("subtotal, total")
+            .eq("id", sale.source_quote_id)
+            .maybeSingle();
+          quoteSubtotalHint = numberFrom((quoteFinancials as any)?.subtotal);
+          quoteTotalHint = numberFrom((quoteFinancials as any)?.total);
+        }
+
         const isSpecialFeeLine = (x: any) => {
           const kind = String(x?.kind || "").toLowerCase();
           return kind === "fulfillment_fee" || kind === "custom_adjustment";
@@ -532,6 +584,44 @@ Deno.serve(async (req) => {
           });
         }
 
+        const discountData: any = (sale as any).discount_data;
+        const agentDiscountLine = computeAgentDiscountLine(discountData, monthlyTotal, activationFee);
+
+        if (agentDiscountLine) {
+          lineItems.push({
+            category: "discount",
+            type: "discount",
+            name: agentDiscountLine.desc,
+            qty: 1,
+            unit_price: agentDiscountLine.amount,
+            period: "one_time",
+            taxable: true,
+          });
+          quoteAdjustmentProjected = true;
+        }
+
+        const saleSubtotalHint = quoteSubtotalHint;
+        const saleTaxesHint = computeTaxes(saleSubtotalHint);
+        const saleTotalHint = quoteTotalHint || numberFrom((sale as any)?.total_amount);
+        const hasAuthoritativeSaleSubtotal = saleSubtotalHint > 0 && saleTotalHint > 0 && Math.abs(saleTaxesHint.total - saleTotalHint) <= 0.05;
+
+        if (!quoteAdjustmentProjected && hasAuthoritativeSaleSubtotal && monthlyTotal > 0) {
+          const projectedBaseBeforeWelcome = monthlyTotal + equipmentTotal + activationFee + explicitDeliveryFee + explicitInstallationFee + shippingFee + customAdjustmentTotal;
+          const welcomeCredit = Number((projectedBaseBeforeWelcome - saleSubtotalHint).toFixed(2));
+          if (welcomeCredit > 0 && welcomeCredit <= monthlyTotal + 0.05) {
+            lineItems.push({
+              category: "discount",
+              type: "first_month_free",
+              name: `1er mois offert ✓ (automatique) — ${welcomeCredit.toFixed(2)}$/mois`,
+              qty: 1,
+              unit_price: -welcomeCredit,
+              period: "one_time",
+              taxable: true,
+            });
+            quoteAdjustmentProjected = true;
+          }
+        }
+
         // Base fees model aligned to orders schema
         let subtotal = monthlyTotal + equipmentTotal;
         const deliveryFee = shippingFee + explicitDeliveryFee;
@@ -543,8 +633,28 @@ Deno.serve(async (req) => {
         // "à l'envers" depuis un total cible. Aucune ligne fabriquée pour
         // combler un écart. Si le total agent diffère des lignes réelles,
         // la synchro échoue et l'ordre reste bloqué en `sync_error`.
-        const baseAmount = Number((subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal).toFixed(2));
+        const projectedDiscountTotal = lineItems
+          .filter((li) => li.category === "discount")
+          .reduce((sum, li) => sum + (Number(li.unit_price || 0) * (Number(li.qty || 1) || 1)), 0);
+        const baseAmount = Number((subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal + projectedDiscountTotal).toFixed(2));
         const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
+
+        const invoiceLineKind = (li: any): string => {
+          if (li.category === "discount") return "discount";
+          if (li.category === "equipment") return "equipment";
+          if (li.category === "service") return "product_recurring";
+          if (li.type === "activation") return "activation_fee";
+          if (li.type === "shipping" || li.type === "delivery") return "shipping";
+          if (li.type === "installation") return "installation_fee";
+          return "manual_adjustment";
+        };
+
+        const orderItemServiceType = (li: any): string => {
+          if (li.category === "equipment") return "equipment";
+          if (li.category === "fee" || li.category === "discount") return "fee";
+          const mapped = mapLineItemType(li.type || li.category || li.name);
+          return ["internet", "tv", "mobile", "streaming", "security"].includes(mapped) ? mapped : "addon";
+        };
 
         const agentTotal = Number(sale.total_amount || 0);
         if (agentTotal > 0 && Math.abs(agentTotal - totalAmount) > 0.05) {
@@ -667,7 +777,7 @@ Deno.serve(async (req) => {
               service_type: serviceTypeLabel,
               category: sale.services?.[0]?.category || 'Field Sales',
 
-              subtotal: subtotal,
+              subtotal: Number((baseAmount - activationFee - deliveryFee - installationFee).toFixed(2)),
               activation_fee: activationFee,
               delivery_fee: deliveryFee,
               installation_fee: installationFee,
@@ -733,6 +843,50 @@ Deno.serve(async (req) => {
           canonicalOrder = repairedOrder;
         }
 
+        const { count: existingOrderItemCount, error: orderItemsCountError } = await supabaseAdmin
+          .from("order_items")
+          .select("id", { count: "exact", head: true })
+          .eq("order_id", canonicalOrder.id);
+
+        if (orderItemsCountError) {
+          throw new Error(`Order items check failed: ${orderItemsCountError.message}`);
+        }
+
+        if ((existingOrderItemCount ?? 0) === 0) {
+          const orderItems = lineItems.map((li, index) => ({
+            order_id: canonicalOrder.id,
+            item_number: index + 1,
+            service_type: orderItemServiceType(li),
+            plan_code: `${String(li.category || "item").toUpperCase()}-${index + 1}`,
+            plan_name: li.name,
+            description: li.name,
+            unit_price: Number(li.unit_price || 0),
+            quantity: Number(li.qty || 1) || 1,
+            line_total: Number(li.unit_price || 0) * (Number(li.qty || 1) || 1),
+            is_recurring: li.period === "monthly",
+            status: "pending",
+            fulfillment_type: li.category === "equipment" || li.type === "shipping" || li.type === "delivery" ? "ship" : li.type === "installation" ? "technician" : null,
+            metadata: { source: "field_sales_sync", source_ref: li.category === "discount" ? "promotion_applied" : "manual_admin", line_kind: invoiceLineKind(li) },
+          }));
+
+          const { error: orderItemsInsertError } = await supabaseAdmin
+            .from("order_items")
+            .insert(orderItems as any);
+
+          if (orderItemsInsertError) {
+            throw new Error(`Order items creation failed: ${orderItemsInsertError.message}`);
+          }
+        }
+
+        const { data: primaryOrderItem } = await supabaseAdmin
+          .from("order_items")
+          .select("id")
+          .eq("order_id", canonicalOrder.id)
+          .eq("is_recurring", true)
+          .order("item_number", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
         const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status, sale.payment_method);
         if (!isBillableOrderStatus(canonicalOrder.status)) {
           const { error: promoteOrderError } = await supabaseAdmin
@@ -758,6 +912,7 @@ Deno.serve(async (req) => {
         // Field orders must enter the same billing pipeline as website orders
         let invoiceId: string | null = null;
         let paymentId: string | null = null;
+        let billingCustomerId: string | null = null;
 
         const { data: verifiedOrder, error: verifyOrderBeforeBillingError } = await supabaseAdmin
           .from("orders")
@@ -777,7 +932,6 @@ Deno.serve(async (req) => {
           if (invNumErr || !invoiceNum) throw new Error(`generate_invoice_number failed: ${invNumErr?.message}`);
 
           // Get or create billing customer
-          let billingCustomerId: string | null = null;
           const { data: existingBillingCustomer } = await supabaseAdmin
             .from("billing_customers")
             .select("id")
@@ -828,7 +982,7 @@ Deno.serve(async (req) => {
               order_id: canonicalOrder.id,
               type: "initial",
               status: invoiceStatus,
-              subtotal: subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal,
+              subtotal: baseAmount,
               tps_amount: tpsAmount,
               tvq_amount: tvqAmount,
               total: totalAmount,
@@ -862,26 +1016,27 @@ Deno.serve(async (req) => {
             invoiceId = newInvoice.id;
             console.log(`[field-sales-sync] Created invoice ${invoiceNum} for order ${canonicalOrder.order_number || canonicalOrder.id}`);
 
-            // Create invoice lines
-            for (const li of lineItems) {
-              const { error: lineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
+            // Create invoice lines in one statement so the deferred invoice/order
+            // integrity trigger sees the complete invoice, not a partial first line.
+            const invoiceLines = lineItems.map((li) => ({
                 invoice_id: invoiceId,
                 description: li.name,
                 unit_price: li.unit_price,
                 quantity: li.qty,
                 line_total: li.unit_price * li.qty,
                 line_type: li.category === "equipment" ? "equipment" : li.category === "fee" ? "fee" : li.category === "discount" ? "discount" : "service",
-              service_address_id: staffServiceAddress?.id || null,
-              });
-              if (lineErr) {
-                throw new Error(`Invoice line creation failed: ${lineErr.message}`);
-              }
+                source_ref: li.category === "discount" ? "promotion_applied" : "manual_admin",
+                line_kind: invoiceLineKind(li),
+                service_address_id: staffServiceAddress?.id || null,
+            }));
+            const { error: lineErr } = await supabaseAdmin.from("billing_invoice_lines").insert(invoiceLines);
+            if (lineErr) {
+              throw new Error(`Invoice line creation failed: ${lineErr.message}`);
             }
 
             // RULE 1 â€” Premier mois gratuit automatique UNIQUEMENT pour les
             // clients qui n'ont jamais reçu le rabais (vérifié via la fonction
             // canonique is_eligible_for_welcome_first_month).
-            const discountData: any = (sale as any).discount_data;
             const agentDiscountIsFirstMonth =
               discountData && String(discountData.type || "") === "first_month_free";
 
@@ -908,6 +1063,8 @@ Deno.serve(async (req) => {
                   quantity: 1,
                   line_total: -monthlyTotal,
                   line_type: "discount",
+                  source_ref: "promotion_applied",
+                  line_kind: "discount",
                   service_address_id: staffServiceAddress?.id || null,
                 });
               if (autoFmErr) {
@@ -915,50 +1072,20 @@ Deno.serve(async (req) => {
               }
             }
 
-            // RULE 5 â€” Clean discount label (no "Rabais Rabais" duplication).
-            const getDiscountLabel = (raw: string): string => {
-              const clean = String(raw || "Rabais").trim();
-              return /^rabais\b/i.test(clean) ? clean : `Rabais ${clean}`;
-            };
-
             // Discount line (if applied at the door â€” second/additional discount)
             if (discountData && !quoteAdjustmentProjected) {
-              const dType = String(discountData.type || "");
-              const dAppliesTo = String(discountData.applies_to || "");
-              const dAmt = Number(discountData.amount || 0);
-              const dDur = Number(discountData.duration_months || 0);
-              const dName = String(discountData.name || "Rabais agent");
-              const monthlyPrice = Number(discountData.monthly_price || discountData.monthlyPrice || subtotal || 0);
+              const pendingDiscountLine = computeAgentDiscountLine(discountData, monthlyTotal, activationFee);
 
-              let desc: string | null = null;
-              let unitPrice = 0;
-
-              if (dType === "remove_fee" && dAppliesTo === "installation") {
-                desc = "Installation gratuite âœ“";
-                unitPrice = 0;
-              } else if (dType === "remove_fee" && dAppliesTo === "activation") {
-                desc = "Activation gratuite âœ“";
-                unitPrice = 0;
-              } else if (dType === "first_month_free") {
-                desc = `1er mois offert â€” ${monthlyPrice.toFixed(2)}$/mois`;
-                unitPrice = -monthlyPrice;
-              } else if (dType === "one_time" && dAmt > 0) {
-                desc = getDiscountLabel(dName);
-                unitPrice = -dAmt;
-              } else if (dAmt > 0) {
-                // fixed_monthly / credit â€” permanent or time-limited
-                desc = getDiscountLabel(dName);
-                unitPrice = -dAmt;
-              }
-
-              if (desc !== null) {
+              if (pendingDiscountLine) {
                 const { error: discLineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
                   invoice_id: invoiceId,
-                  description: desc,
-                  unit_price: unitPrice,
+                  description: pendingDiscountLine.desc,
+                  unit_price: pendingDiscountLine.amount,
                   quantity: 1,
-                  line_total: unitPrice,
+                  line_total: pendingDiscountLine.amount,
                   line_type: "discount",
+                  source_ref: "promotion_applied",
+                  line_kind: "discount",
                   service_address_id: staffServiceAddress?.id || null,
                 });
                 if (discLineErr) {
@@ -1110,6 +1237,7 @@ Deno.serve(async (req) => {
             const subscriptionPayload = {
               customer_id: billingCustomerId,
               order_id: canonicalOrder.id,
+              source_order_item_id: primaryOrderItem?.id || null,
               service_address_id: staffServiceAddress?.id || null,
               plan_code: primaryRecurring?.type || services?.[0]?.category || "service",
               plan_name: primaryRecurring?.name || services?.[0]?.name || "Service",
@@ -1235,21 +1363,19 @@ Deno.serve(async (req) => {
 
             // Also write to field_commissions (the payroll-eligible table read by pay-commissions-friday).
             // Status starts as "pending" â€” a supervisor must approve before payday.
-            await supabaseAdmin
+            const { error: fieldCommissionErr } = await supabaseAdmin
               .from("field_commissions")
-              .upsert({
+              .insert({
                 agent_id: sale.salesperson_id,
                 amount: totalCommission,
                 status: "pending",
                 earned_at: new Date().toISOString(),
                 order_id: canonicalOrder.id,
-                field_order_id: sale.id,
                 notes: `field-sales-sync: rate=${(commissionRate * 100).toFixed(0)}% bonus=${bonusAmount.toFixed(2)}$`,
-              }, {
-                onConflict: "field_order_id",
-                ignoreDuplicates: true,
-              })
-              .catch((e: any) => console.error("[field-sales-sync] field_commissions upsert failed (non-blocking):", e?.message));
+              });
+            if (fieldCommissionErr) {
+              console.error("[field-sales-sync] field_commissions upsert failed (non-blocking):", fieldCommissionErr.message);
+            }
 
             console.log(`[field-sales-sync] Commission created: ${totalCommission.toFixed(2)}$ (rate: ${(commissionRate * 100).toFixed(0)}%, bonus: ${bonusAmount}) for agent ${sale.salesperson_id}`);
           }
@@ -1257,14 +1383,18 @@ Deno.serve(async (req) => {
           console.error("[field-sales-sync] Commission engine error (non-blocking):", commErr);
         }
 
-        // Send official order confirmation email (corporate template, canonical math)
-        try {
-          await supabaseAdmin.functions.invoke("send-order-confirmation", {
-            body: { order_id: canonicalOrder.id },
-          });
-          console.log(`[field-sales-sync] send-order-confirmation invoked for ${canonicalOrder.id}`);
-        } catch (emailErr) {
-          console.error("[field-sales-sync] send-order-confirmation failed (non-blocking):", emailErr?.message || emailErr);
+        // Send official order confirmation only after a confirmed payment.
+        // Pending QR/direct-link shells must not email the client unless the
+        // agent explicitly selected the email payment option.
+        if (sale.payment_status === "confirmed") {
+          try {
+            await supabaseAdmin.functions.invoke("send-order-confirmation", {
+              body: { order_id: canonicalOrder.id },
+            });
+            console.log(`[field-sales-sync] send-order-confirmation invoked for ${canonicalOrder.id}`);
+          } catch (emailErr) {
+            console.error("[field-sales-sync] send-order-confirmation failed (non-blocking):", emailErr?.message || emailErr);
+          }
         }
 
         // Auto-installation: also send the self-install email with PDF guides
