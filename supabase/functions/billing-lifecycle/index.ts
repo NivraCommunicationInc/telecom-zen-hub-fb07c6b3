@@ -78,7 +78,7 @@ async function processExpirations(
 
   const { data: pastGraceInvoices, error } = await supabase
     .from("billing_invoices")
-    .select("*, subscription:billing_subscriptions(id, status, plan_name, customer_id, paypal_subscription_id), customer:billing_customers(id, email, first_name, last_name)")
+    .select("*, subscription:billing_subscriptions(id, status, plan_name, customer_id), customer:billing_customers(id, email, first_name, last_name)")
     .in("status", ["pending", "overdue"])
     .lte("due_date", suspendCutoff);
 
