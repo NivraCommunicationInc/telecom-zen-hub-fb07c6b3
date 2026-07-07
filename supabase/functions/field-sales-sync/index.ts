@@ -538,50 +538,23 @@ Deno.serve(async (req) => {
         const installationFee = explicitInstallationFee;
 
 
-        // Taxes (Quebec) â€” canonical tax module
-        let baseAmount = subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal;
-        let { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
+        // Taxes (Quebec) — canonical tax module.
+        // ⛔ La commande est la SEULE source de vérité. Aucune dérivation
+        // "à l'envers" depuis un total cible. Aucune ligne fabriquée pour
+        // combler un écart. Si le total agent diffère des lignes réelles,
+        // la synchro échoue et l'ordre reste bloqué en `sync_error`.
+        const baseAmount = Number((subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal).toFixed(2));
+        const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
-        // â•â•â• AUTHORITATIVE TOTAL â€” sale.total_amount is the agent-displayed total â•â•â•
-        // The field portal computes the total client-side (including discounts the
-        // agent applied at the door). We MUST honour that value so the PayPal link,
-        // the invoice and the visible order all stay aligned to the cent.
         const agentTotal = Number(sale.total_amount || 0);
-        if (agentTotal > 0 && Math.abs(agentTotal - totalAmount) > 0.01) {
-          console.log(`[field-sales-sync] Reconciling totals: sale.total_amount=${agentTotal} vs computed=${totalAmount}. Honouring agent total.`);
-          // Re-derive subtotal pre-tax from the authoritative total
-          const TAX_RATE = 0.14975; // TPS+TVQ combined
-          const newBase = Number((agentTotal / (1 + TAX_RATE)).toFixed(2));
-          const recomputed = computeTaxes(newBase);
-          baseAmount = newBase;
-          tpsAmount = recomputed.tps;
-          tvqAmount = recomputed.tvq;
-          totalAmount = recomputed.total;
-          // Adjust subtotal to absorb any discount (keep activation fee unchanged)
-          subtotal = Math.max(0, newBase - activationFee - deliveryFee - installationFee);
+        if (agentTotal > 0 && Math.abs(agentTotal - totalAmount) > 0.05) {
+          throw new Error(
+            `Incohérence de total : lignes vendues = ${totalAmount.toFixed(2)}$ ` +
+            `vs total saisi par l'agent = ${agentTotal.toFixed(2)}$. ` +
+            `La facture ne sera pas maquillée. Corrige les lignes vendues avant resynchronisation.`
+          );
         }
 
-        // Keep invoice/PDF lines aligned with the authoritative quote total.
-        // Field quotes can contain automatic first-month credits and agent promos;
-        // project the net difference as one explicit discount/adjustment line so
-        // Core receives normal detailed lines immediately, even while payment is pending.
-        const currentLineTotal = Number(lineItems.reduce((sum, li) => sum + Number(li.unit_price || 0) * Number(li.qty || 1), 0).toFixed(2));
-        const targetLineTotal = Number(baseAmount.toFixed(2));
-        const lineAdjustment = Number((targetLineTotal - currentLineTotal).toFixed(2));
-        if (Math.abs(lineAdjustment) >= 0.01) {
-          const quoteDiscount: any = (sale as any).discount_data || null;
-          const discountName = String(quoteDiscount?.name || quoteDiscount?.label || "Ajustement promotionnel").trim();
-          lineItems.push({
-            category: lineAdjustment < 0 ? "discount" : "fee",
-            type: lineAdjustment < 0 ? "promotion" : "quote_adjustment",
-            name: lineAdjustment < 0 ? discountName : "Ajustement de soumission",
-            qty: 1,
-            unit_price: lineAdjustment,
-            period: "one_time",
-            taxable: true,
-          });
-          quoteAdjustmentProjected = true;
-        }
 
         // â•â•â• RESOLVE OR CREATE ACCOUNT (orders.account_id is NOT NULL) â•â•â•
         let accountId: string | null = null;
