@@ -52,7 +52,19 @@ Deno.serve(async (req) => {
   );
 
   const startedAt = new Date();
-  const beginTime = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(); // now-2h
+  // Optional body override for one-off historical scans: { begin_time, end_time }
+  let overrideBegin: string | undefined;
+  let overrideEnd: string | undefined;
+  try {
+    const raw = await req.text();
+    if (raw && raw.trim().length > 0) {
+      const body = JSON.parse(raw);
+      if (typeof body?.begin_time === "string") overrideBegin = body.begin_time;
+      if (typeof body?.end_time === "string") overrideEnd = body.end_time;
+    }
+  } catch (e) { console.log("[square-orphan] body parse skipped:", String(e)); }
+  console.log("[square-orphan] override_begin=", overrideBegin, "override_end=", overrideEnd);
+  const beginTime = overrideBegin ?? new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
   // ─── 1. Fetch recent Square payments ─────────────────────────────────
   const squarePayments: SquarePayment[] = [];
@@ -61,6 +73,7 @@ Deno.serve(async (req) => {
     do {
       const url = new URL(`${SQUARE_API_BASE}/payments`);
       url.searchParams.set("begin_time", beginTime);
+      if (overrideEnd) url.searchParams.set("end_time", overrideEnd);
       url.searchParams.set("sort_order", "DESC");
       url.searchParams.set("limit", "100");
       if (cursor) url.searchParams.set("cursor", cursor);
