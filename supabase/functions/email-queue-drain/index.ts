@@ -8,6 +8,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
