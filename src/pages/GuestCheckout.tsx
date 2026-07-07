@@ -2365,7 +2365,7 @@ const GuestCheckout = () => {
                   <Button
                     className="flex-1 h-14 text-base font-bold rounded-xl text-white"
                     disabled={!isPaymentDone || !isLegalComplete || isSubmitting}
-                    onClick={handleSubmit}
+                    onClick={() => handleSubmit()}
                     style={(!isPaymentDone || !isLegalComplete || isSubmitting) ? {} : { background: '#0066CC', boxShadow: '0 4px 20px rgba(0,102,204,0.30)' }}
                     onMouseEnter={(e) => { if (isPaymentDone && isLegalComplete && !isSubmitting) e.currentTarget.style.background = '#0052A3'; }}
                     onMouseLeave={(e) => { if (isPaymentDone && isLegalComplete && !isSubmitting) e.currentTarget.style.background = '#0066CC'; }}
