@@ -4,6 +4,8 @@
 // document delivery emails. NEVER use a custom navy/teal template here.
 // ============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
