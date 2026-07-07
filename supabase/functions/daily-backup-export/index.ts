@@ -313,7 +313,7 @@ Deno.serve(async (req) => {
         .from("daily_backup_log")
         .update({
           status: "success",
-          email_id: resendResult.id,
+          email_id: resendResultId,
           row_counts: {
             clients: clientsRows.length,
             orders: ordersRows.length,
@@ -331,7 +331,7 @@ Deno.serve(async (req) => {
       success: true,
       date: today,
       filename,
-      email_id: resendResult.id,
+      email_id: resendResultId,
       rows: {
         clients: clientsRows.length,
         orders: ordersRows.length,
