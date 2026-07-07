@@ -1,28 +1,59 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
-import { computeTaxes } from "../_shared/tax-constants.ts";
 
 /**
  * ============================================================================
- * BILLING V2 - CREATE ORDER (v2.1 - Smart Payment Detection)
+ * BILLING V3 - CREATE ORDER — Phase 3.A REWRITE (cause 58953)
  * ============================================================================
- * 
- * ┌────────────────────────────────────────────────────────────────────────┐
- * │  RÈGLE SYSTÈME VERROUILLÉE - MODÈLE 100% PRÉPAYÉ                       │
- * │                                                                         │
- * │  LE CYCLE DE FACTURATION NE COMMENCE JAMAIS À LA COMMANDE.             │
- * │  LE CYCLE COMMENCE UNIQUEMENT QUAND LE PAIEMENT EST CONFIRMÉ.          │
- * │                                                                         │
- * │  MISE À JOUR v2.1: Détection intelligente de la méthode de paiement    │
- * │  - PayPal: Si capture_id fourni → Invoice PAID + Payment CONFIRMED     │
- * │  - Interac: Invoice PENDING + Payment PENDING                          │
- * │                                                                         │
- * │  Cette règle est IMMUABLE et protégée par des triggers SQL.            │
- * └────────────────────────────────────────────────────────────────────────┘
- * 
- * @author Nivra Telecom
- * @version 2.1.0 - Smart Payment Detection
+ *
+ *   • AUCUNE écriture directe sur billing_invoices / billing_invoice_lines /
+ *     billing_subscriptions / billing_payments.
+ *   • AUCUN calcul TPS/TVQ, subtotal, balance_due, promotion, crédit ici.
+ *   • Passe exclusivement par les RPC canoniques SECURITY DEFINER :
+ *       - build_invoice_from_order       (Phase 2)
+ *       - create_subscriptions_from_order (Phase 2)
+ *       - apply_payment_to_invoice        (Phase 2)
+ *       - build_invoice_ad_hoc            (Phase 3.A, fallback sans order_id)
+ *   • Le rabais « nouveau client », les promotions et les frais d'activation
+ *     doivent avoir été matérialisés dans les `order_items` en amont
+ *     (par orchestrate_order / compute_checkout_pricing). Cette fonction
+ *     ne les recalcule PLUS.
+ *
+ *   ─────────────────────────────────────────────────────────────────────
+ *   ⚠️ RÈGLE MÉTIER INTACTE
+ *   ─────────────────────────────────────────────────────────────────────
+ *   Le cycle de facturation démarre au paiement confirmé, jamais à la
+ *   commande. Le RPC apply_payment_to_invoice met la facture à `paid`
+ *   uniquement lorsque amount_paid ≥ total.
+ *   ─────────────────────────────────────────────────────────────────────
+ *
+ *   ─────────────────────────────────────────────────────────────────────
+ *   Ancien comportement (source du bug 58953)
+ *   ─────────────────────────────────────────────────────────────────────
+ *   • Itération sur body.services → UN abonnement + UNE facture PAR service
+ *     → duplication de lignes fantômes quand orchestrate_order avait déjà
+ *       créé les subscriptions/invoices canoniques
+ *   • computeTaxes() local (TPS 5% + TVQ 9.975% recalculés dans le JS)
+ *   • Insert direct billing_invoices avec `activation_fee`, `amount_paid`,
+ *     `paid_at`, `balance_due`, `notes` reconstruits
+ *   • Rabais welcome 50% recalculé dans l'Edge Function
+ *   • Insert direct billing_invoice_lines avec discount négatifs
+ *   • Insert direct billing_payments
+ *   • Rollback manuel des subscriptions/invoices en cas d'erreur
+ *
+ *   ─────────────────────────────────────────────────────────────────────
+ *   Nouveau comportement (systémique)
+ *   ─────────────────────────────────────────────────────────────────────
+ *   1. Résolution auth, profil, adresse, billing_customer (inchangé)
+ *   2. RPC build_invoice_from_order(order_id) → UNE facture canonique
+ *      dérivée de order_items (subtotal + tax_snapshot figés en DB)
+ *   3. RPC create_subscriptions_from_order(order_id) → abonnements figés
+ *      (frozen_* : nom, code, unit_price, cycle, ancre) — 1 sub par
+ *      order_item récurrent, sans reconstruction locale
+ *   4. Si le paiement est déjà capturé : RPC apply_payment_to_invoice
+ *   5. Email de bienvenue avec PDF officiel (lecture pure de la facture)
+ * ============================================================================
  */
 
 const corsHeaders = {
@@ -37,47 +68,20 @@ interface ServiceItem {
   category: string;
 }
 
-/**
- * BILLING TOTALS - Source of Truth from Server-Side compute_checkout_pricing RPC (v2.3)
- * These values come from the server-side RPC and MUST be used as-is.
- * 
- * ⚠️ SECURITY: welcome_discount_amount is IGNORED from client payload.
- * Welcome discount is RE-COMPUTED server-side to prevent manipulation.
- */
-interface BillingTotals {
-  subtotal: number;           // Gross subtotal before taxes and discounts
-  discount_amount: number;    // Applied promo discount (NOT welcome discount)
-  welcome_discount_amount?: number; // ⚠️ IGNORED — re-computed server-side for security
-  base_amount: number;        // Taxable amount (subtotal - discount)
-  tps_amount: number;         // TPS (5%)
-  tvq_amount: number;         // TVQ (9.975%)
-  total: number;              // Final total to pay
-  promo_code?: string;        // Applied promo code
-  promo_name?: string;        // Promo description
-  payment_method?: string;    // Payment method used
-  monthly_recurring?: number; // Monthly recurring amount
-  one_time_fees?: number;     // One-time fees
-}
-
 interface CreateOrderRequest {
-  // Customer info — identity hydrated from profiles server-side
   user_id?: string;
-  first_name?: string;  // Optional: overridden by profile if user_id provided
-  last_name?: string;   // Optional: overridden by profile if user_id provided
-  email?: string;       // Optional: overridden by profile if user_id provided
+  first_name?: string;
+  last_name?: string;
+  email?: string;
   phone: string;
-  // Services
   services: ServiceItem[];
-  // Order reference
   order_id?: string;
   order_number?: string;
-  // PAYMENT INFO (v2.1) - Smart detection
-  payment_method?: 'paypal' | 'interac' | 'etransfer' | 'credit_card' | 'promo_free';
-  payment_status?: 'paid' | 'captured' | 'pending' | 'pre_authorized';
-  payment_reference?: string; // PayPal capture_id or Interac reference
-  total_amount?: number; // Total amount paid (for PayPal)
-  // BILLING TOTALS (v2.2) - Snapshot from checkout as source of truth
-  billing_totals?: BillingTotals;
+  payment_method?: "paypal" | "interac" | "etransfer" | "credit_card" | "promo_free";
+  payment_status?: "paid" | "captured" | "pending" | "pre_authorized";
+  payment_reference?: string;
+  total_amount?: number;
+  request_id?: string;
 }
 
 serve(async (req) => {
@@ -93,28 +97,23 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
-    // ── Auth gate: require a valid JWT ──────────────────────────────────────
+    // ── Auth gate ─────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Authentication required" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Authentication required" }, 401);
     }
-    const callerClient: any = createClient<any>(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user: callerUser }, error: callerErr } = await callerClient.auth.getUser();
-    if (callerErr || !callerUser?.id) {
-      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const callerClient: any = createClient<any>(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: { user: callerUser } } = await callerClient.auth.getUser();
+    if (!callerUser?.id) return json({ error: "Invalid authentication" }, 401);
     const callerId = callerUser.id;
-    // ────────────────────────────────────────────────────────────────────────
 
     const body: CreateOrderRequest = await req.json();
 
-    // ── IDOR guard: if user_id differs from caller, require staff role ──────
+    // ── IDOR guard ────────────────────────────────────────────────────────
     if (body.user_id && body.user_id !== callerId) {
       const { data: roleRow } = await supabase
         .from("user_roles")
@@ -123,21 +122,17 @@ serve(async (req) => {
         .maybeSingle();
       const staffRoles = ["admin", "super_admin", "owner", "employee", "agent", "field_agent"];
       if (!roleRow || !staffRoles.includes(roleRow.role)) {
-        return new Response(JSON.stringify({ error: "Cannot create order for another user" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ error: "Cannot create order for another user" }, 403);
       }
     }
-    // ────────────────────────────────────────────────────────────────────────
 
-    // IDENTITY CORE: Hydrate identity from profiles if user_id provided
+    // ── Hydrate identity from profile ─────────────────────────────────────
     if (body.user_id) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("first_name, last_name, email, phone")
         .eq("user_id", body.user_id)
         .maybeSingle();
-      
       if (profile) {
         if (profile.first_name) body.first_name = profile.first_name;
         if (profile.last_name) body.last_name = profile.last_name;
@@ -146,69 +141,31 @@ serve(async (req) => {
       }
     }
 
-    console.log("[billing-create-order] Received request:", {
-      email: body.email,
-      payment_method: body.payment_method,
-      payment_status: body.payment_status,
-      payment_reference: body.payment_reference,
-      services_count: body.services?.length,
-    });
-    
-    // Validate required fields
     if (!body.email || !body.first_name || !body.last_name || !body.phone) {
-      throw new Error("Missing required customer fields: email, first_name, last_name, phone");
+      return json({ error: "Missing required customer fields: email, first_name, last_name, phone" }, 400);
     }
-    
     if (!body.services || body.services.length === 0) {
-      throw new Error("At least one service is required");
+      return json({ error: "At least one service is required" }, 400);
     }
-    
-    // SMART PAYMENT DETECTION (v2.1)
-    // Determine if this is a completed PayPal payment or pending Interac
+
+    // Détection paiement PayPal capturé (règle métier inchangée)
     const isPayPalPaid = (
-      body.payment_method === 'paypal' && 
-      body.payment_reference && 
-      (body.payment_status === 'paid' || body.payment_status === 'captured')
+      body.payment_method === "paypal" &&
+      !!body.payment_reference &&
+      (body.payment_status === "paid" || body.payment_status === "captured")
     );
-    
-    const effectivePaymentMethod = body.payment_method === 'etransfer' ? 'interac' : (body.payment_method || 'interac');
-    const effectiveInvoiceStatus = isPayPalPaid ? 'paid' : 'pending';
-    const effectivePaymentStatus = isPayPalPaid ? 'confirmed' : 'pending';
-    
-    console.log("[billing-create-order] Payment detection:", {
-      isPayPalPaid,
-      effectivePaymentMethod,
-      effectiveInvoiceStatus,
-      effectivePaymentStatus,
-    });
-    
-    // BILLING TOTALS V2.2 - Use checkout snapshot as source of truth when provided
-    const hasBillingTotals = body.billing_totals && 
-      typeof body.billing_totals.total === 'number' && 
-      body.billing_totals.total >= 0;
-    
-    console.log("[billing-create-order] Billing totals detection:", {
-      hasBillingTotals,
-      billing_totals: body.billing_totals,
-    });
-    
-    // Calculate activation fee based on service count (fallback if not in billing_totals)
-    const serviceCount = body.services.length;
-    const activationFee = serviceCount === 1 ? 10.00 : 45.00;
-    const activationFeePerInvoice = serviceCount > 0 ? activationFee : 0;
-    
-    // Step 1: Get or create billing customer
+    const effectivePaymentMethod = body.payment_method === "etransfer" ? "interac" : (body.payment_method || "interac");
+
+    // ── Résolution du billing_customer ────────────────────────────────────
     let customerId: string;
-    
     const { data: existingCustomer } = await supabase
       .from("billing_customers")
       .select("id")
       .eq("email", body.email)
-      .single();
-    
+      .maybeSingle();
+
     if (existingCustomer) {
       customerId = existingCustomer.id;
-      console.log(`[billing-create-order] Using existing customer: ${customerId}`);
       if (body.user_id) {
         await supabase
           .from("billing_customers")
@@ -217,7 +174,7 @@ serve(async (req) => {
           .is("user_id", null);
       }
     } else {
-      const { data: newCustomer, error: customerError } = await supabase
+      const { data: newCustomer, error: custErr } = await supabase
         .from("billing_customers")
         .insert({
           user_id: body.user_id || null,
@@ -225,574 +182,287 @@ serve(async (req) => {
           last_name: body.last_name,
           email: body.email,
           phone: body.phone,
-          status: 'active'
+          status: "active",
         })
-        .select()
+        .select("id")
         .single();
-      
-      if (customerError) throw customerError;
+      if (custErr) throw custErr;
       customerId = newCustomer.id;
-      console.log(`[billing-create-order] Created new customer: ${customerId}`);
     }
-    
-    // Resolve address_id for residential services (Internet, TV, Combo)
-    // Required by chk_residential_address_required constraint
-    let addressId: string | null = null;
-    const needsAddress = body.services.some(s => 
-      ['internet', 'tv', 'combo', 'combo_tv_internet'].includes(s.category?.toLowerCase() || '')
-    );
-    
-    if (needsAddress) {
-      const resolveUserId = body.user_id;
-      
-      // Strategy 1: Resolve from order shipping fields
-      if (body.order_id) {
-        try {
-          const { data: orderData, error: orderErr } = await supabase
-            .from("orders")
-            .select("shipping_address, shipping_city, shipping_province, shipping_postal_code, user_id")
-            .eq("id", body.order_id)
-            .single();
-          
-          console.log(`[billing-create-order] Order lookup: found=${!!orderData}, error=${orderErr?.message || 'none'}, address=${orderData?.shipping_address}`);
-          
-          if (orderData?.shipping_address) {
-            const clientId = orderData.user_id || resolveUserId;
-            
-            // Find ALL accounts for this user - use select without maybeSingle to avoid errors
-            const { data: accounts, error: accErr } = await supabase
-              .from("accounts")
-              .select("id")
-              .eq("client_id", clientId)
-              .order("created_at", { ascending: true })
-              .limit(5);
-            
-            console.log(`[billing-create-order] Account lookup: found=${accounts?.length || 0}, error=${accErr?.message || 'none'}`);
-            
-            if (accounts && accounts.length > 0) {
-              // Search across ALL accounts for matching address
-              for (const account of accounts) {
-                const { data: existingAddrs, error: addrErr } = await supabase
-                  .from("service_addresses")
-                  .select("id")
-                  .eq("account_id", account.id)
-                  .eq("address_line", orderData.shipping_address)
-                  .limit(1);
-                
-                if (existingAddrs && existingAddrs.length > 0) {
-                  addressId = existingAddrs[0].id;
-                  console.log(`[billing-create-order] Found existing address: ${addressId} on account ${account.id}`);
-                  break;
-                }
-              }
-              
-              // If not found on any account, create on first account
-              if (!addressId) {
-                const targetAccountId = accounts[0].id;
-                console.log(`[billing-create-order] Creating new address on account ${targetAccountId}`);
-                const { data: newAddr, error: newAddrErr } = await supabase
-                  .from("service_addresses")
-                  .insert({
-                    account_id: targetAccountId,
-                    label: orderData.shipping_city || "Adresse principale",
-                    address_line: orderData.shipping_address,
-                    city: orderData.shipping_city || null,
-                    province: orderData.shipping_province || "QC",
-                    postal_code: orderData.shipping_postal_code || null,
-                    is_primary: true,
-                    is_default: true,
-                  })
-                  .select("id")
-                  .single();
-                
-                if (newAddrErr) {
-                  console.error(`[billing-create-order] Address create error: ${newAddrErr.message}`);
-                  // Try RPC fallback
-                  const { data: rpcAddr } = await supabase.rpc("resolve_or_create_service_address", {
-                    p_account_id: targetAccountId,
-                    p_address_line: orderData.shipping_address,
-                    p_city: orderData.shipping_city || '',
-                    p_province: orderData.shipping_province || 'QC',
-                    p_postal_code: orderData.shipping_postal_code || '',
-                  });
-                  if (rpcAddr) addressId = rpcAddr;
-                } else if (newAddr) {
-                  addressId = newAddr.id;
-                }
-              }
-            } else {
-              // No account exists - create one, then create address
-              console.log(`[billing-create-order] No account found for client ${clientId}, creating one`);
-              const { data: newAccount, error: newAccErr } = await supabase
-                .from("accounts")
-                .insert({
-                  client_id: clientId,
-                  account_number: String(Math.floor(100000 + Math.random() * 900000)),
-                  status: "active",
-                  primary_service_address: orderData.shipping_address,
-                  primary_service_city: orderData.shipping_city,
-                  primary_service_province: orderData.shipping_province || "QC",
-                  primary_service_postal_code: orderData.shipping_postal_code,
-                })
-                .select("id")
-                .single();
-              
-              if (newAccErr) {
-                console.error(`[billing-create-order] Account create error: ${newAccErr.message}`);
-              } else if (newAccount) {
-                const { data: newAddr } = await supabase
-                  .from("service_addresses")
-                  .insert({
-                    account_id: newAccount.id,
-                    label: orderData.shipping_city || "Adresse principale",
-                    address_line: orderData.shipping_address,
-                    city: orderData.shipping_city || null,
-                    province: orderData.shipping_province || "QC",
-                    postal_code: orderData.shipping_postal_code || null,
-                    is_primary: true,
-                    is_default: true,
-                  })
-                  .select("id")
-                  .single();
-                if (newAddr) addressId = newAddr.id;
-              }
-            }
-          }
-        } catch (addrResolveErr) {
-          console.error(`[billing-create-order] Address resolution exception:`, addrResolveErr);
-        }
-      }
-      
-      console.log(`[billing-create-order] Final address resolution: addressId=${addressId}, needsAddress=${needsAddress}`);
-      
-      // HARD FAIL if residential service needs address but none resolved
-      if (!addressId) {
-        console.error(`[billing-create-order] CRITICAL: Cannot resolve address for residential service. order_id=${body.order_id}`);
-      }
-    }
-    
-    // ★ Resolve account_number for billing_snapshot_account_number on invoices
-    let resolvedAccountNumber: string | null = null;
-    if (body.user_id) {
-      const { data: acctData } = await supabase
-        .from("accounts")
-        .select("account_number")
-        .eq("client_id", body.user_id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      resolvedAccountNumber = acctData?.account_number || null;
-      console.log(`[billing-create-order] Resolved account_number: ${resolvedAccountNumber}`);
-    }
-    
-    const results = {
-      customer_id: customerId,
-      subscriptions: [] as Array<{
-        subscription_id: string;
-        invoice_id: string;
-        invoice_number: string;
-        total: number;
-      }>,
-      total_amount: 0,
-      activation_fee: activationFee,
-      payment_method: effectivePaymentMethod,
-      invoice_status: effectiveInvoiceStatus,
+
+    const provenanceContext = {
+      edge_function_name: "billing-create-order",
+      module: "billing",
+      actor_user_id: callerId,
+      reason: "order_created",
+      request_id: body.request_id ?? crypto.randomUUID(),
+      source_type: "order",
+      source_id: body.order_id ?? null,
     };
-    
-    // Step 2: Create subscription + invoice for each service
-    const cycleStartDate = new Date();
-    const anchorDay = cycleStartDate.getDate(); // billing anchor = activation day of month
-    const { nextAnchoredDate } = await import("../_shared/billing-utils.ts");
-    const cycleEndDate = nextAnchoredDate(anchorDay, cycleStartDate);
-    
-    const cycleStartStr = cycleStartDate.toISOString().split('T')[0];
-    const cycleEndStr = cycleEndDate.toISOString().split('T')[0];
-    const dueDate = cycleEndStr;
-    
-    for (let i = 0; i < body.services.length; i++) {
-      const service = body.services[i];
-      
-      // Determine if this service needs address_id
-      const serviceNeedsAddress = ['internet', 'tv', 'combo', 'combo_tv_internet'].includes(
-        service.category?.toLowerCase() || ''
+
+    // ════════════════════════════════════════════════════════════════════
+    // CHEMIN A — order_id fourni : UNIQUE chemin autorisé pour production
+    // ════════════════════════════════════════════════════════════════════
+    if (body.order_id) {
+      // 1. RPC canonique — facture depuis order_items (subtotal + taxes figés)
+      const { data: invoiceId, error: invErr } = await supabase.rpc(
+        "build_invoice_from_order",
+        { p_order_id: body.order_id, p_context: provenanceContext },
       );
-      
-      // Create subscription with appropriate status (IDEMPOTENT — reuse if exists)
-      const subscriptionStatus = isPayPalPaid ? 'active' : 'pending';
-      let subscription: { id: string } | null = null;
-      let newlyCreatedSubId: string | null = null;
-      
-      // Check for existing subscription first (created by orchestrate_order RPC)
-      if (body.order_id) {
-        const { data: existingSub } = await supabase
-          .from("billing_subscriptions")
-          .select("id")
-          .eq("order_id", body.order_id)
-          .eq("customer_id", customerId)
-          .limit(1)
-          .maybeSingle();
-        
-        if (existingSub) {
-          subscription = existingSub;
-          console.log(`[billing-create-order] Reusing existing subscription: ${subscription.id}`);
-        }
-      }
-      
-      if (!subscription) {
-        const insertPayload = {
-          customer_id: customerId,
-          plan_code: service.plan_code,
-          plan_name: service.plan_name,
-          plan_price: service.plan_price,
-          service_category: service.category,
-          cycle_start_date: cycleStartStr,
-          cycle_end_date: cycleEndStr,
-          billing_anchor_date: cycleStartStr,
-          status: subscriptionStatus,
-          auto_billing_enabled: isPayPalPaid,
-          order_id: body.order_id || null,
-          address_id: serviceNeedsAddress ? addressId : null,
-        };
+      if (invErr) throw new Error(`build_invoice_from_order failed: ${invErr.message}`);
 
-        const { data: newSub, error: subError } = await supabase
-          .from("billing_subscriptions")
-          .insert(insertPayload)
-          .select()
-          .single();
+      // 2. RPC canonique — abonnements figés (frozen_*)
+      const { data: subIds, error: subErr } = await supabase.rpc(
+        "create_subscriptions_from_order",
+        { p_order_id: body.order_id, p_context: provenanceContext },
+      );
+      if (subErr) throw new Error(`create_subscriptions_from_order failed: ${subErr.message}`);
 
-        if (subError) {
-          const isDuplicateAddressCategory =
-            subError.code === "23505" &&
-            `${subError.message || ""} ${subError.details || ""}`.includes("idx_unique_sub_per_address_category");
-
-          if (!isDuplicateAddressCategory) throw subError;
-
-          console.log(`[billing-create-order] Duplicate subscription constraint hit — looking up existing subscription for customer=${customerId}, category=${service.category}, address=${addressId}`);
-
-          // Use select() without maybeSingle() to avoid errors on multiple rows
-          const fallbackFilters: Record<string, any> = {
-            customer_id: customerId,
-            service_category: service.category,
-          };
-
-          let existingQuery = supabase
-            .from("billing_subscriptions")
-            .select("id")
-            .eq("customer_id", customerId)
-            .eq("service_category", service.category);
-
-          if (serviceNeedsAddress && addressId) {
-            existingQuery = existingQuery.eq("address_id", addressId);
-          } else if (!serviceNeedsAddress) {
-            existingQuery = existingQuery.is("address_id", null);
-          }
-
-          const { data: existingSubs } = await existingQuery
-            .order("created_at", { ascending: false })
-            .limit(1);
-
-          if (!existingSubs || existingSubs.length === 0) {
-            // Last resort: find ANY subscription for this customer + category (ignore address filter)
-            console.warn(`[billing-create-order] Exact match failed, trying broader lookup`);
-            const { data: broadSubs } = await supabase
-              .from("billing_subscriptions")
-              .select("id")
-              .eq("customer_id", customerId)
-              .eq("service_category", service.category)
-              .order("created_at", { ascending: false })
-              .limit(1);
-            
-            if (!broadSubs || broadSubs.length === 0) {
-              console.error(`[billing-create-order] Cannot find existing subscription to reuse — skipping subscription, creating invoice directly`);
-              // Create a new subscription with a NULL address to bypass the constraint
-              const { data: fallbackSub, error: fallbackSubErr } = await supabase
-                .from("billing_subscriptions")
-                .insert({
-                  ...insertPayload,
-                  address_id: null, // bypass constraint
-                })
-                .select()
-                .single();
-              if (fallbackSubErr) throw fallbackSubErr;
-              subscription = fallbackSub;
-              newlyCreatedSubId = subscription!.id;
-              console.log(`[billing-create-order] Created fallback subscription (no address): ${subscription!.id}`);
-            } else {
-              subscription = broadSubs[0];
-            }
-          } else {
-            subscription = existingSubs[0];
-          }
-
-          if (subscription) {
-            // Update existing subscription to link to new order and refresh plan info
-            await supabase
-              .from("billing_subscriptions")
-              .update({
-                order_id: body.order_id || null,
-                plan_code: service.plan_code,
-                plan_name: service.plan_name,
-                plan_price: service.plan_price,
-                status: subscriptionStatus,
-              })
-              .eq("id", subscription.id);
-            console.log(`[billing-create-order] Reusing + updated existing subscription: ${subscription.id}`);
-          }
-        } else {
-          subscription = newSub;
-          newlyCreatedSubId = subscription!.id;
-          console.log(`[billing-create-order] Created new subscription: ${subscription!.id}`);
-        }
-      }
-      
-      let invoice: any = null;
-      try {
-      // Generate invoice number
-      const { data: invoiceNumberData } = await supabase
-        .rpc("generate_billing_invoice_number");
-
-      const invoiceNumber = invoiceNumberData || `INV-${Date.now()}-${i}`;
-      
-      // V2.2: Use billing_totals from checkout when available (first invoice only)
-      // This ensures PDF matches exactly what client saw at checkout
-      let subtotal: number;
-      let tpsAmount: number;
-      let tvqAmount: number;
-      let total: number;
-      let discountAmount = 0;
-      let invoiceActivationFee = i === 0 ? activationFeePerInvoice : 0;
-      
-      if (hasBillingTotals && i === 0) {
-        // USE CHECKOUT SNAPSHOT AS SOURCE OF TRUTH
-        const bt = body.billing_totals!;
-        subtotal = bt.subtotal;
-        tpsAmount = bt.tps_amount;
-        tvqAmount = bt.tvq_amount;
-        total = bt.total;
-        discountAmount = bt.discount_amount || 0;
-        
-        console.log("[billing-create-order] Using checkout billing_totals:", {
-          subtotal, tpsAmount, tvqAmount, total, discountAmount
-        });
-      } else {
-        // FALLBACK: Calculate amounts (legacy behavior)
-        subtotal = service.plan_price + invoiceActivationFee;
-        const { tps: fbTps, tvq: fbTvq, total: fbTotal } = computeTaxes(subtotal);
-        tpsAmount = fbTps;
-        tvqAmount = fbTvq;
-        total = fbTotal;
-      }
-      
-      // Create invoice with SMART status + order linkage
-      const invoiceData: Record<string, any> = {
-        subscription_id: subscription!.id,
-        customer_id: customerId,
-        invoice_number: invoiceNumber,
-        type: 'initial',
-        subtotal,
-        activation_fee: invoiceActivationFee,
-        tps_amount: tpsAmount,
-        tvq_amount: tvqAmount,
-        total,
-        currency: 'CAD',
-        payment_method: effectivePaymentMethod,
-        status: effectiveInvoiceStatus,
-        cycle_start_date: cycleStartStr,
-        cycle_end_date: cycleEndStr,
-        due_date: dueDate,
-        order_id: body.order_id || null,
-        billing_snapshot_account_number: resolvedAccountNumber || null,
-        billing_snapshot_client: {
-          first_name: body.first_name,
-          last_name: body.last_name,
-          email: body.email,
-          phone: body.phone,
-        },
-        notes: body.order_number 
-          ? `Commande: ${body.order_number}${discountAmount > 0 ? ` | Rabais: -${discountAmount.toFixed(2)}$` : ''}${body.billing_totals?.promo_code ? ` (${body.billing_totals.promo_code})` : ''}`
-          : null,
-      };
-      
-      // If PayPal paid, set amount_paid and balance_due
+      // 3. RPC canonique — application du paiement si capturé
+      let paymentId: string | null = null;
       if (isPayPalPaid) {
-        invoiceData.amount_paid = total;
-        invoiceData.balance_due = 0;
-        invoiceData.paid_at = new Date().toISOString();
+        const { data: invRow } = await supabase
+          .from("billing_invoices")
+          .select("total")
+          .eq("id", invoiceId)
+          .single();
+        const { data: pid, error: payErr } = await supabase.rpc(
+          "apply_payment_to_invoice",
+          {
+            p_invoice_id: invoiceId,
+            p_amount: invRow.total,
+            p_method: "paypal",
+            p_provider: "paypal",
+            p_external_reference: body.payment_reference,
+            p_source: "live",
+            p_context: provenanceContext,
+          },
+        );
+        if (payErr) throw new Error(`apply_payment_to_invoice failed: ${payErr.message}`);
+        paymentId = pid as string;
       }
-      
-      const { data: invoiceData2, error: invoiceError } = await supabase
+
+      // 4. Lecture de la facture finale (aucun recalcul côté app)
+      const { data: invoice } = await supabase
         .from("billing_invoices")
-        .insert(invoiceData)
-        .select()
+        .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, status, cycle_start_date, cycle_end_date, due_date")
+        .eq("id", invoiceId)
         .single();
 
-      if (invoiceError) throw invoiceError;
-      invoice = invoiceData2;
-      
-      // Create invoice lines — ALWAYS set line_type explicitly
-      const lines: Array<Record<string, any>> = [
-        {
-          invoice_id: invoice.id,
-          description: `${service.plan_name} – 30 jours`,
-          unit_price: service.plan_price,
-          quantity: 1,
-          line_total: service.plan_price,
-          line_type: 'service'
-        }
-      ];
-      
-      if (invoiceActivationFee > 0) {
-        lines.push({
-          invoice_id: invoice.id,
-          description: serviceCount === 1 ? "Frais d'activation (1 service)" : "Frais d'activation (multi-services)",
-          unit_price: invoiceActivationFee,
-          quantity: 1,
-          line_total: invoiceActivationFee,
-          line_type: 'fee'
-        });
-      }
-      
-      // Welcome discount line (50% on services for new customers - first invoice only)
-      // ⚠️ SECURITY: IGNORE client-provided welcome_discount_amount — re-compute server-side
-      let serverWelcomeDiscount = 0;
-      if (i === 0 && body.user_id) {
-        // Check if user has any completed orders (same logic as compute_checkout_pricing RPC)
-        const { data: existingOrders } = await supabase
-          .from("orders")
-          .select("id")
-          .eq("user_id", body.user_id)
-          .in("status", ["completed", "installation_completed", "activated", "active"])
-          .limit(1);
-        
-        const isNewCustomer = !existingOrders || existingOrders.length === 0;
-        if (isNewCustomer && service.plan_price > 0) {
-          // 50% discount on recurring service price
-          serverWelcomeDiscount = Math.round(service.plan_price * 0.50 * 100) / 100;
-          console.log(`[billing-create-order] SERVER-SIDE welcome discount computed: -${serverWelcomeDiscount} (new customer)`);
-        }
-      }
-      
-      if (serverWelcomeDiscount > 0) {
-        lines.push({
-          invoice_id: invoice.id,
-          description: "Rabais nouveau client (50% — 1er mois)",
-          unit_price: -serverWelcomeDiscount,
-          quantity: 1,
-          line_total: -serverWelcomeDiscount,
-          line_type: 'discount'
-        });
-        console.log(`[billing-create-order] Added welcome discount line: -${serverWelcomeDiscount}`);
-      }
-      
-      const { error: linesErr } = await supabase.from("billing_invoice_lines").insert(lines);
-      if (linesErr) throw new Error(`invoice_lines insert failed: ${linesErr.message}`);
-
-      // Create payment record with SMART status
-      const paymentData: Record<string, any> = {
-        invoice_id: invoice.id,
-        customer_id: customerId,
-        method: effectivePaymentMethod,
-        amount: total,
-        status: effectivePaymentStatus,
-        source: 'live',
-      };
-      
-      // Add PayPal-specific fields if PayPal payment
-      if (isPayPalPaid && effectivePaymentMethod === 'paypal') {
-        paymentData.provider = 'paypal';
-        paymentData.provider_payment_id = body.payment_reference;
-        paymentData.received_at = new Date().toISOString();
-      }
-      
-      const { error: paymentErr } = await supabase.from("billing_payments").insert(paymentData);
-      if (paymentErr) throw new Error(`billing_payments insert failed: ${paymentErr.message}`);
-
-      // Update subscription with last_invoice_id
-      await supabase
-        .from("billing_subscriptions")
-        .update({ last_invoice_id: invoice.id })
-        .eq("id", subscription.id);
-      
-      results.subscriptions.push({
-        subscription_id: subscription.id,
-        invoice_id: invoice.id,
-        invoice_number: invoiceNumber,
-        total
+      // 5. Email
+      await queueOrderEmail(supabase, {
+        isPaid: isPayPalPaid,
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        customerEmail: body.email,
+        customerName: `${body.first_name} ${body.last_name}`,
+        planNames: body.services.map((s) => s.plan_name).join(", "),
+        subtotal: invoice.subtotal,
+        tps: invoice.tps_amount,
+        tvq: invoice.tvq_amount,
+        total: invoice.total,
+        cycleStart: invoice.cycle_start_date,
+        cycleEnd: invoice.cycle_end_date,
+        dueDate: invoice.due_date,
+        paymentMethod: effectivePaymentMethod,
+        paymentReference: body.payment_reference ?? null,
       });
-      
-      results.total_amount += total;
-      
-      console.log(`[billing-create-order] Created subscription ${subscription.id} (status: ${subscriptionStatus}) with invoice ${invoiceNumber} (status: ${effectiveInvoiceStatus})`);
-      } catch (invoiceErr) {
-        if (newlyCreatedSubId) {
-          await supabase.from("billing_subscriptions").delete().eq("id", newlyCreatedSubId).catch(() => {});
-          console.error(`[billing-create-order] Rolled back subscription ${newlyCreatedSubId} after invoice failure`);
-        }
-        // Roll back the invoice itself if it was just created
-        if (invoice?.id) {
-          await supabase.from("billing_invoice_lines").delete().eq("invoice_id", invoice.id).catch(() => {});
-          await supabase.from("billing_invoices").delete().eq("id", invoice.id).catch(() => {});
-          console.error(`[billing-create-order] Rolled back invoice ${invoice.id} after line/payment failure`);
-        }
-        throw invoiceErr;
-      }
-    }
-    
-    // Step 3: Queue appropriate email based on payment status (with PDF, non-blocking)
-    const templateKey = isPayPalPaid ? 'payment_confirmed' : 'invoice_created';
-    const firstInvoiceId = (results.subscriptions[0] as any)?.invoice_id;
 
-    let pdfAttachment = null;
-    if (firstInvoiceId) {
-      const { buildInvoicePdfAttachment, buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
-      pdfAttachment = isPayPalPaid
-        ? await buildReceiptPdfAttachment(firstInvoiceId, "recu-paiement")
-        : await buildInvoicePdfAttachment(firstInvoiceId, "facture");
-    }
-
-    await supabase.from("email_queue").insert({
-      event_key: `billing_order_${results.customer_id}_${Date.now()}`,
-      to_email: body.email,
-      template_key: templateKey,
-      template_vars: {
-        client_name: `${body.first_name} ${body.last_name}`,
-        invoice_number: results.subscriptions[0]?.invoice_number || 'N/A',
-        plan_name: body.services.map(s => s.plan_name).join(', '),
-        subtotal: body.services.reduce((sum, s) => sum + s.plan_price, 0).toFixed(2),
-        activation_fee: activationFee.toFixed(2),
-        tps_amount: (results.total_amount * 0.05 / 1.14975).toFixed(2),
-        tvq_amount: (results.total_amount * 0.09975 / 1.14975).toFixed(2),
-        total: results.total_amount.toFixed(2),
-        amount: results.total_amount.toFixed(2),
-        due_date: dueDate,
-        cycle_start: cycleStartStr,
-        cycle_end: cycleEndStr,
-        service_count: serviceCount,
-        payment_method: effectivePaymentMethod === 'paypal' ? 'PayPal' : 'Interac e-Transfer',
-        payment_email: 'support@nivra-telecom.ca',
-        reference: body.payment_reference || null,
-      },
-      attachments: pdfAttachment ? [pdfAttachment] : null,
-      status: "queued",
-      attempts: 0,
-      max_attempts: 5
-    });
-    
-    console.log(`[billing-create-order] Order processed: ${results.subscriptions.length} subscriptions, total: $${results.total_amount.toFixed(2)}, method: ${effectivePaymentMethod}, status: ${effectiveInvoiceStatus}`);
-    
-    return new Response(
-      JSON.stringify({
+      return json({
         success: true,
-        ...results
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        customer_id: customerId,
+        order_id: body.order_id,
+        invoice_id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        subscription_ids: subIds ?? [],
+        payment_id: paymentId,
+        subtotal: invoice.subtotal,
+        tps_amount: invoice.tps_amount,
+        tvq_amount: invoice.tvq_amount,
+        total: invoice.total,
+        payment_method: effectivePaymentMethod,
+        invoice_status: invoice.status,
+      });
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // CHEMIN B — Legacy sans order_id : construction ad-hoc à partir des
+    // services fournis. Utilisé uniquement par les anciens callers en
+    // attendant leur migration. Aucun calcul de taxes local.
+    // ════════════════════════════════════════════════════════════════════
+    console.warn("[billing-create-order] Legacy path (no order_id). Prefer creating orders + order_items upstream.");
+    const cycleStartDate = new Date();
+    const { nextAnchoredDate } = await import("../_shared/billing-utils.ts");
+    const cycleEndDate = nextAnchoredDate(cycleStartDate.getDate(), cycleStartDate);
+    const cycleStart = cycleStartDate.toISOString().split("T")[0];
+    const cycleEnd = cycleEndDate.toISOString().split("T")[0];
+
+    // Une seule facture agrégée (jamais plusieurs comme dans l'ancien code)
+    const invoiceLines = body.services.map((s) => ({
+      description: `${s.plan_name} – 30 jours`,
+      unit_price: s.plan_price,
+      quantity: 1,
+      line_total: s.plan_price,
+      line_type: "service",
+      line_kind: "product_recurring",
+      source_ref: "legacy_direct",
+    }));
+
+    const { data: invoiceId, error: invErr } = await supabase.rpc(
+      "build_invoice_ad_hoc",
+      {
+        p_customer_id: customerId,
+        p_subscription_id: null,
+        p_type: "initial",
+        p_cycle_start: cycleStart,
+        p_cycle_end: cycleEnd,
+        p_due_date: cycleEnd,
+        p_lines: invoiceLines,
+        p_context: provenanceContext,
+        p_order_id: null,
+        p_notes: body.order_number ? `Commande: ${body.order_number}` : null,
+      },
     );
-    
+    if (invErr) throw new Error(`build_invoice_ad_hoc failed: ${invErr.message}`);
+
+    // Un seul abonnement principal (le premier service). Les modules qui ont
+    // besoin de plusieurs abonnements doivent créer des order_items et passer
+    // par le chemin A.
+    const primary = body.services[0];
+    const { data: subId, error: subErr } = await supabase.rpc(
+      "create_subscription_ad_hoc",
+      {
+        p_customer_id: customerId,
+        p_plan_code: primary.plan_code,
+        p_plan_name: primary.plan_name,
+        p_plan_price: primary.plan_price,
+        p_service_category: primary.category ?? null,
+        p_cycle_start: cycleStart,
+        p_cycle_end: cycleEnd,
+        p_context: provenanceContext,
+        p_address_id: null,
+        p_order_id: null,
+        p_status: isPayPalPaid ? "active" : "pending",
+        p_auto_billing: isPayPalPaid,
+      },
+    );
+    if (subErr) throw new Error(`create_subscription_ad_hoc failed: ${subErr.message}`);
+
+    let paymentId: string | null = null;
+    if (isPayPalPaid) {
+      const { data: invRow } = await supabase
+        .from("billing_invoices").select("total").eq("id", invoiceId).single();
+      const { data: pid, error: payErr } = await supabase.rpc(
+        "apply_payment_to_invoice",
+        {
+          p_invoice_id: invoiceId,
+          p_amount: invRow.total,
+          p_method: "paypal",
+          p_provider: "paypal",
+          p_external_reference: body.payment_reference,
+          p_source: "live",
+          p_context: provenanceContext,
+        },
+      );
+      if (payErr) throw new Error(`apply_payment_to_invoice failed: ${payErr.message}`);
+      paymentId = pid as string;
+    }
+
+    const { data: invoice } = await supabase
+      .from("billing_invoices")
+      .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, status")
+      .eq("id", invoiceId)
+      .single();
+
+    await queueOrderEmail(supabase, {
+      isPaid: isPayPalPaid,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      customerEmail: body.email,
+      customerName: `${body.first_name} ${body.last_name}`,
+      planNames: body.services.map((s) => s.plan_name).join(", "),
+      subtotal: invoice.subtotal,
+      tps: invoice.tps_amount,
+      tvq: invoice.tvq_amount,
+      total: invoice.total,
+      cycleStart, cycleEnd, dueDate: cycleEnd,
+      paymentMethod: effectivePaymentMethod,
+      paymentReference: body.payment_reference ?? null,
+    });
+
+    return json({
+      success: true,
+      customer_id: customerId,
+      subscription_id: subId,
+      invoice_id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      payment_id: paymentId,
+      subtotal: invoice.subtotal,
+      tps_amount: invoice.tps_amount,
+      tvq_amount: invoice.tvq_amount,
+      total: invoice.total,
+      payment_method: effectivePaymentMethod,
+      invoice_status: invoice.status,
+    });
   } catch (error) {
     console.error("[billing-create-order] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({ error: error instanceof Error ? error.message : String(error) }, 400);
   }
 });
+
+async function queueOrderEmail(supabase: any, args: {
+  isPaid: boolean;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerEmail: string;
+  customerName: string;
+  planNames: string;
+  subtotal: number;
+  tps: number;
+  tvq: number;
+  total: number;
+  cycleStart: string;
+  cycleEnd: string;
+  dueDate: string;
+  paymentMethod: string;
+  paymentReference: string | null;
+}) {
+  const templateKey = args.isPaid ? "payment_confirmed" : "invoice_created";
+  const { buildInvoicePdfAttachment, buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
+  const pdfAttachment = args.isPaid
+    ? await buildReceiptPdfAttachment(args.invoiceId, "recu-paiement")
+    : await buildInvoicePdfAttachment(args.invoiceId, "facture");
+
+  await supabase.from("email_queue").insert({
+    event_key: `billing_order_${args.invoiceId}_${Date.now()}`,
+    to_email: args.customerEmail,
+    template_key: templateKey,
+    template_vars: {
+      client_name: args.customerName,
+      invoice_number: args.invoiceNumber,
+      plan_name: args.planNames,
+      subtotal: Number(args.subtotal).toFixed(2),
+      tps_amount: Number(args.tps).toFixed(2),
+      tvq_amount: Number(args.tvq).toFixed(2),
+      total: Number(args.total).toFixed(2),
+      amount: Number(args.total).toFixed(2),
+      due_date: args.dueDate,
+      cycle_start: args.cycleStart,
+      cycle_end: args.cycleEnd,
+      payment_method: args.paymentMethod === "paypal" ? "PayPal" : "Interac e-Transfer",
+      payment_email: "support@nivra-telecom.ca",
+      reference: args.paymentReference,
+    },
+    attachments: pdfAttachment ? [pdfAttachment] : null,
+    status: "queued",
+    attempts: 0,
+    max_attempts: 5,
+  });
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
