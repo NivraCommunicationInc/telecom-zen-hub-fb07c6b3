@@ -372,6 +372,19 @@ serve(async (req) => {
     // ── Email de confirmation ──────────────────────────────────────────────
     if (customerEmail) {
       try {
+        // Résoudre le numéro de commande lisible (évite « Commande # » vide)
+        let orderNumber = "";
+        if (invoiceData?.order_id) {
+          try {
+            const { data: ord } = await supabase
+              .from("orders")
+              .select("order_number")
+              .eq("id", invoiceData.order_id)
+              .maybeSingle();
+            orderNumber = ord?.order_number || "";
+          } catch { /* ignore */ }
+        }
+
         let pdf: any = null;
         if (invoiceData?.id) {
           try {
@@ -391,6 +404,7 @@ serve(async (req) => {
             total_payable: invoiceData ? Number(invoiceData.total).toFixed(2) : amountPaid.toFixed(2),
             invoice_id: invoiceData?.id,
             invoice_number: invoiceNumber,
+            order_number: orderNumber || invoiceNumber, // fallback: réutilise le nº de facture si pas de commande liée
             payment_method: "Carte de crédit (Square)",
             reference: paymentId,
             square_payment_id: paymentId,
@@ -403,6 +417,38 @@ serve(async (req) => {
       } catch (e) {
         console.warn("[square-charge-invoice] email queue failed:", e);
       }
+    }
+
+    // ── Notification Nivra Core (mark-paid) ─────────────────────────────────
+    // Le frontend PayPal appelait déjà notifyNivraCorePaid ; pour Square, le
+    // paiement est serveur-side donc aucune notification n'était envoyée à Core.
+    try {
+      const coreUrl = Deno.env.get("NIVRA_CORE_URL") || "https://telecom-zen-hub-b5f9c7c4.proud-band-c162.workers.dev";
+      const payload = {
+        paymentNumber: canonicalPaymentId || paymentId,
+        paypalOrderId: "",           // n/a pour Square
+        paypalCaptureId: "",         // n/a pour Square
+        provider: "square",
+        squarePaymentId: paymentId,
+        invoiceId: invoiceData?.id ?? null,
+        invoiceNumber: invoiceNumber || null,
+        amount: amountPaid,
+        currency: "CAD",
+        receiptUrl: receiptUrl || null,
+      };
+      const r = await fetch(`${coreUrl}/payments/mark-paid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const t = await r.text().catch(() => "");
+        console.error(`[square-charge-invoice] Nivra Core mark-paid ${r.status}:`, t.slice(0, 300));
+      } else {
+        console.log("[square-charge-invoice] Nivra Core mark-paid OK for", paymentId);
+      }
+    } catch (e) {
+      console.warn("[square-charge-invoice] Nivra Core notification failed:", e);
     }
 
     return json({
