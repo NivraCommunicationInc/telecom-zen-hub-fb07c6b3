@@ -828,7 +828,7 @@ const AppRoutes = () => {
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/paiement" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPaymentMethod /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/billing" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientBillingHub /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
-      <Route path="/portal/balance-payment-success" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientBalancePaymentSuccess /></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      {/* /portal/balance-payment-success removed in Phase 3.B.3 (PayPal balance-pay decommissioned). */}
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/web-forms" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientWebForms /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/documents" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDocuments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
@@ -847,8 +847,7 @@ const AppRoutes = () => {
       <Route path="/portal/reschedule" element={<MaintenanceGuard><ClientAuthProvider><ClientRescheduleAppointment /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payment-success" element={<MaintenanceGuard><ClientAuthProvider><PaymentReturn /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payment-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
-      {/* PayPal subscription approval return URLs — MUST resolve to the recurring PayPal return handler, never the one-time payment capture screen. */}
-      <Route path="/portal/subscription-success" element={<MaintenanceGuard><PayPalSubscriptionReturn /></MaintenanceGuard>} />
+      {/* /portal/subscription-success removed in Phase 3.B.3 — PayPal subscriptions decommissioned. */}
       <Route path="/portal/subscription-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* Legacy URL redirects for email links */}
