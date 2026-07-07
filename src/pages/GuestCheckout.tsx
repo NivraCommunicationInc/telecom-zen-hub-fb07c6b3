@@ -825,7 +825,7 @@ const GuestCheckout = () => {
         discount_total_combined: 0, promo_discount: 0, welcome_discount: 0, preauth_discount: 0,
       };
 
-      const paymentMethodValue = "paypal";
+      const paymentMethodValue = "card";
 
       // Step 4: Submit checkout
       // ★ FIX #8 — Persist guest language preference at checkout.
