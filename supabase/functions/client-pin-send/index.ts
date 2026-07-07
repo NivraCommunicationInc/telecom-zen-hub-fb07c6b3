@@ -306,27 +306,32 @@ Deno.serve(async (req) => {
     });
 
     // If sender domain isn't verified, Resend rejects with 403.
-    // Retry once with a guaranteed sender domain.
+    // Retry once with a guaranteed sender domain (also through the gateway).
     if (!emailResult.success && emailResult.statusCode === 403) {
       console.warn(`[client-pin-send][${requestId}] Primary sender rejected (403), retrying with resend.dev sender`);
       try {
-        const retryR = await fetch("https://api.resend.com/emails", {
+        const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+        const retryR = await fetch(`${RESEND_GATEWAY_URL}/emails`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${lovableApiKey}`,
+            "X-Connection-Api-Key": resendApiKey,
+          },
           body: JSON.stringify({
             from: "Nivra Telecom <onboarding@resend.dev>",
-          to: [email],
-          subject: "Votre code de vérification Nivra",
-          reply_to: getSupportEmail(),
-          text: `Votre code de vérification Nivra: ${pin}\n\nCe code expire dans 10 minutes. Si vous n'avez pas demandé ce code, ignorez cet email.\n\nSupport: ${getSupportEmail()}`,
-          html: buildPinHtml(pin),
+            to: [email],
+            subject: "Votre code de vérification Nivra",
+            reply_to: getSupportEmail(),
+            text: `Votre code de vérification Nivra: ${pin}\n\nCe code expire dans 10 minutes. Si vous n'avez pas demandé ce code, ignorez cet email.\n\nSupport: ${getSupportEmail()}`,
+            html: buildPinHtml(pin),
           }),
         });
         if (retryR.ok) {
           console.log(`[client-pin-send][${requestId}] SUCCESS - fallback sender`);
           return new Response(JSON.stringify({ sent: true, request_id: requestId }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        console.error(`[client-pin-send][${requestId}] Fallback send failed: ${retryR.status}`);
+        console.error(`[client-pin-send][${requestId}] Fallback send failed: ${retryR.status} ${(await retryR.text()).slice(0,200)}`);
       } catch (retryErr) {
         console.error(`[client-pin-send][${requestId}] Fallback exception:`, retryErr);
       }
