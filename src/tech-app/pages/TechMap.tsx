@@ -115,9 +115,12 @@ export default function TechMap() {
   }, [data]);
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden" style={{ background: "var(--tp-bg)" }}>
-      {/* Map container */}
-      <div ref={mapEl} className="absolute inset-0" />
+    <div
+      className="fixed inset-0 overflow-hidden"
+      style={{ background: "var(--tp-bg)", zIndex: 1 }}
+    >
+      {/* Map container — explicit size, not dependent on 100dvh */}
+      <div ref={mapEl} className="absolute inset-0" style={{ width: "100%", height: "100%" }} />
 
       {/* Loader / no token */}
       {(isLoading || !data?.token) && (
