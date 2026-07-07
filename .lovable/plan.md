@@ -1,92 +1,171 @@
-## Phase 3.C.4 — Plan de nettoyage final
+# Plan — Square Orphan Reconciliation
 
-### Audit de départ (état actuel constaté)
+## Objectif
 
-**RPC legacy encore présentes en base** (wrappers dépréciés depuis 3.C.1) :
-- `public.fn_run_subscription_renewals(p_lookahead_days int)`
-- `public.fn_generate_subscription_renewal(p_subscription_id uuid)`
-- `public.generate_billing_renewals()`
+Détecter automatiquement tout paiement encaissé côté Square qui n'a **aucune contrepartie** dans Nivra Core (`billing_payments`, `billing_invoices`, `orders`), et lever une alerte opérationnelle `ORPHAN_PAYMENT_DETECTED`.
 
-Références dans le code : **0** appel exécutable dans `src/` et `supabase/functions/`. Seules occurrences = `src/integrations/supabase/types.ts` (auto-généré, se régénère après DROP).
+Couvre deux scénarios :
+1. **Custom Amount / Terminal Square** — paiement créé hors du checkout Nivra (cas Mouhssine)
+2. **Webhook perdu** — paiement fait via Nivra mais webhook non reçu/traité
 
-**Cron jobs PayPal actifs** :
-- `jobid=101` — `billing-paypal-retry-failed` (06h daily) → cible une Edge Function déjà stubbée en 410.
-- `jobid=104` — `paypal-reconcile` (04h daily) → cible une Edge Function **encore vivante** qui lit l'API PayPal.
+Plus contrôle secondaire sur les paiements dont la note Square contient `CMD-*` sans commande Nivra associée.
 
-**Edge Functions PayPal** (16 au total) :
-- **Déjà stubbées 410** (10) : `paypal-capture-order`, `paypal-create-order`, `paypal-client-token`, `paypal-refund`, `paypal-charge-subscription`, `paypal-sync-subscription-state`, `paypal-balance-pay-create`, `paypal-balance-pay-capture`, `paypal-create-subscription`, `billing-create-order-with-paypal-subscription`, `billing-paypal-retry-failed`, `core-paypal-order-link`.
-- **Encore vivantes** (4) : `paypal-webhook`, `paypal-cancel-subscription`, `paypal-verify-subscription`, `paypal-reconcile`.
+## Architecture
 
-**Appelants résiduels côté serveur** :
-- `cancel-account/index.ts:281` → `fetch(paypal-cancel-subscription)` (encore live).
-- `crm-create-sale/index.ts:420` → `fetch(paypal-create-order)` (déjà 410, appel mort).
-- `ops-watchdog/index.ts:37` → surveille `paypal-reconcile` (à retirer).
-- `nivra-diagnostic/index.ts:477` → liste les webhooks PayPal (diagnostic lecture seule).
+```text
+┌──────────────────────────────────────────────────────────┐
+│  pg_cron : toutes les 15 min                             │
+│    → net.http_post → edge fn square-orphan-reconciliation │
+└──────────────────────────────────────────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────┐
+│  edge fn square-orphan-reconciliation                    │
+│    1. Fetch Square /v2/payments (begin_time = now-2h)    │
+│    2. Pour chaque payment.id Square :                    │
+│       - présent dans billing_payments.square_payment_id? │
+│       - présent dans square_payment_attempts?            │
+│       - référence CMD-* vs orders.order_number?          │
+│    3. Si orphelin ⇒ INSERT square_orphan_alerts          │
+│    4. Si CMD-* sans order ⇒ tag "cmd_unmatched"          │
+│    5. INSERT admin_notification_logs                     │
+└──────────────────────────────────────────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────┐
+│  Table square_orphan_alerts (nouvelle)                   │
+│    → visible dans le Hub Admin (page dédiée)             │
+└──────────────────────────────────────────────────────────┘
+```
 
-**Références front (`rg -i paypal src/`)** : ~60 fichiers. Après inspection, la grande majorité sont :
-- Constantes de statut historique (`payment_method='paypal'` en lecture pour anciens paiements)
-- Types TS (`billing/types.ts` — enum contient encore `paypal` car données historiques présentes en base)
-- Textes légaux, pages preview, tests legacy, docs
-- Colonnes `paypal_*` historiques dans `useCanonicalClientData`, `useContractSummary`, etc. (LECTURE SEULE — audit/comptabilité)
+## Tables impactées
 
-Aucun composant actif ne **crée** un flux PayPal — le seul chemin de paiement neuf passe par Square.
+### Nouvelle table `public.square_orphan_alerts`
 
----
+Colonnes métier :
+- `square_payment_id` (unique) — identifiant Square
+- `square_receipt_url`
+- `amount_cents` + `currency`
+- `square_created_at` — timestamp Square
+- `note` — note libre Square (contient souvent `CMD-*`)
+- `buyer_email_address` — email fourni au terminal (peut être NULL)
+- `buyer_display_name` — nom fourni au terminal (peut être NULL)
+- `detection_reason` — enum : `not_in_billing_payments`, `cmd_reference_no_order`, `webhook_missed`
+- `status` — enum : `open`, `investigating`, `resolved`, `ignored`
+- `resolution_notes`
+- `resolved_by` (uuid → profiles.id)
+- `resolved_at`
+- `linked_order_id` (uuid, nullable, → orders.id)
+- `linked_invoice_id` (uuid, nullable, → billing_invoices.id)
+- `linked_payment_id` (uuid, nullable, → billing_payments.id)
+- `last_seen_at` — mise à jour à chaque scan tant qu'orpheline
+- `raw_square_payload` (jsonb) — snapshot API Square
 
-### Actions à exécuter
+Contrainte : `UNIQUE (square_payment_id)` — anti-doublon.
 
-#### 1. Base de données (migration SQL)
-- `DROP FUNCTION public.fn_run_subscription_renewals(int);`
-- `DROP FUNCTION public.fn_generate_subscription_renewal(uuid);`
-- `DROP FUNCTION public.generate_billing_renewals();`
-- `SELECT cron.unschedule(101);` (`billing-paypal-retry-failed`)
-- `SELECT cron.unschedule(104);` (`paypal-reconcile`)
+### Tables consultées (lecture seule)
+- `billing_payments` (colonne `square_payment_id`)
+- `square_payment_attempts` (colonne `square_payment_id`)
+- `orders` (colonne `order_number` pour match `CMD-*`)
+- `billing_invoices` (colonne `invoice_number`)
 
-`types.ts` sera régénéré automatiquement post-migration et perdra ces trois entrées.
+### Table déjà existante
+- `admin_notification_logs` — un log inséré par alerte nouvelle (non doublonné grâce à l'idempotence)
 
-#### 2. Edge Functions — convertir en 410 stubs
-Les 4 fonctions encore vivantes sont réécrites en stubs HTTP 410 identiques aux 10 déjà décommissionnées :
-- `paypal-webhook` → 410 (aucun webhook PayPal n'est plus enregistré en prod, à confirmer côté PayPal dashboard)
-- `paypal-cancel-subscription` → 410
-- `paypal-verify-subscription` → 410
-- `paypal-reconcile` → 410
+## Sécurité & RLS
 
-#### 3. Suppression des appelants exécutables
-- `cancel-account/index.ts` : retirer le bloc fetch `paypal-cancel-subscription` (les abonnements PayPal actifs n'existent plus ; annulation côté DB seulement).
-- `crm-create-sale/index.ts` : retirer le fetch `paypal-create-order` mort.
-- `ops-watchdog/index.ts` : retirer l'entrée de surveillance `paypal-reconcile`.
+Table `square_orphan_alerts` :
+- RLS **ON**
+- Policy **staff_manage** : `has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'employee')` (SELECT/UPDATE)
+- Policy **service_role** : accès complet pour l'edge function
+- **Aucun accès anon/client** — donnée strictement interne
+- Grants : `SELECT, UPDATE` à `authenticated` ; `ALL` à `service_role`
 
-#### 4. Renommage neutre — **différé**
-Vous aviez précisé « à intégrer au fur et à mesure de la migration, je ne veux pas de big-bang ». Le renommage massif (`paypalCaptureId → providerCaptureId`, `paypalOrderId → providerOrderId`, etc.) touche 60+ fichiers front, plusieurs colonnes DB, et casserait potentiellement des PDF/emails historiques.
+Edge function :
+- `verify_jwt = false` (déclenchée par cron)
+- Authentification via header `x-cron-secret` (secret `SQUARE_ORPHAN_CRON_SECRET` généré via `generate_secret`)
+- Utilise `SQUARE_ACCESS_TOKEN` (déjà présent) pour appeler l'API Square
+- Client Supabase avec `SUPABASE_SERVICE_ROLE_KEY` (bypasse RLS uniquement pour cette table)
 
-**Proposition** : garder ce renommage pour une phase 3.C.4-bis dédiée, avec adaptateurs de compatibilité, ou l'intégrer opportunément lors des prochaines modifications de chaque fichier concerné.
+## Cron
 
-À trancher : `[a]` faire le renommage maintenant en un big-bang contrôlé, `[b]` le différer comme prévu à l'origine.
+`pg_cron` — job `square-orphan-reconciliation` toutes les **15 minutes** :
 
-#### 5. Ce qui reste intact (par design — historique/audit)
-- Table `billing_payments` avec `provider='paypal'`
-- Colonnes `paypal_*` sur `billing_subscriptions`, `orders`, `contracts`, etc.
-- Table `paypal_autopay_attempts`, `paypal_plan_cache`
-- Enum `BillingPaymentMethod` contient toujours `'paypal'`
-- PDF/reçus/journaux d'audit historiques
-- Tests legacy (`paypal-error-serialization.test.ts`, `system-lock-invariants.test.ts` sections PayPal) qui valident encore l'immutabilité des anciens paiements
-- Pages légales, `CookieConsent`, `RefundPolicy` — mentions historiques
-- `types.ts` conservera toujours l'enum `paypal` puisque des lignes existent en base
+```sql
+select cron.schedule(
+  'square-orphan-reconciliation',
+  '*/15 * * * *',
+  $$ select net.http_post(
+       url  := 'https://<project>.supabase.co/functions/v1/square-orphan-reconciliation',
+       headers := jsonb_build_object(
+         'Content-Type','application/json',
+         'x-cron-secret', current_setting('app.settings.square_orphan_cron_secret', true)
+       ),
+       body := '{}'::jsonb
+     ); $$
+);
+```
 
-#### 6. Audit infrastructure externe (rapport uniquement)
-Je n'ai pas d'accès direct aux dashboards Vercel / Cloudflare / GitHub / PayPal. Le rapport listera ce qu'il faut vérifier manuellement :
-- Secrets Supabase : `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_BN_CODE` (à supprimer)
-- Variable Vite : `VITE_PAYPAL_CLIENT_ID` dans `.env` (à supprimer — plus consommée par du code actif)
-- Webhook PayPal dashboard : à désactiver (l'endpoint devient 410)
-- GitHub Secrets / CI : rechercher `PAYPAL_*`
-- Vercel / Cloudflare : idem
+Fenêtre de scan : Square `/v2/payments?begin_time=now-2h` (marge de 2 h pour attraper les retards webhook et couvrir 8 exécutions consécutives).
 
-### Livrables finaux
-- 1 migration SQL (DROP RPC + unschedule cron)
-- 4 fichiers Edge Functions convertis en stubs 410
-- 3 fichiers TS nettoyés (appelants morts)
-- `docs/PHASE_3C4_AUDIT.md` — rapport complet avec checklist infra manuelle
+## Stratégie anti-doublons
 
-### Confirmation demandée
-- Point 4 : renommage `paypal*Id → provider*Id` — **maintenant** ou **différé** ?
-- Point 5 : je confirme bien qu'on **ne touche pas** aux données historiques ni aux colonnes `paypal_*` ?
+Trois niveaux :
+
+1. **DB** : `UNIQUE(square_payment_id)` sur `square_orphan_alerts` — impossible d'insérer deux fois la même alerte.
+
+2. **Upsert intelligent** : la fn utilise `INSERT ... ON CONFLICT (square_payment_id) DO UPDATE SET last_seen_at = now()`. Une alerte déjà ouverte est simplement "rafraîchie", pas dupliquée. Si `status IN ('resolved','ignored')` on ne touche pas.
+
+3. **Notification** : `admin_notification_logs` inséré **uniquement à la création** de l'alerte (via `xmax = 0` dans le RETURNING du upsert), jamais lors du refresh — évite le spam admin.
+
+Bonus : la fn ignore les paiements Square avec `status != 'COMPLETED'` (ex. `APPROVED`, `PENDING`) pour éviter les faux positifs sur transactions en cours de capture.
+
+## Détection `CMD-*` sans commande
+
+Après le check principal, boucle secondaire :
+- Pour chaque paiement Square avec `note ILIKE 'CMD-%'` :
+  - Extrait le token via regex `CMD-[A-Z0-9]+`
+  - Cherche dans `orders.order_number` et `billing_invoices.invoice_number`
+  - Si aucune correspondance ⇒ alerte avec `detection_reason = 'cmd_reference_no_order'`
+- Utile même si le paiement est déjà dans `billing_payments` mais rattaché à la mauvaise commande.
+
+## Détails techniques
+
+### Fichiers créés
+- `supabase/functions/square-orphan-reconciliation/index.ts` — edge function
+- Migration : table + RLS + grants + policies
+- Insert (via `insert` tool, PAS migration) : `cron.schedule` + config secret
+
+### Secrets à créer
+- `SQUARE_ORPHAN_CRON_SECRET` — via `generate_secret` (32 chars, jamais révélé)
+- `SQUARE_ACCESS_TOKEN` — déjà existant, réutilisé
+
+### Payload API Square consommé
+```
+GET /v2/payments?begin_time=<ISO>&sort_order=DESC&limit=100
+```
+Champs extraits par paiement : `id`, `amount_money.{amount,currency}`, `created_at`, `note`, `receipt_url`, `buyer_email_address`, `status`, `source_type` (CARD / EXTERNAL / CASH).
+
+### UI Admin (hors scope de ce plan — à traiter séparément)
+Non inclus ici : page `/hub/admin/square-orphans` pour visualiser + résoudre. Sera un plan distinct après validation du back-end.
+
+### Tests
+- Test 1 : rejouer le cas Mouhssine (payment `9oNY`) — doit générer une alerte `not_in_billing_payments`
+- Test 2 : ré-exécuter dans 15 min — l'alerte est refreshée, pas dupliquée, aucun `admin_notification_logs` supplémentaire
+- Test 3 : injecter un paiement Square avec note `CMD-FAKE99` — doit alerter en `cmd_reference_no_order`
+- Test 4 : marquer une alerte `resolved` puis relancer — reste `resolved`, aucun spam
+
+## Livrables
+
+1. Migration DB (table + RLS + grants + policies)
+2. Edge function `square-orphan-reconciliation`
+3. Secret `SQUARE_ORPHAN_CRON_SECRET` généré
+4. Job pg_cron programmé toutes les 15 min
+5. Rapport de test avec l'alerte Mouhssine visible dans `square_orphan_alerts`
+
+## Hors scope
+
+- Résolution manuelle des alertes (workflow admin — plan séparé)
+- UI Admin dédiée (`/hub/admin/square-orphans`)
+- Réconciliation automatique paiement ↔ commande (risque trop élevé — reste manuel)
+- Reconciliation des paiements crypto / autres providers (Square uniquement)
