@@ -428,5 +428,5 @@ Deno.serve(async (req) => {
     });
   }
 
-  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | paypal_health | paypal_webhook_check | paypal_webhook_update | fix_orphan | fix_orphan_by_paypal_id | paypal_sub_lookup | generate_magic_link | paypal_deep_check | email_audit | auth_sync_check" }, 400);
+  return json({ error: "Unknown action. Use: oldo_profile | active_clients_scan | billing_health | generate_magic_link | email_audit | auth_sync_check" }, 400);
 });
