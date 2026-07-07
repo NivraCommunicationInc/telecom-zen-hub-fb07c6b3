@@ -1137,39 +1137,56 @@ serve(async (req) => {
           break;
         }
 
-        if (["refunded", "partially_refunded"].includes(payment.status)) {
-          console.log(`[PayPal Webhook] Payment ${payment.id} already refunded — skipping`);
+        const isPartial = refundAmount > 0 && refundAmount < Number(payment.amount);
+
+        // ─── Phase 3.B.1 — refund canonique via refund_payment() RPC ─────
+        // JAMAIS un account_adjustment / invoice_line négative / promotion.
+        // La RPC :
+        //   - pose son verrou d'idempotence (record_webhook_event)
+        //   - insère billing_payment(payment_kind='refund', amount<0)
+        //   - réajuste billing_invoices.amount_paid + status atomiquement
+        //   - trace provider_event_id / provider_created_at / rpc_used
+        const { data: refundPaymentId, error: refundRpcErr } = await supabase.rpc(
+          "refund_payment",
+          {
+            p_provider: "paypal",
+            p_event_id: `refund:${refundId}`,
+            p_original_payment_id: payment.id,
+            p_amount: refundAmount,
+            p_external_reference: refundId,
+            p_reason: `PayPal external refund${isPartial ? " (partial)" : ""}`,
+            p_provider_created_at: event.create_time || null,
+            p_context: {
+              paypal_refund_id: refundId,
+              original_sale_id: originalSaleId,
+              is_partial: isPartial,
+              webhook_event_id: event.id,
+            },
+          }
+        );
+
+        if (refundRpcErr) {
+          console.error("[PayPal Webhook] refund_payment error:", refundRpcErr);
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "paypal_refund_rpc_failed",
+            entity_type: "billing_payment",
+            entity_id: payment.id,
+            severity: "high",
+            details: {
+              paypal_refund_id: refundId,
+              rpc_error: refundRpcErr.message,
+              event_id: event.id,
+            },
+          });
           break;
         }
 
-        const isPartial = refundAmount > 0 && refundAmount < Number(payment.amount);
-        const newPaymentStatus = isPartial ? "partially_refunded" : "refunded";
-
-        // Update billing_payments
-        await supabase.from("billing_payments").update({
-          status: newPaymentStatus as any,
-          legacy_note: `[REMBOURSÉ PayPal — externe${isPartial ? " PARTIEL" : ""}] ${refundAmount.toFixed(2)} CAD — Refund ID: ${refundId}`,
-        }).eq("id", payment.id);
-
-        // Update billing_invoices
-        if (payment.invoice_id) {
-          const { data: inv } = await supabase
-            .from("billing_invoices")
-            .select("total, amount_paid")
-            .eq("id", payment.invoice_id)
-            .single();
-          if (inv) {
-            const newPaid = Math.max(0, Number(inv.amount_paid || 0) - refundAmount);
-            await supabase.from("billing_invoices").update({
-              status: (isPartial ? "partially_refunded" : "refunded") as any,
-              amount_paid: newPaid,
-              balance_due: Math.max(0, Number(inv.total) - newPaid),
-              notes: `[REMBOURSÉ PayPal — externe] ${refundAmount.toFixed(2)} CAD — Refund ID: ${refundId}`,
-            }).eq("id", payment.invoice_id);
-          }
+        if (!refundPaymentId) {
+          console.log(`[PayPal Webhook] Refund ${refundId} déjà traité — short-circuit`);
+          break;
         }
 
-        // Internal billing_system_alert (audit trail)
+        // Audit alert (aucune écriture directe billing)
         await supabase.from("billing_system_alerts").insert({
           alert_type: "paypal_external_refund",
           entity_type: "billing_payments",
@@ -1184,10 +1201,13 @@ serve(async (req) => {
             invoice_id: payment.invoice_id,
             customer_id: payment.customer_id,
             event_id: event.id,
-            new_payment_status: newPaymentStatus,
+            refund_payment_id: refundPaymentId,
+            rpc_used: "refund_payment",
           },
           resolved: false,
         });
+
+
 
         // Internal team email — look up customer for context
         const { data: customer } = await supabase
