@@ -92,6 +92,7 @@ export async function saveQuoteAndEmail({
       services: normalizedServices as any,
       equipment: normalizedEquipment as any,
       discount: draft.discount as any,
+      custom_adjustments: (draft.custom_adjustments || []) as any,
       activation_fee: activationFee,
       subtotal,
       tps,

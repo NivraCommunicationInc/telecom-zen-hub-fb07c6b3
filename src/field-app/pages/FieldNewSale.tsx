@@ -40,9 +40,11 @@ const DRAFT_KEY_BASE = "field_sale_draft";
 interface FieldNewSaleProps {
   /** Path used when the agent cancels/holds/converts. Defaults to fieldPath("/dashboard"). */
   exitRedirect?: string;
+  /** Core-only: allow manual custom fees, credits and promotions on the order. */
+  allowCoreAdjustments?: boolean;
 }
 
-export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
+export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = false }: FieldNewSaleProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -430,14 +432,14 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
     [draft.equipment]
   );
 
-  // Shipping fee when the client chose self-installation.
-  // Reads `shipping_fee_cents` from field_sales_config (default $20).
-  const shippingFee = useMemo(() => {
-    if (draft.customer.install_mode !== "self") return 0;
-    const cfg = (fieldConfig as any)?.shipping_fee_cents ?? (fieldConfig as any)?.shippingFeeCents;
-    const cents = typeof cfg === "number" ? cfg : 2000;
-    return cents / 100;
-  }, [draft.customer.install_mode, fieldConfig]);
+  const fulfillmentFee = Number(draft.customer.delivery_fee ?? (draft.customer.install_mode === "self" ? 20 : 50)) || 0;
+  const customAdjustmentsTotal = useMemo(() => {
+    if (!allowCoreAdjustments) return 0;
+    return (draft.custom_adjustments || []).reduce((sum, adjustment) => {
+      const amount = Math.max(0, Number(adjustment.amount || 0));
+      return sum + (adjustment.kind === "fee" ? amount : -amount);
+    }, 0);
+  }, [allowCoreAdjustments, draft.custom_adjustments]);
 
   // Centralized discount math (handles fixed_monthly, remove_fee, first_month_free, etc.).
   const discountBreakdown = useMemo(
@@ -458,7 +460,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
   // First-month credit is a one-time credit on the first invoice only.
   const subtotal = Math.max(
     0,
-    monthlyAfterDiscount + equipmentTotal + effectiveActivation + shippingFee - firstMonthCredit,
+    monthlyAfterDiscount + equipmentTotal + effectiveActivation + fulfillmentFee + customAdjustmentsTotal - firstMonthCredit,
   );
   const tps = Math.round(subtotal * TPS_RATE * 100) / 100;
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
@@ -1090,7 +1092,9 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
           {draft.step === "recap" && (
             <StepRecap
               draft={draft}
+              allowCoreAdjustments={allowCoreAdjustments}
               activationFee={activationFee}
+              fulfillmentFee={fulfillmentFee}
               monthlyBeforeDiscount={monthlyBeforeDiscount}
               monthlyDiscountAmount={monthlyDiscountAmount}
               monthlyAfterDiscount={monthlyAfterDiscount}
@@ -1104,6 +1108,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
               onNext={() => advance("recap")}
               onBack={() => goBack("recap")}
               onCustomerChange={(customer) => setDraft((d) => ({ ...d, customer }))}
+              onCustomAdjustmentsChange={(custom_adjustments) => setDraft((d) => ({ ...d, custom_adjustments }))}
             />
           )}
 
@@ -1300,6 +1305,7 @@ export default function FieldNewSale({ exitRedirect }: FieldNewSaleProps = {}) {
         <LiveSummary
           draft={draft}
           activationFee={activationFee}
+              fulfillmentFee={fulfillmentFee}
           monthlyBeforeDiscount={monthlyBeforeDiscount}
           monthlyDiscountAmount={monthlyDiscountAmount}
           installationDiscountAmount={installationDiscountAmount}
