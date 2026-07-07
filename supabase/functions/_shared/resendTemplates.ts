@@ -158,28 +158,26 @@ export async function sendTemplateEmail(params: {
     }
     
     // [sendTemplateEmail] Request payload omitted (PII)
-    
-    const response = await fetch("https://api.resend.com/emails", {
+
+    const { resendGatewayFetch } = await import("./resendGateway.ts");
+    const response = await resendGatewayFetch("/emails", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
       body: JSON.stringify(payload),
     });
 
     const result = await response.json();
 
     if (!response.ok) {
-      console.error(`[sendTemplateEmail] Resend API error:`, JSON.stringify(result));
-      return { 
-        success: false, 
-        error: result.message || result.error || JSON.stringify(result) 
+      console.error(`[sendTemplateEmail] Resend gateway error:`, JSON.stringify(result));
+      return {
+        success: false,
+        error: result.message || result.error || JSON.stringify(result)
       };
     }
 
-    console.log(`[sendTemplateEmail] Email sent successfully: ${result.id}`);
+    console.log(`[sendTemplateEmail] Email sent successfully via gateway: ${result.id}`);
     return { success: true, id: result.id };
+
     
   } catch (error) {
     console.error(`[sendTemplateEmail] Exception:`, error);
