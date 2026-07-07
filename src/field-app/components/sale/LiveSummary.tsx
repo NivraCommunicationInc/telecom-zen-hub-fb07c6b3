@@ -10,6 +10,7 @@ import { formatDiscountLabel } from "@/field-app/lib/fieldUtils";
 interface Props {
   draft: FieldSaleDraft;
   activationFee: number;
+  fulfillmentFee?: number;
   monthlyBeforeDiscount: number;
   monthlyDiscountAmount: number;
   installationDiscountAmount: number;
@@ -27,6 +28,7 @@ const formatCAD = (n: number) =>
 export default function LiveSummary({
   draft,
   activationFee,
+  fulfillmentFee = 0,
   monthlyBeforeDiscount,
   monthlyDiscountAmount,
   installationDiscountAmount,
@@ -38,7 +40,11 @@ export default function LiveSummary({
   total,
 }: Props) {
   const empty =
-    draft.services.length === 0 && draft.equipment.length === 0 && activationFee === 0;
+    draft.services.length === 0 && draft.equipment.length === 0 && activationFee === 0 && fulfillmentFee === 0;
+
+  const customAdjustments = draft.custom_adjustments || [];
+  const formatAdjustmentAmount = (kind: string, amount: number) =>
+    `${kind === "fee" ? "" : "−"}${formatCAD(Math.max(0, Number(amount || 0)))}`;
 
   return (
     <aside className="hidden md:block sticky top-6 self-start">
@@ -115,6 +121,22 @@ export default function LiveSummary({
                 <span className="text-[hsl(var(--field-text-muted))]">Activation</span>
                 <span className="text-white">{formatCAD(activationFee)}</span>
               </div>
+              {fulfillmentFee > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[hsl(var(--field-text-muted))]">Livraison / installation</span>
+                  <span className="text-white">{formatCAD(fulfillmentFee)}</span>
+                </div>
+              )}
+              {customAdjustments.map((adjustment) => (
+                <div key={adjustment.id} className="flex justify-between">
+                  <span className={adjustment.kind === "fee" ? "text-[hsl(var(--field-text-muted))]" : "text-[hsl(var(--field-success))]"}>
+                    {adjustment.label || (adjustment.kind === "fee" ? "Frais personnalisé" : "Crédit personnalisé")}
+                  </span>
+                  <span className={adjustment.kind === "fee" ? "text-white" : "text-[hsl(var(--field-success))]"}>
+                    {formatAdjustmentAmount(adjustment.kind, adjustment.amount)}
+                  </span>
+                </div>
+              ))}
               <div className="flex justify-between">
                 <span className="text-[hsl(var(--field-text-muted))]">Sous-total</span>
                 <span className="text-white">{formatCAD(subtotal)}</span>

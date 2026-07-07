@@ -18,6 +18,9 @@ export interface FieldSaleCustomer {
   serviceability_status: "unknown" | "checking" | "available" | "unavailable";
   install_date?: string | null;
   install_mode?: "technician" | "self";
+  delivery_mode?: "standard" | "express" | "technician";
+  delivery_fee?: number;
+  installation_fee?: number;
   /** Chosen installation slot from the shared InstallSlotPicker */
   install_slot?: { date: string; time_slot: string } | null;
   /** Answers from the shared CoaxialSurvey component; mirrored onto orders.coaxial_survey */
@@ -26,6 +29,13 @@ export interface FieldSaleCustomer {
     outlet_works: "yes" | "unknown" | "no" | null;
     outlet_count: number | null;
   } | null;
+}
+
+export interface FieldSaleCustomAdjustment {
+  id: string;
+  kind: "fee" | "credit" | "promotion";
+  label: string;
+  amount: number;
 }
 
 /** Concatenates address + apartment for downstream consumers (orders, invoices). */
@@ -125,6 +135,7 @@ export interface FieldSaleDraft {
   services: FieldSaleService[];
   equipment: FieldSaleEquipment[];
   discount: FieldSaleDiscount | null;
+  custom_adjustments?: FieldSaleCustomAdjustment[];
   payment: FieldSalePayment;
   agentId: string;
   createdAt: string;
@@ -155,12 +166,16 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     serviceability_status: "unknown",
     install_date: null,
     install_mode: "technician",
+    delivery_mode: "technician",
+    delivery_fee: 0,
+    installation_fee: 50,
     install_slot: null,
     coaxial_survey: null,
   },
   services: [],
   equipment: [],
   discount: null,
+  custom_adjustments: [],
   payment: {
     method: "square_onsite",
     status: "pending",

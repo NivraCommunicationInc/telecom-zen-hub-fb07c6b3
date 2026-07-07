@@ -521,6 +521,36 @@ Deno.serve(async (req) => {
       const fieldServices = [
         ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
         ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
+        ...(ci.delivery_fee || ci.installation_fee ? [{
+          id: `fulfillment-${ci.delivery_mode || ci.install_mode || "manual"}`,
+          kind: "fulfillment_fee",
+          category: "fee",
+          type: Number(ci.installation_fee || 0) > 0 ? "installation" : "delivery",
+          name: Number(ci.installation_fee || 0) > 0
+            ? "Installation technicien"
+            : (ci.delivery_mode === "express" ? "Livraison Express — Uber Direct" : "Auto-installation — livraison standard"),
+          quantity: 1,
+          price: Number(ci.installation_fee || ci.delivery_fee || 0),
+          price_setup: Number(ci.installation_fee || ci.delivery_fee || 0),
+          price_monthly: 0,
+          monthly_price: 0,
+        }] : []),
+        ...((ci.custom_adjustments || (quote as any).custom_adjustments || []) as any[]).map((adjustment: any) => {
+          const amount = Math.max(0, Number(adjustment?.amount || 0));
+          const signedAmount = adjustment?.kind === "fee" ? amount : -amount;
+          return {
+            id: adjustment?.id || crypto.randomUUID(),
+            kind: "custom_adjustment",
+            category: adjustment?.kind === "fee" ? "fee" : "discount",
+            type: adjustment?.kind || "credit",
+            name: adjustment?.label || (adjustment?.kind === "fee" ? "Frais personnalisé" : "Crédit personnalisé"),
+            quantity: 1,
+            price: signedAmount,
+            price_setup: signedAmount,
+            price_monthly: 0,
+            monthly_price: 0,
+          };
+        }),
       ];
       const { data: fieldOrder, error: fieldOrderError } = await admin
         .from("field_sales_orders")
@@ -533,6 +563,8 @@ Deno.serve(async (req) => {
           customer_city: ci.city || null,
           customer_postal_code: ci.postal_code || ci.postalCode || null,
           customer_date_of_birth: ci.date_of_birth || ci.dob || null,
+          install_date: quote.install_date || ci.install_date || null,
+          install_mode: quote.install_mode || ci.install_mode || null,
           services: fieldServices,
           total_amount: Number(intent.amount || quote.total || 0),
           payment_method: body.payment_method || "card_manual",
@@ -614,6 +646,36 @@ Deno.serve(async (req) => {
       const fieldServices = [
         ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
         ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
+        ...(ci.delivery_fee || ci.installation_fee ? [{
+          id: `fulfillment-${ci.delivery_mode || ci.install_mode || "manual"}`,
+          kind: "fulfillment_fee",
+          category: "fee",
+          type: Number(ci.installation_fee || 0) > 0 ? "installation" : "delivery",
+          name: Number(ci.installation_fee || 0) > 0
+            ? "Installation technicien"
+            : (ci.delivery_mode === "express" ? "Livraison Express — Uber Direct" : "Auto-installation — livraison standard"),
+          quantity: 1,
+          price: Number(ci.installation_fee || ci.delivery_fee || 0),
+          price_setup: Number(ci.installation_fee || ci.delivery_fee || 0),
+          price_monthly: 0,
+          monthly_price: 0,
+        }] : []),
+        ...((ci.custom_adjustments || (quote as any).custom_adjustments || []) as any[]).map((adjustment: any) => {
+          const amount = Math.max(0, Number(adjustment?.amount || 0));
+          const signedAmount = adjustment?.kind === "fee" ? amount : -amount;
+          return {
+            id: adjustment?.id || crypto.randomUUID(),
+            kind: "custom_adjustment",
+            category: adjustment?.kind === "fee" ? "fee" : "discount",
+            type: adjustment?.kind || "credit",
+            name: adjustment?.label || (adjustment?.kind === "fee" ? "Frais personnalisé" : "Crédit personnalisé"),
+            quantity: 1,
+            price: signedAmount,
+            price_setup: signedAmount,
+            price_monthly: 0,
+            monthly_price: 0,
+          };
+        }),
       ];
 
       // Normalize payment_method for field_sales_orders (its enum accepts a subset)
@@ -633,6 +695,8 @@ Deno.serve(async (req) => {
           customer_city: ci.city || null,
           customer_postal_code: ci.postal_code || ci.postalCode || null,
           customer_date_of_birth: ci.date_of_birth || ci.dob || null,
+          install_date: quote.install_date || ci.install_date || null,
+          install_mode: quote.install_mode || ci.install_mode || null,
           services: fieldServices,
           total_amount: Number(intent.amount || quote.total || 0),
           payment_method: fsoPaymentMethod,

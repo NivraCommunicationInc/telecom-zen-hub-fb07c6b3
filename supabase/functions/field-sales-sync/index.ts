@@ -402,14 +402,21 @@ Deno.serve(async (req) => {
         // Each item carries kind='service' | 'equipment' from FieldNewSale.
         const rawItems = Array.isArray(sale.services) ? sale.services : [];
         const services = rawItems; // backward-compat alias for downstream refs
+        const isSpecialFeeLine = (x: any) => {
+          const kind = String(x?.kind || "").toLowerCase();
+          return kind === "fulfillment_fee" || kind === "custom_adjustment";
+        };
         const isEquipment = (x: any) =>
+          !isSpecialFeeLine(x) && (
           String(x?.kind || "").toLowerCase() === "equipment"
           || String(x?.type || "").toLowerCase() === "equipment"
           || String(x?.category || "").toLowerCase() === "equipment"
-          || (Number(x?.price_monthly ?? x?.monthly_price ?? 0) === 0 && Number(x?.price_setup ?? x?.price ?? 0) > 0);
+          || (Number(x?.price_monthly ?? x?.monthly_price ?? 0) === 0 && Number(x?.price_setup ?? x?.price ?? 0) > 0)
+          );
 
-        const serviceItems = rawItems.filter((x: any) => !isEquipment(x));
+        const serviceItems = rawItems.filter((x: any) => !isEquipment(x) && !isSpecialFeeLine(x));
         const equipmentItems = rawItems.filter((x: any) => isEquipment(x));
+        const specialFeeItems = rawItems.filter((x: any) => isSpecialFeeLine(x));
 
         let monthlyTotal = 0;
         let equipmentTotal = 0;
@@ -467,9 +474,38 @@ Deno.serve(async (req) => {
           });
         }
 
-        // 4) Shipping fee — 20$ if auto-installation
+        let explicitDeliveryFee = 0;
+        let explicitInstallationFee = 0;
+        let customAdjustmentTotal = 0;
+
+        for (const item of specialFeeItems) {
+          const qty = Number(item?.quantity ?? item?.qty ?? 1) || 1;
+          const unit = Number(item?.price_setup ?? item?.price ?? item?.unit_price ?? 0) || 0;
+          if (unit === 0) continue;
+          const kind = String(item?.kind || "").toLowerCase();
+          const type = String(item?.type || "").toLowerCase();
+          const category = unit < 0 || String(item?.category || "").toLowerCase() === "discount" ? "discount" : "fee";
+          const name = String(item?.name || item?.label || (category === "fee" ? "Frais personnalisé" : "Crédit personnalisé"));
+          lineItems.push({
+            category,
+            type: kind === "fulfillment_fee" ? (type || "delivery") : (type || "adjustment"),
+            name,
+            qty,
+            unit_price: unit,
+            period: "one_time",
+            taxable: true,
+          });
+          if (kind === "fulfillment_fee") {
+            if (type === "installation") explicitInstallationFee += unit * qty;
+            else explicitDeliveryFee += unit * qty;
+          } else {
+            customAdjustmentTotal += unit * qty;
+          }
+        }
+
+        // 4) Shipping fee — 20$ if auto-installation and no explicit fulfillment line was sent
         const installMode = String((sale as any)?.install_mode || "").toLowerCase();
-        const shippingFee = installMode === "self" ? 20 : 0;
+        const shippingFee = explicitDeliveryFee === 0 && explicitInstallationFee === 0 && installMode === "self" ? 20 : 0;
         if (shippingFee > 0) {
           lineItems.push({
             category: "fee",
@@ -484,12 +520,12 @@ Deno.serve(async (req) => {
 
         // Base fees model aligned to orders schema
         let subtotal = monthlyTotal + equipmentTotal;
-        const deliveryFee = shippingFee;
-        const installationFee = 0;
+        const deliveryFee = shippingFee + explicitDeliveryFee;
+        const installationFee = explicitInstallationFee;
 
 
         // Taxes (Quebec) â€” canonical tax module
-        let baseAmount = subtotal + activationFee + deliveryFee + installationFee;
+        let baseAmount = subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal;
         let { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
         // â•â•â• AUTHORITATIVE TOTAL â€” sale.total_amount is the agent-displayed total â•â•â•
@@ -805,7 +841,7 @@ Deno.serve(async (req) => {
               order_id: canonicalOrder.id,
               type: "initial",
               status: invoiceStatus,
-              subtotal: subtotal + activationFee + deliveryFee,
+              subtotal: subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal,
               tps_amount: tpsAmount,
               tvq_amount: tvqAmount,
               total: totalAmount,
@@ -1298,6 +1334,36 @@ Deno.serve(async (req) => {
       const fieldServices = [
         ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
         ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
+        ...(ci.delivery_fee || ci.installation_fee ? [{
+          id: `fulfillment-${ci.delivery_mode || ci.install_mode || "manual"}`,
+          kind: "fulfillment_fee",
+          category: "fee",
+          type: Number(ci.installation_fee || 0) > 0 ? "installation" : "delivery",
+          name: Number(ci.installation_fee || 0) > 0
+            ? "Installation technicien"
+            : (ci.delivery_mode === "express" ? "Livraison Express — Uber Direct" : "Auto-installation — livraison standard"),
+          quantity: 1,
+          price: Number(ci.installation_fee || ci.delivery_fee || 0),
+          price_setup: Number(ci.installation_fee || ci.delivery_fee || 0),
+          price_monthly: 0,
+          monthly_price: 0,
+        }] : []),
+        ...((ci.custom_adjustments || (quote as any).custom_adjustments || []) as any[]).map((adjustment: any) => {
+          const amount = Math.max(0, Number(adjustment?.amount || 0));
+          const signedAmount = adjustment?.kind === "fee" ? amount : -amount;
+          return {
+            id: adjustment?.id || crypto.randomUUID(),
+            kind: "custom_adjustment",
+            category: adjustment?.kind === "fee" ? "fee" : "discount",
+            type: adjustment?.kind || "credit",
+            name: adjustment?.label || (adjustment?.kind === "fee" ? "Frais personnalisé" : "Crédit personnalisé"),
+            quantity: 1,
+            price: signedAmount,
+            price_setup: signedAmount,
+            price_monthly: 0,
+            monthly_price: 0,
+          };
+        }),
       ];
 
       const { data: sale, error: saleError } = await supabaseAdmin
@@ -1311,6 +1377,8 @@ Deno.serve(async (req) => {
           customer_city: ci.city || null,
           customer_postal_code: ci.postal_code || ci.postalCode || null,
           customer_date_of_birth: ci.date_of_birth || ci.dob || null,
+          install_date: quote.install_date || ci.install_date || null,
+          install_mode: quote.install_mode || ci.install_mode || null,
           services: fieldServices,
           total_amount: Number(body.paypal_amount || quote.total || 0),
           payment_method: body.payment_method || 'paypal',
