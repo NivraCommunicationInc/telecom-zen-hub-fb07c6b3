@@ -224,29 +224,17 @@ async function processExpirations(
 
       // J+5 to J+9: SUSPEND subscription, keep invoice OVERDUE
       if (sub.status === "active" || sub.status === "pending") {
-        const { error: suspErr } = await supabase
-          .from("billing_subscriptions")
-          .update({ status: "suspended", updated_at: new Date().toISOString() })
-          .eq("id", sub.id);
+        // Canonical RPC: suspend subscription (state + audit + provider-side handled server-side)
+        const { error: suspErr } = await supabase.rpc("suspend_subscription", {
+          p_subscription_id: sub.id,
+          p_reason: `Non-paiement — suspendu J+${daysPastDue} (facture ${inv.invoice_number})`,
+          p_context: { source: "billing-lifecycle", invoice_id: inv.id, days_past_due: daysPastDue },
+        });
 
         if (suspErr) {
           stats.errors.push(`Failed to suspend ${sub.id}: ${suspErr.message}`);
           stats.errors_count++;
           continue;
-        }
-
-        // Suspend PayPal subscription so no further charges occur
-        if (sub.paypal_subscription_id) {
-          const { success: ppOk, error: ppErr } = await suspendNivraPayPalSubscription(
-            sub.paypal_subscription_id,
-            `Non-paiement — suspendu J+${daysPastDue} (facture ${inv.invoice_number})`,
-          );
-          if (ppOk) {
-            console.log(`[lifecycle] ✓ PayPal subscription ${sub.paypal_subscription_id} suspended`);
-          } else {
-            console.error(`[lifecycle] ⚠ PayPal suspend failed ${sub.paypal_subscription_id}: ${ppErr}`);
-            stats.errors.push(`PayPal suspend failed for sub ${sub.id}: ${ppErr}`);
-          }
         }
 
         if (inv.status === "pending") {
