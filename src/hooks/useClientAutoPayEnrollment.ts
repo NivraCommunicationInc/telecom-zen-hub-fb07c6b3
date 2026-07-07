@@ -139,40 +139,14 @@ export const useClientAutoPayEnrollment = () => {
     return false;
   };
 
-  // Legacy no-op body retained below only to preserve the surrounding closure
-  // shape. The block is unreachable and will be removed with the hook in 3.C.
-  const _legacyEnrollPaypal = async (
-    subscription?: ClientBillingSubscription | null,
-    attemptId?: string,
-  ): Promise<boolean> => {
-    void subscription;
-    void attemptId;
-    void queryClient;
-    void portalSupabase;
-    void profile;
-    void user;
-    return false;
+  // Suppress unused-variable warnings for identifiers retained for the hook's
+  // read-side (subscriptions query above already uses them).
+  void queryClient;
+  void portalSupabase;
+  void profile;
+  void user;
+  void eligibility;
 
-
-      // Mark flow active so ProtectedRoute / RootRedirect won't bounce us back.
-      setPayPalFlowActive(data.attempt_id || "active");
-      await queryClient.invalidateQueries({ queryKey: ["client-billing-subscriptions"] });
-
-      // Direct redirect to PayPal approval page
-      window.location.assign(data.approval_url);
-      return true;
-    } catch (error: any) {
-      console.error("[AutoPay] Error:", error);
-      const err: AutoPayEnrollError = {
-        message: "Une erreur est survenue. Veuillez réessayer.",
-        code: "PAYPAL_CREATE_FAILED",
-      };
-      setLastError(err);
-      return false;
-    } finally {
-      setEnrollingSubscriptionId(null);
-    }
-  };
 
   return {
     subscriptions: subscriptions || [],
