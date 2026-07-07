@@ -144,6 +144,7 @@ export default function EmployeeCreateOrder() {
       if (s.selectedPlan)     setSelectedPlan(s.selectedPlan);
       if (s.equipment)        setEquipment(s.equipment);
       if (s.installType)      setInstallType(s.installType);
+      if (s.fulfillmentMode)  setFulfillmentMode(s.fulfillmentMode);
       if (s.installDate)      setInstallDate(s.installDate);
       if (s.installSlot)      setInstallSlot(s.installSlot);
       if (s.address)          setAddress(s.address);
