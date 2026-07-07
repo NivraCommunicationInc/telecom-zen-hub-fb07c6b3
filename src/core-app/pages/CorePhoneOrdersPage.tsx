@@ -689,6 +689,7 @@ function ManualOrderDialog({
     setOrderType("phone_only"); setSelectedPlanId("");
     setAddress(""); setCity(""); setProvince("QC"); setPostalCode("");
     setDiscount(0); setDiscountReason("promotion");
+    setFulfillmentMode("self_standard");
     setPaymentMethod("paypal_done"); setPaymentRef(""); setPaymentStatus("paid");
     setFraudScore(null); setFraudFactors({}); setFraudOverrideAck(false);
     setKycChoice("not_required");
