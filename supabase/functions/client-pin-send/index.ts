@@ -119,11 +119,21 @@ function maskEmail(email: string): string {
   return `${maskedLocal}@${domain}`;
 }
 
+// Route through the Lovable connector gateway. `RESEND_API_KEY` is now the
+// connector-gateway connection key (managed by standard_connectors), NOT a raw
+// Resend API key — direct calls to api.resend.com return 401 "API key is invalid".
+// See: https://docs.lovable.dev — Connector Gateway.
+const RESEND_GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
+
 async function sendEmailWithRetry(
-  apiKey: string,
+  connectionApiKey: string,
   emailConfig: { from: string; to: string[]; subject: string; html: string; text?: string; reply_to?: string },
   maxRetries = 3,
 ): Promise<{ success: boolean; error?: string; statusCode?: number }> {
+  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableApiKey) {
+    return { success: false, error: "LOVABLE_API_KEY not configured (required for connector gateway)" };
+  }
   const delays = [500, 2000, 5000];
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -135,15 +145,19 @@ async function sendEmailWithRetry(
       };
       if (emailConfig.text) body.text = emailConfig.text;
       if (emailConfig.reply_to) body.reply_to = emailConfig.reply_to;
-      const r = await fetch("https://api.resend.com/emails", {
+      const r = await fetch(`${RESEND_GATEWAY_URL}/emails`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${lovableApiKey}`,
+          "X-Connection-Api-Key": connectionApiKey,
+        },
         body: JSON.stringify(body),
       });
       if (r.ok) return { success: true };
       const statusCode = r.status;
       const errText = await r.text();
-      console.error(`[client-pin-send] attempt ${attempt + 1} failed: ${statusCode} ${errText.slice(0, 200)}`);
+      console.error(`[client-pin-send] attempt ${attempt + 1} failed: ${statusCode} ${errText.slice(0, 300)}`);
       if (statusCode === 403 || statusCode === 422) return { success: false, error: errText, statusCode };
       if (attempt < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, delays[attempt]));
     } catch (err) {
@@ -292,27 +306,32 @@ Deno.serve(async (req) => {
     });
 
     // If sender domain isn't verified, Resend rejects with 403.
-    // Retry once with a guaranteed sender domain.
+    // Retry once with a guaranteed sender domain (also through the gateway).
     if (!emailResult.success && emailResult.statusCode === 403) {
       console.warn(`[client-pin-send][${requestId}] Primary sender rejected (403), retrying with resend.dev sender`);
       try {
-        const retryR = await fetch("https://api.resend.com/emails", {
+        const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+        const retryR = await fetch(`${RESEND_GATEWAY_URL}/emails`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${lovableApiKey}`,
+            "X-Connection-Api-Key": resendApiKey,
+          },
           body: JSON.stringify({
             from: "Nivra Telecom <onboarding@resend.dev>",
-          to: [email],
-          subject: "Votre code de vérification Nivra",
-          reply_to: getSupportEmail(),
-          text: `Votre code de vérification Nivra: ${pin}\n\nCe code expire dans 10 minutes. Si vous n'avez pas demandé ce code, ignorez cet email.\n\nSupport: ${getSupportEmail()}`,
-          html: buildPinHtml(pin),
+            to: [email],
+            subject: "Votre code de vérification Nivra",
+            reply_to: getSupportEmail(),
+            text: `Votre code de vérification Nivra: ${pin}\n\nCe code expire dans 10 minutes. Si vous n'avez pas demandé ce code, ignorez cet email.\n\nSupport: ${getSupportEmail()}`,
+            html: buildPinHtml(pin),
           }),
         });
         if (retryR.ok) {
           console.log(`[client-pin-send][${requestId}] SUCCESS - fallback sender`);
           return new Response(JSON.stringify({ sent: true, request_id: requestId }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        console.error(`[client-pin-send][${requestId}] Fallback send failed: ${retryR.status}`);
+        console.error(`[client-pin-send][${requestId}] Fallback send failed: ${retryR.status} ${(await retryR.text()).slice(0,200)}`);
       } catch (retryErr) {
         console.error(`[client-pin-send][${requestId}] Fallback exception:`, retryErr);
       }
