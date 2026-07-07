@@ -90,16 +90,16 @@ Deno.serve(async (req) => {
     if (!body.email_id) return json({ ok: true, cancelled: false, reason: "no_email_id" });
 
     try {
-      const res = await fetch(`https://api.resend.com/emails/${body.email_id}/cancel`, {
+      const res = await resendGatewayFetch(`/emails/${body.email_id}/cancel`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${RESEND_KEY}` },
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       return json({ ok: true, cancelled: res.ok, data });
     } catch (e) {
       console.error("[abandonment-track] cancel failed:", e);
       return json({ ok: true, cancelled: false }); // non-fatal
     }
+
   }
 
   // ── START ─────────────────────────────────────────────────────────────────
