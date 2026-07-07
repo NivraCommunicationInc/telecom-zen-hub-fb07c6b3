@@ -21,16 +21,20 @@ import {
   Wrench,
   Send,
   Copy,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
-import type { FieldSaleCustomer, FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
+import type { FieldSaleCustomer, FieldSaleCustomAdjustment, FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
 import { saveQuoteAndEmail, sendPaymentLinkFromQuote } from "@/field-app/lib/fieldQuoteService";
 import { formatDiscountLabel } from "@/field-app/lib/fieldUtils";
 
 interface Props {
   draft: FieldSaleDraft;
+  allowCoreAdjustments?: boolean;
   activationFee: number;
+  fulfillmentFee?: number;
   monthlyBeforeDiscount: number;
   monthlyDiscountAmount: number;
   monthlyAfterDiscount: number;
@@ -44,6 +48,7 @@ interface Props {
   onNext: () => void;
   onBack: () => void;
   onCustomerChange?: (customer: FieldSaleCustomer) => void;
+  onCustomAdjustmentsChange?: (adjustments: FieldSaleCustomAdjustment[]) => void;
 }
 
 const TPS_RATE = 0.05;
@@ -54,7 +59,9 @@ const formatCAD = (n: number) =>
 
 export default function StepRecap({
   draft,
+  allowCoreAdjustments = false,
   activationFee,
+  fulfillmentFee = 0,
   monthlyBeforeDiscount,
   monthlyDiscountAmount,
   monthlyAfterDiscount,
@@ -68,6 +75,7 @@ export default function StepRecap({
   onNext,
   onBack,
   onCustomerChange,
+  onCustomAdjustmentsChange,
 }: Props) {
   const { user } = useStaffUser();
   const [savingQuote, setSavingQuote] = useState(false);
@@ -84,6 +92,29 @@ export default function StepRecap({
     (user?.user_metadata as Record<string, string> | undefined)?.full_name ||
     user?.email ||
     "Agent Nivra";
+
+  const customAdjustments = draft.custom_adjustments || [];
+  const updateFulfillment = (mode: "standard" | "express" | "technician") => {
+    const next =
+      mode === "standard"
+        ? { install_mode: "self" as const, delivery_mode: mode, delivery_fee: 20, installation_fee: 0 }
+        : mode === "express"
+          ? { install_mode: "self" as const, delivery_mode: mode, delivery_fee: 40, installation_fee: 0 }
+          : { install_mode: "technician" as const, delivery_mode: mode, delivery_fee: 0, installation_fee: 50 };
+    onCustomerChange?.({ ...draft.customer, ...next });
+  };
+  const addAdjustment = () => {
+    onCustomAdjustmentsChange?.([
+      ...customAdjustments,
+      { id: crypto.randomUUID(), kind: "credit", label: "Crédit personnalisé", amount: 0 },
+    ]);
+  };
+  const updateAdjustment = (id: string, patch: Partial<FieldSaleCustomAdjustment>) => {
+    onCustomAdjustmentsChange?.(customAdjustments.map((item) => item.id === id ? { ...item, ...patch } : item));
+  };
+  const removeAdjustment = (id: string) => {
+    onCustomAdjustmentsChange?.(customAdjustments.filter((item) => item.id !== id));
+  };
 
   const handleSendPaymentLink = async () => {
     if (sendingLink) return;
@@ -205,19 +236,42 @@ export default function StepRecap({
           <Wrench className="h-3.5 w-3.5" /> Installation
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-[hsl(var(--field-text-muted))]">Mode d'installation</span>
-            <select
-              value={draft.customer.install_mode || "technician"}
-              onChange={(e) =>
-                onCustomerChange?.({ ...draft.customer, install_mode: e.target.value as "technician" | "self" })
-              }
-              className="h-11 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
-            >
-              <option value="technician">Installation par technicien</option>
-              <option value="self">Auto-installation</option>
-            </select>
-          </label>
+          {allowCoreAdjustments ? (
+            <div className="md:col-span-2 grid gap-2 md:grid-cols-3">
+              {[
+                { key: "standard", label: "Auto-installation — livraison standard", fee: 20 },
+                { key: "express", label: "Express avec Uber", fee: 40 },
+                { key: "technician", label: "Installation technicien", fee: 50 },
+              ].map((option) => {
+                const active = (draft.customer.delivery_mode || "technician") === option.key;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => updateFulfillment(option.key as "standard" | "express" | "technician")}
+                    className={`rounded-xl border p-3 text-left transition-colors ${active ? "border-[hsl(var(--field-accent))] bg-[hsl(var(--field-accent)/0.12)]" : "border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] hover:bg-white/[0.03]"}`}
+                  >
+                    <span className="block text-sm font-semibold text-white">{option.label}</span>
+                    <span className="text-xs text-[hsl(var(--field-text-muted))]">{formatCAD(option.fee)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-[hsl(var(--field-text-muted))]">Mode d'installation</span>
+              <select
+                value={draft.customer.install_mode || "technician"}
+                onChange={(e) =>
+                  onCustomerChange?.({ ...draft.customer, install_mode: e.target.value as "technician" | "self" })
+                }
+                className="h-11 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
+              >
+                <option value="technician">Installation par technicien</option>
+                <option value="self">Auto-installation</option>
+              </select>
+            </label>
+          )}
           <label className="flex flex-col gap-1.5">
             <span className="text-xs text-[hsl(var(--field-text-muted))]">Date prévue</span>
             <input
@@ -235,6 +289,65 @@ export default function StepRecap({
           Le client verra cette date sur sa page de commande et pourra demander une modification si nécessaire.
         </p>
       </div>
+
+      {allowCoreAdjustments && (
+        <div className="rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] p-5 md:p-6 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-[hsl(var(--field-text-dim))]">
+              <Receipt className="h-3.5 w-3.5" /> Frais / promotions personnalisés
+            </div>
+            <button
+              type="button"
+              onClick={addAdjustment}
+              className="h-9 rounded-lg border border-[hsl(var(--field-accent)/0.45)] px-3 text-xs font-semibold text-[hsl(var(--field-accent-glow))] hover:bg-[hsl(var(--field-accent)/0.08)] inline-flex items-center gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" /> Ajouter
+            </button>
+          </div>
+          {customAdjustments.length === 0 ? (
+            <p className="text-sm text-[hsl(var(--field-text-muted))]">Aucun frais ou crédit personnalisé.</p>
+          ) : (
+            <div className="space-y-2">
+              {customAdjustments.map((adjustment) => (
+                <div key={adjustment.id} className="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_120px_40px]">
+                  <select
+                    value={adjustment.kind}
+                    onChange={(e) => updateAdjustment(adjustment.id, { kind: e.target.value as FieldSaleCustomAdjustment["kind"] })}
+                    className="h-10 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
+                  >
+                    <option value="credit">Crédit</option>
+                    <option value="promotion">Promotion</option>
+                    <option value="fee">Frais</option>
+                  </select>
+                  <input
+                    value={adjustment.label}
+                    onChange={(e) => updateAdjustment(adjustment.id, { label: e.target.value })}
+                    placeholder="Raison"
+                    className="h-10 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={adjustment.amount || ""}
+                    onChange={(e) => updateAdjustment(adjustment.id, { amount: Math.max(0, Number(e.target.value || 0)) })}
+                    placeholder="0.00"
+                    className="h-10 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAdjustment(adjustment.id)}
+                    className="h-10 rounded-xl border border-[hsl(var(--field-border-subtle))] text-[hsl(var(--field-text-muted))] hover:text-white"
+                    aria-label="Supprimer"
+                  >
+                    <Trash2 className="mx-auto h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Order breakdown */}
       <div className="rounded-2xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-card))] p-5 md:p-6 space-y-3">
@@ -335,6 +448,22 @@ export default function StepRecap({
             </span>
             <span className="text-white">{formatCAD(activationFee)}</span>
           </div>
+          {fulfillmentFee > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-[hsl(var(--field-text-muted))]">Livraison / installation</span>
+              <span className="text-white">{formatCAD(fulfillmentFee)}</span>
+            </div>
+          )}
+          {customAdjustments.map((adjustment) => (
+            <div key={adjustment.id} className="flex justify-between text-sm">
+              <span className={adjustment.kind === "fee" ? "text-[hsl(var(--field-text-muted))]" : "text-[hsl(var(--field-success))]"}>
+                {adjustment.label || (adjustment.kind === "fee" ? "Frais personnalisé" : "Crédit personnalisé")}
+              </span>
+              <span className={adjustment.kind === "fee" ? "text-white" : "text-[hsl(var(--field-success))] font-semibold"}>
+                {adjustment.kind === "fee" ? "" : "−"}{formatCAD(Math.max(0, Number(adjustment.amount || 0)))}
+              </span>
+            </div>
+          ))}
           <div className="flex justify-between text-sm font-medium">
             <span className="text-white">Sous-total</span>
             <span className="text-white">{formatCAD(subtotal)}</span>
