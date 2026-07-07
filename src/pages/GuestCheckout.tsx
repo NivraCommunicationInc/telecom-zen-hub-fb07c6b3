@@ -661,10 +661,12 @@ const GuestCheckout = () => {
   };
 
   // ── Submit order ──
-  const handleSubmit = async () => {
+  const handleSubmit = async (captureOverride?: string) => {
     if (submittingRef.current || isSubmitting) return;
     submittingRef.current = true;
     setIsSubmitting(true);
+    const effectiveCaptureId = captureOverride || paypalCaptureId;
+    const effectivePaymentDone = paymentComplete || !!effectiveCaptureId;
 
     try {
       // Validate DOB
@@ -680,16 +682,16 @@ const GuestCheckout = () => {
       }
 
 
-      if (!isPaymentDone) {
+      if (!effectivePaymentDone) {
         toast.error("Veuillez compléter le paiement");
         return;
       }
 
       // ── Sauvegarder le paiement immédiatement — avant toute autre opération ──
       // Si le client rafraîchit la page après paiement, on garde la trace
-      if (paypalCaptureId) {
+      if (effectiveCaptureId) {
         sessionStorage.setItem("nivra_pending_payment", JSON.stringify({
-          captureId: paypalCaptureId,
+          captureId: effectiveCaptureId,
           amount: todayTotal,
           email: email.trim().toLowerCase(),
           firstName: firstName.trim(),
@@ -753,10 +755,10 @@ const GuestCheckout = () => {
       // Si aucun userId — le paiement est confirmé mais on ne peut pas créer la commande.
       // On affiche quand même la confirmation avec le numéro de capture PayPal.
       if (!userId) {
-        console.error("[GuestCheckout] All account creation methods failed. Payment captured:", paypalCaptureId);
+        console.error("[GuestCheckout] All account creation methods failed. Payment captured:", effectiveCaptureId);
         setOrderResult({
-          orderNumber: paypalCaptureId,
-          orderId: paypalCaptureId,
+          orderNumber: effectiveCaptureId,
+          orderId: effectiveCaptureId,
           isNewAccount: false,
           paymentOnly: true,
         });
@@ -881,9 +883,9 @@ const GuestCheckout = () => {
         } : null,
         payment: {
           method: paymentMethodValue as any,
-          status: paymentMethod === "paypal" && paypalCaptureId ? "captured" : "pending",
-          reference: paypalCaptureId || etransferRef || null,
-          paypal_capture_id: paypalCaptureId || null,
+          status: paymentMethod === "paypal" && effectiveCaptureId ? "captured" : "pending",
+          reference: effectiveCaptureId || etransferRef || null,
+          paypal_capture_id: effectiveCaptureId || null,
         },
         identity: isStreamingOnlyOrder ? null : {
           verification_session_id: `guest_${clientRequestIdRef.current}`,
