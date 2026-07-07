@@ -325,19 +325,11 @@ serve(async () => {
   const today = new Date().toLocaleDateString("fr-CA");
   const filename = `rapport-clients-nivra-${today}.csv`;
 
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-
-  const emailRes = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      to: ["support@nivra-telecom.ca"],
-      subject: `📊 Rapport hebdomadaire clients Nivra — ${today} (${accounts.length} clients actifs)`,
-      html: `
+  const emailResult = await sendResendEmail({
+    from: "Nivra Telecom <noreply@nivra-telecom.ca>",
+    to: ["support@nivra-telecom.ca"],
+    subject: `📊 Rapport hebdomadaire clients Nivra — ${today} (${accounts.length} clients actifs)`,
+    html: `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
   <div style="background: #0066CC; padding: 32px 24px; color: #ffffff;">
     <h1 style="margin: 0; font-size: 24px;">📊 Rapport Hebdomadaire</h1>
@@ -358,13 +350,11 @@ serve(async () => {
   </div>
 </div>
       `,
-      attachments: [
-        { filename, content: base64CSV, content_type: "text/csv" },
-      ],
-    }),
+    attachments: [
+      { filename, content: base64CSV, content_type: "text/csv" },
+    ],
   });
 
-  const emailResult = await emailRes.json();
 
   await supabase.from("agent_audit_log").insert({
     agent_name: "checkup",
