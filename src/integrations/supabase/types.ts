@@ -7595,6 +7595,36 @@ export type Database = {
           },
         ]
       }
+      deprecated_edge_functions: {
+        Row: {
+          deprecated_at: string
+          function_name: string
+          id: string
+          notes: Json | null
+          reason: string
+          replaced_by: string | null
+          status: string
+        }
+        Insert: {
+          deprecated_at?: string
+          function_name: string
+          id?: string
+          notes?: Json | null
+          reason: string
+          replaced_by?: string | null
+          status: string
+        }
+        Update: {
+          deprecated_at?: string
+          function_name?: string
+          id?: string
+          notes?: Json | null
+          reason?: string
+          replaced_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       direct_email_recipients: {
         Row: {
           client_id: string | null
@@ -24099,6 +24129,60 @@ export type Database = {
           },
         ]
       }
+      square_payment_attempts: {
+        Row: {
+          amount: number | null
+          attempt_number: number
+          created_at: string
+          currency: string
+          customer_id: string | null
+          id: string
+          idempotency_key: string
+          invoice_id: string | null
+          response_raw: Json | null
+          square_error_category: string | null
+          square_error_code: string | null
+          square_error_detail: string | null
+          square_payment_id: string | null
+          status: string
+          subscription_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          attempt_number?: number
+          created_at?: string
+          currency?: string
+          customer_id?: string | null
+          id?: string
+          idempotency_key: string
+          invoice_id?: string | null
+          response_raw?: Json | null
+          square_error_category?: string | null
+          square_error_code?: string | null
+          square_error_detail?: string | null
+          square_payment_id?: string | null
+          status: string
+          subscription_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          attempt_number?: number
+          created_at?: string
+          currency?: string
+          customer_id?: string | null
+          id?: string
+          idempotency_key?: string
+          invoice_id?: string | null
+          response_raw?: Json | null
+          square_error_category?: string | null
+          square_error_code?: string | null
+          square_error_detail?: string | null
+          square_payment_id?: string | null
+          status?: string
+          subscription_id?: string | null
+        }
+        Relationships: []
+      }
       staff_client_access_sessions: {
         Row: {
           client_user_id: string
@@ -29348,6 +29432,10 @@ export type Database = {
       _invoke_edge_function: {
         Args: { p_function_name: string; p_payload: Json }
         Returns: undefined
+      }
+      _is_paypal_context: {
+        Args: { _payment_kind: string; _provider: string; _rpc_used: string }
+        Returns: boolean
       }
       _nivra_record_provenance: {
         Args: {
