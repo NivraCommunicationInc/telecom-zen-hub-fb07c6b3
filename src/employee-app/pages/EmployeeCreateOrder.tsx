@@ -159,10 +159,10 @@ export default function EmployeeCreateOrder() {
     try {
       sessionStorage.setItem(ECO_SESSION_KEY, JSON.stringify({
         step, selectedClient, selectedPlan, equipment,
-        installType, installDate, installSlot, address, agentNotes, selectedDiscount,
+        installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount,
       }));
     } catch { /* quota exceeded */ }
-  }, [step, selectedClient, selectedPlan, equipment, installType, installDate, installSlot, address, agentNotes, selectedDiscount]);
+  }, [step, selectedClient, selectedPlan, equipment, installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount]);
 
   // If preset client, load directly
   useEffect(() => {
