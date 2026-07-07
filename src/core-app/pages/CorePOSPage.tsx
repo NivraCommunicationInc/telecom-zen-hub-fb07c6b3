@@ -977,10 +977,20 @@ export default function CorePOSPage() {
                       ))}
                     </div>
                   </div>
-                  {/* Custom */}
+                  {/* Custom fee */}
                   <div>
-                    <p className="text-[11px] font-semibold uppercase text-[#A1A1AA] mb-2">Ligne personnalisée</p>
+                    <p className="text-[11px] font-semibold uppercase text-[#A1A1AA] mb-2">Frais / ligne personnalisée</p>
                     <CustomAdjustmentForm onAdd={(name, amount) => addAdjustment(name, amount, amount < 0 ? "credit" : "fee")} />
+                  </div>
+                  {/* Real credit — Core only */}
+                  <div className="rounded-md border border-emerald-600/30 bg-emerald-600/5 p-3">
+                    <p className="text-[11px] font-semibold uppercase text-emerald-400 mb-1 flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" /> Crédit personnalisé (réservé Nivra Core)
+                    </p>
+                    <p className="text-[10px] text-[#A1A1AA] mb-2">
+                      Applique un vrai crédit au compte client. Non disponible sur les autres portails.
+                    </p>
+                    <CustomCreditForm onAdd={(name, amount) => addAdjustment(name, -Math.abs(amount), "credit")} />
                   </div>
                 </div>
               )}
