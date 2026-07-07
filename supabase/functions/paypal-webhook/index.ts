@@ -561,29 +561,39 @@ serve(async (req) => {
           break;
         }
 
-        // ★ USE THE TRANSACTIONAL DB FUNCTION ★
-        const { data: rpcResult, error: rpcError } = await supabase.rpc(
-          "apply_payment_to_invoice",
+        // ★ Phase 3.B.1 — RPC canonique idempotente (verrou event_id + trace) ★
+        const { data: appliedPaymentId, error: rpcError } = await supabase.rpc(
+          "apply_payment_from_webhook",
           {
+            p_provider: "paypal",
+            p_event_id: event.id,
+            p_event_type: event.event_type,
+            p_provider_created_at: event.create_time || null,
             p_invoice_id: invoice.id,
             p_amount: amount,
             p_method: "paypal",
-            p_provider: "paypal",
-            p_provider_payment_id: paymentId,
+            p_external_reference: paymentId,
             p_source: "webhook_subscription",
-            p_created_by_name: "PayPal Webhook",
-            p_created_by_role: "system",
-            p_customer_id: sub.customer_id,
+            p_context: { paypal_subscription_id: sub.provider_subscription_id, phase: "recurring" },
           }
         );
 
         if (rpcError) {
-          console.error("[PayPal Webhook] apply_payment_to_invoice error:", rpcError);
+          console.error("[PayPal Webhook] apply_payment_from_webhook error:", rpcError);
+        } else if (!appliedPaymentId) {
+          console.log(`[PayPal Webhook] Event ${event.id} déjà traité (short-circuit RPC) — skip side-effects`);
         } else {
-          console.log(`[PayPal Webhook] ✓ Payment applied:`, rpcResult);
+          console.log(`[PayPal Webhook] ✓ Payment applied via RPC: payment_id=${appliedPaymentId}`);
 
-          // Advance billing cycle if fully paid
-          if (rpcResult?.is_fully_paid) {
+          // Vérifier via lecture (jamais une écriture directe) si la facture est totalement payée
+          const { data: freshInvoice } = await supabase
+            .from("billing_invoices")
+            .select("status, invoice_number")
+            .eq("id", invoice.id)
+            .maybeSingle();
+          const isFullyPaid = freshInvoice?.status === "paid";
+
+          if (isFullyPaid) {
             const newCycleStart = new Date(sub.cycle_end_date);
             const anchorDay = sub.billing_anchor_date
               ? new Date(sub.billing_anchor_date).getDate()
@@ -603,7 +613,6 @@ serve(async (req) => {
 
             console.log(`[PayPal Webhook] ✓ Cycle advanced: ${newCycleStart.toISOString().split('T')[0]} → ${newCycleEnd.toISOString().split('T')[0]}`);
 
-            // ── Auto-reactivate if subscription was suspended ──────────
             const { reactivateIfSuspended } = await import("../_shared/reactivationEngine.ts");
             const reactivation = await reactivateIfSuspended(supabase, sub.id, invoice.id, "paypal_webhook");
             if (reactivation.reactivated) {
@@ -619,22 +628,21 @@ serve(async (req) => {
             source_type: "webhook",
             source_id: event.id,
             details: {
-              payment_id: paymentId,
+              payment_id: appliedPaymentId,
               amount,
               invoice_id: invoice.id,
-              is_fully_paid: rpcResult?.is_fully_paid,
-              already_processed: rpcResult?.already_processed,
+              is_fully_paid: isFullyPaid,
             },
-            reason: `PayPal recurring payment $${amount} applied to invoice ${invoice.invoice_number || invoice.id}`,
+            reason: `PayPal recurring payment $${amount} applied to invoice ${freshInvoice?.invoice_number || invoice.invoice_number || invoice.id}`,
           });
 
           // Notify customer (with receipt PDF, non-blocking)
-          if (sub.customer && !rpcResult?.already_processed) {
+          if (sub.customer) {
             const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
             const pdfAttachment = await buildReceiptPdfAttachment(invoice.id, "recu-paiement");
 
             await supabase.from("email_queue").insert({
-              event_key: `paypal_payment_${paymentId}`,
+              event_key: `paypal_payment_${appliedPaymentId}`,
               to_email: sub.customer.email,
               template_key: "payment_confirmed",
               template_vars: {
@@ -644,7 +652,7 @@ serve(async (req) => {
                 total_payable: Number(invoice.total || amount).toFixed(2),
                 invoice_id: invoice.id,
                 order_id: invoice.order_id || undefined,
-                invoice_number: rpcResult?.invoice_number || invoice.invoice_number || "N/A",
+                invoice_number: freshInvoice?.invoice_number || invoice.invoice_number || "N/A",
                 payment_method: "PayPal (Paiement automatique)",
                 reference: paymentId,
               },
@@ -655,21 +663,18 @@ serve(async (req) => {
             });
           }
 
-          // ── Auto-note: paiement reçu (autopay PayPal) ──
-          if (!rpcResult?.already_processed) {
-            await writePaymentAutoNote({
-              supabase,
-              billingCustomerId: sub.customer_id,
-              amount,
-              method: "paypal",
-              provider: "paypal",
-              invoiceNumber: rpcResult?.invoice_number || invoice.invoice_number,
-              invoiceId: invoice.id,
-              nivraReference: rpcResult?.nivra_reference || null,
-              paymentNumber: rpcResult?.payment_number || null,
-              channel: "Autopay PayPal (legacy)",
-            });
-          }
+          await writePaymentAutoNote({
+            supabase,
+            billingCustomerId: sub.customer_id,
+            amount,
+            method: "paypal",
+            provider: "paypal",
+            invoiceNumber: freshInvoice?.invoice_number || invoice.invoice_number,
+            invoiceId: invoice.id,
+            nivraReference: null,
+            paymentNumber: null,
+            channel: "Autopay PayPal (webhook)",
+          });
         }
         break;
       }
