@@ -66,10 +66,10 @@ const SLOTS = [
 ] as const;
 
 type FulfillmentMode = "self_standard" | "self_express" | "technician";
-const FULFILLMENT_OPTIONS: { key: FulfillmentMode; label: string; desc: string; fee: number; installType: "auto" | "professional" }[] = [
-  { key: "self_standard", label: "Auto-installation — Livraison standard",              desc: "Livraison 2-5 jours ouvrables. Client installe lui-même (guide PDF officiel envoyé par courriel).", fee: 20, installType: "auto" },
-  { key: "self_express",  label: "Auto-installation — Livraison Express (Uber Direct)", desc: "Livraison jour même ou lendemain. Client installe lui-même.",                                     fee: 40, installType: "auto" },
-  { key: "technician",    label: "Installation professionnelle (technicien)",           desc: "Un technicien Nivra se déplace à la date choisie.",                                              fee: 50, installType: "professional" },
+const FULFILLMENT_OPTIONS: { key: FulfillmentMode; label: string; desc: string; fee: number; feeType: "delivery" | "installation"; installType: "auto" | "professional" }[] = [
+  { key: "self_standard", label: "Auto-installation — Livraison standard",              desc: "Livraison 2-5 jours ouvrables. Client installe lui-même (guide PDF officiel envoyé par courriel).", fee: 20, feeType: "delivery", installType: "auto" },
+  { key: "self_express",  label: "Livraison Express — Uber Direct",                     desc: "Livraison jour même ou lendemain pour une commande sans installation technicien.",                    fee: 40, feeType: "delivery", installType: "auto" },
+  { key: "technician",    label: "Installation professionnelle (technicien)",           desc: "Un technicien Nivra se déplace à la date choisie.",                                              fee: 50, feeType: "installation", installType: "professional" },
 ];
 
 function minInstallDate(): string {
@@ -101,14 +101,30 @@ interface CreatedClientOnboarding {
 
 const ECO_SESSION_KEY = "employee_create_order_session_v1";
 
-function clearEcoSession() {
-  try { sessionStorage.removeItem(ECO_SESSION_KEY); } catch { /* ignore */ }
+interface CreateOrderPageProps {
+  portal?: "employee" | "core";
+  pathBuilder?: (path: string) => string;
+  subtitle?: string;
+  source?: string;
+  allowCustomCredit?: boolean;
 }
 
-export default function EmployeeCreateOrder() {
+function clearEcoSession(key = ECO_SESSION_KEY) {
+  try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+}
+
+export default function EmployeeCreateOrder({
+  portal = "employee",
+  pathBuilder = employeePath,
+  subtitle = "Nivra OneView CS — création complète",
+  source = "nivra_oneview_cs",
+  allowCustomCredit = false,
+}: CreateOrderPageProps = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const presetClientId = searchParams.get("clientId");
+  const sessionKey = `${ECO_SESSION_KEY}_${portal}`;
+  const clearSession = () => clearEcoSession(sessionKey);
 
   const [step, setStep] = useState<Step>("client");
   const [clientSearch, setClientSearch] = useState("");
@@ -117,7 +133,10 @@ export default function EmployeeCreateOrder() {
   const [equipment, setEquipment] = useState<EquipLine[]>(DEFAULT_EQUIPMENT.map(e => ({ ...e })));
   const [installType, setInstallType] = useState<"auto" | "professional">("auto");
   const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>("self_standard");
-  const deliveryFee = FULFILLMENT_OPTIONS.find(o => o.key === fulfillmentMode)?.fee ?? 0;
+  const selectedFulfillment = FULFILLMENT_OPTIONS.find(o => o.key === fulfillmentMode) ?? FULFILLMENT_OPTIONS[0];
+  const fulfillmentFee = selectedFulfillment.fee;
+  const deliveryFee = selectedFulfillment.feeType === "delivery" ? selectedFulfillment.fee : 0;
+  const installationFee = selectedFulfillment.feeType === "installation" ? selectedFulfillment.fee : 0;
   const [installDate, setInstallDate] = useState<string>(minInstallDate());
   const [installSlot, setInstallSlot] = useState<typeof SLOTS[number]["key"]>("morning");
   const [address, setAddress] = useState({ street: "", city: "", postal: "", province: "QC" });
@@ -130,15 +149,16 @@ export default function EmployeeCreateOrder() {
   });
   const [creatingClient, setCreatingClient] = useState(false);
   const [createdClientOnboarding, setCreatedClientOnboarding] = useState<CreatedClientOnboarding | null>(null);
+  const [customCredit, setCustomCredit] = useState({ reason: "", amount: "" });
 
   // ── Restore wizard state from sessionStorage on mount (survives F5 + hard refresh) ──
   useEffect(() => {
     if (presetClientId) return; // URL param takes priority
     try {
-      const raw = sessionStorage.getItem(ECO_SESSION_KEY);
+      const raw = sessionStorage.getItem(sessionKey);
       if (!raw) return;
       const s = JSON.parse(raw);
-      if (!s?.step || s.step === "submitted") { clearEcoSession(); return; }
+      if (!s?.step || s.step === "submitted") { clearSession(); return; }
       if (s.step)             setStep(s.step);
       if (s.selectedClient)   setSelectedClient(s.selectedClient);
       if (s.selectedPlan)     setSelectedPlan(s.selectedPlan);
@@ -150,19 +170,20 @@ export default function EmployeeCreateOrder() {
       if (s.address)          setAddress(s.address);
       if (s.agentNotes != null) setAgentNotes(s.agentNotes);
       if (s.selectedDiscount) setSelectedDiscount(s.selectedDiscount);
-    } catch { clearEcoSession(); }
+      if (s.customCredit)     setCustomCredit(s.customCredit);
+    } catch { clearSession(); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-save on every change ──
   useEffect(() => {
-    if (step === "submitted") { clearEcoSession(); return; }
+    if (step === "submitted") { clearSession(); return; }
     try {
-      sessionStorage.setItem(ECO_SESSION_KEY, JSON.stringify({
+      sessionStorage.setItem(sessionKey, JSON.stringify({
         step, selectedClient, selectedPlan, equipment,
-        installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount,
+        installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount, customCredit,
       }));
     } catch { /* quota exceeded */ }
-  }, [step, selectedClient, selectedPlan, equipment, installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount]);
+  }, [step, selectedClient, selectedPlan, equipment, installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount, customCredit]);
 
   // If preset client, load directly
   useEffect(() => {
@@ -418,6 +439,7 @@ export default function EmployeeCreateOrder() {
       const cartItems: CartLineItem[] = [
         { type: "service", name: selectedPlan.name, amount: selectedPlan.price, quantity: 1 },
         ...selectedEquipment.map((e) => ({ type: "equipment" as const, name: e.name, amount: e.price, quantity: e.quantity })),
+        ...(fulfillmentFee > 0 ? [{ type: selectedFulfillment.feeType as "delivery" | "installation", name: selectedFulfillment.label, amount: fulfillmentFee, quantity: 1 }] : []),
       ];
       const serverPricing = await computeCheckoutPricing(
         cartItems,
@@ -429,8 +451,8 @@ export default function EmployeeCreateOrder() {
 
       const pricingSnapshot = {
         ...serverPricing,
-        portal: "employee",
-        source: "nivra_oneview_cs",
+        portal,
+        source,
         plan_id: selectedPlan.id,
         plan_name: selectedPlan.name,
         plan_price: selectedPlan.price,
@@ -438,10 +460,20 @@ export default function EmployeeCreateOrder() {
         equipment: equipment_line_details,
         equipment_total: equipmentTotal,
         install_type: installType,
+        fulfillment_mode: fulfillmentMode,
+        fulfillment_label: selectedFulfillment.label,
+        delivery_fee: deliveryFee,
+        installation_fee: installationFee,
         install_date: installType === "professional" ? installDate : null,
         install_slot: installType === "professional" ? installSlot : null,
         created_by_agent: agentProfile?.full_name ?? user.email,
         created_by_agent_id: user.id,
+        custom_credits: allowCustomCredit && Number(customCredit.amount) > 0 && customCredit.reason.trim()
+          ? [{ reason: customCredit.reason.trim(), amount: Number(customCredit.amount) }]
+          : [],
+        custom_credits_total: allowCustomCredit && Number(customCredit.amount) > 0 && customCredit.reason.trim()
+          ? Number(customCredit.amount)
+          : 0,
         agent_discount: appliedDiscount
           ? {
               id: appliedDiscount.id,
@@ -477,17 +509,20 @@ export default function EmployeeCreateOrder() {
           quantity: 1,
         }],
         equipment: equipment_line_details,
+        custom_credits: allowCustomCredit && Number(customCredit.amount) > 0 && customCredit.reason.trim()
+          ? [{ reason: customCredit.reason.trim(), amount: Number(customCredit.amount) }]
+          : [],
         payment: { method: "manual", status: "pending", reference: null },
         installation: {
           type: installType,
           fulfillment_mode: fulfillmentMode,
           delivery_fee: deliveryFee,
-          installation_fee: 0,
+          installation_fee: installationFee,
           scheduled_date: installType === "professional" ? installDate : null,
           scheduled_time: installType === "professional" ? installSlot : null,
         },
         pricing_snapshot: pricingSnapshot,
-        notes: agentNotes || "Commande créée via Nivra OneView CS",
+        notes: agentNotes || (portal === "core" ? "Commande manuelle créée via Nivra Core" : "Commande créée via Nivra OneView CS"),
         account_id: selectedClient.account_id ?? null,
       };
 
@@ -503,7 +538,7 @@ export default function EmployeeCreateOrder() {
       await logInternalAudit({
         action: "order_created_by_agent",
         category: "operations",
-        portal: "employee",
+        portal,
         targetType: "order",
         targetId: order.order_id,
         details: {
@@ -512,6 +547,8 @@ export default function EmployeeCreateOrder() {
           client_id: selectedClient.user_id,
           plan: selectedPlan.name,
           install_type: installType,
+          fulfillment_mode: fulfillmentMode,
+          custom_credits_total: pricingSnapshot.custom_credits_total,
           equipment_count: selectedEquipment.length,
           agent: agentProfile?.full_name ?? user.email,
         },
@@ -533,12 +570,12 @@ export default function EmployeeCreateOrder() {
     <div className="max-w-3xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => { clearEcoSession(); navigate(employeePath("/orders")); }} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+        <button onClick={() => { clearSession(); navigate(pathBuilder("/orders")); }} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="h-4 w-4 text-muted-foreground" />
         </button>
         <div>
           <h1 className="text-base font-semibold text-foreground">Nouvelle commande</h1>
-          <p className="text-[11px] text-muted-foreground">Nivra OneView CS — création complète</p>
+          <p className="text-[11px] text-muted-foreground">{subtitle}</p>
         </div>
       </div>
 
@@ -986,6 +1023,40 @@ export default function EmployeeCreateOrder() {
             </p>
           </div>
 
+          {allowCustomCredit && (
+            <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+                  Crédit personnalisé Core
+                </span>
+                <span className="text-[10px] text-muted-foreground">Crédit réel appliqué à la facture</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2">
+                <input
+                  type="text"
+                  value={customCredit.reason}
+                  onChange={(e) => setCustomCredit((c) => ({ ...c, reason: e.target.value }))}
+                  placeholder="Raison du crédit"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-emerald-500/50 min-h-[44px]"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={customCredit.amount}
+                  onChange={(e) => setCustomCredit((c) => ({ ...c, amount: e.target.value }))}
+                  placeholder="Montant $"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-emerald-500/50 min-h-[44px]"
+                />
+              </div>
+              {Number(customCredit.amount) > 0 && customCredit.reason.trim() && (
+                <p className="text-[11px] text-emerald-400">
+                  Crédit à appliquer: −{Number(customCredit.amount).toFixed(2)} $ — {customCredit.reason.trim()}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="bg-muted rounded-lg p-4 space-y-2 text-xs">
             <div className="flex justify-between"><span className="text-muted-foreground">Client</span><span className="text-foreground font-medium">{selectedClient.full_name}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Courriel</span><span className="text-foreground">{selectedClient.email}</span></div>
@@ -1013,13 +1084,19 @@ export default function EmployeeCreateOrder() {
             )}
 
             <div className="border-t border-border pt-2 flex justify-between">
-              <span className="text-muted-foreground">Installation</span>
+              <span className="text-muted-foreground">Livraison / installation</span>
               <span className="text-foreground">
                 {installType === "auto"
-                  ? "Auto-installation (guide PDF envoyé par courriel)"
-                  : `Professionnelle — ${installDate} (${SLOTS.find(s => s.key === installSlot)?.label ?? installSlot})`}
+                  ? `${selectedFulfillment.label} — ${deliveryFee.toFixed(2)} $`
+                  : `${selectedFulfillment.label} — ${installationFee.toFixed(2)} $ — ${installDate} (${SLOTS.find(s => s.key === installSlot)?.label ?? installSlot})`}
               </span>
             </div>
+            {allowCustomCredit && Number(customCredit.amount) > 0 && customCredit.reason.trim() && (
+              <div className="border-t border-border pt-2 flex justify-between text-emerald-400">
+                <span>Crédit personnalisé</span>
+                <span>− {Number(customCredit.amount).toFixed(2)} $</span>
+              </div>
+            )}
 
             <div className="border-t border-border pt-2 flex justify-between"><span className="text-muted-foreground">Adresse</span><span className="text-foreground text-right">{address.street}{address.city ? `, ${address.city}` : ""}{address.postal ? ` ${address.postal}` : ""}</span></div>
             {agentNotes && (
@@ -1063,14 +1140,14 @@ export default function EmployeeCreateOrder() {
           </p>
           <div className="flex justify-center gap-3 pt-2">
             <button
-              onClick={() => { clearEcoSession(); navigate(employeePath("/orders")); }}
+              onClick={() => { clearSession(); navigate(pathBuilder("/orders")); }}
               className="px-4 py-2 rounded-lg border border-border text-xs text-foreground hover:bg-secondary transition-colors"
             >
               Voir les commandes
             </button>
             {selectedClient && (
               <button
-                onClick={() => navigate(employeePath(`/clients/${selectedClient.user_id}`))}
+                onClick={() => navigate(pathBuilder(`/clients/${selectedClient.user_id}`))}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
               >
                 Retour au client

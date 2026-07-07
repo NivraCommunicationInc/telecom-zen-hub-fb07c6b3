@@ -36,6 +36,10 @@ type CheckoutPayload = {
     unit_price?: number;
     quantity?: number;
   }>;
+  custom_credits?: Array<{
+    reason?: string;
+    amount?: number;
+  }>;
   fees?: Array<{
     name: string;
     amount: number;
@@ -79,8 +83,11 @@ type CheckoutPayload = {
   referred_order_id?: string;
   installation?: {
     type?: string | null;
+    fulfillment_mode?: string | null;
     delivery_fee?: number;
     installation_fee?: number;
+    scheduled_date?: string | null;
+    scheduled_time?: string | null;
   };
 };
 
@@ -222,6 +229,38 @@ function buildInvoiceLines(payload: CheckoutPayload, invoiceId: string) {
         quantity: 1,
         line_total: deliveryFee,
         line_type: "fee",
+      });
+    }
+  }
+
+  const installationFee = toMoney(payload.installation?.installation_fee);
+  if (installationFee > 0) {
+    const alreadyHasInstall = lines.some(l =>
+      l.line_type === "fee" && l.description.toLowerCase().includes("installation")
+    );
+    if (!alreadyHasInstall) {
+      lines.push({
+        invoice_id: invoiceId,
+        description: "Frais d'installation",
+        unit_price: installationFee,
+        quantity: 1,
+        line_total: installationFee,
+        line_type: "fee",
+      });
+    }
+  }
+
+  for (const credit of payload.custom_credits || []) {
+    const amount = toMoney(credit.amount);
+    const reason = String(credit.reason || "Crédit personnalisé").trim() || "Crédit personnalisé";
+    if (amount > 0) {
+      lines.push({
+        invoice_id: invoiceId,
+        description: reason,
+        unit_price: -amount,
+        quantity: 1,
+        line_total: -amount,
+        line_type: "credit",
       });
     }
   }
