@@ -806,9 +806,10 @@ function ManualOrderDialog({
   // Pricing
   const basePrice = selectedPhone?.price_cad ?? 0;
   const finalPrice = Math.max(0, basePrice - discount);
-  const tps = +(finalPrice * 0.05).toFixed(2);
-  const tvq = +(finalPrice * 0.09975).toFixed(2);
-  const totalAmount = +(finalPrice + tps + tvq).toFixed(2);
+  const taxable = +(finalPrice + deliveryFee).toFixed(2);
+  const tps = +(taxable * 0.05).toFixed(2);
+  const tvq = +(taxable * 0.09975).toFixed(2);
+  const totalAmount = +(taxable + tps + tvq).toFixed(2);
 
   // Recompute fraud whenever client + amount ready
   useMemo(() => {
