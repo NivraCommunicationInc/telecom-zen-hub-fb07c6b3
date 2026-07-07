@@ -31,7 +31,7 @@ Deno.test({
       first_name: "Test", last_name: "Quote-3AB",
       email: `test-quote-3ab-${Date.now()}@example.com`, phone: "5140000000", status: "active",
     }).select("id").single();
-      assert(invoice, "invoice fetched");
+
     assert(bc?.id, "billing_customer créé");
 
     const { data: order, error: oErr } = await admin.from("orders").insert({
@@ -43,7 +43,7 @@ Deno.test({
       payment_method: "paypal",
       environment: "live",
     }).select("id").single();
-      assert(invoice, "invoice fetched");
+
     assert(!oErr, `orders setup: ${oErr?.message}`);
 
     try {
@@ -81,10 +81,10 @@ Deno.test({
       // Vérifie les montants : subtotal = 60+25-10 = 75, GST=3.75, QST=7.48, total=86.23
       const { data: invoice } = await admin.from("billing_invoices")
         .select("subtotal, tps_amount, tvq_amount, total").eq("id", inv1).single();
-      assert(invoice, "invoice fetched");
-      assertEquals(Number(invoice.subtotal), 75, "subtotal figé");
-      assertEquals(Number(invoice.tps_amount), 3.75, "GST 5%");
-      assertEquals(Number(invoice.tvq_amount), 7.48, "QST 9.975%");
+
+      assertEquals(Number(invoice!.subtotal), 75, "subtotal figé");
+      assertEquals(Number(invoice!.tps_amount), 3.75, "GST 5%");
+      assertEquals(Number(invoice!.tvq_amount), 7.48, "QST 9.975%");
 
       // Pas de ligne fantôme : exactement 3 lignes
       const { count: linesCount } = await admin.from("billing_invoice_lines")
@@ -94,10 +94,10 @@ Deno.test({
       // Abonnement figé (frozen_*)
       const { data: sub } = await admin.from("billing_subscriptions")
         .select("frozen_name, frozen_unit_price, source_order_item_id").eq("id", subIds[0]).single();
-      assert(invoice, "invoice fetched");
-      assertEquals(sub.frozen_name, "Internet 100 Mbps");
-      assertEquals(Number(sub.frozen_unit_price), 60);
-      assert(sub.source_order_item_id, "traçabilité order_item");
+
+      assertEquals(sub!.frozen_name, "Internet 100 Mbps");
+      assertEquals(Number(sub!.frozen_unit_price), 60);
+      assert(sub!.source_order_item_id, "traçabilité order_item");
     } finally {
       await admin.from("orders").delete().eq("id", order.id);
       await admin.from("billing_customers").delete().eq("id", bc.id);
