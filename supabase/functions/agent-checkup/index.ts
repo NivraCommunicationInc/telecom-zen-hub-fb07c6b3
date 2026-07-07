@@ -388,7 +388,7 @@ serve(async () => {
       ok: true,
       clients_count: accounts.length,
       filename,
-      email_sent: !!emailResult.id,
+      email_sent: !!emailResult.data?.id,
       sample: rows[0] ? Object.fromEntries(headers.map((h, i) => [h, rows[0][i].slice(1, -1)])) : null,
     }),
     { headers: { "Content-Type": "application/json" } }
