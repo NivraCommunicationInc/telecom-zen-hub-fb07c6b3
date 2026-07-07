@@ -432,8 +432,8 @@ Deno.serve(async (req) => {
       invoice_number: invoice.invoice_number,
       total: invoice.total,
       commission_estimate: commissionEstimate,
-      paypal_approve_url: paypalApproveUrl,
-      paypal_order_id: paypalOrderId,
+      paypal_approve_url: null, // Phase 3.C.4 — champ conservé pour compat clients
+      paypal_order_id: null,
       canonical: true,
     });
   } catch (e) {
