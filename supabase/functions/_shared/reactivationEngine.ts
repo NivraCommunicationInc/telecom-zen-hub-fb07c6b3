@@ -1,19 +1,22 @@
 /**
- * reactivationEngine.ts — Shared reactivation logic
+ * reactivationEngine.ts — Shared reactivation logic (Phase 3.C.3)
  *
- * Called by every payment path (PayPal webhook, portal-add-credit,
- * paypal-balance-pay-capture) after apply_payment_to_invoice returns
- * is_fully_paid: true.
+ * Called by every Square payment path after apply_payment_to_invoice returns
+ * is_fully_paid: true. State transitions go exclusively through the canonical
+ * `reactivate_subscription()` RPC — no direct UPDATE on billing_subscriptions.
+ *
+ * PayPal is decommissioned (Phase 3.B). No provider-side reactivation call
+ * is issued from this engine anymore.
  *
  * Reactivation flow:
- *   billing_subscriptions (suspended → active)
+ *   reactivate_subscription() RPC → state, dates, audit trace
  *   orders (suspended/cancelled → active, if linked)
- *   email_queue  → service_reactivated template
+ *   account_adjustments → prorata credit for unused suspended window
+ *   email_queue → service_reactivated
  *   provisioning_log → action: reactivate
- *   admin_audit_log  → service_reactivated
+ *   admin_audit_log → service_reactivated
  */
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { activateNivraPayPalSubscription } from "./nivraPayPalSubscriptionFactory.ts";
 import { prorateWindow } from "./prorationMath.ts";
 
 export interface ReactivationResult {
