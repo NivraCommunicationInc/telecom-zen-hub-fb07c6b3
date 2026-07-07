@@ -30,8 +30,8 @@ export default class ErrorBoundary extends Component<Props, State> {
     });
 
     // Stale-chunk recovery: after a deploy, the cached index.html can reference
-    // hashed chunks that no longer exist. Auto-reload once instead of showing
-    // the crash screen.
+    // hashed chunks that no longer exist. Auto-reload with a cache-bust param,
+    // capped at 2 attempts within 60s to prevent infinite loops.
     const msg = (error?.message || "").toLowerCase();
     const isChunkError =
       msg.includes("importing a module script failed") ||
@@ -40,12 +40,19 @@ export default class ErrorBoundary extends Component<Props, State> {
       msg.includes("loading css chunk") ||
       error?.name === "ChunkLoadError";
     if (isChunkError && typeof window !== "undefined") {
-      const KEY = "__nivra_chunk_reload__";
+      const COUNT_KEY = "__nivra_chunk_reload_count__";
+      const TS_KEY = "__nivra_chunk_reload_ts__";
       try {
-        const last = Number(sessionStorage.getItem(KEY) || "0");
-        if (Date.now() - last > 30_000) {
-          sessionStorage.setItem(KEY, String(Date.now()));
-          window.location.reload();
+        const now = Date.now();
+        const lastTs = Number(sessionStorage.getItem(TS_KEY) || "0");
+        const count = now - lastTs > 60_000 ? 0 : Number(sessionStorage.getItem(COUNT_KEY) || "0");
+        if (count < 2) {
+          sessionStorage.setItem(COUNT_KEY, String(count + 1));
+          sessionStorage.setItem(TS_KEY, String(now));
+          // Cache-bust: force the browser + CDN to refetch index.html
+          const url = new URL(window.location.href);
+          url.searchParams.set("_cb", String(now));
+          window.location.replace(url.toString());
           return;
         }
       } catch { /* ignore */ }
