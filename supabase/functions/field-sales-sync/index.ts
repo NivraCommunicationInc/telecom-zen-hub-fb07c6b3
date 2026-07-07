@@ -96,6 +96,45 @@ function normalizeOrdersPaymentMethod(raw?: any): string | null {
   return null;
 }
 
+function numberFrom(...values: any[]): number {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function computeAgentDiscountLine(discountData: any, monthlyTotal: number, activationFee: number): { desc: string; amount: number } | null {
+  if (!discountData) return null;
+
+  const getDiscountLabel = (raw: string): string => {
+    const clean = String(raw || "Rabais").trim();
+    return /^rabais\b/i.test(clean) ? clean : `Rabais ${clean}`;
+  };
+
+  const dType = String(discountData.type || "");
+  const dAppliesTo = String(discountData.applies_to || "");
+  const dName = String(discountData.name || "Rabais agent");
+  const dAmt = numberFrom(discountData.amount, discountData.value);
+  const monthlyPrice = numberFrom(discountData.monthly_price, discountData.monthlyPrice, monthlyTotal);
+
+  if (dType === "remove_fee" && dAppliesTo === "installation" && activationFee > 0) {
+    return { desc: "Installation gratuite ✓", amount: -activationFee };
+  }
+  if (dType === "remove_fee" && dAppliesTo === "activation" && activationFee > 0) {
+    return { desc: "Activation gratuite ✓", amount: -activationFee };
+  }
+  if (dType === "first_month_free" && monthlyPrice > 0) {
+    return { desc: `1er mois offert — ${monthlyPrice.toFixed(2)}$/mois`, amount: -monthlyPrice };
+  }
+  if (dAmt > 0) {
+    return { desc: getDiscountLabel(dName), amount: -Math.min(dAmt, monthlyTotal || dAmt) };
+  }
+
+  return null;
+}
+
 const BILLABLE_ORDER_STATUSES = new Set([
   "pending",
   "pending_payment",
@@ -532,6 +571,44 @@ Deno.serve(async (req) => {
           });
         }
 
+        const discountData: any = (sale as any).discount_data;
+        const agentDiscountLine = computeAgentDiscountLine(discountData, monthlyTotal, activationFee);
+
+        if (agentDiscountLine) {
+          lineItems.push({
+            category: "discount",
+            type: "discount",
+            name: agentDiscountLine.desc,
+            qty: 1,
+            unit_price: agentDiscountLine.amount,
+            period: "one_time",
+            taxable: true,
+          });
+          quoteAdjustmentProjected = true;
+        }
+
+        const saleSubtotalHint = numberFrom((sale as any)?.subtotal);
+        const saleTaxesHint = computeTaxes(saleSubtotalHint);
+        const saleTotalHint = numberFrom((sale as any)?.total_amount);
+        const hasAuthoritativeSaleSubtotal = saleSubtotalHint > 0 && saleTotalHint > 0 && Math.abs(saleTaxesHint.total - saleTotalHint) <= 0.05;
+
+        if (!quoteAdjustmentProjected && hasAuthoritativeSaleSubtotal && monthlyTotal > 0) {
+          const projectedBaseBeforeWelcome = monthlyTotal + equipmentTotal + activationFee + explicitDeliveryFee + explicitInstallationFee + shippingFee + customAdjustmentTotal;
+          const welcomeCredit = Number((projectedBaseBeforeWelcome - saleSubtotalHint).toFixed(2));
+          if (welcomeCredit > 0 && welcomeCredit <= monthlyTotal + 0.05) {
+            lineItems.push({
+              category: "discount",
+              type: "first_month_free",
+              name: `1er mois offert ✓ (automatique) — ${welcomeCredit.toFixed(2)}$/mois`,
+              qty: 1,
+              unit_price: -welcomeCredit,
+              period: "one_time",
+              taxable: true,
+            });
+            quoteAdjustmentProjected = true;
+          }
+        }
+
         // Base fees model aligned to orders schema
         let subtotal = monthlyTotal + equipmentTotal;
         const deliveryFee = shippingFee + explicitDeliveryFee;
@@ -543,7 +620,10 @@ Deno.serve(async (req) => {
         // "à l'envers" depuis un total cible. Aucune ligne fabriquée pour
         // combler un écart. Si le total agent diffère des lignes réelles,
         // la synchro échoue et l'ordre reste bloqué en `sync_error`.
-        const baseAmount = Number((subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal).toFixed(2));
+        const projectedDiscountTotal = lineItems
+          .filter((li) => li.category === "discount")
+          .reduce((sum, li) => sum + (Number(li.unit_price || 0) * (Number(li.qty || 1) || 1)), 0);
+        const baseAmount = Number((subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal + projectedDiscountTotal).toFixed(2));
         const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
         const agentTotal = Number(sale.total_amount || 0);
@@ -881,7 +961,6 @@ Deno.serve(async (req) => {
             // RULE 1 â€” Premier mois gratuit automatique UNIQUEMENT pour les
             // clients qui n'ont jamais reçu le rabais (vérifié via la fonction
             // canonique is_eligible_for_welcome_first_month).
-            const discountData: any = (sale as any).discount_data;
             const agentDiscountIsFirstMonth =
               discountData && String(discountData.type || "") === "first_month_free";
 
@@ -915,49 +994,17 @@ Deno.serve(async (req) => {
               }
             }
 
-            // RULE 5 â€” Clean discount label (no "Rabais Rabais" duplication).
-            const getDiscountLabel = (raw: string): string => {
-              const clean = String(raw || "Rabais").trim();
-              return /^rabais\b/i.test(clean) ? clean : `Rabais ${clean}`;
-            };
-
             // Discount line (if applied at the door â€” second/additional discount)
             if (discountData && !quoteAdjustmentProjected) {
-              const dType = String(discountData.type || "");
-              const dAppliesTo = String(discountData.applies_to || "");
-              const dAmt = Number(discountData.amount || 0);
-              const dDur = Number(discountData.duration_months || 0);
-              const dName = String(discountData.name || "Rabais agent");
-              const monthlyPrice = Number(discountData.monthly_price || discountData.monthlyPrice || subtotal || 0);
+              const pendingDiscountLine = computeAgentDiscountLine(discountData, monthlyTotal, activationFee);
 
-              let desc: string | null = null;
-              let unitPrice = 0;
-
-              if (dType === "remove_fee" && dAppliesTo === "installation") {
-                desc = "Installation gratuite âœ“";
-                unitPrice = 0;
-              } else if (dType === "remove_fee" && dAppliesTo === "activation") {
-                desc = "Activation gratuite âœ“";
-                unitPrice = 0;
-              } else if (dType === "first_month_free") {
-                desc = `1er mois offert â€” ${monthlyPrice.toFixed(2)}$/mois`;
-                unitPrice = -monthlyPrice;
-              } else if (dType === "one_time" && dAmt > 0) {
-                desc = getDiscountLabel(dName);
-                unitPrice = -dAmt;
-              } else if (dAmt > 0) {
-                // fixed_monthly / credit â€” permanent or time-limited
-                desc = getDiscountLabel(dName);
-                unitPrice = -dAmt;
-              }
-
-              if (desc !== null) {
+              if (pendingDiscountLine) {
                 const { error: discLineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
                   invoice_id: invoiceId,
-                  description: desc,
-                  unit_price: unitPrice,
+                  description: pendingDiscountLine.desc,
+                  unit_price: pendingDiscountLine.amount,
                   quantity: 1,
-                  line_total: unitPrice,
+                  line_total: pendingDiscountLine.amount,
                   line_type: "discount",
                   service_address_id: staffServiceAddress?.id || null,
                 });
