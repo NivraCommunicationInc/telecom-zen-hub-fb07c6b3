@@ -109,8 +109,8 @@ interface CreateOrderPageProps {
   allowCustomCredit?: boolean;
 }
 
-function clearEcoSession() {
-  try { sessionStorage.removeItem(ECO_SESSION_KEY); } catch { /* ignore */ }
+function clearEcoSession(key = ECO_SESSION_KEY) {
+  try { sessionStorage.removeItem(key); } catch { /* ignore */ }
 }
 
 export default function EmployeeCreateOrder({
@@ -123,6 +123,8 @@ export default function EmployeeCreateOrder({
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const presetClientId = searchParams.get("clientId");
+  const sessionKey = `${ECO_SESSION_KEY}_${portal}`;
+  const clearSession = () => clearEcoSession(sessionKey);
 
   const [step, setStep] = useState<Step>("client");
   const [clientSearch, setClientSearch] = useState("");
@@ -153,10 +155,10 @@ export default function EmployeeCreateOrder({
   useEffect(() => {
     if (presetClientId) return; // URL param takes priority
     try {
-      const raw = sessionStorage.getItem(ECO_SESSION_KEY);
+      const raw = sessionStorage.getItem(sessionKey);
       if (!raw) return;
       const s = JSON.parse(raw);
-      if (!s?.step || s.step === "submitted") { clearEcoSession(); return; }
+      if (!s?.step || s.step === "submitted") { clearSession(); return; }
       if (s.step)             setStep(s.step);
       if (s.selectedClient)   setSelectedClient(s.selectedClient);
       if (s.selectedPlan)     setSelectedPlan(s.selectedPlan);
@@ -169,14 +171,14 @@ export default function EmployeeCreateOrder({
       if (s.agentNotes != null) setAgentNotes(s.agentNotes);
       if (s.selectedDiscount) setSelectedDiscount(s.selectedDiscount);
       if (s.customCredit)     setCustomCredit(s.customCredit);
-    } catch { clearEcoSession(); }
+    } catch { clearSession(); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-save on every change ──
   useEffect(() => {
-    if (step === "submitted") { clearEcoSession(); return; }
+    if (step === "submitted") { clearSession(); return; }
     try {
-      sessionStorage.setItem(ECO_SESSION_KEY, JSON.stringify({
+      sessionStorage.setItem(sessionKey, JSON.stringify({
         step, selectedClient, selectedPlan, equipment,
         installType, fulfillmentMode, installDate, installSlot, address, agentNotes, selectedDiscount, customCredit,
       }));
@@ -568,7 +570,7 @@ export default function EmployeeCreateOrder({
     <div className="max-w-3xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => { clearEcoSession(); navigate(pathBuilder("/orders")); }} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+        <button onClick={() => { clearSession(); navigate(pathBuilder("/orders")); }} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
           <ArrowLeft className="h-4 w-4 text-muted-foreground" />
         </button>
         <div>
@@ -1138,7 +1140,7 @@ export default function EmployeeCreateOrder({
           </p>
           <div className="flex justify-center gap-3 pt-2">
             <button
-              onClick={() => { clearEcoSession(); navigate(pathBuilder("/orders")); }}
+              onClick={() => { clearSession(); navigate(pathBuilder("/orders")); }}
               className="px-4 py-2 rounded-lg border border-border text-xs text-foreground hover:bg-secondary transition-colors"
             >
               Voir les commandes

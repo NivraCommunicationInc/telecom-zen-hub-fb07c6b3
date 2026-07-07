@@ -5,7 +5,7 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ShoppingCart, Loader2, Search, ArrowUpRight, FileText,
-  Eye, User, DollarSign, Receipt,
+  Eye, User, DollarSign, Receipt, Plus,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,13 @@ export default function EmployeeOrders() {
           <h1 className="text-xl font-bold tracking-tight">Commandes</h1>
           <p className="text-sm text-muted-foreground">{filtered.length} commande{filtered.length !== 1 ? "s" : ""}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => navigate(employeePath("/orders/new"))}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/15 transition-colors min-h-[44px]"
+        >
+          <Plus className="h-3.5 w-3.5" /> Nouvelle commande manuelle
+        </button>
       </div>
 
       {/* Search + Filters */}
