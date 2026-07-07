@@ -1383,14 +1383,18 @@ Deno.serve(async (req) => {
           console.error("[field-sales-sync] Commission engine error (non-blocking):", commErr);
         }
 
-        // Send official order confirmation email (corporate template, canonical math)
-        try {
-          await supabaseAdmin.functions.invoke("send-order-confirmation", {
-            body: { order_id: canonicalOrder.id },
-          });
-          console.log(`[field-sales-sync] send-order-confirmation invoked for ${canonicalOrder.id}`);
-        } catch (emailErr) {
-          console.error("[field-sales-sync] send-order-confirmation failed (non-blocking):", emailErr?.message || emailErr);
+        // Send official order confirmation only after a confirmed payment.
+        // Pending QR/direct-link shells must not email the client unless the
+        // agent explicitly selected the email payment option.
+        if (sale.payment_status === "confirmed") {
+          try {
+            await supabaseAdmin.functions.invoke("send-order-confirmation", {
+              body: { order_id: canonicalOrder.id },
+            });
+            console.log(`[field-sales-sync] send-order-confirmation invoked for ${canonicalOrder.id}`);
+          } catch (emailErr) {
+            console.error("[field-sales-sync] send-order-confirmation failed (non-blocking):", emailErr?.message || emailErr);
+          }
         }
 
         // Auto-installation: also send the self-install email with PDF guides
