@@ -1,162 +1,43 @@
-import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { notifyNivraCorePaid } from "@/lib/nivraCore";
-import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ClientLayout from "@/components/client/ClientLayout";
 
 /**
- * /portal/payment-success — PayPal redirects here after approval.
- * Extracts the PayPal token (order ID) from query params,
- * calls paypal-capture-order, then shows result.
- * After capture, invalidates all billing queries for instant UI refresh.
+ * /portal/payment-success — Legacy PayPal capture return handler.
+ *
+ * Phase 3.B.3 (2026-07-07): PayPal is decommissioned. This page is retained
+ * only to catch any stale bookmarks / email links pointing to the old
+ * PayPal approval-return URL. It performs NO payment capture and NO edge
+ * function call. Users are directed to their billing hub to pay via Square.
  */
 const PaymentReturn = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [status, setStatus] = useState<"capturing" | "success" | "error">("capturing");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [captureDetails, setCaptureDetails] = useState<any>(null);
-  const { logPaymentConfirmed, logPaymentFailed } = useTransactionTraceability();
-
-  useEffect(() => {
-    const token = params.get("token"); // PayPal order ID
-    const paymentNumber = params.get("payment_number"); // Nivra Core payment number
-    if (!token) {
-      setStatus("error");
-      setErrorMsg("Aucun identifiant de commande PayPal trouvé.");
-      return;
-    }
-
-    const capture = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("paypal-capture-order", {
-          body: { paypal_order_id: token },
-        });
-
-        if (error) throw error;
-        if (!data?.capture_id && !data?.already_processed) {
-          throw new Error("Capture échouée — aucun ID de capture retourné.");
-        }
-
-        console.log("[PaymentReturn] Capture result:", data);
-        setCaptureDetails(data);
-        setStatus("success");
-        toast.success("Paiement confirmé!");
-
-        // ★ TRACEABILITY: Log payment capture success
-        logPaymentConfirmed({
-          paypal_capture_id: data.capture_id,
-          paypal_order_id: token,
-          payment_reference: paymentNumber || undefined,
-          amount: data.amount,
-          method: "paypal",
-        });
-
-        // Notify Nivra Core backend (fire-and-forget)
-        if (paymentNumber && data.capture_id) {
-          notifyNivraCorePaid({
-            paymentNumber,
-            paypalOrderId: token,
-            paypalCaptureId: data.capture_id,
-          });
-        }
-
-        // ★ Invalidate ALL billing-related queries for instant UI refresh
-        queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
-        queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
-        queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
-        queryClient.invalidateQueries({ queryKey: ["client-invoices"] });
-        queryClient.invalidateQueries({ queryKey: ["client-invoice-breakdowns"] });
-        queryClient.invalidateQueries({ queryKey: ["client-subscriptions"] });
-        queryClient.invalidateQueries({ queryKey: ["client-profile-dashboard"] });
-        queryClient.invalidateQueries({ queryKey: ["client-profile"] });
-      } catch (err: any) {
-        console.error("[PaymentReturn] Capture error:", err);
-        setStatus("error");
-        setErrorMsg(err?.message || "Erreur lors de la confirmation du paiement.");
-
-        // ★ TRACEABILITY: Log payment capture failure
-        logPaymentFailed({
-          error_message: err?.message || "Capture failed",
-          paypal_order_id: token,
-          method: "paypal",
-        });
-      }
-    };
-
-    capture();
-  }, [params, queryClient]);
+  const hadToken = !!params.get("token");
 
   return (
     <ClientLayout>
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="max-w-md w-full text-center space-y-6">
-          {status === "capturing" && (
-            <>
-              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
-              <h2 className="text-xl font-semibold text-foreground">
-                Confirmation du paiement en cours…
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Ne fermez pas cette page.
-              </p>
-            </>
-          )}
-
-          {status === "success" && (
-            <>
-              <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
-              <h2 className="text-2xl font-bold text-foreground">Paiement réussi!</h2>
-              <p className="text-muted-foreground">
-                Votre paiement de{" "}
-                <strong>
-                  {captureDetails?.amount?.toLocaleString("fr-CA", {
-                    style: "currency",
-                    currency: "CAD",
-                  }) || ""}
-                </strong>{" "}
-                a été confirmé.
-              </p>
-              {captureDetails?.updated_invoice && (
-                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
-                  <p>
-                    Facture:{" "}
-                    <span className="font-mono font-semibold">
-                      {captureDetails.updated_invoice.invoice_number}
-                    </span>
-                  </p>
-                  <p>
-                    Statut:{" "}
-                    <span className="text-emerald-600 font-semibold">
-                      {captureDetails.updated_invoice.status === "paid" ? "Payée" : captureDetails.updated_invoice.status}
-                    </span>
-                  </p>
-                </div>
-              )}
-              <Button onClick={() => navigate("/portal/invoices")} className="mt-4">
-                Voir mes factures
-              </Button>
-            </>
-          )}
-
-          {status === "error" && (
-            <>
-              <XCircle className="w-16 h-16 text-destructive mx-auto" />
-              <h2 className="text-xl font-bold text-foreground">Erreur de paiement</h2>
-              <p className="text-sm text-muted-foreground">{errorMsg}</p>
-              <div className="flex gap-3 justify-center mt-4">
-                <Button variant="outline" onClick={() => navigate("/portal/invoices")}>
-                  Retour aux factures
-                </Button>
-              </div>
-            </>
-          )}
+          <AlertCircle className="w-16 h-16 text-amber-500 mx-auto" />
+          <h2 className="text-2xl font-bold text-foreground">
+            Paiement PayPal indisponible
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {hadToken
+              ? "Le paiement PayPal n'est plus supporté. Si un montant a été prélevé, il sera automatiquement remboursé sous 3 à 5 jours ouvrables."
+              : "Cette page n'est plus utilisée."}{" "}
+            Veuillez régler vos factures par carte de crédit ou débit depuis votre portail.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => navigate("/portal/billing")}>
+              Aller à la facturation
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/portal/invoices")}>
+              Mes factures
+            </Button>
+          </div>
         </div>
       </div>
     </ClientLayout>

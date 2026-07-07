@@ -672,20 +672,35 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
     setLoading(true);
     try {
       if (isPayPalPayment) {
-        // ── PayPal refund via edge function ──
-        const { data, error } = await supabase.functions.invoke("paypal-refund", {
-          body: {
-            payment_id: selectedPaymentId,
-            amount: parsedAmount < selectedPayment.amount ? parsedAmount : undefined,
-            reason: reason.trim(),
-            invoice_id: selectedInvoice,
-          },
+        // Phase 3.B.3 — `paypal-refund` is decommissioned (HTTP 410) and DB
+        // triggers block any new PayPal write. Historic PayPal payments must
+        // now be refunded manually: we record a negative `manual` billing
+        // payment and reconcile the invoice. The operator is responsible for
+        // issuing the actual money movement outside Nivra (PayPal dashboard).
+        if (!customerId) {
+          toast.error("Client introuvable");
+          return;
+        }
+        const paymentNumber = `REF-PP-${Date.now().toString(36).toUpperCase()}`;
+        const { error } = await supabase.from("billing_payments").insert({
+          invoice_id: inv.id,
+          customer_id: customerId,
+          amount: -parsedAmount,
+          method: "manual" as const,
+          status: "confirmed" as const,
+          payment_number: paymentNumber,
+          reference: `Remboursement PayPal (historique) — à exécuter manuellement dans PayPal · ${reason}`,
+          source: "admin" as any,
+          provider: "manual",
+          received_at: new Date().toISOString(),
+          created_by_name: "Admin",
+          created_by_role: "admin",
         });
-
-        if (error) throw new Error(error.message || "Erreur PayPal refund");
-        if (!data?.success) throw new Error(data?.error || "Refund failed");
-
-        toast.success(`Remboursement PayPal de ${parsedAmount.toFixed(2)} $ effectué (${data.paypal_refund_id})`);
+        if (error) throw error;
+        await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
+        toast.success(
+          `Remboursement de ${parsedAmount.toFixed(2)} $ enregistré. Exécutez le remboursement dans le dashboard PayPal.`,
+        );
       } else {
         // ── Manual refund (non-PayPal) ──
         if (!customerId) {
@@ -712,6 +727,7 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
         await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
         toast.success(`Remboursement manuel de ${parsedAmount.toFixed(2)} $ appliqué`);
       }
+
 
       onRefresh();
       onClose();

@@ -120,103 +120,33 @@ export const useClientAutoPayEnrollment = () => {
     subscriptions?.find((s) => s.status === "active" && !!s.paypal_subscription_id) ?? null;
 
   /**
-   * Enroll/retry. Pass `attemptId` to retry an existing failed attempt.
-   * Returns true on success (redirect happens), false on failure (error in `lastError`).
+   * Phase 3.B.3 — PayPal enrollment is decommissioned.
+   * This function is retained only so existing imports keep compiling; it now
+   * always fails fast with an explicit error. Autopay must be re-enrolled via
+   * Square (see `SquareAutoPayEnrollment` — Phase 3.C).
    */
   const enrollInPayPal = async (
-    subscription?: ClientBillingSubscription | null,
-    attemptId?: string,
+    _subscription?: ClientBillingSubscription | null,
+    _attemptId?: string,
   ): Promise<boolean> => {
-    const subId = subscription?.id || eligibility?.subscription_id;
-
-    try {
-      setLastError(null);
-      setEnrollingSubscriptionId(subId);
-
-      const response = await portalSupabase.functions.invoke("paypal-create-subscription", {
-        body: {
-          billing_subscription_id: subId || undefined,
-          customer_email: profile?.email || user?.email || "",
-          customer_name: profile?.full_name || "Client",
-          attempt_id: attemptId,
-        },
-      });
-
-      // Friendly French message map — never expose technical errors to clients.
-      const friendlyMessage = (code?: string): string => {
-        switch (code) {
-          case "ALREADY_ENROLLED":
-            return "Le paiement automatique est déjà actif sur votre compte.";
-          case "PAYPAL_CREATE_FAILED":
-            return "Impossible de créer l'autorisation PayPal. Veuillez réessayer ou contacter le support.";
-          case "NOT_ELIGIBLE":
-            return "Activez d'abord un forfait Nivra pour bénéficier du paiement automatique.";
-          case "AUTH_REQUIRED":
-          case "INVALID_SESSION":
-            return "Votre session a expiré. Veuillez vous reconnecter.";
-          default:
-            return "Une erreur est survenue. Veuillez réessayer.";
-        }
-      };
-
-      // The edge function always returns HTTP 200 with `success: false` on logical errors.
-      // A response.error here means a true transport/network failure.
-      if (response.error) {
-        const err: AutoPayEnrollError = {
-          message: "Une erreur est survenue. Veuillez réessayer.",
-          code: "PAYPAL_CREATE_FAILED",
-        };
-        setLastError(err);
-        return false;
-      }
-
-      const data = response.data as any;
-      if (!data?.success) {
-        const code = data?.code as string | undefined;
-        const err: AutoPayEnrollError = {
-          message: friendlyMessage(code),
-          code,
-          debug_id: data?.debug_id ?? null,
-          attempt_id: data?.attempt_id ?? null,
-        };
-        setLastError(err);
-        // Refresh local view if PayPal is already enrolled.
-        if (code === "ALREADY_ENROLLED") {
-          await queryClient.invalidateQueries({ queryKey: ["client-paypal-preauth"] });
-          await queryClient.invalidateQueries({ queryKey: ["client-billing-subscriptions"] });
-        }
-        return false;
-      }
-
-      if (!data.approval_url) {
-        const err: AutoPayEnrollError = {
-          message: "Une erreur est survenue. Veuillez réessayer.",
-          code: "PAYPAL_CREATE_FAILED",
-          attempt_id: data?.attempt_id ?? null,
-        };
-        setLastError(err);
-        return false;
-      }
-
-      // Mark flow active so ProtectedRoute / RootRedirect won't bounce us back.
-      setPayPalFlowActive(data.attempt_id || "active");
-      await queryClient.invalidateQueries({ queryKey: ["client-billing-subscriptions"] });
-
-      // Direct redirect to PayPal approval page
-      window.location.assign(data.approval_url);
-      return true;
-    } catch (error: any) {
-      console.error("[AutoPay] Error:", error);
-      const err: AutoPayEnrollError = {
-        message: "Une erreur est survenue. Veuillez réessayer.",
-        code: "PAYPAL_CREATE_FAILED",
-      };
-      setLastError(err);
-      return false;
-    } finally {
-      setEnrollingSubscriptionId(null);
-    }
+    const err: AutoPayEnrollError = {
+      message:
+        "Le paiement automatique par PayPal n'est plus disponible. Contactez le support pour activer l'autopay Square.",
+      code: "PAYPAL_DECOMMISSIONED",
+    };
+    setLastError(err);
+    setEnrollingSubscriptionId(null);
+    return false;
   };
+
+  // Suppress unused-variable warnings for identifiers retained for the hook's
+  // read-side (subscriptions query above already uses them).
+  void queryClient;
+  void portalSupabase;
+  void profile;
+  void user;
+  void eligibility;
+
 
   return {
     subscriptions: subscriptions || [],

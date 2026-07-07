@@ -338,7 +338,7 @@ const ComparePlans = lazy(() => import("@/pages/ComparePlans"));
 const TVConfigurator = lazy(() => import("@/pages/TVConfigurator"));
 const GrilleCanaux = lazy(() => import("@/pages/GrilleCanaux"));
 const OrderEntryRouter = lazy(() => import("@/pages/OrderEntryRouter"));
-const PayPalSubscriptionReturn = lazy(() => import("@/pages/PayPalSubscriptionReturn"));
+// PayPalSubscriptionReturn removed in Phase 3.B.3 (PayPal decommissioned).
 const ClientAutoPayLog = lazy(() => import("@/pages/client/ClientAutoPayLog"));
 const ClientAutoPayStatus = lazy(() => import("@/pages/client/ClientAutoPayStatus"));
 const PublicQuotePage = lazy(() => import("@/pages/PublicQuote"));
@@ -482,7 +482,7 @@ const ClientProfile = lazy(() => import("@/pages/client/ClientProfile"));
 const ClientPayments = lazy(() => import("@/pages/client/ClientPayments"));
 const ClientPaymentMethod = lazy(() => import("@/pages/client/ClientPaymentMethod"));
 const ClientBillingHub = lazy(() => import("@/pages/client/ClientBillingHub"));
-const ClientBalancePaymentSuccess = lazy(() => import("@/pages/client/ClientBalancePaymentSuccess"));
+// ClientBalancePaymentSuccess removed in Phase 3.B.3 (PayPal balance-pay decommissioned).
 const ClientOrders = lazy(() => import("@/pages/client/ClientOrders"));
 const ClientContracts = lazy(() => import("@/pages/client/ClientContracts"));
 const ClientNewOrder = lazy(() => import("@/pages/client/ClientNewOrder"));
@@ -695,8 +695,8 @@ const AppRoutes = () => {
       <Route path="/track-order" element={<MaintenanceGuard><PublicLayout><TrackOrder /></PublicLayout></MaintenanceGuard>} />
       <Route path="/parrainage" element={<MaintenanceGuard><PublicLayout><Parrainage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/commander" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><OrderEntryRouter /></Suspense></MaintenanceGuard>} />
-      <Route path="/commander/paypal-retour" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PayPalSubscriptionReturn /></Suspense>} />
-      <Route path="/checkout/paypal-success" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PayPalSubscriptionReturn /></Suspense>} />
+      {/* Legacy PayPal return routes removed — Phase 3.B.3 (PayPal decommissioned). */}
+
       <Route path="/install" element={<Install />} />
       {/* DEV-ONLY: Routes stripped from production builds */}
       {!import.meta.env.PROD && <Route path="/dev-login" element={<DevLogin />} />}
@@ -828,7 +828,7 @@ const AppRoutes = () => {
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/paiement" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPaymentMethod /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/billing" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientBillingHub /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
-      <Route path="/portal/balance-payment-success" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientBalancePaymentSuccess /></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      {/* /portal/balance-payment-success removed in Phase 3.B.3 (PayPal balance-pay decommissioned). */}
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/web-forms" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientWebForms /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/documents" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDocuments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
@@ -847,8 +847,7 @@ const AppRoutes = () => {
       <Route path="/portal/reschedule" element={<MaintenanceGuard><ClientAuthProvider><ClientRescheduleAppointment /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payment-success" element={<MaintenanceGuard><ClientAuthProvider><PaymentReturn /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payment-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
-      {/* PayPal subscription approval return URLs — MUST resolve to the recurring PayPal return handler, never the one-time payment capture screen. */}
-      <Route path="/portal/subscription-success" element={<MaintenanceGuard><PayPalSubscriptionReturn /></MaintenanceGuard>} />
+      {/* /portal/subscription-success removed in Phase 3.B.3 — PayPal subscriptions decommissioned. */}
       <Route path="/portal/subscription-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* Legacy URL redirects for email links */}

@@ -247,45 +247,28 @@ export default function CoreCancellationsPage() {
           }
         }
 
-        // STEP 2a — PayPal: cancel recurring binding
+        // STEP 2a/2b — PayPal cancellation & refund: DECOMMISSIONED in Phase 3.B.3.
+        // The `paypal-cancel-subscription` and `paypal-refund` edge functions are
+        // now HTTP 410 stubs, and DB triggers block any write with provider='paypal'.
+        // For accounts historically enrolled in PayPal recurring, the operator
+        // must cancel the PayPal subscription and issue the refund directly in
+        // the PayPal dashboard. Nivra reconciliation is unaffected — the
+        // subscription is already marked cancelled above, and a manual
+        // refund (negative billing_payment, provider='manual') can be recorded
+        // from InvoiceActions if needed.
         if (paypalSubscriptionId && cancelledSubscriptionId) {
-          try {
-            await supabase.functions.invoke("paypal-cancel-subscription", {
-              body: {
-                subscription_id: cancelledSubscriptionId,
-                account_id: accountId,
-                reason: req.reason_code || "service_cancelled",
-              },
-            });
-          } catch (ppErr: any) {
-            console.error("[CoreCancellations] paypal-cancel-subscription failed:", ppErr?.message ?? ppErr);
-          }
+          console.warn(
+            "[CoreCancellations] Legacy PayPal subscription — cancel manually in PayPal dashboard:",
+            { subscription_id: cancelledSubscriptionId, paypal_subscription_id: paypalSubscriptionId },
+          );
+        }
+        if (refundMode !== "none" && refundMode !== "credit" && refundAmount > 0 && accountId) {
+          console.warn(
+            "[CoreCancellations] Legacy PayPal refund requested — issue manually in PayPal dashboard:",
+            { account_id: accountId, refund_amount: refundAmount },
+          );
         }
 
-        // STEP 2b — PayPal refund (if requested)
-        if (refundMode !== "none" && refundMode !== "credit" && refundAmount > 0 && accountId) {
-          try {
-            const { data: lastPayment } = await supabase
-              .from("billing_payments")
-              .select("id, status")
-              .eq("customer_id", (await supabase.from("billing_customers").select("id").eq("account_id", accountId as any).maybeSingle()).data?.id ?? "")
-              .eq("status", "captured")
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            if (lastPayment?.id) {
-              await supabase.functions.invoke("paypal-refund", {
-                body: {
-                  payment_id: lastPayment.id,
-                  amount: refundAmount,
-                  reason: `Service cancellation — ${req.reason_code ?? "n/a"}`,
-                },
-              });
-            }
-          } catch (refErr: any) {
-            console.error("[CoreCancellations] paypal-refund failed:", refErr?.message ?? refErr);
-          }
-        }
       } catch (e: any) {
         console.error("[CoreCancellations] STEP 2 subscription deactivation failed:", e?.message ?? e);
       }
