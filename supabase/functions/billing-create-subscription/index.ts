@@ -1,6 +1,40 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { computeTaxes } from "../_shared/tax-constants.ts";
+
+/**
+ * ============================================================================
+ * billing-create-subscription — Phase 3.A REWRITE
+ * ============================================================================
+ *
+ *   • AUCUNE écriture directe sur billing_subscriptions / billing_invoices /
+ *     billing_invoice_lines / billing_payments.
+ *   • AUCUN calcul local de taxes, subtotal, balance_due, promotion, crédit.
+ *   • Passe exclusivement par les RPC canoniques SECURITY DEFINER :
+ *       - create_subscription_ad_hoc  (Phase 3.A)
+ *       - build_invoice_ad_hoc        (Phase 3.A)
+ *       - apply_payment_to_invoice    (Phase 2, si paiement fourni)
+ *   • Les taxes sont figées par le RPC (tax_snapshot) — trigger Phase 2.
+ *
+ *   Ancien comportement :
+ *     1. INSERT direct billing_subscriptions
+ *     2. computeTaxes() local (TPS/TVQ recalculées côté app)
+ *     3. RPC legacy create_invoice_with_lines (avec calculs pré-injectés)
+ *     4. INSERT direct billing_payments
+ *
+ *   Nouveau comportement :
+ *     1. RPC create_subscription_ad_hoc → subscription figée (frozen_*)
+ *     2. RPC build_invoice_ad_hoc → facture avec tax_snapshot figé
+ *     3. (option) RPC apply_payment_to_invoice
+ *
+ *   Logique supprimée :
+ *     - import { computeTaxes } from "../_shared/tax-constants.ts"
+ *     - calcul de subtotal, tpsAmount, tvqAmount, total
+ *     - INSERT direct sur billing_subscriptions, billing_invoices,
+ *       billing_invoice_lines, billing_payments
+ *     - rollback manuel des subscriptions/lines (l'atomicité est assurée
+ *       par le RPC SECURITY DEFINER)
+ * ============================================================================
+ */
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,17 +43,19 @@ const corsHeaders = {
 
 interface CreateSubscriptionRequest {
   customer_id?: string;
-  // If no customer_id, create new customer
   first_name?: string;
   last_name?: string;
   email?: string;
   phone?: string;
   user_id?: string;
-  // Subscription details
   plan_code: string;
   plan_name: string;
   plan_price: number;
-  payment_method?: 'interac' | 'manual';
+  service_category?: string;
+  address_id?: string;
+  payment_method?: "interac" | "manual";
+  // Contexte de traçabilité optionnel
+  request_id?: string;
 }
 
 serve(async (req) => {
@@ -32,52 +68,48 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase: any = createClient<any>(supabaseUrl, supabaseServiceKey);
 
-    // Auth gate: require JWT from authenticated staff
+    // ── Auth gate ─────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Authentication required" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Authentication required" }, 401);
     }
-    const callerClient: any = createClient<any>(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user: callerUser }, error: callerErr } = await callerClient.auth.getUser();
-    if (callerErr || !callerUser?.id) {
-      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const callerClient: any = createClient<any>(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: { user: callerUser } } = await callerClient.auth.getUser();
+    if (!callerUser?.id) return json({ error: "Invalid authentication" }, 401);
+
     const { data: callerRole } = await supabase
-      .from("user_roles").select("role").eq("user_id", callerUser.id).eq("status", "active").maybeSingle();
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerUser.id)
+      .eq("status", "active")
+      .maybeSingle();
     const staffRoles = ["admin", "super_admin", "owner", "employee", "agent", "field_agent", "billing_admin"];
     if (!callerRole || !staffRoles.includes(callerRole.role)) {
-      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Insufficient permissions" }, 403);
     }
 
     const body: CreateSubscriptionRequest = await req.json();
-    
+
+    // ── Step 1 : résolution du billing_customer ───────────────────────────
     let customerId = body.customer_id;
-    
-    // Step 1: Create or get customer
     if (!customerId) {
       if (!body.email || !body.first_name || !body.last_name || !body.phone) {
-        throw new Error("Missing customer details: first_name, last_name, email, phone required");
+        return json({ error: "Missing customer details: first_name, last_name, email, phone required" }, 400);
       }
-      
-      // Check if customer exists by email
       const { data: existingCustomer } = await supabase
         .from("billing_customers")
         .select("id")
         .eq("email", body.email)
-        .single();
-      
+        .maybeSingle();
+
       if (existingCustomer) {
         customerId = existingCustomer.id;
       } else {
-        const { data: newCustomer, error: customerError } = await supabase
+        const { data: newCustomer, error: custErr } = await supabase
           .from("billing_customers")
           .insert({
             first_name: body.first_name,
@@ -85,22 +117,24 @@ serve(async (req) => {
             email: body.email,
             phone: body.phone,
             user_id: body.user_id || null,
-            status: 'active'
+            status: "active",
           })
-          .select()
+          .select("id")
           .single();
-        
-        if (customerError) throw customerError;
+        if (custErr) throw custErr;
         customerId = newCustomer.id;
       }
     }
-    
-    // Step 2: Create subscription (with dedup guard for double-click — E2 fix)
+
+    // ── Step 2 : cycle de facturation ─────────────────────────────────────
+    const { nextAnchoredDate } = await import("../_shared/billing-utils.ts");
     const cycleStartDate = new Date();
     const anchorDay = cycleStartDate.getDate();
-    const { nextAnchoredDate } = await import("../_shared/billing-utils.ts");
     const cycleEndDate = nextAnchoredDate(anchorDay, cycleStartDate);
+    const cycleStart = cycleStartDate.toISOString().split("T")[0];
+    const cycleEnd = cycleEndDate.toISOString().split("T")[0];
 
+    // Dedup guard : double-click sous 5 minutes
     const { data: recentSub } = await supabase
       .from("billing_subscriptions")
       .select("id")
@@ -111,139 +145,145 @@ serve(async (req) => {
 
     if (recentSub) {
       const { data: existingInv } = await supabase
-        .from("billing_invoices").select("id, invoice_number").eq("subscription_id", recentSub.id).maybeSingle();
-      return new Response(
-        JSON.stringify({ subscription_id: recentSub.id, invoice_id: existingInv?.id, invoice_number: existingInv?.invoice_number, idempotent: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        .from("billing_invoices")
+        .select("id, invoice_number, total")
+        .eq("subscription_id", recentSub.id)
+        .maybeSingle();
+      return json({
+        subscription_id: recentSub.id,
+        invoice_id: existingInv?.id,
+        invoice_number: existingInv?.invoice_number,
+        total: existingInv?.total,
+        idempotent: true,
+      });
     }
 
-    const { data: subscription, error: subError } = await supabase
-      .from("billing_subscriptions")
-      .insert({
-        customer_id: customerId,
-        plan_code: body.plan_code,
-        plan_name: body.plan_name,
-        plan_price: body.plan_price,
-        cycle_start_date: cycleStartDate.toISOString().split('T')[0],
-        cycle_end_date: cycleEndDate.toISOString().split('T')[0],
-        billing_anchor_date: cycleStartDate.toISOString().split('T')[0],
-        status: 'pending'
-      })
-      .select()
-      .single();
-    
-    if (subError) throw subError;
-    const newSubscriptionId = subscription.id; // track for rollback if invoice fails
+    const provenanceContext = {
+      edge_function_name: "billing-create-subscription",
+      module: "billing",
+      actor_user_id: callerUser.id,
+      actor_role: callerRole.role,
+      reason: "staff_create_subscription",
+      request_id: body.request_id || crypto.randomUUID(),
+      source_type: "staff_manual",
+    };
 
-    // Step 3: Generate invoice number
-    const { data: invoiceNumberData } = await supabase
-      .rpc("generate_billing_invoice_number");
-    
-    const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
-    
-    // Step 4: Calculate amounts via canonical tax module
-    const subtotal = body.plan_price;
-    const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
-    
-    // Due date = cycle end date
-    const dueDate = cycleEndDate.toISOString().split('T')[0];
-    
-    // Step 5: Create invoice WITH lines atomically via RPC
-    const { data: invoiceId, error: invoiceError } = await supabase
-      .rpc("create_invoice_with_lines", {
-        p_subscription_id: subscription.id,
+    // ── Step 3 : RPC canonique — création abonnement (prix figé frozen_*) ─
+    const { data: newSubId, error: subErr } = await supabase.rpc(
+      "create_subscription_ad_hoc",
+      {
         p_customer_id: customerId,
-        p_invoice_number: invoiceNumber,
-        p_type: 'initial',
-        p_subtotal: subtotal,
-        p_tps_amount: tpsAmount,
-        p_tvq_amount: tvqAmount,
-        p_total: total,
-        p_payment_method: body.payment_method || 'interac',
-        p_cycle_start: cycleStartDate.toISOString().split('T')[0],
-        p_cycle_end: cycleEndDate.toISOString().split('T')[0],
-        p_due_date: dueDate,
+        p_plan_code: body.plan_code,
+        p_plan_name: body.plan_name,
+        p_plan_price: body.plan_price,
+        p_service_category: body.service_category ?? null,
+        p_cycle_start: cycleStart,
+        p_cycle_end: cycleEnd,
+        p_context: provenanceContext,
+        p_address_id: body.address_id ?? null,
         p_order_id: null,
-        p_lines: JSON.stringify([{
-          description: `${body.plan_name} – 30 jours`,
-          unit_price: body.plan_price,
-          quantity: 1,
-          line_total: body.plan_price,
-          line_type: 'service'
-        }])
-      });
-    
-    if (invoiceError) {
-      await supabase.from("billing_subscriptions").delete().eq("id", newSubscriptionId).catch(() => {});
-      console.error(`[billing-create-subscription] Rolled back subscription ${newSubscriptionId} after invoice failure`);
-      throw invoiceError;
-    }
+        p_status: "pending",
+        p_auto_billing: false,
+      },
+    );
+    if (subErr) throw new Error(`create_subscription_ad_hoc failed: ${subErr.message}`);
+    const subscriptionId = newSubId as string;
 
-    // Step 6: Create pending payment record
+    // ── Step 4 : RPC canonique — facture initiale (taxes figées) ──────────
+    // ⚠️ Aucun calcul TPS/TVQ ici. Le subtotal est déduit des lignes par le RPC.
+    const invoiceLines = [{
+      description: `${body.plan_name} – 30 jours`,
+      unit_price: body.plan_price,
+      quantity: 1,
+      line_total: body.plan_price,
+      line_type: "service",
+      line_kind: "product_recurring",
+      source_ref: "subscription_creation",
+    }];
+
+    const { data: invoiceId, error: invErr } = await supabase.rpc(
+      "build_invoice_ad_hoc",
+      {
+        p_customer_id: customerId,
+        p_subscription_id: subscriptionId,
+        p_type: "initial",
+        p_cycle_start: cycleStart,
+        p_cycle_end: cycleEnd,
+        p_due_date: cycleEnd,
+        p_lines: invoiceLines,
+        p_context: provenanceContext,
+        p_order_id: null,
+        p_notes: null,
+      },
+    );
+    if (invErr) throw new Error(`build_invoice_ad_hoc failed: ${invErr.message}`);
+
+    // Récupérer les montants figés pour l'email
+    const { data: invoice } = await supabase
+      .from("billing_invoices")
+      .select("invoice_number, subtotal, tps_amount, tvq_amount, total")
+      .eq("id", invoiceId)
+      .single();
+
+    // ── Step 5 : lier subscription.last_invoice_id (métadonnée non-financière) ─
+    // last_invoice_id est un pointeur, pas un champ financier immuable.
     await supabase
-      .from("billing_payments")
-      .insert({
-        invoice_id: invoiceId,
-        customer_id: customerId,
-        method: body.payment_method || 'interac',
-        amount: total,
-        status: 'pending'
-      });
-    
-    // Step 8: Queue welcome email with invoice
+      .from("billing_subscriptions")
+      .update({ last_invoice_id: invoiceId })
+      .eq("id", subscriptionId);
+
+    // ── Step 6 : Email de bienvenue avec PDF officiel ─────────────────────
     const { data: customer } = await supabase
       .from("billing_customers")
       .select("email, first_name, last_name")
       .eq("id", customerId)
       .single();
-    
-    if (customer) {
-      // Generate invoice PDF (non-blocking)
+
+    if (customer && invoice) {
       const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
       const pdfAttachment = await buildInvoicePdfAttachment(invoiceId, "facture");
 
       await supabase.from("email_queue").insert({
-        event_key: `billing_sub_${subscription.id}_${invoiceNumber}`,
+        event_key: `billing_sub_${subscriptionId}_${invoice.invoice_number}`,
         to_email: customer.email,
         template_key: "invoice_created",
         template_vars: {
           client_name: `${customer.first_name} ${customer.last_name}`,
-          invoice_number: invoiceNumber,
+          invoice_number: invoice.invoice_number,
           plan_name: body.plan_name,
-          subtotal: subtotal.toFixed(2),
-          tps_amount: tpsAmount.toFixed(2),
-          tvq_amount: tvqAmount.toFixed(2),
-          total: total.toFixed(2),
-          amount: total.toFixed(2),
-          due_date: dueDate,
-          cycle_start: cycleStartDate.toISOString().split('T')[0],
-          cycle_end: cycleEndDate.toISOString().split('T')[0]
+          subtotal: Number(invoice.subtotal).toFixed(2),
+          tps_amount: Number(invoice.tps_amount).toFixed(2),
+          tvq_amount: Number(invoice.tvq_amount).toFixed(2),
+          total: Number(invoice.total).toFixed(2),
+          amount: Number(invoice.total).toFixed(2),
+          due_date: cycleEnd,
+          cycle_start: cycleStart,
+          cycle_end: cycleEnd,
         },
         attachments: pdfAttachment ? [pdfAttachment] : null,
         status: "queued",
         attempts: 0,
-        max_attempts: 5
+        max_attempts: 5,
       });
     }
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        customer_id: customerId,
-        subscription_id: subscription.id,
-        invoice_id: invoiceId,
-        invoice_number: invoiceNumber,
-        total
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-    
+
+    return json({
+      success: true,
+      customer_id: customerId,
+      subscription_id: subscriptionId,
+      invoice_id: invoiceId,
+      invoice_number: invoice?.invoice_number,
+      total: invoice?.total,
+    });
   } catch (error) {
-    console.error("Error creating subscription:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("[billing-create-subscription] Error:", error);
+    return json({ error: error instanceof Error ? error.message : String(error) }, 400);
   }
 });
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
