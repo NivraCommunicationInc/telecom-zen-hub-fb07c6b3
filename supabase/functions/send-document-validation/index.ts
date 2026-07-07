@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import jsPDF from "npm:jspdf@2.5.2";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
