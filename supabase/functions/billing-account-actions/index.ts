@@ -552,22 +552,33 @@ serve(async (req) => {
 
         // ── PayPal: appel API réel AVANT toute écriture en DB ──
         // Si l'appel échoue, on n'enregistre rien et on retourne une erreur.
-        let paypalRefundId: string | null = null;
+        // ────────────────────────────────────────────────────────────────
+        // Phase 3 V2 — PayPal décommissionné (3.C.4).
+        // Le chemin "confirm PayPal refund" est mort. Aucun fetch vers l'API
+        // PayPal, aucune mutation directe de billing_payments/billing_invoices.
+        // ────────────────────────────────────────────────────────────────
         if (refund_method === "paypal") {
-          if (!body.payment_id) {
-            return json(400, { error: "payment_id requis pour un remboursement PayPal" });
-          }
+          return json(410, {
+            error: "paypal_refund_decommissioned",
+            code: "PAYPAL_DECOMMISSIONED",
+            message: "Les remboursements PayPal ne sont plus possibles. Utilisez `refund_payment` (RPC) pour les paiements Square.",
+            phase: "3.V2",
+          });
+        }
 
+        // ────────────────────────────────────────────────────────────────
+        // Chemin Square / "original" : passage obligatoire par la RPC
+        // canonique `refund_payment` — aucune mutation directe des tables
+        // financières côté Edge Function.
+        // ────────────────────────────────────────────────────────────────
+        if (refund_method === "original" && body.payment_id) {
           const { data: payment, error: payErr } = await admin
             .from("billing_payments")
-            .select("id, amount, status, provider_payment_id, invoice_id")
+            .select("id, amount, status, provider, provider_payment_id, invoice_id")
             .eq("id", body.payment_id)
             .single();
 
           if (payErr || !payment) return json(404, { error: "Paiement introuvable" });
-          if (!payment.provider_payment_id) {
-            return json(400, { error: "Aucun capture ID PayPal sur ce paiement — remboursement PayPal impossible" });
-          }
           if (payment.status === "refunded") {
             return json(409, { error: "Ce paiement a déjà été remboursé" });
           }
@@ -575,50 +586,8 @@ serve(async (req) => {
             return json(400, { error: `Montant (${amount.toFixed(2)} $) supérieur au paiement original (${Number(payment.amount).toFixed(2)} $)` });
           }
 
-          const ppClientId = Deno.env.get("PAYPAL_CLIENT_ID");
-          const ppSecret = Deno.env.get("PAYPAL_SECRET");
-          if (!ppClientId || !ppSecret) return json(500, { error: "Identifiants PayPal non configurés" });
-          const PAYPAL_API = Deno.env.get("PAYPAL_API_URL") || "https://api-m.paypal.com";
-
-          const tokenRes = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
-            method: "POST",
-            headers: {
-              Authorization: `Basic ${btoa(`${ppClientId}:${ppSecret}`)}`,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: "grant_type=client_credentials",
-          });
-          if (!tokenRes.ok) {
-            const t = await tokenRes.text();
-            console.error("[DirectRefund] PayPal auth failed:", tokenRes.status, t);
-            return json(502, { error: "Échec authentification PayPal — aucune modification en base", details: t });
-          }
-          const { access_token } = await tokenRes.json();
-
-          const isPartial = amount < Number(payment.amount);
-          const ppBody: Record<string, unknown> = { note_to_payer: body.reason.trim().substring(0, 255) };
-          // ================================================================
-          // Phase 3 V2 : PayPal est décommissionné (3.C.4). Le chemin
-          // "confirm PayPal refund" est mort. Toute modification financière
-          // (billing_payments/billing_invoices) doit passer par la RPC
-          // canonique `refund_payment`. Le seul enregistrement conservé ici
-          // est l'entrée d'audit `client_direct_refunds` (log métier).
-          // ================================================================
-          return json(410, {
-            error: "paypal_refund_decommissioned",
-            code: "PAYPAL_DECOMMISSIONED",
-            message: "Les remboursements PayPal ne sont plus possibles. Utilisez `refund_payment` pour les paiements Square.",
-            phase: "3.V2",
-          });
-        }
-
-        // ────────────────────────────────────────────────────────────────
-        // Chemin Square / manuel : passage obligatoire par la RPC canonique
-        // `refund_payment` avant tout enregistrement du log métier.
-        // ────────────────────────────────────────────────────────────────
-        if (refund_method === "original" && payment?.provider === "square") {
           const { data: refundRpc, error: refundErr } = await admin.rpc("refund_payment", {
-            p_provider: "square",
+            p_provider: payment.provider ?? "square",
             p_event_id: `direct-refund-${body.idempotency_key}`,
             p_original_payment_id: body.payment_id,
             p_amount: amount,
@@ -628,7 +597,7 @@ serve(async (req) => {
             p_context: {
               source: "billing-account-actions",
               idempotency_key: body.idempotency_key,
-              partial: isPartial,
+              partial: amount < Number(payment.amount),
               performed_by: user.id,
             },
           });

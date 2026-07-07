@@ -55,13 +55,13 @@ serve(async (req) => {
 
     if (!amount || amount < 5) throw new Error("Montant minimum: 5$");
     if (amount > 1000) throw new Error("Montant maximum: 1000$");
-    if (!paypal_capture_id) throw new Error("paypal_capture_id requis");
+    if (!captureId) throw new Error("capture_id requis");
 
-    // Idempotency: check if this PayPal capture was already processed
+    // Idempotency: check if this Square capture was already processed
     const { data: existingPayment } = await db
       .from("billing_payments")
       .select("id")
-      .eq("provider_payment_id", paypal_capture_id)
+      .eq("provider_payment_id", captureId)
       .maybeSingle();
 
     if (existingPayment) {
@@ -104,9 +104,9 @@ serve(async (req) => {
       const { data: rpcResult, error: rpcError } = await db.rpc("apply_payment_to_invoice", {
         p_invoice_id: inv.id,
         p_amount: applyAmount,
-        p_method: "paypal",
-        p_provider: "paypal",
-        p_provider_payment_id: paypal_capture_id,
+        p_method: "card",
+        p_provider: "square",
+        p_provider_payment_id: captureId,
         p_source: "portal",
         p_created_by_name: `${customer.first_name} ${customer.last_name}`,
         p_created_by_role: "client",
@@ -172,9 +172,9 @@ serve(async (req) => {
         invoice_id: creditInvoice?.id || (unpaidInvoices?.[0]?.id ?? null),
         payment_number: creditPaymentNumber,
         amount: creditAmount,
-        method: "paypal",
-        provider: "paypal",
-        provider_payment_id: `${paypal_capture_id}_credit`,
+        method: "card",
+        provider: "square",
+        provider_payment_id: `${captureId}_credit`,
         status: "confirmed",
         source: "portal",
         created_by_name: `${customer.first_name} ${customer.last_name}`,
