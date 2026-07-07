@@ -1007,9 +1007,9 @@ Deno.serve(async (req) => {
             invoiceId = newInvoice.id;
             console.log(`[field-sales-sync] Created invoice ${invoiceNum} for order ${canonicalOrder.order_number || canonicalOrder.id}`);
 
-            // Create invoice lines
-            for (const li of lineItems) {
-              const { error: lineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
+            // Create invoice lines in one statement so the deferred invoice/order
+            // integrity trigger sees the complete invoice, not a partial first line.
+            const invoiceLines = lineItems.map((li) => ({
                 invoice_id: invoiceId,
                 description: li.name,
                 unit_price: li.unit_price,
@@ -1019,10 +1019,10 @@ Deno.serve(async (req) => {
                 source_ref: li.category === "discount" ? "promotion_applied" : "manual_admin",
                 line_kind: invoiceLineKind(li),
                 service_address_id: staffServiceAddress?.id || null,
-              });
-              if (lineErr) {
-                throw new Error(`Invoice line creation failed: ${lineErr.message}`);
-              }
+            }));
+            const { error: lineErr } = await supabaseAdmin.from("billing_invoice_lines").insert(invoiceLines);
+            if (lineErr) {
+              throw new Error(`Invoice line creation failed: ${lineErr.message}`);
             }
 
             // RULE 1 â€” Premier mois gratuit automatique UNIQUEMENT pour les
