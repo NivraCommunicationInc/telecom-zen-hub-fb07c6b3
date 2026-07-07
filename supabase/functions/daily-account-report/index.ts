@@ -14,6 +14,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { violetShell } from "../_shared/violetEmailShell.ts";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const REPORT_TO = "support@nivra-telecom.ca";
 const FROM_EMAIL = "Nivra Telecom <noreply@nivra-telecom.ca>";
