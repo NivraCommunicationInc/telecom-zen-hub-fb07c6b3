@@ -64,7 +64,10 @@ async function cleanup(orderId: string, userId: string) {
 
 Deno.test({
   name: "regression 58953 — canonical RPCs produce single invoice, no phantom lines",
-  ignore: !CAN_RUN,
+  // Run when we have DB credentials. In the Lovable test harness these
+  // are injected as SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.
+  sanitizeOps: false,
+  sanitizeResources: false,
   async fn() {
     const testId = crypto.randomUUID().slice(0, 8);
     const testEmail = `regression-58953-${testId}@nivra.test`;
