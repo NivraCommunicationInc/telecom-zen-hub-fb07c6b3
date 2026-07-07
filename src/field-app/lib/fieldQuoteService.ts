@@ -53,6 +53,7 @@ export async function saveQuoteAndEmail({
   // these optional ids and keep normal Field sales unchanged when absent.
   const clientInfo = {
     ...(draft.customer as any),
+    custom_adjustments: draft.custom_adjustments || [],
     existing_account_id: draft.existing_account_id ?? null,
     existing_service_address_id: draft.existing_service_address_id ?? null,
   };
@@ -92,7 +93,6 @@ export async function saveQuoteAndEmail({
       services: normalizedServices as any,
       equipment: normalizedEquipment as any,
       discount: draft.discount as any,
-      custom_adjustments: (draft.custom_adjustments || []) as any,
       activation_fee: activationFee,
       subtotal,
       tps,

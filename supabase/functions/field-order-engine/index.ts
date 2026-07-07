@@ -521,7 +521,7 @@ Deno.serve(async (req) => {
       const fieldServices = [
         ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
         ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
-        ...(((quote as any).custom_adjustments || []) as any[]).map((adjustment: any) => {
+        ...((ci.custom_adjustments || (quote as any).custom_adjustments || []) as any[]).map((adjustment: any) => {
           const amount = Math.max(0, Number(adjustment?.amount || 0));
           const signedAmount = adjustment?.kind === "fee" ? amount : -amount;
           return {
@@ -646,7 +646,7 @@ Deno.serve(async (req) => {
           price_monthly: 0,
           monthly_price: 0,
         }] : []),
-        ...(((quote as any).custom_adjustments || []) as any[]).map((adjustment: any) => {
+        ...((ci.custom_adjustments || (quote as any).custom_adjustments || []) as any[]).map((adjustment: any) => {
           const amount = Math.max(0, Number(adjustment?.amount || 0));
           const signedAmount = adjustment?.kind === "fee" ? amount : -amount;
           return {
