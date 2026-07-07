@@ -2773,6 +2773,9 @@ export type Database = {
           status: Database["public"]["Enums"]["billing_invoice_status"] | null
           subscription_id: string | null
           subtotal: number
+          tax_gst_rate: number | null
+          tax_qst_rate: number | null
+          tax_snapshot: Json | null
           total: number
           tps_amount: number
           tvq_amount: number
@@ -2814,6 +2817,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["billing_invoice_status"] | null
           subscription_id?: string | null
           subtotal?: number
+          tax_gst_rate?: number | null
+          tax_qst_rate?: number | null
+          tax_snapshot?: Json | null
           total?: number
           tps_amount?: number
           tvq_amount?: number
@@ -2855,6 +2861,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["billing_invoice_status"] | null
           subscription_id?: string | null
           subtotal?: number
+          tax_gst_rate?: number | null
+          tax_qst_rate?: number | null
+          tax_snapshot?: Json | null
           total?: number
           tps_amount?: number
           tvq_amount?: number
@@ -3053,6 +3062,66 @@ export type Database = {
             referencedColumns: ["invoice_id"]
           },
         ]
+      }
+      billing_provenance: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          edge_function_name: string | null
+          event: string
+          id: string
+          ip_address: string | null
+          module: string | null
+          object_id: string
+          object_type: string
+          parent_object_id: string | null
+          parent_object_type: string | null
+          payload_snapshot: Json
+          reason: string | null
+          request_id: string | null
+          rpc_name: string
+          user_agent: string | null
+        }
+        Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          edge_function_name?: string | null
+          event: string
+          id?: string
+          ip_address?: string | null
+          module?: string | null
+          object_id: string
+          object_type: string
+          parent_object_id?: string | null
+          parent_object_type?: string | null
+          payload_snapshot?: Json
+          reason?: string | null
+          request_id?: string | null
+          rpc_name: string
+          user_agent?: string | null
+        }
+        Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          edge_function_name?: string | null
+          event?: string
+          id?: string
+          ip_address?: string | null
+          module?: string | null
+          object_id?: string
+          object_type?: string
+          parent_object_id?: string | null
+          parent_object_type?: string | null
+          payload_snapshot?: Json
+          reason?: string | null
+          request_id?: string | null
+          rpc_name?: string
+          user_agent?: string | null
+        }
+        Relationships: []
       }
       billing_subscription_services: {
         Row: {
@@ -29223,6 +29292,19 @@ export type Database = {
         Args: { p_function_name: string; p_payload: Json }
         Returns: undefined
       }
+      _nivra_record_provenance: {
+        Args: {
+          p_context: Json
+          p_event: string
+          p_object_id: string
+          p_object_type: string
+          p_parent_object_id?: string
+          p_parent_object_type?: string
+          p_payload?: Json
+          p_rpc_name: string
+        }
+        Returns: string
+      }
       _resolve_client_from_account: {
         Args: { _account_id: string }
         Returns: string
@@ -29289,24 +29371,55 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_credit_to_invoice: {
+        Args: {
+          p_amount: number
+          p_context?: Json
+          p_credit_id: string
+          p_invoice_id: string
+        }
+        Returns: string
+      }
       apply_email_claim: {
         Args: { _email: string; _user_id: string }
         Returns: Json
       }
-      apply_payment_to_invoice: {
+      apply_payment_to_invoice:
+        | {
+            Args: {
+              p_amount: number
+              p_created_by_name?: string
+              p_created_by_role?: string
+              p_customer_id?: string
+              p_invoice_id: string
+              p_method?: string
+              p_provider?: string
+              p_provider_order_id?: string
+              p_provider_payment_id?: string
+              p_source?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_context?: Json
+              p_external_reference: string
+              p_invoice_id: string
+              p_method: string
+              p_provider: string
+              p_source: string
+            }
+            Returns: string
+          }
+      apply_promotion_to_order_item: {
         Args: {
           p_amount: number
-          p_created_by_name?: string
-          p_created_by_role?: string
-          p_customer_id?: string
-          p_invoice_id: string
-          p_method?: string
-          p_provider?: string
-          p_provider_order_id?: string
-          p_provider_payment_id?: string
-          p_source?: string
+          p_context?: Json
+          p_order_item_id: string
+          p_promotion_id: string
         }
-        Returns: Json
+        Returns: string
       }
       apply_prorata_to_invoice: {
         Args: {
@@ -29352,6 +29465,10 @@ export type Database = {
           p_slot_id: string
         }
         Returns: Json
+      }
+      build_invoice_from_order: {
+        Args: { p_context?: Json; p_order_id: string }
+        Returns: string
       }
       calculate_activation_fee: {
         Args: { service_count: number }
@@ -29438,6 +29555,14 @@ export type Database = {
           p_token: string
         }
         Returns: Json
+      }
+      close_and_supersede_subscription: {
+        Args: {
+          p_context?: Json
+          p_new_order_item_id: string
+          p_old_subscription_id: string
+        }
+        Returns: string
       }
       commit_order_atomic: { Args: { p_payload: Json }; Returns: Json }
       complete_kyc_request_by_token: {
@@ -29579,6 +29704,10 @@ export type Database = {
           p_services_snapshot?: Json
         }
         Returns: string
+      }
+      create_subscriptions_from_order: {
+        Args: { p_context?: Json; p_order_id: string }
+        Returns: string[]
       }
       create_supplier_account: {
         Args: {
@@ -30545,6 +30674,10 @@ export type Database = {
       regenerate_contract_pdf: {
         Args: { p_contract_id: string; p_create_new_version?: boolean }
         Returns: Json
+      }
+      renew_subscription: {
+        Args: { p_context?: Json; p_subscription_id: string }
+        Returns: string
       }
       repair_customer_portal_projection_batch: {
         Args: { _limit?: number }
