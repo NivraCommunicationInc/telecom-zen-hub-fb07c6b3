@@ -964,7 +964,9 @@ Deno.serve(async (req) => {
                 quantity: li.qty,
                 line_total: li.unit_price * li.qty,
                 line_type: li.category === "equipment" ? "equipment" : li.category === "fee" ? "fee" : li.category === "discount" ? "discount" : "service",
-              service_address_id: staffServiceAddress?.id || null,
+                source_ref: li.category === "discount" ? "promotion_applied" : "manual_admin",
+                line_kind: li.category === "discount" ? "discount" : li.category === "equipment" ? "equipment" : li.category === "fee" ? "fee" : "service",
+                service_address_id: staffServiceAddress?.id || null,
               });
               if (lineErr) {
                 throw new Error(`Invoice line creation failed: ${lineErr.message}`);
@@ -1000,6 +1002,8 @@ Deno.serve(async (req) => {
                   quantity: 1,
                   line_total: -monthlyTotal,
                   line_type: "discount",
+                  source_ref: "promotion_applied",
+                  line_kind: "discount",
                   service_address_id: staffServiceAddress?.id || null,
                 });
               if (autoFmErr) {
@@ -1019,6 +1023,8 @@ Deno.serve(async (req) => {
                   quantity: 1,
                   line_total: pendingDiscountLine.amount,
                   line_type: "discount",
+                  source_ref: "promotion_applied",
+                  line_kind: "discount",
                   service_address_id: staffServiceAddress?.id || null,
                 });
                 if (discLineErr) {
