@@ -217,6 +217,9 @@ export default function CorePhoneOrdersPage() {
       ]);
       if (updates.some((u) => u.error)) throw updates.find((u) => u.error)!.error;
 
+      // Phase 3.B.3 — `paypal-refund` is decommissioned. If the blocked order
+      // was paid via PayPal (historical), the operator must issue the refund
+      // manually in the PayPal dashboard. We only log for audit.
       try {
         const { data: pay } = await supabase
           .from("billing_payments")
@@ -225,14 +228,16 @@ export default function CorePhoneOrdersPage() {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (pay?.id) {
-          await supabase.functions.invoke("paypal-refund", {
-            body: { payment_id: pay.id, reason: "Order blocked by agent (risk review)" },
-          });
+        if (pay?.id && pay.provider === "paypal") {
+          console.warn(
+            "[phone-orders] Legacy PayPal refund required — process manually:",
+            { payment_id: pay.id, order_id: selected.order_id },
+          );
         }
       } catch (e) {
-        console.warn("[phone-orders] auto-refund skipped", e);
+        console.warn("[phone-orders] refund lookup skipped", e);
       }
+
 
       await queuePhoneEmail({
         recipient: selected.orders?.client_email,

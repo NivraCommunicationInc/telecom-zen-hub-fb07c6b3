@@ -359,31 +359,33 @@ export default function CorePlanChangesPage() {
               notes: newNotes,
             }).eq("id", pendingInv.id);
 
-            // For non-PayPal: update pending payment amount to match updated invoice
-            // For PayPal autopay upgrades: charge proration delta NOW via separate invocation;
-            // the renewal will be charged at the new plan price by PayPal at cycle end
+            // Phase 3.B.3 — PayPal proration charge is decommissioned. Legacy
+            // PayPal autopay upgrades now emit a system alert so an operator
+            // can charge the proration delta via Square (or reissue the
+            // invoice) manually. `paypal-charge-subscription` returns 410 and
+            // DB triggers block any new PayPal write.
             if (hasPayPalAutopay && isUpgrade) {
               const prorataWithTax = Math.round((prorataPreTax * (1 + TPS + TVQ)) * 100) / 100;
-              const { error: ppErr } = await supabase.functions.invoke("paypal-charge-subscription", {
-                body: { subscription_id: r.subscription_id, invoice_id: pendingInv.id, amount: prorataWithTax },
+              await supabase.from("billing_system_alerts").insert({
+                alert_type: "paypal_proration_charge_manual_required",
+                entity_type: "billing_invoice",
+                entity_id: pendingInv.id,
+                severity: "high",
+                message: `Proration à charger manuellement (Square) — ${r.current_plan_name} → ${r.requested_plan_name}, delta: ${prorataWithTax}$`,
+                details: {
+                  subscription_id: r.subscription_id,
+                  proration_pretax: prorataPreTax,
+                  proration_with_tax: prorataWithTax,
+                  reason: "paypal_decommissioned_phase_3b3",
+                },
               });
-              if (ppErr) {
-                console.error("[CorePlanChanges] PayPal proration charge failed:", ppErr);
-                await supabase.from("billing_system_alerts").insert({
-                  alert_type: "paypal_proration_charge_failed",
-                  entity_type: "billing_invoice",
-                  entity_id: pendingInv.id,
-                  severity: "high",
-                  message: `Proration PayPal non chargée — ${r.current_plan_name} → ${r.requested_plan_name}, delta: ${prorataWithTax}$`,
-                  details: { subscription_id: r.subscription_id, proration_pretax: prorataPreTax, proration_with_tax: prorataWithTax },
-                });
-              }
             } else {
               await supabase.from("billing_payments")
                 .update({ amount: newTotal })
                 .eq("invoice_id", pendingInv.id)
                 .eq("status", "pending");
             }
+
 
           } else {
             // No pending invoice yet — store for next renewal via account_adjustments
