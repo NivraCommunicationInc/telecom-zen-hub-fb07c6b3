@@ -13,6 +13,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { violetShell } from "../_shared/violetEmailShell.ts";
+import { sendResendEmail } from "../_shared/resendGateway.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
