@@ -603,6 +603,7 @@ type PaymentMethod = "paypal_done" | "etransfer" | "cash" | "to_invoice";
 type PaymentStatus = "paid" | "pending";
 type KycChoice = "approved" | "required" | "not_required";
 type DiscountReason = "promotion" | "loyalty" | "employee" | "exchange" | "other";
+type FulfillmentMode = "self_standard" | "self_express" | "technician";
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   paypal_done: "PayPal déjà traité",
@@ -618,6 +619,12 @@ const DISCOUNT_LABELS: Record<DiscountReason, string> = {
   exchange: "Échange",
   other: "Autre",
 };
+
+const FULFILLMENT_OPTIONS: { key: FulfillmentMode; label: string; desc: string; fee: number }[] = [
+  { key: "self_standard", label: "Auto-installation — Livraison standard", desc: "Livraison 2-5 jours ouvrables. Client installe lui-même.", fee: 20 },
+  { key: "self_express",  label: "Auto-installation — Livraison Express (Uber Direct)", desc: "Livraison le jour même ou lendemain. Client installe lui-même.", fee: 40 },
+  { key: "technician",    label: "Installation par technicien",           desc: "Un technicien Nivra se déplace pour installer.", fee: 50 },
+];
 
 function ManualOrderDialog({
   open,
