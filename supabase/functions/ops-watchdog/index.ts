@@ -34,7 +34,7 @@ const CRITICAL_CRONS: { name: string; maxAgeMinutes: number }[] = [
   { name: "billing-reconcile-invoices", maxAgeMinutes: 60 * 25 },
   { name: "contract-signature-reminders-daily", maxAgeMinutes: 60 * 25 },
   { name: "email-queue-drain", maxAgeMinutes: 30 },
-  { name: "paypal-reconcile", maxAgeMinutes: 60 * 25 },
+  // paypal-reconcile retiré en Phase 3.C.4 (cron désinscrit, edge stub 410)
 ];
 
 interface Alert {
