@@ -878,6 +878,15 @@ Deno.serve(async (req) => {
           }
         }
 
+        const { data: primaryOrderItem } = await supabaseAdmin
+          .from("order_items")
+          .select("id")
+          .eq("order_id", canonicalOrder.id)
+          .eq("is_recurring", true)
+          .order("item_number", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
         const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status, sale.payment_method);
         if (!isBillableOrderStatus(canonicalOrder.status)) {
           const { error: promoteOrderError } = await supabaseAdmin
@@ -1228,6 +1237,7 @@ Deno.serve(async (req) => {
             const subscriptionPayload = {
               customer_id: billingCustomerId,
               order_id: canonicalOrder.id,
+              source_order_item_id: primaryOrderItem?.id || null,
               service_address_id: staffServiceAddress?.id || null,
               plan_code: primaryRecurring?.type || services?.[0]?.category || "service",
               plan_name: primaryRecurring?.name || services?.[0]?.name || "Service",
@@ -1355,17 +1365,13 @@ Deno.serve(async (req) => {
             // Status starts as "pending" â€” a supervisor must approve before payday.
             const { error: fieldCommissionErr } = await supabaseAdmin
               .from("field_commissions")
-              .upsert({
+              .insert({
                 agent_id: sale.salesperson_id,
                 amount: totalCommission,
                 status: "pending",
                 earned_at: new Date().toISOString(),
                 order_id: canonicalOrder.id,
-                field_order_id: sale.id,
                 notes: `field-sales-sync: rate=${(commissionRate * 100).toFixed(0)}% bonus=${bonusAmount.toFixed(2)}$`,
-              }, {
-                onConflict: "field_order_id",
-                ignoreDuplicates: true,
               });
             if (fieldCommissionErr) {
               console.error("[field-sales-sync] field_commissions upsert failed (non-blocking):", fieldCommissionErr.message);
