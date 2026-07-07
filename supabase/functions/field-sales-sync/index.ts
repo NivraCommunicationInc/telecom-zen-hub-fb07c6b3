@@ -484,7 +484,21 @@ Deno.serve(async (req) => {
           if (unit === 0) continue;
           const kind = String(item?.kind || "").toLowerCase();
           const type = String(item?.type || "").toLowerCase();
-          const category = unit < 0 || String(item?.category || "").toLowerCase() === "discount" ? "discount" : "fee";
+
+          // ⛔ Refuse toute custom_adjustment négative. Un paiement déjà reçu
+          // ou un crédit n'est PAS une ligne de facture négative — il vit
+          // dans `billing_payments` (paiement) ou `account_adjustments`
+          // (crédit compte). C'est ce qui a produit la ligne fantôme
+          // « Paiement ID 7905998 = -126,47 » sur la commande 58953.
+          if (kind === "custom_adjustment" && unit < 0) {
+            throw new Error(
+              `Ligne d'ajustement négative refusée ("${item?.name || "sans nom"}", ${unit}$). ` +
+              `Un paiement reçu ou un crédit ne peut pas être une ligne de facture. ` +
+              `Utilise "Enregistrer un paiement externe" ou "Appliquer un crédit compte".`
+            );
+          }
+
+          const category = String(item?.category || "").toLowerCase() === "discount" ? "discount" : "fee";
           const name = String(item?.name || item?.label || (category === "fee" ? "Frais personnalisé" : "Crédit personnalisé"));
           lineItems.push({
             category,
