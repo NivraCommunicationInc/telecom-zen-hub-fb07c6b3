@@ -1,4 +1,24 @@
 ﻿import { createClient } from "npm:@supabase/supabase-js@2";
+// ============================================================================
+// nivra-core-sync — DOWNSTREAM READ-MODEL / MIRROR (Phase 3 V2)
+// ============================================================================
+// SENS UNIQUE : Nivra Core (source de vérité externe) → nivra-core-sync →
+// tables billing_* de ce projet Supabase (projection idempotente pour le
+// portail client et l'admin).
+//
+// Cette fonction ne peut JAMAIS devenir une source alternative de vérité :
+//   • Elle n'accepte que des payloads signés émis par Nivra Core.
+//   • Les upserts sur billing_invoices / billing_payments / billing_subscriptions
+//     sont des projections de l'état canonique déjà validé en amont.
+//   • Les triggers DB (trg_forbid_paypal_*, trg_assert_sub_provider_square,
+//     trg_forbid_live_catalog_read_on_renewal) restent la barrière ultime
+//     et bloqueront toute écriture non conforme.
+//
+// Toute création INDÉPENDANTE de facture / paiement / souscription initiée
+// depuis ce projet Supabase doit passer par les RPC canoniques
+// (`build_invoice_from_order`, `create_subscriptions_from_order`,
+// `apply_payment_to_invoice`, `refund_payment`, etc.), pas par cette fonction.
+// ============================================================================
 
 /**
  * nivra-core-sync - Webhook endpoint called by Nivra Core Worker

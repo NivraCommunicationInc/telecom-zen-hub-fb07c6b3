@@ -296,13 +296,12 @@ serve(async (req) => {
                 const prorationSubtotal = Math.round(priceDiff * (daysRemaining / 30) * 100) / 100;
 
                 if (prorationSubtotal >= 0.01) {
-                  const { tps: proTps, tvq: proTvq, total: proTotalWithTax } = computeTaxes(prorationSubtotal);
                   const lineDesc = `Ajustement proratisé — ${body.previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/30 jours)`;
 
                   // Try to find a current pending/issued invoice for this subscription
                   const { data: currentInvoice } = await admin
                     .from("billing_invoices")
-                    .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, balance_due")
+                    .select("id, invoice_number, cycle_start_date, cycle_end_date")
                     .eq("subscription_id", bSub.id)
                     .in("status", ["pending", "issued"])
                     .order("created_at", { ascending: false })
@@ -310,32 +309,40 @@ serve(async (req) => {
                     .maybeSingle();
 
                   if (currentInvoice) {
-                    // ── Case A: add line to existing invoice ─────────────
-                    await admin.from("billing_invoice_lines").insert({
-                      invoice_id: currentInvoice.id,
-                      description: lineDesc,
-                      unit_price: prorationSubtotal,
-                      quantity: 1,
-                      line_total: prorationSubtotal,
-                      line_type: "service",
-                    });
-                    await admin.from("billing_invoices").update({
-                      subtotal:    Number(currentInvoice.subtotal)    + prorationSubtotal,
-                      tps_amount:  Number(currentInvoice.tps_amount)  + proTps,
-                      tvq_amount:  Number(currentInvoice.tvq_amount)  + proTvq,
-                      total:       Number(currentInvoice.total)       + proTotalWithTax,
-                      balance_due: Number(currentInvoice.balance_due) + proTotalWithTax,
-                    }).eq("id", currentInvoice.id);
+                    // ── Case A: add line via canonical RPC ────────────────
+                    // Phase 3 V2: aucun calcul fiscal côté Edge — la RPC
+                    // add_prorata_line_to_invoice insère la ligne ET recalcule
+                    // TPS/TVQ/total/balance_due côté DB dans une transaction.
+                    const { data: proRes, error: proErr2 } = await admin.rpc(
+                      "add_prorata_line_to_invoice",
+                      {
+                        p_invoice_id: currentInvoice.id,
+                        p_description: lineDesc,
+                        p_subtotal: prorationSubtotal,
+                        p_line_type: "service",
+                        p_service_id: null,
+                        p_metadata: {
+                          source: "internet-account-actions",
+                          reason: "plan_change_prorata",
+                          days_remaining: daysRemaining,
+                          plan_before: body.previous_plan_name ?? null,
+                          plan_after: new_plan_name,
+                        },
+                      },
+                    );
+                    if (proErr2) {
+                      console.error("[internet-account-actions] add_prorata_line_to_invoice error:", proErr2);
+                      throw proErr2;
+                    }
 
-                    // Phase 3.C.3: PayPal decommissioned. Autopay for the prorated
-                    // top-up is handled by the Square autopay pipeline (billing-generate-renewals
-                    // and dunning). No provider call from this path.
+                    const proTotalWithTax = Number((proRes as any)?.line_total_with_tax ?? 0);
+                    const newInvoiceTotal = Number((proRes as any)?.new_invoice_total ?? 0);
 
                     const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
                     const invoicePdf = await buildInvoicePdfAttachment(currentInvoice.id, "Facture").catch(() => null);
                     await enqueueEmail("invoice_created", {
                       invoice_number: currentInvoice.invoice_number,
-                      total: (Number(currentInvoice.total) + proTotalWithTax).toFixed(2),
+                      total: newInvoiceTotal.toFixed(2),
                       amount: proTotalWithTax.toFixed(2),
                       due_date: bSub.cycle_end_date,
                       cycle_start: effective_date,

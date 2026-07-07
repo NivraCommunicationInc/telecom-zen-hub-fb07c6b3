@@ -552,22 +552,33 @@ serve(async (req) => {
 
         // ── PayPal: appel API réel AVANT toute écriture en DB ──
         // Si l'appel échoue, on n'enregistre rien et on retourne une erreur.
-        let paypalRefundId: string | null = null;
+        // ────────────────────────────────────────────────────────────────
+        // Phase 3 V2 — PayPal décommissionné (3.C.4).
+        // Le chemin "confirm PayPal refund" est mort. Aucun fetch vers l'API
+        // PayPal, aucune mutation directe de billing_payments/billing_invoices.
+        // ────────────────────────────────────────────────────────────────
         if (refund_method === "paypal") {
-          if (!body.payment_id) {
-            return json(400, { error: "payment_id requis pour un remboursement PayPal" });
-          }
+          return json(410, {
+            error: "paypal_refund_decommissioned",
+            code: "PAYPAL_DECOMMISSIONED",
+            message: "Les remboursements PayPal ne sont plus possibles. Utilisez `refund_payment` (RPC) pour les paiements Square.",
+            phase: "3.V2",
+          });
+        }
 
+        // ────────────────────────────────────────────────────────────────
+        // Chemin Square / "original" : passage obligatoire par la RPC
+        // canonique `refund_payment` — aucune mutation directe des tables
+        // financières côté Edge Function.
+        // ────────────────────────────────────────────────────────────────
+        if (refund_method === "original" && body.payment_id) {
           const { data: payment, error: payErr } = await admin
             .from("billing_payments")
-            .select("id, amount, status, provider_payment_id, invoice_id")
+            .select("id, amount, status, provider, provider_payment_id, invoice_id")
             .eq("id", body.payment_id)
             .single();
 
           if (payErr || !payment) return json(404, { error: "Paiement introuvable" });
-          if (!payment.provider_payment_id) {
-            return json(400, { error: "Aucun capture ID PayPal sur ce paiement — remboursement PayPal impossible" });
-          }
           if (payment.status === "refunded") {
             return json(409, { error: "Ce paiement a déjà été remboursé" });
           }
@@ -575,80 +586,34 @@ serve(async (req) => {
             return json(400, { error: `Montant (${amount.toFixed(2)} $) supérieur au paiement original (${Number(payment.amount).toFixed(2)} $)` });
           }
 
-          const ppClientId = Deno.env.get("PAYPAL_CLIENT_ID");
-          const ppSecret = Deno.env.get("PAYPAL_SECRET");
-          if (!ppClientId || !ppSecret) return json(500, { error: "Identifiants PayPal non configurés" });
-          const PAYPAL_API = Deno.env.get("PAYPAL_API_URL") || "https://api-m.paypal.com";
-
-          const tokenRes = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
-            method: "POST",
-            headers: {
-              Authorization: `Basic ${btoa(`${ppClientId}:${ppSecret}`)}`,
-              "Content-Type": "application/x-www-form-urlencoded",
+          const { data: refundRpc, error: refundErr } = await admin.rpc("refund_payment", {
+            p_provider: payment.provider ?? "square",
+            p_event_id: `direct-refund-${body.idempotency_key}`,
+            p_original_payment_id: body.payment_id,
+            p_amount: amount,
+            p_external_reference: body.external_reference ?? null,
+            p_reason: body.reason.trim(),
+            p_provider_created_at: new Date().toISOString(),
+            p_context: {
+              source: "billing-account-actions",
+              idempotency_key: body.idempotency_key,
+              partial: amount < Number(payment.amount),
+              performed_by: user.id,
             },
-            body: "grant_type=client_credentials",
           });
-          if (!tokenRes.ok) {
-            const t = await tokenRes.text();
-            console.error("[DirectRefund] PayPal auth failed:", tokenRes.status, t);
-            return json(502, { error: "Échec authentification PayPal — aucune modification en base", details: t });
-          }
-          const { access_token } = await tokenRes.json();
-
-          const isPartial = amount < Number(payment.amount);
-          const ppBody: Record<string, unknown> = { note_to_payer: body.reason.trim().substring(0, 255) };
-          if (isPartial) ppBody.amount = { value: amount.toFixed(2), currency_code: "CAD" };
-
-          const ppRes = await fetch(`${PAYPAL_API}/v2/payments/captures/${payment.provider_payment_id}/refund`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${access_token}`,
-              "Content-Type": "application/json",
-              "PayPal-Request-Id": `direct-refund-${body.idempotency_key}`,
-            },
-            body: JSON.stringify(ppBody),
-          });
-
-          if (!ppRes.ok) {
-            const errText = await ppRes.text();
-            console.error("[DirectRefund] PayPal refund failed:", ppRes.status, errText);
+          if (refundErr) {
+            console.error("[DirectRefund] refund_payment RPC error:", refundErr);
             return json(502, {
-              error: "Remboursement PayPal échoué — aucune modification en base",
-              paypal_status: ppRes.status,
-              details: errText,
+              error: "Remboursement échoué — aucune modification en base",
+              details: refundErr.message,
             });
           }
-
-          const ppData = await ppRes.json();
-          paypalRefundId = ppData.id;
-          console.log(`[DirectRefund] PayPal refund ${paypalRefundId} status: ${ppData.status}`);
-
-          // PayPal confirmé → mettre à jour billing_payments
-          const newPaymentStatus = isPartial ? "partially_refunded" : "refunded";
-          await admin.from("billing_payments").update({
-            status: newPaymentStatus as any,
-            legacy_note: `[REMBOURSÉ${isPartial ? " PARTIEL" : ""}] ${amount.toFixed(2)} CAD — ${body.reason.trim()} — PayPal: ${paypalRefundId}`,
-          }).eq("id", body.payment_id);
-
-          // Mettre à jour billing_invoices si lié
-          const targetInvoiceId = body.invoice_id ?? payment.invoice_id;
-          if (targetInvoiceId) {
-            const { data: inv } = await admin.from("billing_invoices")
-              .select("total, amount_paid")
-              .eq("id", targetInvoiceId)
-              .single();
-            if (inv) {
-              const newPaid = Math.max(0, Number(inv.amount_paid || 0) - amount);
-              await admin.from("billing_invoices").update({
-                status: (isPartial ? "partially_refunded" : "refunded") as any,
-                amount_paid: newPaid,
-                balance_due: Math.max(0, Number(inv.total) - newPaid),
-              }).eq("id", targetInvoiceId);
-            }
-          }
+          console.log(`[DirectRefund] refund_payment RPC id=${refundRpc}`);
         }
 
-        // PayPal confirmé (ou méthode non-PayPal) → enregistrer en DB
+        // Enregistrement du log métier (client_direct_refunds) — aucune
+        // mutation directe des tables financières ici : elles ont déjà été
+        // faites par la RPC `refund_payment` ci-dessus.
         const { data, error } = await admin.from("client_direct_refunds")
           .insert({
             user_id: client_user_id,
@@ -658,7 +623,7 @@ serve(async (req) => {
             amount,
             currency: "CAD",
             refund_method,
-            external_reference: paypalRefundId ?? body.external_reference ?? null,
+            external_reference: body.external_reference ?? null,
             reason: body.reason.trim(),
             status: "processed",
             approved_by: user.id,
@@ -667,7 +632,6 @@ serve(async (req) => {
             performed_by: user.id,
             metadata: {
               idempotency_key: body.idempotency_key,
-              ...(paypalRefundId ? { paypal_refund_id: paypalRefundId } : {}),
             },
           })
           .select("id")
@@ -676,19 +640,17 @@ serve(async (req) => {
 
         await audit("create_direct_refund", {
           refund_id: data.id, amount, refund_method,
-          external_reference: paypalRefundId ?? body.external_reference,
-          ...(paypalRefundId ? { paypal_refund_id: paypalRefundId } : {}),
+          external_reference: body.external_reference,
         });
         await enqueueEmail("client_direct_refund_processed", {
           amount: fmtMoney(amount),
           refund_method: METHOD_LABELS[refund_method] || refund_method,
-          external_reference: paypalRefundId ?? body.external_reference ?? "—",
+          external_reference: body.external_reference ?? "—",
           reason: body.reason.trim(),
         });
         return json(200, {
           ok: true,
           refund_id: data.id,
-          ...(paypalRefundId ? { paypal_refund_id: paypalRefundId } : {}),
         });
       }
 

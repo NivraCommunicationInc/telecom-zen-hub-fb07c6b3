@@ -29639,6 +29639,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      add_prorata_line_to_invoice: {
+        Args: {
+          p_description: string
+          p_invoice_id: string
+          p_line_type?: string
+          p_metadata?: Json
+          p_service_id?: string
+          p_subtotal: number
+        }
+        Returns: Json
+      }
       admin_promote_order_to_confirmed: {
         Args: { p_order_id: string }
         Returns: Json
@@ -29714,34 +29725,21 @@ export type Database = {
         }
         Returns: string
       }
-      apply_payment_to_invoice:
-        | {
-            Args: {
-              p_amount: number
-              p_created_by_name?: string
-              p_created_by_role?: string
-              p_customer_id?: string
-              p_invoice_id: string
-              p_method?: string
-              p_provider?: string
-              p_provider_order_id?: string
-              p_provider_payment_id?: string
-              p_source?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_context?: Json
-              p_external_reference: string
-              p_invoice_id: string
-              p_method: string
-              p_provider: string
-              p_source: string
-            }
-            Returns: string
-          }
+      apply_payment_to_invoice: {
+        Args: {
+          p_amount: number
+          p_created_by_name?: string
+          p_created_by_role?: string
+          p_customer_id?: string
+          p_invoice_id: string
+          p_method?: string
+          p_provider?: string
+          p_provider_order_id?: string
+          p_provider_payment_id?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
       apply_plan_change: {
         Args: {
           p_context?: Json
