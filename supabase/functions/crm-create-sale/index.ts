@@ -1,13 +1,18 @@
-﻿/**
- * crm-create-sale â€” Creates an order from a CRM call sale.
+/**
+ * crm-create-sale — Phase 3.A.1.b (canonical rewrite)
  *
- * Flow:
- *  1. Validates auth (agent must be field_sales OR employee role).
- *  2. Ensures the prospect has an auth account (via auto-create-client-account).
- *  3. Generates order_number via RPC.
- *  4. Inserts orders row with source='crm_call' + crm_contact_id (commission trigger fires).
- *  5. Updates crm_contacts (call_status='sold', converted_order_id, converted_to_user_id).
- *  6. Returns { order_id, order_number, commission_estimate }.
+ * Invariants respectés :
+ *  - AUCUNE écriture directe sur billing_invoices / billing_invoice_lines /
+ *    billing_subscriptions / billing_payments / account_adjustments.
+ *  - AUCUN calcul local de TPS/TVQ/total/balance. Les taxes sont calculées
+ *    exclusivement par build_invoice_from_order.
+ *  - Les rabais (agent + welcome premier mois) sont matérialisés comme lignes
+ *    order_items négatives ; ils font donc partie de la source unique.
+ *  - PayPal est délégué à paypal-create-order (best-effort, ne touche pas
+ *    aux tables billing_*). La capture passe par apply_payment_to_invoice
+ *    dans paypal-capture-order (déjà canonique).
+ *  - Les fonctions *_ad_hoc ne sont PAS utilisées ici : nous avons toujours
+ *    une commande source, donc build_invoice_from_order est obligatoire.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -19,26 +24,16 @@ const corsHeaders = {
 
 interface SaleEquipmentLine { name: string; price: number; quantity?: number }
 interface SaleDiscountPayload {
-  id: string;
-  name: string;
-  type: string;
-  value: number;
-  applies_to?: string;
-  duration_months?: number | null;
-  monthly_discount_amount?: number;
-  first_month_credit?: number;
+  id: string; name: string; type: string; value: number;
+  applies_to?: string; duration_months?: number | null;
+  monthly_discount_amount?: number; first_month_credit?: number;
 }
 interface CrmSalePayload {
   contact_id: string;
   client: {
-    first_name: string;
-    last_name: string;
-    email: string;
-    phone?: string;
-    date_of_birth?: string;
-    service_address?: string;
-    service_city?: string;
-    service_postal_code?: string;
+    first_name: string; last_name: string; email: string;
+    phone?: string; date_of_birth?: string;
+    service_address?: string; service_city?: string; service_postal_code?: string;
   };
   plan: { service_id: string; name: string; monthly_price: number; category?: string };
   equipment: SaleEquipmentLine[];
@@ -47,32 +42,15 @@ interface CrmSalePayload {
   notes?: string;
 }
 
-async function resolveExistingAuthUserId(
-  supabaseUrl: string,
-  serviceKey: string,
-  email: string,
-): Promise<string | null> {
+async function resolveExistingAuthUserId(supabaseUrl: string, serviceKey: string, email: string): Promise<string | null> {
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail) return null;
-
-  const allUsersResp = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=200`, {
-    headers: {
-      Authorization: `Bearer ${serviceKey}`,
-      apikey: serviceKey,
-    },
+  const resp = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=200`, {
+    headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
   });
-
-  if (!allUsersResp.ok) {
-    const body = await allUsersResp.text().catch(() => "");
-    console.error("[crm-create-sale] auth user lookup failed", allUsersResp.status, body);
-    return null;
-  }
-
-  const allUsersData = await allUsersResp.json().catch(() => ({}));
-  const foundUser = allUsersData?.users?.find(
-    (u: any) => String(u?.email || "").trim().toLowerCase() === normalizedEmail,
-  );
-  return foundUser?.id ?? null;
+  if (!resp.ok) { await resp.text().catch(() => ""); return null; }
+  const data = await resp.json().catch(() => ({}));
+  return data?.users?.find((u: any) => String(u?.email || "").trim().toLowerCase() === normalizedEmail)?.id ?? null;
 }
 
 async function resolveOrCreateAccount(
@@ -80,68 +58,34 @@ async function resolveOrCreateAccount(
   clientUserId: string,
   client: CrmSalePayload["client"],
 ): Promise<{ accountId: string; accountNumber: string | null }> {
-  const { data: existingAccount, error: existingAccountErr } = await admin
-    .from("accounts")
-    .select("id, account_number")
-    .eq("client_id", clientUserId)
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existingAccountErr) {
-    throw new Error(`Account lookup failed: ${existingAccountErr.message}`);
-  }
-
-  if (existingAccount?.id) {
-    if (existingAccount.account_number) {
-      await admin
-        .from("profiles")
-        .update({ account_number: String(existingAccount.account_number) })
-        .eq("user_id", clientUserId)
-        .neq("account_number", String(existingAccount.account_number));
+  const { data: existing } = await admin.from("accounts")
+    .select("id, account_number").eq("client_id", clientUserId).eq("status", "active")
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (existing?.id) {
+    if (existing.account_number) {
+      await admin.from("profiles").update({ account_number: String(existing.account_number) })
+        .eq("user_id", clientUserId).neq("account_number", String(existing.account_number));
     }
-    return { accountId: existingAccount.id, accountNumber: existingAccount.account_number ?? null };
+    return { accountId: existing.id, accountNumber: existing.account_number ?? null };
   }
-
-  const { data: accountNumberData, error: accountNumberErr } = await admin.rpc("generate_account_number");
-  if (accountNumberErr || !accountNumberData) {
-    throw new Error(`generate_account_number failed: ${accountNumberErr?.message || "unknown"}`);
-  }
-
+  const { data: numData, error: numErr } = await admin.rpc("generate_account_number");
+  if (numErr || !numData) throw new Error(`generate_account_number failed: ${numErr?.message || "unknown"}`);
   const accountName = `${client.first_name || ""} ${client.last_name || ""}`.trim() || client.email || "Client CRM";
-  const accountNumber = String(accountNumberData);
-
-  const { data: createdAccount, error: createAccountErr } = await admin
-    .from("accounts")
-    .insert({
-      client_id: clientUserId,
-      account_number: accountNumber,
-      account_name: accountName,
-      status: "active",
-      billing_address: client.service_address ?? null,
-      billing_city: client.service_city ?? null,
-      billing_postal_code: client.service_postal_code ?? null,
-      billing_province: "QC",
-      primary_service_address: client.service_address ?? null,
-      primary_service_city: client.service_city ?? null,
-      primary_service_postal_code: client.service_postal_code ?? null,
-      primary_service_province: "QC",
-      billing_cycle_day: new Date().getDate(),
-    })
-    .select("id, account_number")
-    .single();
-
-  if (createAccountErr || !createdAccount) {
-    throw new Error(`Account creation failed: ${createAccountErr?.message || "unknown"}`);
-  }
-
-  await admin
-    .from("profiles")
-    .update({ account_number: accountNumber })
-    .eq("user_id", clientUserId);
-
-  return { accountId: createdAccount.id, accountNumber: createdAccount.account_number ?? accountNumber };
+  const accountNumber = String(numData);
+  const { data: created, error: createErr } = await admin.from("accounts").insert({
+    client_id: clientUserId,
+    account_number: accountNumber, account_name: accountName, status: "active",
+    billing_address: client.service_address ?? null, billing_city: client.service_city ?? null,
+    billing_postal_code: client.service_postal_code ?? null, billing_province: "QC",
+    primary_service_address: client.service_address ?? null,
+    primary_service_city: client.service_city ?? null,
+    primary_service_postal_code: client.service_postal_code ?? null,
+    primary_service_province: "QC",
+    billing_cycle_day: new Date().getDate(),
+  }).select("id, account_number").single();
+  if (createErr || !created) throw new Error(`Account creation failed: ${createErr?.message || "unknown"}`);
+  await admin.from("profiles").update({ account_number: accountNumber }).eq("user_id", clientUserId);
+  return { accountId: created.id, accountNumber: created.account_number ?? accountNumber };
 }
 
 Deno.serve(async (req) => {
@@ -162,33 +106,22 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userErr } = await userClient.auth.getUser();
     if (userErr || !user) return json({ error: "Unauthorized" }, 401);
 
-    // Role check
-    const { data: roles } = await admin.from("user_roles")
-      .select("role").eq("user_id", user.id).eq("is_active", true);
-    const allowed = (roles ?? []).some((r: any) => [
-      "field_sales",
-      "employee",
-      "admin",
-      "sales",
-      "support",
-      "billing_admin",
-      "techops",
-      "kyc_agent",
-      "supervisor",
-    ].includes(r.role));
-    if (!allowed) return json({ error: "Forbidden â€” role required" }, 403);
+    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", user.id).eq("is_active", true);
+    const allowed = (roles ?? []).some((r: any) =>
+      ["field_sales", "employee", "admin", "sales", "support", "billing_admin", "techops", "kyc_agent", "supervisor"].includes(r.role));
+    if (!allowed) return json({ error: "Forbidden — role required" }, 403);
 
     const payload = await req.json() as CrmSalePayload;
     if (!payload?.contact_id || !payload?.client?.email || !payload?.plan?.service_id) {
       return json({ error: "Missing required fields" }, 400);
     }
 
-    // Step 1: ensure auth user
+    // Step 1: resolve auth user
     let clientUserId: string | null = null;
     try {
       const accResp = await fetch(`${supabaseUrl}/functions/v1/auto-create-client-account`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${serviceKey}`, "Content-Type": "application/json", "apikey": serviceKey },
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json", apikey: serviceKey },
         body: JSON.stringify({
           email: payload.client.email,
           first_name: payload.client.first_name,
@@ -202,117 +135,70 @@ Deno.serve(async (req) => {
       });
       const accData = await accResp.json().catch(() => ({}));
       clientUserId = accData?.user_id ?? accData?.userId ?? null;
-      if (!clientUserId && !accResp.ok) {
-        console.warn("[crm-create-sale] auto-create-client-account returned non-2xx", accResp.status, accData);
-      }
-    } catch (e) {
-      console.error("[crm-create-sale] auto-create-client-account failed", e);
-    }
+    } catch (e) { console.error("[crm-create-sale] auto-create-client-account failed", e); }
 
-    // Fallback: look up existing profile by email
     if (!clientUserId) {
-      const { data: prof } = await admin.from("profiles")
-        .select("user_id").ilike("email", payload.client.email).maybeSingle();
+      const { data: prof } = await admin.from("profiles").select("user_id").ilike("email", payload.client.email).maybeSingle();
       clientUserId = prof?.user_id ?? null;
     }
-
-    // Final fallback: if the email already exists in Auth but profile lookup missed it,
-    // resolve directly from Auth admin API so CRM orders remain submittable.
     if (!clientUserId) {
       clientUserId = await resolveExistingAuthUserId(supabaseUrl, serviceKey, payload.client.email);
     }
-
     if (!clientUserId) return json({ error: "Cannot resolve client account" }, 500);
 
-    // Step 2: compute totals (re-validate discount server-side; never trust client math).
-    const equipTotal = (payload.equipment ?? []).reduce(
-      (s, e) => s + Number(e.price || 0) * Number(e.quantity ?? 1), 0
-    );
+    // Step 2: validate discount server-side (business validation, NOT tax math)
     const monthly = Number(payload.plan.monthly_price || 0);
-
     let monthlyDiscountAmount = 0;
     let firstMonthCredit = 0;
     let discountRow: any = null;
     if (payload.discount?.id) {
-      const { data: dRow } = await admin
-        .from("agent_discounts")
+      const { data: dRow } = await admin.from("agent_discounts")
         .select("id,name,type,value,applies_to,duration_months,min_plan_price,is_active,expires_at,max_uses,uses_count")
-        .eq("id", payload.discount.id)
-        .maybeSingle();
+        .eq("id", payload.discount.id).maybeSingle();
       if (dRow && dRow.is_active &&
           (!dRow.expires_at || new Date(dRow.expires_at).getTime() > Date.now()) &&
           (dRow.max_uses == null || (dRow.uses_count ?? 0) < dRow.max_uses) &&
-          (Number(dRow.min_plan_price ?? 0) === 0 || monthly >= Number(dRow.min_plan_price))
-      ) {
+          (Number(dRow.min_plan_price ?? 0) === 0 || monthly >= Number(dRow.min_plan_price))) {
         discountRow = dRow;
         const v = Number(dRow.value || 0);
         switch (dRow.type) {
-          case "first_month_free":
-            firstMonthCredit = monthly;
-            break;
-          case "percentage":
-            monthlyDiscountAmount = Math.max(0, (monthly * v) / 100);
-            break;
-          case "remove_fee":
-            // No installation fee billed via CRM flow.
-            break;
+          case "first_month_free": firstMonthCredit = monthly; break;
+          case "percentage": monthlyDiscountAmount = Math.max(0, (monthly * v) / 100); break;
+          case "remove_fee": break;
           case "fixed":
           case "fixed_monthly":
-          default:
-            monthlyDiscountAmount = Math.max(0, Math.min(v, monthly));
-            break;
+          default: monthlyDiscountAmount = Math.max(0, Math.min(v, monthly)); break;
         }
       }
     }
     monthlyDiscountAmount = Number(monthlyDiscountAmount.toFixed(2));
     firstMonthCredit = Number(firstMonthCredit.toFixed(2));
 
-    // â”€â”€ Welcome offer (premier mois gratuit, 100% du forfait) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Auto-applied for any client who has never received it before, regardless
-    // of sales channel (CRM / Field / POS / Guest checkout). Equipment and
-    // one-time fees are NEVER discounted â€” only the recurring forfait.
+    // Welcome first-month eligibility (business rule; not tax math)
     let welcomeFirstMonth = 0;
     let welcomeApplied = false;
     const agentDiscountIsFirstMonth = discountRow?.type === "first_month_free";
     if (!agentDiscountIsFirstMonth && monthly > 0) {
-      const { data: eligibleData, error: eligibleErr } = await admin.rpc(
+      const { data: eligibleData } = await admin.rpc(
         "is_eligible_for_welcome_first_month",
         { p_user_id: clientUserId, p_email: payload.client.email },
       );
-      if (eligibleErr) {
-        console.error("[crm-create-sale] welcome eligibility check failed", eligibleErr);
-      } else if (eligibleData === true) {
+      if (eligibleData === true) {
         welcomeFirstMonth = Number(monthly.toFixed(2));
         welcomeApplied = true;
       }
     }
 
-    const totalFirstMonthCredit = Number((firstMonthCredit + welcomeFirstMonth).toFixed(2));
-    const monthlyAfterDiscount = Number(Math.max(0, monthly - monthlyDiscountAmount).toFixed(2));
-    // First invoice = forfait (après rabais agent) âˆ’ crédit premier mois + équipement
-    const firstMonthBillable = Number(Math.max(0, monthlyAfterDiscount - totalFirstMonthCredit).toFixed(2));
-    const subtotal = Number((firstMonthBillable + equipTotal).toFixed(2));
-    const tps = Number((subtotal * 0.05).toFixed(2));
-    const tvq = Number((subtotal * 0.09975).toFixed(2));
-    const total = Number((subtotal + tps + tvq).toFixed(2));
-
     const { accountId, accountNumber } = await resolveOrCreateAccount(admin, clientUserId, payload.client);
-    console.log("[crm-create-sale] resolved account", { clientUserId, accountId, accountNumber });
 
-    // Step 3: generate order_number
+    // Step 3: generate order_number + insert order (WITHOUT total_amount — RPC is authoritative)
     const { data: numData, error: numErr } = await admin.rpc("generate_order_number");
     if (numErr) return json({ error: `order_number gen failed: ${numErr.message}` }, 500);
     const orderNumber = String(numData);
 
-    // Step 4: insert order
     const serviceType = payload.plan.category === "tv" ? "tv"
       : payload.plan.category === "mobile" ? "mobile"
-      : payload.plan.category === "bundle" ? "bundle"
-      : "internet";
-
-    const equipmentLines = (payload.equipment ?? []).map((e) => ({
-      name: e.name, unit_price: Number(e.price), quantity: Number(e.quantity ?? 1),
-    }));
+      : payload.plan.category === "bundle" ? "bundle" : "internet";
 
     const installDetails = {
       requested_date: payload.install.date,
@@ -320,35 +206,11 @@ Deno.serve(async (req) => {
       source: "crm_call",
     };
 
-    const pricingSnapshot = {
-      monthly_plan_price: monthly,
-      monthly_after_discount: monthlyAfterDiscount,
-      first_month_billable: firstMonthBillable,
-      equipment_total: equipTotal,
-      subtotal,
-      tps_amount: tps,
-      tvq_amount: tvq,
-      total,
-      discount_total_combined: monthlyDiscountAmount + totalFirstMonthCredit,
-      promo_discount: monthlyDiscountAmount,
-      welcome_discount: welcomeFirstMonth,
-      welcome_applied: welcomeApplied,
-      agent_first_month_credit: firstMonthCredit,
-      ...(discountRow ? {
-        applied_discount: {
-          id: discountRow.id,
-          name: discountRow.name,
-          type: discountRow.type,
-          value: discountRow.value,
-          applies_to: discountRow.applies_to,
-          duration_months: discountRow.duration_months,
-          monthly_amount: monthlyDiscountAmount,
-          first_month_credit: firstMonthCredit,
-        },
-      } : {}),
-    };
+    const equipmentLines = (payload.equipment ?? []).map((e) => ({
+      name: e.name, unit_price: Number(e.price), quantity: Number(e.quantity ?? 1),
+    }));
 
-    const orderInsertPayload = {
+    const { data: order, error: insertErr } = await admin.from("orders").insert({
       order_number: orderNumber,
       user_id: clientUserId,
       account_id: accountId,
@@ -367,9 +229,8 @@ Deno.serve(async (req) => {
       shipping_address: payload.client.service_address ?? null,
       shipping_city: payload.client.service_city ?? null,
       shipping_postal_code: payload.client.service_postal_code ?? null,
-      subtotal,
-      total_amount: total,
-      tps_rate: 0.05, tvq_rate: 0.09975, tps_amount: tps, tvq_amount: tvq,
+      // total_amount / subtotal / tps / tvq laissés NULL — les RPC canoniques
+      // seront la seule source de vérité. Patch après build_invoice_from_order.
       payment_status: "pending",
       payment_method: "paypal",
       activation_preference: payload.install.date ? "SCHEDULED" : "ASAP",
@@ -378,221 +239,145 @@ Deno.serve(async (req) => {
       installation_details: installDetails,
       requested_activation_date: payload.install.date,
       internal_notes: payload.notes ?? null,
-      // Discount columns
       discount_code: discountRow?.name ?? null,
-      discount_amount: monthlyDiscountAmount + totalFirstMonthCredit,
+      discount_amount: monthlyDiscountAmount + firstMonthCredit + welcomeFirstMonth,
       promo_discount_amount: monthlyDiscountAmount,
       promo_details: discountRow ? {
         source_discount_id: discountRow.id,
-        name: discountRow.name,
-        type: discountRow.type,
-        value: discountRow.value,
-        applies_to: discountRow.applies_to,
-        duration_months: discountRow.duration_months,
-        monthly_amount: monthlyDiscountAmount,
-        first_month_credit: firstMonthCredit,
+        name: discountRow.name, type: discountRow.type, value: discountRow.value,
+        applies_to: discountRow.applies_to, duration_months: discountRow.duration_months,
+        monthly_amount: monthlyDiscountAmount, first_month_credit: firstMonthCredit,
       } : null,
-      pricing_snapshot: pricingSnapshot,
+    }).select("id, order_number, status").single();
+
+    if (insertErr) return json({ error: `Insert failed: ${insertErr.message}` }, 500);
+
+    // Step 4: materialize order_items — source unique de toute la logique billing
+    const items: any[] = [];
+    let itemNo = 1;
+    // Plan récurrent (prix brut, non escompté — les rabais sont des lignes séparées)
+    items.push({
+      order_id: order.id,
+      item_number: itemNo++,
+      plan_code: payload.plan.service_id,
+      plan_name: payload.plan.name,
+      service_type: serviceType,
+      unit_price: monthly,
+      quantity: 1,
+      line_total: monthly,
+      is_recurring: true,
+    });
+    // Équipement (one-time)
+    for (const eq of equipmentLines) {
+      const lineTotal = Number((eq.unit_price * eq.quantity).toFixed(2));
+      items.push({
+        order_id: order.id,
+        item_number: itemNo++,
+        plan_code: `EQP-${eq.name.slice(0, 20)}`,
+        plan_name: eq.name,
+        service_type: "equipment",
+        unit_price: eq.unit_price,
+        quantity: eq.quantity,
+        line_total: lineTotal,
+        is_recurring: false,
+      });
+    }
+    // Rabais agent (négatif)
+    if (discountRow && monthlyDiscountAmount > 0) {
+      items.push({
+        order_id: order.id, item_number: itemNo++,
+        plan_code: `PROMO-${discountRow.id.slice(0, 8)}`,
+        plan_name: `${discountRow.name}${discountRow.duration_months ? ` (${discountRow.duration_months} mois)` : ""}`,
+        service_type: "promotion",
+        unit_price: -monthlyDiscountAmount, quantity: 1,
+        line_total: -monthlyDiscountAmount, is_recurring: false,
+      });
+    }
+    // Crédit 1er mois agent (négatif)
+    if (discountRow?.type === "first_month_free" && firstMonthCredit > 0) {
+      items.push({
+        order_id: order.id, item_number: itemNo++,
+        plan_code: `PROMO-FMF-${discountRow.id.slice(0, 8)}`,
+        plan_name: `${discountRow.name} (1er mois)`,
+        service_type: "promotion",
+        unit_price: -firstMonthCredit, quantity: 1,
+        line_total: -firstMonthCredit, is_recurring: false,
+      });
+    }
+    // Welcome premier mois (négatif)
+    if (welcomeFirstMonth > 0) {
+      items.push({
+        order_id: order.id, item_number: itemNo++,
+        plan_code: "PROMO-WELCOME-FMF",
+        plan_name: `1er mois offert (automatique)`,
+        service_type: "promotion",
+        unit_price: -welcomeFirstMonth, quantity: 1,
+        line_total: -welcomeFirstMonth, is_recurring: false,
+      });
+    }
+
+    const { error: itemsErr } = await admin.from("order_items").insert(items);
+    if (itemsErr) return json({ error: `order_items insert failed: ${itemsErr.message}` }, 500);
+
+    // Ensure billing_customer exists (prerequisite for RPCs)
+    let billingCustomerId: string | null = null;
+    const { data: existingBc } = await admin.from("billing_customers")
+      .select("id").eq("user_id", clientUserId).maybeSingle();
+    if (existingBc) {
+      billingCustomerId = existingBc.id;
+    } else {
+      const { data: byEmail } = await admin.from("billing_customers")
+        .select("id").ilike("email", payload.client.email).maybeSingle();
+      if (byEmail) {
+        billingCustomerId = byEmail.id;
+        await admin.from("billing_customers").update({ user_id: clientUserId })
+          .eq("id", billingCustomerId).is("user_id", null);
+      } else {
+        const { data: newBc, error: bcErr } = await admin.from("billing_customers").insert({
+          user_id: clientUserId,
+          first_name: payload.client.first_name || "Client",
+          last_name: payload.client.last_name || "CRM",
+          email: payload.client.email,
+          phone: payload.client.phone || "",
+          status: "active",
+        }).select("id").single();
+        if (bcErr) return json({ error: `billing_customer failed: ${bcErr.message}` }, 500);
+        billingCustomerId = newBc.id;
+      }
+    }
+
+    const provenanceContext = {
+      edge_function_name: "crm-create-sale",
+      module: "crm",
+      actor_user_id: user.id,
+      reason: "crm_sale_created",
+      request_id: crypto.randomUUID(),
+      source_type: "crm_contact",
+      source_id: payload.contact_id,
     };
 
-    console.log("[crm-create-sale] inserting order", {
-      orderNumber,
-      clientUserId,
-      accountId,
-      total,
-      subtotal,
-      payment_status: orderInsertPayload.payment_status,
-      activation_preference: orderInsertPayload.activation_preference,
+    // Step 5: canonical RPCs — SEULE source de vérité facturation
+    const { data: invoiceId, error: invErr } = await admin.rpc("build_invoice_from_order", {
+      p_order_id: order.id, p_context: provenanceContext,
     });
+    if (invErr) return json({ error: `build_invoice_from_order failed: ${invErr.message}` }, 500);
 
-    const { data: order, error: insertErr } = await admin.from("orders").insert(orderInsertPayload).select("id, order_number, total_amount, subtotal, status").single();
+    const { error: subErr } = await admin.rpc("create_subscriptions_from_order", {
+      p_order_id: order.id, p_context: provenanceContext,
+    });
+    if (subErr) return json({ error: `create_subscriptions_from_order failed: ${subErr.message}` }, 500);
 
-    if (insertErr) {
-      console.error("[crm-create-sale] order insert failed", insertErr);
-      return json({ error: `Insert failed: ${insertErr.message}` }, 500);
-    }
+    // Step 6: read invoice + patch orders columns for downstream consumers
+    const { data: invoice } = await admin.from("billing_invoices")
+      .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, status")
+      .eq("id", invoiceId).single();
 
-    if (!["submitted", "pending_admin_review", "confirmed", "completed", "activated", "delivered"].includes(String(order.status || "").toLowerCase())) {
-      const { error: promoteOrderError } = await admin
-        .from("orders")
-        .update({
-          status: "submitted",
-          payment_status: "pending",
-          payment_method: "paypal",
-        })
-        .eq("id", order.id);
-
-      if (promoteOrderError) {
-        console.error("[crm-create-sale] order promotion failed", promoteOrderError);
-        return json({ error: `Order promotion failed: ${promoteOrderError.message}` }, 500);
-      }
-    }
-
-    // Step 4b: create canonical first invoice immediately so CRM orders have a real
-    // billing artifact, official PDFs, and the first-month-free credit is reflected
-    // on the very first operation of the order.
-    try {
-      let billingCustomerId: string | null = null;
-      console.log("[crm-create-sale] creating canonical invoice", { orderId: order.id, orderNumber, accountNumber, total });
-      const { data: existingBillingCustomer } = await admin
-        .from("billing_customers")
-        .select("id")
-        .ilike("email", payload.client.email)
-        .maybeSingle();
-
-      if (existingBillingCustomer?.id) {
-        billingCustomerId = existingBillingCustomer.id;
-        await admin
-          .from("billing_customers")
-          .update({ user_id: clientUserId })
-          .eq("id", billingCustomerId)
-          .is("user_id", null);
-      } else {
-        const { data: newBillingCustomer, error: billingCustomerErr } = await admin
-          .from("billing_customers")
-          .insert({
-            user_id: clientUserId,
-            first_name: payload.client.first_name || "Client",
-            last_name: payload.client.last_name || "CRM",
-            email: payload.client.email,
-            phone: payload.client.phone || "",
-            status: "active",
-          })
-          .select("id")
-          .single();
-
-        if (billingCustomerErr) throw new Error(`Billing customer failed: ${billingCustomerErr.message}`);
-        billingCustomerId = newBillingCustomer.id;
-      }
-
-      const { data: invoiceNumberData, error: invoiceNumErr } = await admin.rpc("generate_billing_invoice_number");
-      if (invoiceNumErr) throw new Error(`Invoice number failed: ${invoiceNumErr.message}`);
-      const invoiceNumber = String(invoiceNumberData || `INV-${orderNumber}`);
-      const { data: existingInvoice } = await admin
-        .from("billing_invoices")
-        .select("id")
-        .eq("order_id", order.id)
-        .limit(1)
-        .maybeSingle();
-
-      let invoiceId = existingInvoice?.id ?? null;
-      if (!invoiceId) {
-        const { data: invoice, error: invoiceErr } = await admin
-          .from("billing_invoices")
-          .insert({
-            order_id: order.id,
-            customer_id: billingCustomerId,
-            invoice_number: invoiceNumber,
-            type: "initial",
-            subtotal,
-            tps_amount: tps,
-            tvq_amount: tvq,
-            total,
-            currency: "CAD",
-            payment_method: "paypal",
-            status: "pending",
-            cycle_start_date: payload.install.date,
-            cycle_end_date: payload.install.date,
-            due_date: payload.install.date,
-            notes: `Facture initiale CRM ${orderNumber}`,
-            amount_paid: 0,
-            balance_due: total,
-            environment: "production",
-            billing_snapshot_account_number: accountNumber,
-            billing_snapshot_client: {
-              first_name: payload.client.first_name,
-              last_name: payload.client.last_name,
-              email: payload.client.email,
-              phone: payload.client.phone ?? null,
-              source: "crm_call",
-            },
-          })
-          .select("id")
-          .single();
-
-        if (invoiceErr) throw new Error(`Invoice creation failed: ${invoiceErr.message}`);
-        invoiceId = invoice.id;
-      }
-
-      if (invoiceId) {
-        const { data: existingLines } = await admin
-          .from("billing_invoice_lines")
-          .select("id")
-          .eq("invoice_id", invoiceId)
-          .limit(1);
-
-        if (!existingLines?.length) {
-          const invoiceLines: Array<Record<string, unknown>> = [
-            {
-              invoice_id: invoiceId,
-              description: `${payload.plan.name} â€“ 30 jours`,
-              unit_price: monthlyAfterDiscount,
-              quantity: 1,
-              line_total: monthlyAfterDiscount,
-              line_type: "service",
-            },
-            ...equipmentLines.map((line) => ({
-              invoice_id: invoiceId,
-              description: String(line.name),
-              unit_price: Number(line.unit_price),
-              quantity: Number(line.quantity),
-              line_total: Number(line.unit_price) * Number(line.quantity),
-              line_type: "equipment",
-            })),
-          ];
-
-          if (welcomeFirstMonth > 0) {
-            invoiceLines.push({
-              invoice_id: invoiceId,
-              description: `1er mois offert âœ“ (automatique) â€” ${monthly.toFixed(2)}$/mois`,
-              unit_price: -welcomeFirstMonth,
-              quantity: 1,
-              line_total: -welcomeFirstMonth,
-              line_type: "discount",
-            });
-          }
-
-          if (discountRow && monthlyDiscountAmount > 0) {
-            const durationSuffix = discountRow.duration_months
-              ? ` (${Number(discountRow.duration_months)} mois)`
-              : "";
-            invoiceLines.push({
-              invoice_id: invoiceId,
-              description: `${discountRow.name}${durationSuffix}`,
-              unit_price: -monthlyDiscountAmount,
-              quantity: 1,
-              line_total: -monthlyDiscountAmount,
-              line_type: "discount",
-              metadata: {
-                source_discount_id: discountRow.id,
-                type: discountRow.type,
-              },
-            });
-          }
-
-          if (discountRow?.type === "first_month_free" && firstMonthCredit > 0) {
-            invoiceLines.push({
-              invoice_id: invoiceId,
-              description: `${discountRow.name} (1er mois)`,
-              unit_price: -firstMonthCredit,
-              quantity: 1,
-              line_total: -firstMonthCredit,
-              line_type: "discount",
-              metadata: {
-                source_discount_id: discountRow.id,
-                type: discountRow.type,
-              },
-            });
-          }
-
-          const { error: linesErr } = await admin.from("billing_invoice_lines").insert(invoiceLines);
-          if (linesErr) throw new Error(`Invoice lines failed: ${linesErr.message}`);
-        }
-      }
-    } catch (invoiceCreateErr) {
-      console.error("[crm-create-sale] canonical invoice creation failed", invoiceCreateErr);
-      return json({ error: invoiceCreateErr instanceof Error ? invoiceCreateErr.message : "Invoice creation failed" }, 500);
-    }
+    await admin.from("orders").update({
+      subtotal: invoice.subtotal,
+      tps_amount: invoice.tps_amount,
+      tvq_amount: invoice.tvq_amount,
+      total_amount: invoice.total,
+    }).eq("id", order.id);
 
     // Increment discount usage (best-effort)
     if (discountRow) {
@@ -603,47 +388,42 @@ Deno.serve(async (req) => {
       } catch (_) { /* ignore */ }
     }
 
-
-    // Step 5: update crm_contacts
+    // Step 7: CRM state transition
     await admin.from("crm_contacts").update({
       call_status: "sold",
       converted_order_id: order.id,
       converted_to_user_id: clientUserId,
       converted_at: new Date().toISOString(),
-      is_locked: false,
-      locked_by: null,
-      locked_until: null,
-      locked_by_name: null,
+      is_locked: false, locked_by: null, locked_until: null, locked_by_name: null,
       updated_at: new Date().toISOString(),
     }).eq("id", payload.contact_id);
 
-    // Step 6: log call (sold outcome) â€” best effort
     try {
       await admin.from("crm_call_logs").insert({
         contact_id: payload.contact_id,
         agent_id: user.id,
         outcome: "sold",
-        notes: `Vente complétée â€” commande ${orderNumber}`,
+        notes: `Vente complétée — commande ${orderNumber}`,
       });
     } catch (_) { /* ignore */ }
 
-    // Commission estimate (30% forfait + 5% equipment)
+    // Commission estimate (business logic, no financial writes)
+    const monthlyAfterDiscount = Math.max(0, monthly - monthlyDiscountAmount);
+    const equipTotal = equipmentLines.reduce((s, e) => s + e.unit_price * e.quantity, 0);
     const commissionEstimate = Number((monthlyAfterDiscount * 0.30 + equipTotal * 0.05).toFixed(2));
 
-    // Step 7: create PayPal order (best-effort â€” non-blocking)
+    // Step 8: PayPal order (best-effort — paypal-create-order ne touche pas
+    // aux tables billing_*, la capture passera par apply_payment_to_invoice)
     let paypalApproveUrl: string | null = null;
     let paypalOrderId: string | null = null;
     try {
       const ppResp = await fetch(`${supabaseUrl}/functions/v1/paypal-create-order`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${serviceKey}`,
-          "Content-Type": "application/json",
-          "apikey": serviceKey,
-        },
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json", apikey: serviceKey },
         body: JSON.stringify({
           order_id: order.id,
-          amount: total,
+          invoice_id: invoice.id,
+          amount: invoice.total,
           currency: "CAD",
           description: `Commande Nivra ${orderNumber}`,
           customer_info: {
@@ -657,40 +437,30 @@ Deno.serve(async (req) => {
       const ppData = await ppResp.json().catch(() => ({}));
       paypalOrderId = ppData?.paypal_order_id ?? null;
       paypalApproveUrl = (ppData?.links ?? []).find((l: any) => l?.rel === "approve")?.href ?? null;
-    } catch (e) {
-      console.error("[crm-create-sale] paypal-create-order failed", e);
-    }
+    } catch (e) { console.error("[crm-create-sale] paypal-create-order failed", e); }
 
-    // Step 8: send order confirmation email (best-effort)
     try {
       await fetch(`${supabaseUrl}/functions/v1/send-order-confirmation`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${serviceKey}`,
-          "Content-Type": "application/json",
-          "apikey": serviceKey,
-        },
-        body: JSON.stringify({
-          order_id: order.id,
-          paypal_approve_url: paypalApproveUrl,
-        }),
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json", apikey: serviceKey },
+        body: JSON.stringify({ order_id: order.id, paypal_approve_url: paypalApproveUrl }),
       });
-    } catch (e) {
-      console.error("[crm-create-sale] send-order-confirmation failed", e);
-    }
+    } catch (e) { console.error("[crm-create-sale] send-order-confirmation failed", e); }
 
     return json({
       ok: true,
       order_id: order.id,
-      order_number: order.order_number,
-      total: order.total_amount,
+      order_number: orderNumber,
+      invoice_id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      total: invoice.total,
       commission_estimate: commissionEstimate,
       paypal_approve_url: paypalApproveUrl,
       paypal_order_id: paypalOrderId,
+      canonical: true,
     });
-
   } catch (e) {
     console.error("[crm-create-sale] error", e);
-    return json({ error: e?.message ?? "unknown" }, 500);
+    return json({ error: (e as any)?.message ?? "unknown" }, 500);
   }
 });

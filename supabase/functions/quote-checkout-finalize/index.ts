@@ -2,11 +2,17 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 /**
- * Quote Checkout Finalize — Converts a quote to an order + invoice.
- * Called when the client submits the quote checkout form.
- * Returns invoice_id so the frontend can open PayPal for payment.
- * 
- * After PayPal capture, the existing paypal-capture-order handles the rest.
+ * quote-checkout-finalize — Phase 3.A.1.b (canonical rewrite)
+ *
+ * Invariants respectés :
+ *  - AUCUNE écriture directe sur billing_invoices / billing_invoice_lines /
+ *    billing_subscriptions / billing_payments / account_adjustments.
+ *  - AUCUN calcul local de subtotal / TPS / TVQ / total / balance.
+ *  - La facture et les abonnements sont générés exclusivement par les RPC
+ *    canoniques build_invoice_from_order + create_subscriptions_from_order.
+ *  - Le paiement (PayPal) est délégué à paypal-create-order / paypal-capture,
+ *    lesquels utilisent apply_payment_to_invoice. Cette fonction ne touche
+ *    jamais au paiement elle-même.
  */
 
 const corsHeaders = {
@@ -15,9 +21,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
-const BILLABLE_ORDER_STATUSES = new Set(["submitted", "pending_admin_review", "confirmed", "completed"]);
+const BILLABLE_ORDER_STATUSES = new Set([
+  "submitted",
+  "pending_admin_review",
+  "confirmed",
+  "completed",
+]);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,354 +45,210 @@ serve(async (req) => {
       throw new Error("quote_id and checkout_data are required");
     }
 
-    console.log("[quote-checkout-finalize] Starting for quote:", quote_id);
-
-    // 1. Load quote
+    // 1. Load quote + lines
     const { data: quote, error: qErr } = await supabase
-      .from("quotes")
-      .select("*")
-      .eq("id", quote_id)
-      .single();
-
+      .from("quotes").select("*").eq("id", quote_id).single();
     if (qErr || !quote) throw new Error("Quote not found");
 
     if (!["accepted_pending_checkout", "checkout_in_progress", "checkout_completed"].includes(quote.status)) {
       throw new Error(`Quote status '${quote.status}' does not allow checkout finalization`);
     }
 
-    // 2. Load quote lines
     const { data: lines } = await supabase
-      .from("quote_lines")
-      .select("*")
-      .eq("quote_id", quote_id)
+      .from("quote_lines").select("*").eq("quote_id", quote_id)
       .order("created_at", { ascending: true });
+    if (!lines || lines.length === 0) throw new Error("Quote has no line items");
 
-    if (!lines || lines.length === 0) {
-      throw new Error("Quote has no line items");
-    }
-
-    // 3. Save checkout data on the quote
+    // 2. Update quote checkout state
     const fullName = `${checkout_data.first_name} ${checkout_data.last_name}`.trim();
-    await supabase
-      .from("quotes")
-      .update({
-        status: "checkout_completed",
-        checkout_completed_at: new Date().toISOString(),
-        prospect_name: fullName,
-        prospect_email: checkout_data.email,
-        prospect_phone: checkout_data.phone,
-        checkout_data: {
-          ...checkout_data,
-          payment_method,
-          completed_at: new Date().toISOString(),
-        },
-      })
-      .eq("id", quote_id);
+    await supabase.from("quotes").update({
+      status: "checkout_completed",
+      checkout_completed_at: new Date().toISOString(),
+      prospect_name: fullName,
+      prospect_email: checkout_data.email,
+      prospect_phone: checkout_data.phone,
+      checkout_data: { ...checkout_data, payment_method, completed_at: new Date().toISOString() },
+    }).eq("id", quote_id);
 
-    // 4. Resolve canonical user/account for order creation
+    // 3. Resolve canonical user + account
     const orderUserId = quote.customer_user_id;
-    if (!orderUserId) {
-      throw new Error("Quote is missing customer_user_id; cannot create order");
-    }
+    if (!orderUserId) throw new Error("Quote is missing customer_user_id; cannot create order");
 
     let resolvedAccountId: string | null = quote.account_id || null;
     if (!resolvedAccountId) {
-      const { data: existingAccount, error: accountErr } = await supabase
-        .from("accounts")
-        .select("id")
-        .eq("client_id", orderUserId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (accountErr) {
-        throw new Error(`Account lookup failed: ${accountErr.message}`);
-      }
-
+      const { data: existingAccount } = await supabase
+        .from("accounts").select("id").eq("client_id", orderUserId)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
       resolvedAccountId = existingAccount?.id || null;
     }
+    if (!resolvedAccountId) throw new Error("No account found for this quote's client");
 
-    if (!resolvedAccountId) {
-      throw new Error("No account found for this quote's client; cannot create order");
-    }
-
-    // 5. Check if order already exists (idempotency for retries)
+    // 4. Create-or-reuse order (idempotent)
     let order: any;
     if (quote.converted_order_id) {
       const { data: existingOrder } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("id", quote.converted_order_id)
-        .maybeSingle();
-      if (existingOrder) {
-        order = existingOrder;
-        console.log("[quote-checkout-finalize] Reusing existing order:", order.id);
-      }
-    }
-
-    if (!order) {
-      // Re-check for concurrent requests that may have created an order between our initial read and now
-      const { data: freshQuote } = await supabase
-        .from("quotes").select("converted_order_id").eq("id", quote_id).single();
-      if (freshQuote?.converted_order_id) {
-        const { data: concurrentOrder } = await supabase
-          .from("orders").select("*").eq("id", freshQuote.converted_order_id).maybeSingle();
-        if (concurrentOrder) {
-          order = concurrentOrder;
-          console.log("[quote-checkout-finalize] Concurrent request detected — reusing order:", order.id);
-        }
-      }
+        .from("orders").select("*").eq("id", quote.converted_order_id).maybeSingle();
+      if (existingOrder) order = existingOrder;
     }
 
     if (!order) {
       const orderNumber = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
-
-      const { data: newOrder, error: orderErr } = await supabase
-        .from("orders")
-        .insert({
-          user_id: orderUserId,
-          account_id: resolvedAccountId,
-          service_type: "combo",
-          order_number: orderNumber,
-          status: "submitted",
-          payment_status: "pending",
-          payment_method: payment_method || "paypal",
-          total_amount: quote.total_due_now || 0,
-          notes: `Créé depuis soumission ${quote.quote_number}`,
-          internal_notes: `Source: Quote ${quote.quote_number} (${quote.id})`,
-          shipping_address: checkout_data.address || null,
-          shipping_city: checkout_data.city || null,
-          shipping_province: checkout_data.province || "QC",
-          shipping_postal_code: checkout_data.postal_code || null,
-          client_first_name: checkout_data.first_name,
-          client_last_name: checkout_data.last_name,
-          client_email: checkout_data.email,
-          client_phone: checkout_data.phone,
-          environment: "live",
-        })
-        .select()
-        .single();
-
+      const { data: newOrder, error: orderErr } = await supabase.from("orders").insert({
+        user_id: orderUserId,
+        account_id: resolvedAccountId,
+        service_type: "combo",
+        order_number: orderNumber,
+        status: "submitted",
+        payment_status: "pending",
+        payment_method: payment_method || "paypal",
+        // total_amount / subtotal / tps / tvq laissés NULL — les RPC canoniques
+        // sont la seule source de vérité. Les colonnes sont patchées après.
+        notes: `Créé depuis soumission ${quote.quote_number}`,
+        internal_notes: `Source: Quote ${quote.quote_number} (${quote.id})`,
+        shipping_address: checkout_data.address || null,
+        shipping_city: checkout_data.city || null,
+        shipping_province: checkout_data.province || "QC",
+        shipping_postal_code: checkout_data.postal_code || null,
+        client_first_name: checkout_data.first_name,
+        client_last_name: checkout_data.last_name,
+        client_email: checkout_data.email,
+        client_phone: checkout_data.phone,
+        environment: "live",
+      }).select().single();
       if (orderErr) throw new Error(`Order creation failed: ${orderErr.message}`);
       order = newOrder;
-      console.log("[quote-checkout-finalize] Order created:", order.id, orderNumber);
 
-      await supabase
-        .from("quotes")
-        .update({ converted_order_id: order.id })
-        .eq("id", quote_id);
+      await supabase.from("quotes").update({ converted_order_id: order.id }).eq("id", quote_id);
     }
 
-    const orderNumber = order.order_number;
-
-    // Ensure order status is billable for billing_invoices guard trigger
+    // Ensure order is in a billable status for the invoice trigger guard
     if (!BILLABLE_ORDER_STATUSES.has(order.status)) {
-      const { data: patchedOrder, error: patchOrderErr } = await supabase
-        .from("orders")
-        .update({ status: "submitted" })
-        .eq("id", order.id)
-        .select("*")
-        .single();
-
-      if (patchOrderErr) {
-        throw new Error(`Failed to patch order status for billing: ${patchOrderErr.message}`);
-      }
-
+      const { data: patchedOrder, error: patchErr } = await supabase
+        .from("orders").update({ status: "submitted" }).eq("id", order.id).select("*").single();
+      if (patchErr) throw new Error(`Failed to patch order status: ${patchErr.message}`);
       order = patchedOrder;
     }
 
-    // 6. Get or create billing customer
-    let customerId: string;
-    const { data: existingCustomer } = await supabase
-      .from("billing_customers")
-      .select("id")
-      .eq("email", checkout_data.email)
-      .maybeSingle();
+    // 5. Materialize order_items from quote_lines (idempotent).
+    //    Recurring lines → is_recurring=true → subscriptions creation.
+    //    Non-recurring → fees / discounts / equipment.
+    const { count: existingItemsCount } = await supabase
+      .from("order_items").select("id", { head: true, count: "exact" }).eq("order_id", order.id);
 
+    if (!existingItemsCount) {
+      const items = lines.map((l: any, idx: number) => {
+        const isRecurring = l.billing_frequency === "monthly";
+        const unit = Number(l.unit_price || 0);
+        const qty = Number(l.quantity || 1);
+        return {
+          order_id: order.id,
+          item_number: idx + 1,
+          plan_code: l.plan_code || l.code || `QLINE-${idx + 1}`,
+          plan_name: l.label,
+          service_type: isRecurring ? (l.service_category || "combo") : "fee",
+          unit_price: unit,
+          quantity: qty,
+          line_total: Number((unit * qty).toFixed(2)),
+          is_recurring: isRecurring,
+        };
+      });
+      const { error: itemsErr } = await supabase.from("order_items").insert(items);
+      if (itemsErr) throw new Error(`order_items insert failed: ${itemsErr.message}`);
+    }
+
+    // 6. Ensure billing_customer exists (canonical prerequisite)
+    let billingCustomerId: string;
+    const { data: existingCustomer } = await supabase
+      .from("billing_customers").select("id").eq("user_id", orderUserId).maybeSingle();
     if (existingCustomer) {
-      customerId = existingCustomer.id;
+      billingCustomerId = existingCustomer.id;
     } else {
-      const { data: newCustomer, error: custErr } = await supabase
-        .from("billing_customers")
-        .insert({
-          user_id: quote.customer_user_id || null,
+      const { data: byEmail } = await supabase
+        .from("billing_customers").select("id").ilike("email", checkout_data.email).maybeSingle();
+      if (byEmail) {
+        billingCustomerId = byEmail.id;
+        await supabase.from("billing_customers").update({ user_id: orderUserId })
+          .eq("id", billingCustomerId).is("user_id", null);
+      } else {
+        const { data: newCust, error: custErr } = await supabase.from("billing_customers").insert({
+          user_id: orderUserId,
           first_name: checkout_data.first_name,
           last_name: checkout_data.last_name,
           email: checkout_data.email,
           phone: checkout_data.phone,
           status: "active",
-        })
-        .select()
-        .single();
-      if (custErr) throw new Error(`Customer creation failed: ${custErr.message}`);
-      customerId = newCustomer.id;
+        }).select("id").single();
+        if (custErr) throw new Error(`billing_customer creation failed: ${custErr.message}`);
+        billingCustomerId = newCust.id;
+      }
     }
 
-    // 7. Get or create subscription + invoice from quote financials
-    const cycleStart = new Date().toISOString().split("T")[0];
-    const cycleEndDate = new Date();
-    cycleEndDate.setDate(cycleEndDate.getDate() + 30);
-    const cycleEnd = cycleEndDate.toISOString().split("T")[0];
+    const provenanceContext = {
+      edge_function_name: "quote-checkout-finalize",
+      module: "billing",
+      actor_user_id: orderUserId,
+      reason: "quote_checkout_finalized",
+      request_id: crypto.randomUUID(),
+      source_type: "quote",
+      source_id: quote_id,
+    };
 
-    // Build service description from quote lines
-    const recurringLines = lines.filter((l: any) => l.billing_frequency === "monthly");
-    const oneTimeLines = lines.filter((l: any) => l.billing_frequency === "one_time");
-    const planName = recurringLines.map((l: any) => l.label).join(" + ") || "Services Nivra";
-    const planPrice = recurringLines.reduce((sum: number, l: any) => sum + (l.unit_price * l.quantity), 0);
+    // 7. RPC canonique — facture depuis order_items (aucun calcul local)
+    const { data: invoiceId, error: invErr } = await supabase.rpc(
+      "build_invoice_from_order",
+      { p_order_id: order.id, p_context: provenanceContext },
+    );
+    if (invErr) throw new Error(`build_invoice_from_order failed: ${invErr.message}`);
 
-    let subscription: any;
-    const { data: existingSubscription, error: existingSubErr } = await supabase
-      .from("billing_subscriptions")
-      .select("*")
-      .eq("order_id", order.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // 8. RPC canonique — abonnements figés
+    const { error: subErr } = await supabase.rpc(
+      "create_subscriptions_from_order",
+      { p_order_id: order.id, p_context: provenanceContext },
+    );
+    if (subErr) throw new Error(`create_subscriptions_from_order failed: ${subErr.message}`);
 
-    if (existingSubErr) throw new Error(`Subscription lookup failed: ${existingSubErr.message}`);
+    // 9. Read canonical invoice + patch orders columns for downstream views
+    const { data: invoice } = await supabase.from("billing_invoices")
+      .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, status")
+      .eq("id", invoiceId).single();
 
-    if (existingSubscription) {
-      subscription = existingSubscription;
-    } else {
-      const { data: createdSubscription, error: subErr } = await supabase
-        .from("billing_subscriptions")
-        .insert({
-          customer_id: customerId,
-          plan_code: `quote-${quote.quote_number}`,
-          plan_name: planName,
-          plan_price: planPrice,
-          service_category: "combo",
-          cycle_start_date: cycleStart,
-          cycle_end_date: cycleEnd,
-          status: "pending",
-          order_id: order.id,
-        })
-        .select()
-        .single();
+    await supabase.from("orders").update({
+      subtotal: invoice.subtotal,
+      tps_amount: invoice.tps_amount,
+      tvq_amount: invoice.tvq_amount,
+      total_amount: invoice.total,
+    }).eq("id", order.id);
 
-      if (subErr) throw new Error(`Subscription creation failed: ${subErr.message}`);
-      subscription = createdSubscription;
-    }
-
-    // Use quote's calculated totals
-    const subtotal = quote.subtotal || 0;
-    const tpsAmount = quote.tps_amount || Math.round(subtotal * TPS_RATE * 100) / 100;
-    const tvqAmount = quote.tvq_amount || Math.round(subtotal * TVQ_RATE * 100) / 100;
-    const total = quote.total_due_now || Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
-    let invoice: any;
-    const { data: existingInvoice, error: existingInvErr } = await supabase
-      .from("billing_invoices")
-      .select("*")
-      .eq("order_id", order.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (existingInvErr) throw new Error(`Invoice lookup failed: ${existingInvErr.message}`);
-
-    if (existingInvoice) {
-      invoice = existingInvoice;
-    } else {
-      // Generate invoice number
-      const { data: invoiceNumberData } = await supabase.rpc("generate_billing_invoice_number");
-      const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
-
-      const { data: createdInvoice, error: invErr } = await supabase
-        .from("billing_invoices")
-        .insert({
-          subscription_id: subscription.id,
-          customer_id: customerId,
-          invoice_number: invoiceNumber,
-          type: "initial",
-          subtotal,
-          tps_amount: tpsAmount,
-          tvq_amount: tvqAmount,
-          total,
-          currency: "CAD",
-          payment_method: payment_method || "paypal",
-          status: "pending",
-          cycle_start_date: cycleStart,
-          cycle_end_date: cycleEnd,
-          due_date: cycleEnd,
-          order_id: order.id,
-          billing_snapshot_client: {
-            first_name: checkout_data.first_name,
-            last_name: checkout_data.last_name,
-            email: checkout_data.email,
-            phone: checkout_data.phone,
-          },
-          notes: `Soumission: ${quote.quote_number}`,
-        })
-        .select()
-        .single();
-
-      if (invErr) throw new Error(`Invoice creation failed: ${invErr.message}`);
-      invoice = createdInvoice;
-    }
-
-    const invoiceNumber = invoice.invoice_number;
-
-    // Create invoice lines from quote lines
-    const invoiceLines = lines.map((line: any) => ({
-      invoice_id: invoice.id,
-      description: line.label,
-      unit_price: line.unit_price,
-      quantity: line.quantity || 1,
-      line_total: (line.unit_price || 0) * (line.quantity || 1),
-      line_type: line.billing_frequency === "monthly" ? "service" : "fee",
-    }));
-
-    const { count: existingInvoiceLineCount, error: lineCountErr } = await supabase
-      .from("billing_invoice_lines")
-      .select("id", { head: true, count: "exact" })
-      .eq("invoice_id", invoice.id);
-
-    if (lineCountErr) throw new Error(`Invoice lines lookup failed: ${lineCountErr.message}`);
-
-    if (!existingInvoiceLineCount) {
-      await supabase.from("billing_invoice_lines").insert(invoiceLines);
-    }
-
-    // Log events
+    // 10. Quote event log
     await supabase.from("quote_events").insert({
-      quote_id: quote_id,
+      quote_id,
       event_type: "checkout_completed",
       actor_role: "client",
-      message: `Checkout complété par ${fullName}. Commande ${orderNumber} créée. Facture ${invoiceNumber} en attente de paiement.`,
+      message: `Checkout complété par ${fullName}. Commande ${order.order_number} — facture ${invoice.invoice_number} (canonical).`,
       metadata: {
         order_id: order.id,
-        order_number: orderNumber,
+        order_number: order.order_number,
         invoice_id: invoice.id,
-        invoice_number: invoiceNumber,
+        invoice_number: invoice.invoice_number,
         payment_method,
+        canonical: true,
       },
     });
 
-    console.log("[quote-checkout-finalize] Complete:", {
+    return new Response(JSON.stringify({
+      success: true,
       order_id: order.id,
-      order_number: orderNumber,
+      order_number: order.order_number,
       invoice_id: invoice.id,
-      invoice_number: invoiceNumber,
-      total,
-    });
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        order_id: order.id,
-        order_number: orderNumber,
-        invoice_id: invoice.id,
-        invoice_number: invoiceNumber,
-        customer_id: customerId,
-        total,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      invoice_number: invoice.invoice_number,
+      customer_id: billingCustomerId,
+      total: invoice.total,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("[quote-checkout-finalize] Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
