@@ -30,6 +30,7 @@ Deno.test({
       first_name: "Test", last_name: "CRM-3AB",
       email: `test-crm-3ab-${Date.now()}@example.com`, phone: "5140000001", status: "active",
     }).select("id").single();
+      assert(invoice, "invoice fetched");
     assert(bc?.id);
 
     const { data: order, error: oErr } = await admin.from("orders").insert({
@@ -42,6 +43,7 @@ Deno.test({
       payment_method: "paypal",
       environment: "live",
     }).select("id").single();
+      assert(invoice, "invoice fetched");
     assert(!oErr, oErr?.message);
 
     try {
@@ -80,6 +82,7 @@ Deno.test({
       // GST 5% = 2.75 ; QST 9.975% = 5.49 ; total = 63.24
       const { data: invoice } = await admin.from("billing_invoices")
         .select("subtotal, tps_amount, tvq_amount, total, status").eq("id", invoiceId).single();
+      assert(invoice, "invoice fetched");
       assertEquals(Number(invoice.subtotal), 55, "subtotal net après rabais");
       assertEquals(Number(invoice.tps_amount), 2.75);
       assertEquals(Number(invoice.tvq_amount), 5.49);
@@ -94,6 +97,7 @@ Deno.test({
       // Abonnement figé au PRIX BRUT du plan (les rabais one-time n'affectent pas frozen_unit_price)
       const { data: sub } = await admin.from("billing_subscriptions")
         .select("frozen_unit_price, frozen_name, source_order_item_id").eq("id", subIds[0]).single();
+      assert(invoice, "invoice fetched");
       assertEquals(Number(sub.frozen_unit_price), monthly, "prix figé = prix brut du plan");
       assert(sub.source_order_item_id, "traçabilité");
 
