@@ -25,6 +25,9 @@ export interface AdminPaymentData {
   payment_method: AdminPaymentMethod;
   payment_reference?: string;
   square_payment_id?: string;
+  precreated_order_id?: string;
+  precreated_order_number?: string;
+  precreated_invoice_id?: string;
   notes?: string;
 }
 
@@ -34,16 +37,19 @@ interface POSPaymentFormAdminProps {
   totalAmount: number;
   customerEmail?: string;
   customerName?: string;
+  onBeforeCardCharge?: () => Promise<{ invoice_id: string; order_id: string; order_number?: string }>;
 }
 
 export function POSPaymentFormAdmin({
   onSubmit, isSubmitting, totalAmount, customerEmail, customerName,
+  onBeforeCardCharge,
 }: POSPaymentFormAdminProps) {
   const [method, setMethod] = useState<AdminPaymentMethod>("card");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [copied, setCopied] = useState(false);
   const [squarePaid, setSquarePaid] = useState<string | null>(null);
+  const [precreatedOrder, setPrecreatedOrder] = useState<{ order_id: string; order_number?: string; invoice_id: string } | null>(null);
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(ETRANSFER_CONFIG.email);
@@ -62,6 +68,9 @@ export function POSPaymentFormAdmin({
       payment_method: method,
       payment_reference: reference || undefined,
       square_payment_id: squarePaid || undefined,
+      precreated_order_id: precreatedOrder?.order_id,
+      precreated_order_number: precreatedOrder?.order_number,
+      precreated_invoice_id: precreatedOrder?.invoice_id,
       notes: notes || undefined,
     });
   };
@@ -140,13 +149,11 @@ export function POSPaymentFormAdmin({
                   customerName={customerName}
                   customerEmail={customerEmail}
                   onBeforeCharge={async () => {
-                    const { data, error } = await supabase.functions.invoke("pos-square-intent", {
-                      body: { amount: totalAmount, customer_email: customerEmail, customer_name: customerName },
-                    });
-                    if (error || !(data as any)?.ok) {
-                      throw new Error((data as any)?.error || error?.message || "Impossible de créer l'intention Square");
-                    }
-                    return { intent_id: (data as any).intent_id as string };
+                    if (!onBeforeCardCharge) throw new Error("Facture Core requise avant paiement Square");
+                    const target = await onBeforeCardCharge();
+                    if (!target.invoice_id || !target.order_id) throw new Error("Facture Core invalide avant paiement Square");
+                    setPrecreatedOrder({ order_id: target.order_id, order_number: target.order_number, invoice_id: target.invoice_id });
+                    return { invoice_id: target.invoice_id };
                   }}
                   onSuccess={(_receipt, paymentId) => {
                     setSquarePaid(paymentId || null);
