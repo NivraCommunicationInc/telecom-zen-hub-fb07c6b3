@@ -1240,7 +1240,7 @@ serve(async (req) => {
           max_attempts: 3,
         });
 
-        console.log(`[PayPal Webhook] ✓ PAYMENT.SALE.REFUNDED: payment ${payment.id} → ${newPaymentStatus} (${refundAmount.toFixed(2)} CAD)`);
+        console.log(`[PayPal Webhook] ✓ PAYMENT.SALE.REFUNDED via refund_payment(): payment=${payment.id} refund_payment=${refundPaymentId} (${refundAmount.toFixed(2)} CAD, partial=${isPartial})`);
         break;
       }
 
