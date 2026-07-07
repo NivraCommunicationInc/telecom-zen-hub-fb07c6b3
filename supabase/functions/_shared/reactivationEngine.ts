@@ -35,7 +35,7 @@ export async function reactivateIfSuspended(
   supabase: SupabaseClient,
   subscriptionId: string,
   invoiceId: string,
-  trigger: "paypal_webhook" | "paypal_capture" | "portal_credit" | "balance_pay" | "manual",
+  trigger: "square_webhook" | "square_capture" | "portal_credit" | "balance_pay" | "manual" | "paypal_webhook" | "paypal_capture",
 ): Promise<ReactivationResult> {
   const base: ReactivationResult = {
     reactivated: false,
