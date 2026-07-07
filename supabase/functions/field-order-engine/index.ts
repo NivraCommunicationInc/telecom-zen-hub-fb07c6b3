@@ -521,6 +521,20 @@ Deno.serve(async (req) => {
       const fieldServices = [
         ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
         ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
+        ...(ci.delivery_fee || ci.installation_fee ? [{
+          id: `fulfillment-${ci.delivery_mode || ci.install_mode || "manual"}`,
+          kind: "fulfillment_fee",
+          category: "fee",
+          type: Number(ci.installation_fee || 0) > 0 ? "installation" : "delivery",
+          name: Number(ci.installation_fee || 0) > 0
+            ? "Installation technicien"
+            : (ci.delivery_mode === "express" ? "Livraison Express — Uber Direct" : "Auto-installation — livraison standard"),
+          quantity: 1,
+          price: Number(ci.installation_fee || ci.delivery_fee || 0),
+          price_setup: Number(ci.installation_fee || ci.delivery_fee || 0),
+          price_monthly: 0,
+          monthly_price: 0,
+        }] : []),
         ...((ci.custom_adjustments || (quote as any).custom_adjustments || []) as any[]).map((adjustment: any) => {
           const amount = Math.max(0, Number(adjustment?.amount || 0));
           const signedAmount = adjustment?.kind === "fee" ? amount : -amount;
