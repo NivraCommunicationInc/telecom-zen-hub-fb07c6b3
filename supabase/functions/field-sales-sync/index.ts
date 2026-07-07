@@ -649,6 +649,13 @@ Deno.serve(async (req) => {
           return "manual_adjustment";
         };
 
+        const orderItemServiceType = (li: any): string => {
+          if (li.category === "equipment") return "equipment";
+          if (li.category === "fee" || li.category === "discount") return "fee";
+          const mapped = mapLineItemType(li.type || li.category || li.name);
+          return ["internet", "tv", "mobile", "streaming", "security"].includes(mapped) ? mapped : "addon";
+        };
+
         const agentTotal = Number(sale.total_amount || 0);
         if (agentTotal > 0 && Math.abs(agentTotal - totalAmount) > 0.05) {
           throw new Error(
@@ -834,6 +841,41 @@ Deno.serve(async (req) => {
           }
 
           canonicalOrder = repairedOrder;
+        }
+
+        const { count: existingOrderItemCount, error: orderItemsCountError } = await supabaseAdmin
+          .from("order_items")
+          .select("id", { count: "exact", head: true })
+          .eq("order_id", canonicalOrder.id);
+
+        if (orderItemsCountError) {
+          throw new Error(`Order items check failed: ${orderItemsCountError.message}`);
+        }
+
+        if ((existingOrderItemCount ?? 0) === 0) {
+          const orderItems = lineItems.map((li, index) => ({
+            order_id: canonicalOrder.id,
+            item_number: index + 1,
+            service_type: orderItemServiceType(li),
+            plan_code: `${String(li.category || "item").toUpperCase()}-${index + 1}`,
+            plan_name: li.name,
+            description: li.name,
+            unit_price: Number(li.unit_price || 0),
+            quantity: Number(li.qty || 1) || 1,
+            line_total: Number(li.unit_price || 0) * (Number(li.qty || 1) || 1),
+            is_recurring: li.period === "monthly",
+            status: "pending",
+            fulfillment_type: li.category === "equipment" || li.type === "shipping" || li.type === "delivery" ? "ship" : li.type === "installation" ? "technician" : null,
+            metadata: { source: "field_sales_sync", source_ref: li.category === "discount" ? "promotion_applied" : "manual_admin", line_kind: invoiceLineKind(li) },
+          }));
+
+          const { error: orderItemsInsertError } = await supabaseAdmin
+            .from("order_items")
+            .insert(orderItems as any);
+
+          if (orderItemsInsertError) {
+            throw new Error(`Order items creation failed: ${orderItemsInsertError.message}`);
+          }
         }
 
         const targetOrderStatus = deriveCanonicalOrderStatus(sale.payment_status, sale.payment_method);
