@@ -327,13 +327,9 @@ serve(async (req) => {
                       balance_due: Number(currentInvoice.balance_due) + proTotalWithTax,
                     }).eq("id", currentInvoice.id);
 
-                    if (bSub.paypal_subscription_id) {
-                      admin.functions.invoke("paypal-charge-subscription", {
-                        body: { subscription_id: bSub.id, invoice_id: currentInvoice.id, amount: proTotalWithTax },
-                      }).catch((e: unknown) => {
-                        console.error("[internet-account-actions] prorated PayPal charge failed:", e);
-                      });
-                    }
+                    // Phase 3.C.3: PayPal decommissioned. Autopay for the prorated
+                    // top-up is handled by the Square autopay pipeline (billing-generate-renewals
+                    // and dunning). No provider call from this path.
 
                     const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
                     const invoicePdf = await buildInvoicePdfAttachment(currentInvoice.id, "Facture").catch(() => null);
