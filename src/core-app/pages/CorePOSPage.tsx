@@ -1215,9 +1215,6 @@ export default function CorePOSPage() {
                   customerEmail={selectedClient?.email || newClient.email || undefined}
                   invoiceNumber={`POS-${Date.now().toString().slice(-6)}`}
                   onBeforeCharge={async () => {
-                    const amt = paymentMode === "partial" && Number(partialAmount) > 0
-                      ? Number(partialAmount)
-                      : totals.firstMonthTotal;
                     const order = await createCoreOrder({
                       paymentStatus: "pending",
                       paymentMethodOverride: "card",
@@ -1267,17 +1264,6 @@ export default function CorePOSPage() {
                       if (!targetEmail) { toast.error("Email requis"); return; }
                       setSquareLinkSending(true);
                       try {
-                        const amt = paymentMode === "partial" && Number(partialAmount) > 0
-                          ? Number(partialAmount)
-                          : totals.firstMonthTotal;
-                        const lineItems = [
-                          ...services.map((s: any) => ({ name: s.name, quantity: 1, price: s.monthlyPrice ?? s.price ?? 0, type: "service" })),
-                          ...equipment.map((e) => ({ name: e.name, quantity: e.quantity, price: e.price, type: "equipment" })),
-                          ...adjustments.map((a) => ({ name: a.name, quantity: 1, price: a.amount, type: "adjustment" })),
-                        ];
-                        const description = lineItems.length
-                          ? lineItems.map((li) => `${li.name}${li.quantity > 1 ? ` ×${li.quantity}` : ""}`).join(", ")
-                          : "Commande Nivra";
                         const order = await createCoreOrder({
                           paymentStatus: "pending",
                           paymentMethodOverride: "square",
