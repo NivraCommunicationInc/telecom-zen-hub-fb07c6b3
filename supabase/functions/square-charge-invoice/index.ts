@@ -391,6 +391,22 @@ serve(async (req) => {
         balance_due: applied.balanceDue,
       });
 
+      if (invoiceData.order_id && applied.invoiceStatus === "paid") {
+        const { error: orderPaymentErr } = await supabase
+          .from("orders")
+          .update({
+            payment_status: "paid",
+            payment_method: "card",
+            provider_payment_id: paymentId,
+            payment_reference: paymentId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", invoiceData.order_id);
+        if (orderPaymentErr) {
+          console.warn("[square-charge-invoice] order payment_status update failed:", orderPaymentErr.message);
+        }
+      }
+
       // Queue confirmation email (non-blocking) — PDF is optional; email goes out regardless
       if (customerEmail && !alreadyProcessed) {
         let pdf: any = null;

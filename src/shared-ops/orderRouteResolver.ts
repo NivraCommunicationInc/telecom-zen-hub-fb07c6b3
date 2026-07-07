@@ -24,12 +24,21 @@ export async function resolveOrderRouteParam(param: string): Promise<ResolvedOrd
 
     const { data: intent, error: err2 } = await supabase
       .from("field_payment_intents" as any)
-      .select("id, converted_order_id")
+      .select("id, converted_order_id, converted_invoice_id")
       .eq("id", value)
       .maybeSingle();
     if (err2) console.error("[orderRouteResolver] field_payment_intents.id lookup:", err2.message);
     if ((intent as any)?.converted_order_id)
       return { kind: "order", orderId: (intent as any).converted_order_id };
+    if ((intent as any)?.converted_invoice_id) {
+      const { data: invoice, error: invErr } = await supabase
+        .from("billing_invoices")
+        .select("order_id")
+        .eq("id", (intent as any).converted_invoice_id)
+        .maybeSingle();
+      if (invErr) console.error("[orderRouteResolver] billing_invoices.id lookup:", invErr.message);
+      if ((invoice as any)?.order_id) return { kind: "order", orderId: (invoice as any).order_id };
+    }
     if ((intent as any)?.id)
       throw new Error("Commande Core introuvable pour ce paiement — aucun dossier opérationnel ne sera affiché en format FIELD.");
   }
@@ -46,7 +55,7 @@ export async function resolveOrderRouteParam(param: string): Promise<ResolvedOrd
   if (fieldPrefix && /^[0-9a-f]{8}$/i.test(fieldPrefix)) {
     const { data: intents, error: err4 } = await supabase
       .from("field_payment_intents" as any)
-      .select("id, converted_order_id")
+      .select("id, converted_order_id, converted_invoice_id")
       .filter("id::text", "like", `${fieldPrefix.toLowerCase()}-%`)
       .limit(5);
     if (err4) console.error("[orderRouteResolver] field prefix lookup:", err4.message);
@@ -55,6 +64,15 @@ export async function resolveOrderRouteParam(param: string): Promise<ResolvedOrd
     );
     if (intent?.converted_order_id)
       return { kind: "order", orderId: intent.converted_order_id as string };
+    if (intent?.converted_invoice_id) {
+      const { data: invoice, error: invErr } = await supabase
+        .from("billing_invoices")
+        .select("order_id")
+        .eq("id", intent.converted_invoice_id as string)
+        .maybeSingle();
+      if (invErr) console.error("[orderRouteResolver] billing invoice prefix lookup:", invErr.message);
+      if ((invoice as any)?.order_id) return { kind: "order", orderId: (invoice as any).order_id };
+    }
     if (intent?.id)
       throw new Error("Commande Core introuvable pour ce paiement — aucun dossier opérationnel ne sera affiché en format FIELD.");
   }

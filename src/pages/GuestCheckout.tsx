@@ -103,6 +103,7 @@ const GuestCheckout = () => {
   const clientRequestIdRef = useRef(crypto.randomUUID());
   const submittingRef = useRef(false);
   const abandonmentTrackedRef = useRef(false);
+  const precreatedCheckoutRef = useRef<NivraFullCheckoutResponse | null>(null);
 
   // ── Step state ──
   const [step, setStep] = useState(1);
@@ -661,12 +662,15 @@ const GuestCheckout = () => {
   };
 
   // ── Submit order ──
-  const handleSubmit = async (captureOverride?: string, options?: { allowIncompleteLegal?: boolean }) => {
+  const handleSubmit = async (
+    captureOverride?: string,
+    options?: { allowIncompleteLegal?: boolean; precreateOnly?: boolean },
+  ): Promise<NivraFullCheckoutResponse | void> => {
     if (submittingRef.current || isSubmitting) return;
     submittingRef.current = true;
     setIsSubmitting(true);
     const effectiveCaptureId = captureOverride || paypalCaptureId;
-    const effectivePaymentDone = paymentComplete || !!effectiveCaptureId;
+    const effectivePaymentDone = paymentComplete || !!effectiveCaptureId || !!options?.precreateOnly;
 
     try {
       // Validate DOB
@@ -883,7 +887,7 @@ const GuestCheckout = () => {
         } : null,
         payment: {
           method: paymentMethodValue as any,
-          status: paymentMethod === "paypal" && effectiveCaptureId ? "captured" : "pending",
+          status: effectiveCaptureId ? "captured" : "pending",
           reference: effectiveCaptureId || etransferRef || null,
           paypal_capture_id: effectiveCaptureId || null,
         },
@@ -1162,7 +1166,7 @@ const GuestCheckout = () => {
       // When the client opted in via AutoPayPalOption, create a PayPal subscription
       // and redirect to PayPal's approval page. The webhook + return handler
       // (/commander/paypal-retour) take over from there.
-      if (enableAutoBilling && paymentMethod === "paypal") {
+      if (!options?.precreateOnly && enableAutoBilling && paymentMethod === "paypal") {
         try {
           const monthlyAfterDiscount = Math.max(0, monthlyTotalWithTax - AUTOPAY_DISCOUNT);
           const planLabel = selectedServices.map(s => s.name).join(" + ") || "Forfait Nivra";
@@ -1218,6 +1222,11 @@ const GuestCheckout = () => {
           );
           // fall through to normal confirmation
         }
+      }
+
+      if (options?.precreateOnly) {
+        precreatedCheckoutRef.current = response;
+        return response;
       }
 
       cancelAbandonmentEmail();
@@ -2280,32 +2289,34 @@ const GuestCheckout = () => {
                           customerEmail={email}
                           customerName={`${firstName} ${lastName}`.trim()}
                           onBeforeCharge={async () => {
-                            // Guest (anon) cannot insert into field_payment_intents directly
-                            // (RLS is authenticated-only). Route through the public
-                            // pos-square-intent edge function which uses the service role.
-                            const { data, error } = await supabase.functions.invoke(
-                              "pos-square-intent",
-                              {
-                                body: {
-                                  amount: todayTotal,
-                                  customer_email: email || null,
-                                  customer_name: `${firstName} ${lastName}`.trim() || null,
-                                  description: `Checkout web — ${email || "invité"}`,
-                                  mode: "inline",
-                                },
-                              },
-                            );
-                            if (error || !data?.ok || !data?.intent_id) {
-                              throw new Error(
-                                (data as any)?.error || error?.message || "Erreur initialisation paiement",
-                              );
-                            }
-                            return { intent_id: data.intent_id as string };
+                            // Public checkout must create the real Core order before Square charges.
+                            // This prevents orphan FIELD-* payment intents if the browser refreshes
+                            // or a post-payment step fails.
+                            const existing = precreatedCheckoutRef.current;
+                            const response = existing || await handleSubmit(undefined, {
+                              allowIncompleteLegal: true,
+                              precreateOnly: true,
+                            });
+                            const invoiceId = (response as NivraFullCheckoutResponse | undefined)?.invoice_id;
+                            if (!invoiceId) throw new Error("Impossible de créer la facture Core avant paiement.");
+                            return { invoice_id: invoiceId };
                           }}
                           onSuccess={(_receiptUrl, paymentId) => {
                             setPaypalCaptureId(paymentId || "");
                             setPaymentComplete(true);
                             toast.success("Paiement confirmé !");
+                            const precreated = precreatedCheckoutRef.current;
+                            if (precreated) {
+                              setOrderResult({
+                                orderNumber: precreated.order_number,
+                                orderId: precreated.order_id,
+                                isNewAccount: false,
+                              });
+                              cancelAbandonmentEmail();
+                              setStep(7);
+                              sessionStorage.removeItem("nivra_pending_payment");
+                              return;
+                            }
                             if (paymentId) {
                               void handleSubmit(paymentId, { allowIncompleteLegal: true });
                             }

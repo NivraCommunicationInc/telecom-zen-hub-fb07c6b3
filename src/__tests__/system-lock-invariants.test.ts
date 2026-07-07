@@ -180,6 +180,23 @@ describe("LOCK 3 — Invoice/Payment Canonical Mapping", () => {
     expect(violations.length).toBeGreaterThan(0);
   });
 
+  it("public Square checkout must charge a canonical invoice, never a FIELD intent", () => {
+    const code = readFile("src/pages/GuestCheckout.tsx");
+    expect(code).toContain("precreateOnly");
+    expect(code).toContain("return { invoice_id: invoiceId }");
+    expect(code).not.toContain('"pos-square-intent"');
+    expect(code).not.toContain("intent_id: data.intent_id");
+  });
+
+  it("POS card flows must use a Core invoice before charging Square", () => {
+    const adminForm = readFile("src/components/pos/POSPaymentFormAdmin.tsx");
+    const unifiedPOS = readFile("src/components/pos/UnifiedPOSPage.tsx");
+    expect(adminForm).toContain("onBeforeCardCharge");
+    expect(adminForm).not.toContain('"pos-square-intent"');
+    expect(unifiedPOS).toContain("createPOSDraftInvoice");
+    expect(unifiedPOS).toContain("precreated_order_id");
+  });
+
   it("document builder MUST block generation without compute_invoice_breakdown", () => {
     const code = readFile("src/lib/pdf/documentBuilder.ts");
     expect(code).toContain("compute_invoice_breakdown RPC requis");
