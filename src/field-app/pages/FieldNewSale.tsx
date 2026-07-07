@@ -570,93 +570,37 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     }
   };
 
-  // ── Square inline success: create order + sync after immediate charge ──
+  // ── Square inline success: payment intent was already materialized into a Core order before charging ──
   const handleSquareInlineSuccess = async (paymentId: string) => {
     if (!user?.id) return;
     setIsSubmitting(true);
-    setSubmitMessage("Création de la commande…");
+    setSubmitMessage("Validation de la commande Core…");
     try {
-      const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
       const intentId = draft.payment.fieldOrderId || paymentId;
-      const orderNumber = `SUB-${String(intentId).slice(0, 8).toUpperCase()}`;
-      const commissionAmount = Math.max(0, Number((monthlyBeforeDiscount * 0.30 + equipmentTotal * 0.05).toFixed(2)));
+      const { data: intent } = await supabase
+        .from("field_payment_intents" as any)
+        .select("converted_order_id, converted_field_order_id")
+        .eq("id", intentId)
+        .maybeSingle();
+      const coreOrderId = (intent as any)?.converted_order_id as string | undefined;
+      if (!coreOrderId) throw new Error("Commande Core introuvable pour ce paiement.");
 
-      try {
-        await supabase.from("field_commissions").insert({
-          agent_id: user.id, order_id: null, amount: commissionAmount,
-          status: "pending", commission_type: "forfait",
-          description: `Square direct — ${paymentId}`,
-        } as any);
-      } catch (commErr: any) { logger.warn("commission insert failed", commErr); }
+      const { data: coreOrder } = await supabase
+        .from("orders")
+        .select("order_number")
+        .eq("id", coreOrderId)
+        .maybeSingle();
+      const coreOrderNumber = (coreOrder as any)?.order_number || `CMD-${coreOrderId.slice(0, 8).toUpperCase()}`;
 
-      let coreOrderNumber = orderNumber;
-      try {
-        const { data: fsRow, error: fsErr } = await supabase
-          .from("field_sales_orders")
-          .insert({
-            salesperson_id: user.id,
-            customer_name: customerName,
-            customer_email: draft.customer.email || null,
-            customer_phone: draft.customer.phone || "",
-            customer_address: (draft.customer.address || "") + (draft.customer.apartment ? `, App. ${draft.customer.apartment}` : ""),
-            customer_city: draft.customer.city || null,
-            customer_postal_code: draft.customer.postal_code || null,
-            customer_date_of_birth: draft.customer.date_of_birth || null,
-            install_date: draft.customer.install_slot?.date || draft.customer.install_date || null,
-            install_mode: draft.customer.install_mode || null,
-            appointment_date: draft.customer.install_slot?.date || null,
-            appointment_notes: draft.customer.install_slot?.time_slot || null,
-            services: [
-              ...draft.services.map((s) => ({ ...s, kind: 'service', quantity: 1, price_monthly: s.monthlyPrice, monthly_price: s.monthlyPrice, price_setup: 0 })),
-              ...draft.equipment.map((e) => ({ ...e, kind: 'equipment', quantity: e.quantity, price_monthly: 0, monthly_price: 0, price_setup: e.price })),
-              ...orderExtraLineItems,
-            ] as any,
-            total_amount: total,
-            payment_method: "square",
-            payment_reference: paymentId,
-            payment_status: "paid",
-            sync_status: "pending",
-            discount_data: draft.discount ? {
-              name: (draft.discount as any).name || "Rabais",
-              type: (draft.discount as any).type || null,
-              amount: Number((draft.discount as any).value ?? monthlyDiscountAmount ?? 0),
-              applies_to: (draft.discount as any).applies_to || null,
-              duration_months: Number((draft.discount as any).duration_months ?? 0),
-              monthly_amount: Number(monthlyDiscountAmount || 0),
-              monthly_price: Number(monthlyBeforeDiscount || 0),
-            } : null,
-            internal_notes: `${prefillNoteTag()}Square paiement immédiat — ${paymentId}\nCommission: ${commissionAmount.toFixed(2)}$`.trim(),
-          } as any)
-          .select("id")
-          .single();
-        if (fsErr) throw fsErr;
-        const saleId = (fsRow as any)?.id;
-        if (saleId) {
-          const { data: syncData } = await supabase.functions.invoke("field-sales-sync", { body: { action: "sync_single", sale_id: saleId } });
-          if (syncData?.order_number) coreOrderNumber = syncData.order_number;
-          // Mirror the coaxial survey onto the synced Core order for cross-portal parity.
-          if (draft.customer.coaxial_survey) {
-            try {
-              const { data: fsFinal } = await supabase
-                .from("field_sales_orders")
-                .select("converted_order_id")
-                .eq("id", saleId)
-                .maybeSingle();
-              const coreOrderId = (fsFinal as any)?.converted_order_id;
-              if (coreOrderId) {
-                await supabase
-                  .from("orders")
-                  .update({ coaxial_survey: draft.customer.coaxial_survey as any } as any)
-                  .eq("id", coreOrderId);
-              }
-            } catch (mirrorErr) { logger.warn("coaxial_survey mirror failed", mirrorErr); }
-          }
-          // Attach the resulting Core order to the selected service_address_id (staff tunnel).
-          await linkOrderToServiceAddress(saleId);
-        }
-      } catch (syncErr: any) {
-        logger.warn("[square-inline] order creation failed (non-blocking)", syncErr);
+      if (draft.customer.coaxial_survey) {
+        try {
+          await supabase
+            .from("orders")
+            .update({ coaxial_survey: draft.customer.coaxial_survey as any } as any)
+            .eq("id", coreOrderId);
+        } catch (mirrorErr) { logger.warn("coaxial_survey mirror failed", mirrorErr); }
       }
+      if ((intent as any)?.converted_field_order_id) await linkOrderToServiceAddress((intent as any).converted_field_order_id);
 
       setCardSuccess({ intentId, orderNumber: coreOrderNumber, last4: paymentId.slice(-4), amount: total, commission: commissionAmount });
       setCompletedSteps((prev) => [...new Set([...prev, "recap" as FieldSaleStep, "payment" as FieldSaleStep])]);
