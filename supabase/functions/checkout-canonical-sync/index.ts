@@ -1,4 +1,30 @@
-﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+// ============================================================================
+// checkout-canonical-sync — DOWNSTREAM READ-MODEL / MIRROR (Phase 3 V2)
+// ============================================================================
+// SENS UNIQUE : Nivra Core (source de vérité) → checkout-canonical-sync → tables
+// billing_* de ce projet Supabase (miroir de lecture pour le portail client).
+//
+// Cette fonction n'est PAS une source de vérité billing. Elle applique en
+// upsert le payload signé émis par Nivra Core après passage de commande. Les
+// écritures directes sur billing_invoices / billing_payments / billing_subscriptions
+// visibles ici sont donc légitimes en tant que projection idempotente et non
+// des mutations financières indépendantes.
+//
+// INVARIANTS PROTECTEURS ACTIFS (empêchent tout dérapage de cette fonction en
+// source alternative de vérité) :
+//   • trg_forbid_paypal_billing_payment / _invoice / _subscription : bloquent
+//     toute écriture avec provider='paypal'.
+//   • trg_assert_sub_provider_square : bloque toute nouvelle souscription
+//     dont recurring_provider ≠ 'square'.
+//   • trg_forbid_live_catalog_read_on_renewal : bloque les lignes fantômes
+//     hors frozen_*.
+//
+// Toute NOUVELLE création de facture / paiement / souscription initiée
+// depuis cette Supabase (checkout Square local, portail, staff) doit passer
+// par les RPC canoniques (`build_invoice_from_order`, `create_subscriptions_from_order`,
+// `apply_payment_to_invoice`, `refund_payment`, etc.) — jamais par upsert direct.
+// ============================================================================
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
