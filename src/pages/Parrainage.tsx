@@ -211,13 +211,15 @@ const Parrainage = () => {
           <div className="container mx-auto px-4 max-w-3xl">
             <h3 className="text-sm font-semibold text-foreground mb-3">Conditions du programme</h3>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-              <li>La récompense référent est de 25$ (PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac, au choix)</li>
-              <li>Le rabais filleul est de 5$/mois pendant 10 mois (50$ d'économies au total)</li>
-              <li>Le client référé doit compléter 2 cycles de facturation mensuels payés pour que le référent soit qualifié</li>
+              <li>25 $ versés une seule fois pour chaque client référé admissible, plus 300 points de fidélité au parrain</li>
+              <li>Le client référé doit compléter <strong>3 factures mensuelles consécutives entièrement payées</strong></li>
+              <li>Le compte doit être actif au moment de la validation, sans remboursement ni annulation en cours</li>
+              <li>Le versement est effectué dans un délai de <strong>7 à 14 jours</strong> suivant la validation</li>
+              <li>Modes de versement : Interac e-Transfer (recommandé) ou carte-cadeau Visa/Mastercard prépayée</li>
+              <li>Aucun plafond de références — plus vous parrainez, plus vous gagnez</li>
               <li>L'auto-parrainage est interdit et détecté automatiquement (même adresse, même courriel ou même mode de paiement)</li>
-              <li>Un seul code de parrainage par nouveau client</li>
-              <li>Nivra se réserve le droit de disqualifier les parrainages frauduleux</li>
-              <li>Programme sujet à modification sans préavis</li>
+              <li>Un seul parrain par nouveau client</li>
+              <li>Nivra Telecom se réserve le droit de refuser tout parrainage frauduleux</li>
             </ul>
           </div>
         </section>
