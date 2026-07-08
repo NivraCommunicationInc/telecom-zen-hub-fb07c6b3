@@ -166,11 +166,13 @@ export default function ClientLoyalty() {
           <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="w-5 h-5" />Comment gagner des points</CardTitle></CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm">
-              <li>• <strong>Paiement de facture :</strong> 100 pts par commande</li>
-              <li>• <strong>Parrainage activé :</strong> 500 pts</li>
-              <li>• <strong>Anniversaire de compte :</strong> 200 pts/an</li>
-              <li>• <strong>Activation de service :</strong> 100 pts</li>
-              <li className="text-slate-500 text-xs mt-2">2 000 points = crédit de 25 $ sur votre prochain paiement</li>
+              <li>• <strong>Paiement de facture :</strong> 100 pts (montant indépendant)</li>
+              <li>• <strong>Bonus AutoPay (Square) :</strong> +25 pts</li>
+              <li>• <strong>Bonus paiement à temps :</strong> +25 pts</li>
+              <li>• <strong>Activation d'un nouveau service :</strong> 100 pts</li>
+              <li>• <strong>Parrainage activé :</strong> 300 pts</li>
+              <li>• <strong>Anniversaire de compte :</strong> 100 pts par année</li>
+              <li className="text-slate-500 text-xs mt-2">Échangez vos points contre des crédits ou un mois gratuit — voir le catalogue ci-dessous.</li>
             </ul>
           </CardContent>
         </Card>
