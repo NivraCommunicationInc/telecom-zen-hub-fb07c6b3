@@ -33,6 +33,7 @@ import { ClientFullHistory } from "@/core-app/components/client-history/ClientFu
 import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
+import { ClientLoyaltyReferralSection } from "@/core-app/components/loyalty/ClientLoyaltyReferralSection";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
