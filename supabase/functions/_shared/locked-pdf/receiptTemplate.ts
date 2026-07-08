@@ -99,8 +99,9 @@ const fmtDateTime = (dateStr: string | undefined | null): string => {
 
 const fmtMethod = (m: string): string => {
   const map: Record<string, string> = {
-    card: "PayPal", "Credit Card": "PayPal",
-    paypal: "PayPal", PayPal: "PayPal",
+    card: "Carte via Square", "Credit Card": "Carte via Square",
+    square: "Square", Square: "Square",
+    paypal: "Ancien PayPal", PayPal: "Ancien PayPal",
     interac: "Virement Interac e-Transfer",
     e_transfer: "Virement Interac e-Transfer",
     cash: "Comptant", card_manual: "Carte (manuel)",
@@ -512,8 +513,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     ]);
     section("3. Delais de remboursement", [
       "-  Virement Interac : 1 a 3 jours ouvrables",
-      "-  PayPal : 3 a 5 jours ouvrables",
-      "-  Carte de credit (via PayPal) : 5 a 10 jours ouvrables selon l'emetteur",
+      "-  Square / carte : 5 a 10 jours ouvrables selon l'emetteur",
     ]);
     section("4. Frais non remboursables", [
       "Les frais d'activation ponctuels, equipements livres (borne WiFi, terminal TV, carte SIM) et frais de deplacement technicien ne sont pas remboursables une fois la livraison ou l'installation confirmee.",

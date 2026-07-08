@@ -18,7 +18,7 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "interac", label: "Interac / Virement" },
   { value: "cash", label: "Comptant" },
   { value: "debit_credit", label: "Débit / Crédit" },
-  { value: "paypal", label: "PayPal" },
+  { value: "square", label: "Square / Carte" },
   { value: "bank_transfer", label: "Transfert bancaire" },
   { value: "other", label: "Autre" },
 ];

@@ -6,20 +6,20 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 
-export type PaymentMethod = "paypal" | "interac" | "cash" | "debit_credit" | "bank_transfer" | "other";
-type CanonicalMethod = "paypal" | "interac" | "manual" | "card";
+export type PaymentMethod = "interac" | "cash" | "debit_credit" | "square" | "bank_transfer" | "other";
+type CanonicalMethod = "interac" | "manual" | "card";
 
 const mapToBillingMethod = (method: PaymentMethod): CanonicalMethod => {
-  if (method === "paypal") return "paypal";
+  if (method === "square") return "card";
   if (method === "interac") return "interac";
   if (method === "debit_credit") return "card";
   return "manual";
 };
 
 const mapToProvider = (method: PaymentMethod): string => {
-  if (method === "paypal") return "paypal";
+  if (method === "square") return "square";
   if (method === "interac") return "interac";
-  if (method === "debit_credit") return "card";
+  if (method === "debit_credit") return "square";
   if (method === "bank_transfer") return "bank";
   if (method === "cash") return "cash";
   return "manual";
