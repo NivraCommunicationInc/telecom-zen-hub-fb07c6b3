@@ -402,7 +402,7 @@ export function useAccountProfile(accountId: string | undefined) {
   });
 
   const documents = useQuery({
-    queryKey: ["account-profile-documents", clientId],
+    queryKey: ["account-profile-documents", clientId, accountId],
     queryFn: async () => {
       if (!clientId) return [];
       const uploaded = await supabase
