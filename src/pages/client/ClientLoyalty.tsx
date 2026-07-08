@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { useLoyaltyReferralRealtime } from "@/hooks/useLoyaltyReferralRealtime";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
