@@ -201,8 +201,30 @@ export default function SignContract() {
   const [signerName, setSignerName] = useState("");
   const [signing, setSigning] = useState(false);
   const [signedOk, setSignedOk] = useState(false);
+  const [openingPdf, setOpeningPdf] = useState(false);
 
   const tr = t[lang];
+
+  const handleViewPdf = async () => {
+    if (!token || openingPdf) return;
+    setOpeningPdf(true);
+    try {
+      const res = await fetch(`${FN_URL}?token=${encodeURIComponent(token)}&action=pdf`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      });
+      const json = await res.json();
+      if (json?.success && json.url) {
+        window.open(json.url, "_blank", "noopener,noreferrer");
+      } else {
+        alert(tr.pdfUnavailable);
+      }
+    } catch (e) {
+      console.error("[SignContract] view PDF failed:", e);
+      alert(tr.pdfUnavailable);
+    } finally {
+      setOpeningPdf(false);
+    }
+  };
 
   useEffect(() => {
     setLang(detectLang());
