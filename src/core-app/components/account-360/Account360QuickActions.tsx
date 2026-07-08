@@ -40,7 +40,14 @@ import { AccountTagsDialog } from "@/shared-ops/components/AccountTagsDialog";
 import { AccountFollowupsDialog } from "@/shared-ops/components/AccountFollowupsDialog";
 import { AccountPrivacyRequestsDialog } from "@/shared-ops/components/AccountPrivacyRequestsDialog";
 import { AccountFraudRiskDialog } from "@/shared-ops/components/AccountFraudRiskDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch } from "lucide-react";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch, RotateCcw, Undo2, Banknote, Repeat, Activity, TrendingUp, Home, ArrowUpCircle, TicketCheck, Sparkles, Star, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  QuickRefundDialog, AccountWriteOffDialog, PaymentPlanDialog, AutopayRetryDialog,
+  RemoteRebootDialog, LineDiagnosticDialog, QuickPlanChangeDialog, ServiceMoveDialog,
+  SupervisorEscalationDialog, CompensationVoucherDialog, VipChurnToggleDialog,
+} from "@/core-app/components/account-360/Account360NewActionDialogs";
+import { ClientNotesDrawer } from "@/core-app/components/notes/ClientNotesDrawer";
+
 
 
 interface Props {
@@ -94,6 +101,20 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [fraudOpen, setFraudOpen] = useState(false);
 
+  // New action states
+  const [quickRefundOpen, setQuickRefundOpen] = useState(false);
+  const [writeOffOpen, setWriteOffOpen] = useState(false);
+  const [paymentPlanOpen, setPaymentPlanOpen] = useState(false);
+  const [autopayRetryOpen, setAutopayRetryOpen] = useState(false);
+  const [rebootOpen, setRebootOpen] = useState(false);
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
+  const [planChangeOpen, setPlanChangeOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [escalationOpen, setEscalationOpen] = useState(false);
+  const [voucherOpen, setVoucherOpen] = useState(false);
+  const [vipOpen, setVipOpen] = useState(false);
+  const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
+
   const handleImpersonate = async () => {
     if (!clientId) return;
     setLoading(true);
@@ -101,50 +122,97 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     finally { setLoading(false); }
   };
 
-  const actions = [
-    { icon: Eye, label: "Voir comme client", onClick: handleImpersonate, color: "violet" as const },
-    { icon: UserPen, label: "Modifier le profil", onClick: onEditProfile, color: "emerald" },
-    { icon: ShoppingCart, label: "Nouvelle commande", onClick: () => onNavigateSection("orders"), color: "default" },
-    { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices"), color: "default" },
-    { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments"), color: "default" },
-    { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
-    { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
-    ...(accountStatus !== "suspended" && accountStatus !== "cancelled"
-      ? [{ icon: PauseCircle, label: "Pause temporaire", onClick: () => setPauseOpen(true), color: "warning" as const }]
-      : [{ icon: PlayCircle, label: "Réactiver le compte", onClick: () => setReactivateOpen(true), color: "success" as const }]
-    ),
-    ...(accountStatus !== "cancelled"
-      ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
-      : []
-    ),
-    { icon: UserCog, label: "Accès compte en ligne", onClick: () => setAccessOpen(true), color: "violet" as const },
-    { icon: Smartphone, label: "Gestion ligne mobile", onClick: () => setMobileOpen(true), color: "violet" as const },
-    { icon: Tv, label: "Gestion service TV", onClick: () => setTvOpen(true), color: "violet" as const },
-    { icon: Wifi, label: "Gestion service Internet", onClick: () => setInternetOpen(true), color: "violet" as const },
-    { icon: Wallet, label: "Gestion facturation", onClick: () => setBillingOpen(true), color: "violet" as const },
-    { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
-    { icon: ShieldCheck, label: "Vérification KYC", onClick: () => setKycOpen(true), color: "violet" as const },
-    { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
-    { icon: MessageSquare, label: "Ticket support", onClick: () => setTicketOpen(true), color: "default" },
-    { icon: Mail, label: "Envoyer rappel", onClick: () => setReminderOpen(true), color: "default" },
-    { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" as const },
-    { icon: Award, label: "Récompenses", onClick: () => onNavigateSection("loyalty"), color: "emerald" as const },
-    { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" as const },
-    { icon: Calendar, label: "Planifier RDV", onClick: () => setApptOpen(true), color: "default" },
-    { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => setCollectionsOpen(true), color: "warning" },
-    { icon: DollarSign, label: "Litige facturation", onClick: () => setDisputesOpen(true), color: "warning" },
-    { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true), color: "default" },
-    { icon: History, label: "Historique & activité", onClick: () => setTimelineOpen(true), color: "violet" as const },
-    { icon: FolderOpen, label: "Documents du compte", onClick: () => setDocumentsOpen(true), color: "violet" as const },
-    { icon: ShieldAlert, label: "Sécurité & sessions", onClick: () => setSecurityOpen(true), color: "danger" as const },
-    { icon: Send, label: "Envoyer un message", onClick: () => setCommunicationOpen(true), color: "violet" as const },
-    { icon: MessageCircle, label: "Envoyer un SMS", onClick: () => setSmsOpen(true), color: "violet" as const },
-    { icon: PhoneCall, label: "Appels & téléphonie", onClick: () => setCallsOpen(true), color: "violet" as const },
-    { icon: Settings2, label: "Préférences communication", onClick: () => setPreferencesOpen(true), color: "violet" as const },
-    { icon: Tag, label: "Étiquettes & alertes", onClick: () => setTagsOpen(true), color: "warning" },
-    { icon: ListTodo, label: "Tâches & suivis", onClick: () => setFollowupsOpen(true), color: "violet" as const },
-    { icon: ShieldQuestion, label: "Demandes Loi 25", onClick: () => setPrivacyOpen(true), color: "danger" as const },
-    { icon: ScanSearch, label: "Risque & fraude", onClick: () => setFraudOpen(true), color: "danger" as const },
+  // Latest unpaid invoice / payment for finance actions
+  const invoices: any[] = canonicalData?.invoices ?? [];
+  const payments: any[] = canonicalData?.payments ?? [];
+  const latestUnpaidInvoice = invoices.find((i: any) => Number(i.balance_due || 0) > 0);
+  const latestPayment = payments[0];
+
+  type Action = { icon: any; label: string; onClick: () => void; color?: "default"|"emerald"|"warning"|"success"|"danger"|"violet" };
+
+  const groups: { title: string; actions: Action[] }[] = [
+    {
+      title: "Compte",
+      actions: [
+        { icon: Eye, label: "Voir comme client", onClick: handleImpersonate, color: "violet" },
+        { icon: UserPen, label: "Modifier le profil", onClick: onEditProfile, color: "emerald" },
+        { icon: UserCog, label: "Accès en ligne", onClick: () => setAccessOpen(true), color: "violet" },
+        { icon: Star, label: "VIP / Churn risk", onClick: () => setVipOpen(true), color: "warning" },
+        ...(accountStatus !== "suspended" && accountStatus !== "cancelled"
+          ? [{ icon: PauseCircle, label: "Pause temporaire", onClick: () => setPauseOpen(true), color: "warning" as const }]
+          : [{ icon: PlayCircle, label: "Réactiver le compte", onClick: () => setReactivateOpen(true), color: "success" as const }]),
+        ...(accountStatus !== "cancelled"
+          ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
+          : []),
+      ],
+    },
+    {
+      title: "Facturation",
+      actions: [
+        { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments") },
+        { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices") },
+        { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
+        { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
+        { icon: Undo2, label: "Remboursement rapide", onClick: () => setQuickRefundOpen(true), color: "warning" },
+        { icon: Banknote, label: "Write-off / Ajustement", onClick: () => setWriteOffOpen(true), color: "danger" },
+        { icon: Repeat, label: "Plan de paiement", onClick: () => setPaymentPlanOpen(true), color: "violet" },
+        { icon: RotateCcw, label: "Force AutoPay", onClick: () => setAutopayRetryOpen(true), color: "warning" },
+        { icon: Wallet, label: "Gestion facturation", onClick: () => setBillingOpen(true), color: "violet" },
+        { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => setCollectionsOpen(true), color: "warning" },
+        { icon: DollarSign, label: "Litige facturation", onClick: () => setDisputesOpen(true), color: "warning" },
+      ],
+    },
+    {
+      title: "Services",
+      actions: [
+        { icon: Wifi, label: "Service Internet", onClick: () => setInternetOpen(true), color: "violet" },
+        { icon: Tv, label: "Service TV", onClick: () => setTvOpen(true), color: "violet" },
+        { icon: Smartphone, label: "Ligne mobile", onClick: () => setMobileOpen(true), color: "violet" },
+        { icon: RotateCcw, label: "Reboot équipement", onClick: () => setRebootOpen(true), color: "warning" },
+        { icon: Activity, label: "Diagnostic ligne", onClick: () => setDiagnosticOpen(true), color: "emerald" },
+        { icon: ArrowUpCircle, label: "Upgrade/Downgrade", onClick: () => setPlanChangeOpen(true), color: "emerald" },
+        { icon: Home, label: "Transfert (déménagement)", onClick: () => setMoveOpen(true), color: "violet" },
+        { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" },
+      ],
+    },
+    {
+      title: "Commandes & Fidélité",
+      actions: [
+        { icon: ShoppingCart, label: "Nouvelle commande", onClick: () => onNavigateSection("orders") },
+        { icon: Award, label: "Récompenses", onClick: () => onNavigateSection("loyalty"), color: "emerald" },
+        { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" },
+        { icon: Sparkles, label: "Bon de compensation", onClick: () => setVoucherOpen(true), color: "emerald" },
+      ],
+    },
+    {
+      title: "Communication",
+      actions: [
+        { icon: MessageSquare, label: "Ticket support", onClick: () => setTicketOpen(true) },
+        { icon: TicketCheck, label: "Escalade superviseur", onClick: () => setEscalationOpen(true), color: "danger" },
+        { icon: Send, label: "Envoyer un message", onClick: () => setCommunicationOpen(true), color: "violet" },
+        { icon: MessageCircle, label: "Envoyer un SMS", onClick: () => setSmsOpen(true), color: "violet" },
+        { icon: Mail, label: "Envoyer rappel", onClick: () => setReminderOpen(true) },
+        { icon: PhoneCall, label: "Appels & téléphonie", onClick: () => setCallsOpen(true), color: "violet" },
+        { icon: Calendar, label: "Planifier RDV", onClick: () => setApptOpen(true) },
+        { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true) },
+        { icon: Settings2, label: "Préférences comm.", onClick: () => setPreferencesOpen(true), color: "violet" },
+      ],
+    },
+    {
+      title: "Conformité & Sécurité",
+      actions: [
+        { icon: ShieldCheck, label: "Vérification KYC", onClick: () => setKycOpen(true), color: "violet" },
+        { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
+        { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
+        { icon: Tag, label: "Étiquettes & alertes", onClick: () => setTagsOpen(true), color: "warning" },
+        { icon: ListTodo, label: "Tâches & suivis", onClick: () => setFollowupsOpen(true), color: "violet" },
+        { icon: FolderOpen, label: "Documents", onClick: () => setDocumentsOpen(true), color: "violet" },
+        { icon: History, label: "Historique & activité", onClick: () => setTimelineOpen(true), color: "violet" },
+        { icon: ShieldAlert, label: "Sécurité & sessions", onClick: () => setSecurityOpen(true), color: "danger" },
+        { icon: ShieldQuestion, label: "Demandes Loi 25", onClick: () => setPrivacyOpen(true), color: "danger" },
+        { icon: ScanSearch, label: "Risque & fraude", onClick: () => setFraudOpen(true), color: "danger" },
+      ],
+    },
   ];
 
   const colorMap: Record<string, string> = {
@@ -156,23 +224,62 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     violet: "text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/10",
   };
 
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (t: string) => {
+    setCollapsedGroups(prev => {
+      const n = new Set(prev);
+      if (n.has(t)) n.delete(t); else n.add(t);
+      return n;
+    });
+  };
+
   return (
     <>
-      <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-2">
-        <div className="flex flex-wrap gap-1.5">
-          {actions.map((a, i) => (
-            <button
-              key={i}
-              onClick={a.onClick}
-              disabled={loading}
-              className={`flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] px-2.5 py-1.5 text-[10px] font-medium transition-all disabled:opacity-40 ${colorMap[a.color]}`}
-            >
-              <a.icon className="h-3 w-3 shrink-0" />
-              {a.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] uppercase tracking-wider text-core-text-disabled font-semibold">Actions rapides</p>
+        <button
+          onClick={() => setNotesDrawerOpen(true)}
+          className="flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] px-2 py-1 text-[10px] font-medium text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/5"
+        >
+          <StickyNote className="h-3 w-3" /> Notes internes
+        </button>
       </div>
+      <div className="space-y-2">
+        {groups.map((group) => {
+          const collapsed = collapsedGroups.has(group.title);
+          return (
+            <div key={group.title} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)]">
+              <button
+                onClick={() => toggleGroup(group.title)}
+                className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-semibold text-core-text-secondary hover:text-white transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {group.title}
+                  <span className="ml-1 text-[9px] text-core-text-disabled font-normal">({group.actions.length})</span>
+                </span>
+              </button>
+              {!collapsed && (
+                <div className="flex flex-wrap gap-1.5 p-2 pt-0">
+                  {group.actions.map((a, i) => (
+                    <button
+                      key={i}
+                      onClick={a.onClick}
+                      disabled={loading}
+                      className={`flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] px-2.5 py-1.5 text-[10px] font-medium transition-all disabled:opacity-40 ${colorMap[a.color ?? "default"]}`}
+                    >
+                      <a.icon className="h-3 w-3 shrink-0" />
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+
 
       <AccountRestrictionsDialog
         accountId={accountId}
@@ -489,7 +596,121 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientName={clientName}
           accountId={accountId ?? null}
         />
+
       )}
+
+      {/* 10 new actions */}
+      <QuickRefundDialog
+        open={quickRefundOpen}
+        onClose={() => setQuickRefundOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        latestPaymentId={latestPayment?.id ?? null}
+        onRefresh={onRefresh}
+      />
+      <AccountWriteOffDialog
+        open={writeOffOpen}
+        onClose={() => setWriteOffOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <PaymentPlanDialog
+        open={paymentPlanOpen}
+        onClose={() => setPaymentPlanOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <AutopayRetryDialog
+        open={autopayRetryOpen}
+        onClose={() => setAutopayRetryOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        invoiceId={latestUnpaidInvoice?.id ?? null}
+        invoiceNumber={latestUnpaidInvoice?.invoice_number ?? null}
+        amount={latestUnpaidInvoice?.balance_due ?? undefined}
+        onRefresh={onRefresh}
+      />
+      <RemoteRebootDialog
+        open={rebootOpen}
+        onClose={() => setRebootOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <LineDiagnosticDialog
+        open={diagnosticOpen}
+        onClose={() => setDiagnosticOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <QuickPlanChangeDialog
+        open={planChangeOpen}
+        onClose={() => setPlanChangeOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <ServiceMoveDialog
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <SupervisorEscalationDialog
+        open={escalationOpen}
+        onClose={() => setEscalationOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <CompensationVoucherDialog
+        open={voucherOpen}
+        onClose={() => setVoucherOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        monthlyRevenue={monthlyRevenue}
+        onRefresh={onRefresh}
+      />
+      <VipChurnToggleDialog
+        open={vipOpen}
+        onClose={() => setVipOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <ClientNotesDrawer
+        open={notesDrawerOpen}
+        onClose={() => setNotesDrawerOpen(false)}
+        clientId={clientId}
+        onMutationSuccess={onRefresh}
+      />
+
     </>
   );
 }
