@@ -311,7 +311,7 @@ interface OrderDraft {
   kycChoice: "reuse" | "restart" | null;
   existingKycStatus: string | null;
   existingKycCaseNumber: string | null;
-  // Promo code details (persisted to survive PayPal redirect)
+  // Promo code details (persisted across checkout refresh)
   appliedPromo: {
     id: string;
     code: string;
@@ -323,15 +323,15 @@ interface OrderDraft {
     referral_code_id?: string;
     influencer_id?: string;
   } | null;
-  // Referral code details (persisted to survive PayPal redirect)
+  // Referral code details (persisted across checkout refresh)
   appliedReferral: AppliedReferral | null;
   // Welcome discount dismissal (persisted to prevent default promo override)
   welcomeDiscountDismissed?: boolean;
   // Payment state (persisted to avoid double-charging after redirect)
-  paypalCaptureId: string;
+  providerCaptureId?: string;
   paymentComplete: boolean;
   paymentConfirmationNumber: string;
-  paymentMethod: "credit_card" | "etransfer" | "paypal" | "promo_free" | null;
+  paymentMethod: "credit_card" | "etransfer" | "promo_free" | null;
 }
 
 // Streaming+ Add-ons Section Component
@@ -716,11 +716,9 @@ const ClientNewOrder = () => {
   // SIM type is plan-driven in this wizard (always physical; quantity = mobile lines)
   const [simType, setSimType] = useState<"esim" | "physical">("physical");
 
-  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "paypal" | "promo_free" | null>("etransfer");
+  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "promo_free" | null>("etransfer");
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
-  const [paypalCaptureId, setPaypalCaptureId] = useState("");
-  const paypalCartRef = useRef<string>("co_" + crypto.randomUUID());
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -878,7 +876,6 @@ const ClientNewOrder = () => {
             console.log("[OrderWizard] Restored welcomeDiscountDismissed:", draft.welcomeDiscountDismissed);
           }
           // Payment state (critical — must restore ALL payment fields)
-          if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
           if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
           if (draft.paymentConfirmationNumber) setPaymentConfirmationNumber(draft.paymentConfirmationNumber);
           if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
@@ -1030,13 +1027,12 @@ const ClientNewOrder = () => {
       kycChoice,
       existingKycStatus,
       existingKycCaseNumber,
-      // Promo/referral code details (persisted to survive PayPal redirect)
+      // Promo/referral code details (persisted across checkout refresh)
       appliedPromo,
       appliedReferral,
       // Welcome discount dismissal (CRITICAL: persisted to prevent default promo override on refresh)
       welcomeDiscountDismissed,
       // Payment state (all methods)
-      paypalCaptureId,
       paymentComplete,
       paymentConfirmationNumber,
       paymentMethod,
@@ -1054,7 +1050,7 @@ const ClientNewOrder = () => {
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
     verificationSessionId, verificationReferenceId, verificationSubmittedAt, verificationSubmissionState,
     idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
-    appliedPromo, appliedReferral, welcomeDiscountDismissed, paypalCaptureId, paymentComplete, paymentConfirmationNumber, paymentMethod
+    appliedPromo, appliedReferral, welcomeDiscountDismissed, paymentComplete, paymentConfirmationNumber, paymentMethod
   ]);
 
   // Persist KYC session ID to localStorage whenever it changes (independent of order)
@@ -2336,8 +2332,7 @@ const ClientNewOrder = () => {
       }
 
       // Determine payment method value
-      const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
-        : paymentMethod === "etransfer" ? "etransfer"
+      const paymentMethodValue = paymentMethod === "etransfer" ? "etransfer"
         : paymentMethod === "credit_card" ? "credit_card"
         : paymentMethod === "promo_free" ? "promo_free"
         : "etransfer";
@@ -2422,11 +2417,11 @@ const ClientNewOrder = () => {
           // Card authorizations are never treated as captured at checkout stage.
           // Capture/posted state can only be reached by explicit backend/admin capture flow.
           status:
-            (paymentMethodValue === "paypal" && !!paypalCaptureId) || paymentMethodValue === "promo_free"
+            paymentMethodValue === "promo_free"
               ? "captured"
               : "pre_authorized",
-          reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : paymentConfirmationNumber || null,
-          paypal_capture_id: paypalCaptureId || null,
+          reference: paymentConfirmationNumber || null,
+          paypal_capture_id: null,
           preauth_opt_in: acceptPreauthorized,
           preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
         },
@@ -2507,15 +2502,6 @@ const ClientNewOrder = () => {
       serverPricing.nivra_invoice_number = nivraCheckoutResponse.invoice_number;
       serverPricing.nivra_order_id = nivraCheckoutResponse.order_id;
       serverPricing.billing_cycle_day = nivraCheckoutResponse.billing_cycle_day;
-
-      // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
-      if (!usedFallback && paypalCaptureId && nivraCheckoutResponse.payment_number) {
-        notifyNivraCorePaid({
-          paymentNumber: nivraCheckoutResponse.payment_number,
-          paypalOrderId: paypalCaptureId,
-          paypalCaptureId: paypalCaptureId,
-        });
-      }
 
       // ★ CANONICAL SYNC: backend reconciliation (idempotent + auto-recovery)
       // Always run (including fallback mode) so missing canonical records are healed.
@@ -3014,9 +3000,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }));
         
         // Map payment method to human-readable label
-        const paymentMethodLabel = paymentMethod === "paypal" 
-          ? "PayPal" 
-          : paymentMethod === "etransfer" 
+        const paymentMethodLabel = paymentMethod === "etransfer" 
             ? "Virement Interac" 
             : paymentMethod === "credit_card" 
               ? "Carte de crédit"
@@ -3058,7 +3042,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           details: {
             "Services": servicesDesc,
             "Total": `$${(authoritativePricing?.total ?? 0).toFixed(2)}`,
-            "Méthode paiement": paymentMethod === "paypal" ? "PayPal" : paymentMethod === "etransfer" ? "Virement Interac" : paymentMethod === "credit_card" ? "Carte de crédit" : paymentMethod || "Non spécifié",
+            "Méthode paiement": paymentMethod === "etransfer" ? "Virement Interac" : paymentMethod === "credit_card" ? "Carte de crédit" : paymentMethod || "Non spécifié",
           },
           priority: "normal",
           admin_portal_link: getAdminPortalLink(`/admin/orders?order=${orderData.order_number}`),
@@ -3583,8 +3567,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const isIdComplete = idType && idNumber && idExpiration && idProvince;
   
   // Check if payment is complete (paymentComplete is the authoritative flag, set only after valid confirmation)
-  const isPaymentComplete = paymentComplete || 
-    (paymentMethod === "paypal" && !!paypalCaptureId);
+  const isPaymentComplete = paymentComplete;
   
   // Validate credit card format
   const isCardValid = cardNumber.replace(/\s/g, '').length >= 15 && 
