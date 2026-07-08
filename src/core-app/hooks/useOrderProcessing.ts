@@ -1474,45 +1474,37 @@ export function useOrderProcessing(orderId: string | undefined) {
       await updateOrder.mutateAsync(fields);
       await logActivity("shipment_updated", "order", orderId, fields);
 
-      // Send shipping notification if tracking was added
-      if (fields.tracking_number) {
-        const email = getClientEmail();
-        if (email) {
-          await queueClientEmail({
-            to_email: email,
-            template_key: "shipment_created",
-            event_key: `shipment_${orderId}_${Date.now()}`,
-            subject: "Votre commande a été expédiée — Nivra",
-            entity_id: orderId,
-            template_vars: {
-              client_name: getClientName(),
-              order_number: data?.order?.order_number || "",
-              carrier: fields.carrier || "",
-              tracking_number: fields.tracking_number || "",
-              tracking_url: fields.tracking_url || "",
-            },
-          });
-        }
-      }
-
       toast.success("Expédition mise à jour");
       if (fields.tracking_number) {
         noteClient("shipping_updated", `${fields.carrier || "Transporteur"} — Suivi ${fields.tracking_number}`, fields);
       }
 
-      // ── equipment_shipped email (append-only) ──
-      try {
-        if (fields.tracking_number && data?.order && data?.profile) {
-          await enqueueOrderEmail(
-            orderEmails.equipmentShipped(data.order, data.profile, {
-              carrier: fields.carrier,
-              tracking_number: fields.tracking_number,
-              tracking_url: fields.tracking_url,
-            })
+      // ── Generate delivery-slip PDF, persist to documents, send email ──
+      // The edge function handles: PDF generation → storage upload →
+      // client_auto_documents insert (portail + Core Documents) → corporate
+      // blue email with PDF attached and tracking button.
+      if (fields.tracking_number) {
+        try {
+          const { data: slipRes, error: slipErr } = await supabase.functions.invoke(
+            "order-shipping-notify",
+            {
+              body: {
+                order_id: orderId,
+                carrier: fields.carrier || "",
+                tracking_number: fields.tracking_number,
+                tracking_url: fields.tracking_url || "",
+              },
+            },
           );
+          if (slipErr) {
+            console.error("[order-shipping-notify] invoke error:", slipErr);
+            toast.warning("Expédition enregistrée, mais l'envoi du bon de livraison a échoué.");
+          } else if (slipRes?.success) {
+            toast.success("Bon de livraison envoyé au client");
+          }
+        } catch (e: any) {
+          console.error("[order-shipping-notify] threw:", e?.message);
         }
-      } catch (e: any) {
-        console.error("[orderEmails] equipment_shipped enqueue error:", e?.message);
       }
     } catch (err: any) {
       console.error("[GUARDRAIL][Shipping] Failed:", err);
