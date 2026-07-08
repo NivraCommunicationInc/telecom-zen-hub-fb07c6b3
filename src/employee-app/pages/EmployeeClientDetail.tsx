@@ -546,6 +546,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         clientUserId={clientId}
         clientName={profile.full_name || profile.email || "Client"}
         accountId={account?.id ?? null}
+        initialData={data}
         isAdmin={false}
         isStaff={true}
       />
