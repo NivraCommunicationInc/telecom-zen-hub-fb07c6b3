@@ -88,9 +88,7 @@ function normalizeOrdersPaymentMethod(raw?: any): string | null {
   const allowed = new Set(["card", "card_manual", "etransfer", "e_transfer", "apple_pay", "google_pay"]);
   if (allowed.has(v)) return v;
 
-  // Field sales payment_method allows: interac, paypal, deferred
   if (v === "interac") return "e_transfer";
-  if (v === "paypal") return "card";
   if (v === "deferred") return null;
 
   return null;
@@ -195,7 +193,7 @@ Deno.serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Service-role bypass: allow internal server-to-server calls (e.g. paypal-capture-order
+    // Service-role bypass: allow internal server-to-server calls (payment processors
     // bridging Field sales). Caller must present the project service-role key AND set
     // body.internal=true to opt-in.
     const isServiceRoleCall = token === serviceRoleKey;
@@ -1098,10 +1096,13 @@ Deno.serve(async (req) => {
             const paymentNumber = payNumErr || !payNum ? `PAY-FS-${Date.now().toString(36).toUpperCase()}` : String(payNum);
 
             // Determine payment method for billing_payments enum
-            const billingPaymentMethod = sale.payment_method === "paypal" ? "paypal"
-              : sale.payment_method === "interac" ? "interac"
-              : sale.payment_method === "card" ? "card"
+            const normalizedSalePaymentMethod = String(sale.payment_method || "").toLowerCase();
+            const billingPaymentMethod = normalizedSalePaymentMethod === "interac" ? "interac"
+              : ["card", "card_manual", "square"].includes(normalizedSalePaymentMethod) ? "card"
               : "interac"; // default for deferred
+            const billingPaymentProvider = normalizedSalePaymentMethod === "interac" ? "interac"
+              : ["card", "card_manual", "square"].includes(normalizedSalePaymentMethod) ? "square"
+              : "manual";
 
             // Create canonical payment record only when payment is confirmed.
             // billing_payments.status enum does not allow "pending".
@@ -1113,7 +1114,7 @@ Deno.serve(async (req) => {
                   customer_id: billingCustomerId,
                   amount: totalAmount,
                   method: billingPaymentMethod,
-                  provider: sale.payment_method || "manual",
+                  provider: billingPaymentProvider,
                   reference: sale.payment_reference || null,
                   payment_number: paymentNumber,
                   status: "confirmed",
@@ -1136,7 +1137,7 @@ Deno.serve(async (req) => {
                   clientAuthUserId: clientUserId,
                   amount: totalAmount,
                   method: billingPaymentMethod,
-                  provider: sale.payment_method || "manual",
+                  provider: billingPaymentProvider,
                   invoiceNumber: invoiceNum,
                   invoiceId,
                   paymentNumber,
@@ -1497,14 +1498,14 @@ Deno.serve(async (req) => {
           install_date: quote.install_date || ci.install_date || null,
           install_mode: quote.install_mode || ci.install_mode || null,
           services: fieldServices,
-          total_amount: Number(body.paypal_amount || quote.total || 0),
-          payment_method: body.payment_method || 'paypal',
-          payment_reference: body.payment_reference || body.paypal_capture_id || null,
+          total_amount: Number(body.square_amount || body.amount || quote.total || 0),
+          payment_method: body.payment_method || 'card',
+          payment_reference: body.payment_reference || body.square_payment_id || null,
           payment_status: 'confirmed',
           sync_status: 'pending',
           discount_data: quote.discount || null,
           source_quote_id: quote.id,
-          internal_notes: `${staffTunnelTag}Field quote ${quote.id} matérialisée automatiquement après paiement ${body.payment_method || 'paypal'}`.trim(),
+          internal_notes: `${staffTunnelTag}Field quote ${quote.id} matérialisée automatiquement après paiement ${body.payment_method || 'card'}`.trim(),
         })
         .select('*')
         .single();

@@ -6,7 +6,7 @@
  * Idempotent via overdue_reminder_log (UNIQUE on invoice_id + reminder_date).
  *
  * Each email links the customer to /portal/billing where they can pay
- * their TOTAL BALANCE in a single PayPal payment.
+ * their TOTAL BALANCE through the Square/card payment flow.
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";

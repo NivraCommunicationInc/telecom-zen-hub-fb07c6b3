@@ -44,14 +44,14 @@ interface PaymentMethod {
   method_type: string;
   brand: string | null;
   last4: string | null;
-  paypal_email: string | null;
+  paypal_email: string | null; // legacy column only; never written for new methods
   is_default: boolean;
   status: string;
   created_at: string;
 }
 
 const METHOD_TYPES = [
-  { value: "paypal",      label: "PayPal" },
+  { value: "square_card", label: "Carte Square" },
   { value: "visa",        label: "Carte Visa" },
   { value: "mastercard",  label: "Carte Mastercard" },
   { value: "interac",     label: "Débit Interac" },
@@ -59,7 +59,7 @@ const METHOD_TYPES = [
 ] as const;
 
 const REFUND_METHODS = [
-  { value: "paypal",         label: "PayPal" },
+  { value: "square",         label: "Square" },
   { value: "interac",        label: "Virement Interac" },
   { value: "credit_balance", label: "Crédit sur compte" },
   { value: "cheque",         label: "Chèque" },
@@ -82,7 +82,6 @@ export function BillingServiceActionsDialog({
   const [newType, setNewType] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [newLast4, setNewLast4] = useState("");
-  const [newPaypalEmail, setNewPaypalEmail] = useState("");
   const [newHolder, setNewHolder] = useState("");
   const [newDefault, setNewDefault] = useState(false);
 
@@ -115,7 +114,7 @@ export function BillingServiceActionsDialog({
   useEffect(() => {
     if (!open) return;
     setTab(customerId ? "square" : "methods");
-    setNewType(""); setNewBrand(""); setNewLast4(""); setNewPaypalEmail("");
+    setNewType(""); setNewBrand(""); setNewLast4("");
     setNewHolder(""); setNewDefault(false);
     setAutopayReason("");
     setPlanTotal(""); setPlanCount("3"); setPlanFreq("monthly");
@@ -186,8 +185,7 @@ export function BillingServiceActionsDialog({
 
   const doAddMethod = async () => {
     if (!newType) { toast.error("Type de méthode requis"); return; }
-    if (newType === "paypal" && !newPaypalEmail) { toast.error("Courriel PayPal requis"); return; }
-    if (newType !== "paypal" && newType !== "bank_account" && !newLast4) {
+    if (newType !== "bank_account" && !newLast4) {
       toast.error("4 derniers chiffres requis"); return;
     }
     if (newLast4 && !/^\d{4}$/.test(newLast4)) { toast.error("4 derniers chiffres : exactement 4 chiffres"); return; }
@@ -197,13 +195,12 @@ export function BillingServiceActionsDialog({
         method_type: newType,
         brand: newBrand || undefined,
         last4: newLast4 || undefined,
-        paypal_email: newPaypalEmail || undefined,
         holder_name: newHolder || undefined,
         is_default: newDefault,
         idempotency_key: `pm-${clientUserId}-${Date.now()}`,
       });
       toast.success("Méthode ajoutée — courriel envoyé");
-      setNewType(""); setNewBrand(""); setNewLast4(""); setNewPaypalEmail("");
+      setNewType(""); setNewBrand(""); setNewLast4("");
       setNewHolder(""); setNewDefault(false);
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -298,7 +295,6 @@ export function BillingServiceActionsDialog({
 
   const methodLabel = (m: PaymentMethod) => {
     const base = METHOD_TYPES.find((t) => t.value === m.method_type)?.label || m.method_type;
-    if (m.method_type === "paypal") return `${base} — ${m.paypal_email || "—"}`;
     return `${base}${m.last4 ? " •••• " + m.last4 : ""}`;
   };
 
@@ -386,10 +382,7 @@ export function BillingServiceActionsDialog({
                 <Input value={newHolder} onChange={(e) => setNewHolder(e.target.value)}
                   placeholder="Nom du titulaire" disabled={busy} />
               </div>
-              {newType === "paypal" ? (
-                <Input value={newPaypalEmail} onChange={(e) => setNewPaypalEmail(e.target.value)}
-                  placeholder="Courriel PayPal" type="email" disabled={busy} />
-              ) : newType && newType !== "bank_account" ? (
+              {newType && newType !== "bank_account" ? (
                 <div className="grid grid-cols-2 gap-3">
                   <Input value={newBrand} onChange={(e) => setNewBrand(e.target.value)}
                     placeholder="Marque (ex: Visa)" disabled={busy} />

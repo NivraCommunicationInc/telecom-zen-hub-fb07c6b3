@@ -22,7 +22,7 @@ const FAQS = [
   },
   {
     q: "Comment payer mon mois?",
-    a: "Par carte de crédit, débit Interac ou PayPal — directement dans votre portail client.",
+    a: "Par carte de crédit ou débit Interac — directement dans votre portail client.",
   },
 ];
 
@@ -105,7 +105,7 @@ export default function InternetPrepaye() {
               {[
                 ["1. Vérifiez votre disponibilité", "Entrez votre adresse au Québec."],
                 ["2. Choisissez votre forfait", "Internet GIGA à 60$/mois."],
-                ["3. Payez votre premier mois", "Par carte, Interac ou PayPal."],
+                ["3. Payez votre premier mois", "Par carte ou Interac."],
                 ["4. Installation 2-3 jours", "Technicien certifié à votre porte."],
                 ["5. Profitez de votre Internet", "Renouvelez chaque mois ou arrêtez quand vous voulez."],
               ].map(([t, d]) => (

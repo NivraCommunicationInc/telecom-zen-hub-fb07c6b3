@@ -36,11 +36,6 @@ export function isPaymentCaptured(
     return (etransferStatus || '').toLowerCase() === "complete";
   }
   
-  // PayPal: if status is paid/confirmed
-  if (method.includes("paypal")) {
-    return status === "paid" || status === "confirmed";
-  }
-  
   // Default: only 'paid' status with paid_at counts
   return status === "paid" && !!paidAt;
 }

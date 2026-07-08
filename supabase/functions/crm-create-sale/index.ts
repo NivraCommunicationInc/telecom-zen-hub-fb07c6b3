@@ -8,9 +8,7 @@
  *    exclusivement par build_invoice_from_order.
  *  - Les rabais (agent + welcome premier mois) sont matérialisés comme lignes
  *    order_items négatives ; ils font donc partie de la source unique.
- *  - PayPal est délégué à paypal-create-order (best-effort, ne touche pas
- *    aux tables billing_*). La capture passe par apply_payment_to_invoice
- *    dans paypal-capture-order (déjà canonique).
+ *  - Les paiements carte passent par Square.
  *  - Les fonctions *_ad_hoc ne sont PAS utilisées ici : nous avons toujours
  *    une commande source, donc build_invoice_from_order est obligatoire.
  */
@@ -232,7 +230,7 @@ Deno.serve(async (req) => {
       // total_amount / subtotal / tps / tvq laissés NULL — les RPC canoniques
       // seront la seule source de vérité. Patch après build_invoice_from_order.
       payment_status: "pending",
-      payment_method: "paypal",
+      payment_method: "card",
       activation_preference: payload.install.date ? "SCHEDULED" : "ASAP",
       environment: "live",
       equipment_line_details: equipmentLines,
@@ -412,10 +410,7 @@ Deno.serve(async (req) => {
     const equipTotal = equipmentLines.reduce((s, e) => s + e.unit_price * e.quantity, 0);
     const commissionEstimate = Number((monthlyAfterDiscount * 0.30 + equipTotal * 0.05).toFixed(2));
 
-    // Step 8: Phase 3.C.4 — PayPal décommissionné. Le paiement suit désormais
-    // exclusivement le chemin Square (core-square-payment-link) déclenché
-    // séparément par le client depuis le portail. Aucun lien d'approbation
-    // PayPal n'est plus généré ici.
+    // Step 8: Le paiement suit le chemin Square déclenché séparément par le client depuis le portail.
     try {
       await fetch(`${supabaseUrl}/functions/v1/send-order-confirmation`, {
         method: "POST",
@@ -432,8 +427,6 @@ Deno.serve(async (req) => {
       invoice_number: invoice.invoice_number,
       total: invoice.total,
       commission_estimate: commissionEstimate,
-      paypal_approve_url: null, // Phase 3.C.4 — champ conservé pour compat clients
-      paypal_order_id: null,
       canonical: true,
     });
   } catch (e) {

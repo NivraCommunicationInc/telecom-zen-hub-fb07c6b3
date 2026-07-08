@@ -131,7 +131,7 @@ export interface Taxes {
 // PAYMENT (G. Paiement)
 // ============================================================================
 
-export type PaymentMethod = "PayPal" | "Interac" | "Credit Card" | "Manual" | "paypal" | "interac" | "card" | "cash" | "e_transfer" | string;
+export type PaymentMethod = "Square" | "Interac" | "Credit Card" | "Manual" | "square" | "interac" | "card" | "cash" | "e_transfer" | string;
 export type PaymentStatus = "Captured" | "Confirmed" | "Pending" | "Failed" | "Refunded" | "captured" | "confirmed" | "pending" | "failed" | "refunded";
 
 export interface Payment {
@@ -140,7 +140,7 @@ export interface Payment {
   paid_amount: number;
   paid_at?: string;
   payment_reference: string; // 8 digits internal
-  processor_txn_id?: string; // PayPal id / Stripe id etc.
+  processor_txn_id?: string; // Square id / provider transaction id etc.
 }
 
 // ============================================================================
@@ -285,7 +285,7 @@ export interface PDFGenerationResult {
 export const PREPAID_LEGAL_FOOTER = `
 POLITIQUE DE FACTURATION PRÉPAYÉE
 
-Le cycle de facturation commence uniquement à la date de confirmation du paiement (Interac/PayPal/Carte). Les services sont facturés à l'avance.
+Le cycle de facturation commence uniquement à la date de confirmation du paiement (Interac/Square/Carte). Les services sont facturés à l'avance.
 Le paiement doit être confirmé AVANT la date de cycle (J0) pour renouveler le service. Si non payé à J0, le service n'est pas renouvelé (Expiré).
 Aucun intérêt ni frais de réactivation pour non-renouvellement normal. Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable (nouveau numéro requis).
 Intérêt (5%/mois) + 15$ frais de réactivation s'appliquent UNIQUEMENT pour litiges bancaires/rétrofacturations. Les délais d'exécution et d'activation s'appliquent selon la catégorie de commande.

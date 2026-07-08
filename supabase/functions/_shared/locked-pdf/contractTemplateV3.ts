@@ -3,7 +3,7 @@
  *
  * Page 1: Header + Meta grid + Parties + Services table
  * Page 2: Promotions mensuelles + Frais uniques + Récap financier (2 boîtes hero)
- * Page 3: Conditions générales §1-§5 (carte de crédit, plus PayPal)
+ * Page 3: Conditions générales §1-§5 (carte de crédit via Square)
  * Page 4: Modalités de service §6-§12
  * Page 5: Déclaration + Signatures (Nivra auto-signée + client)
  */

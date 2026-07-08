@@ -46,13 +46,13 @@ serve(async (req) => {
     checks.push({ name: "Portal client login (profiles)", ok: false, detail: String(e) });
   }
 
-  // 3) PayPal capture pipeline — RPC exists
+  // 3) Square/card capture pipeline — RPC exists
   try {
     const { error } = await supabase.rpc("apply_payment_to_invoice", {
       p_invoice_id: "00000000-0000-0000-0000-000000000000",
       p_amount: 0,
-      p_method: "paypal",
-      p_provider: "paypal",
+      p_method: "card",
+      p_provider: "square",
       p_provider_payment_id: "healthcheck",
       p_provider_order_id: "healthcheck",
       p_source: "healthcheck",
@@ -65,12 +65,12 @@ serve(async (req) => {
       ((error?.message || "").toLowerCase().includes("function") && (error?.message || "").toLowerCase().includes("not"));
     const rpcReachable = !error || !functionMissing;
     checks.push({
-      name: "PayPal payment capture RPC",
+      name: "Square payment capture RPC",
       ok: rpcReachable,
       detail: rpcReachable ? "RPC reachable" : error?.message,
     });
   } catch (e) {
-    checks.push({ name: "PayPal payment capture RPC", ok: false, detail: String(e) });
+    checks.push({ name: "Square payment capture RPC", ok: false, detail: String(e) });
   }
 
   // 4) Email queue dispatcher writable (order confirmation pipeline)

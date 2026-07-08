@@ -2,8 +2,8 @@
  * checkoutFallback — Direct Supabase record creation when Nivra Core API is unavailable.
  * 
  * IDEMPOTENCY STRATEGY:
- * 1. PayPal payments: use paypal_capture_id as dedup key (unique index on provider_payment_id)
- * 2. Non-PayPal: use a deterministic idempotency_key = `${user_id}:${method}:${timestamp_minute}`
+ * 1. Card/Square payments use provider references as dedup keys when available.
+ * 2. Other payments use a deterministic idempotency_key = `${user_id}:${method}:${timestamp_minute}`
  * 3. If an order already exists for the same capture/key, return existing records instead of creating new ones.
  * 4. Subscription: checked by order_id (the resolved one, not a fresh UUID).
  *
@@ -102,12 +102,13 @@ async function findExistingCheckout(
     }
   }
 
-  // ── Strategy 1: PayPal capture ID (strongest dedup key) ──
-  if (payload.payment.paypal_capture_id) {
+  // ── Strategy 1: provider capture/reference ID (strongest dedup key) ──
+  const providerCaptureId = payload.payment.capture_id || payload.payment.reference;
+  if (providerCaptureId) {
     const { data: existingPayment } = await supabase
       .from("billing_payments")
       .select("id, payment_number, invoice_id, customer_id")
-      .eq("provider_payment_id", payload.payment.paypal_capture_id)
+      .eq("provider_payment_id", providerCaptureId)
       .maybeSingle();
 
     if (existingPayment) {
@@ -363,6 +364,9 @@ export async function fallbackCheckout(
 
   // ── 5. Determine canonical billing fields ──
   const rawMethod = String(payload.payment.method || "").toLowerCase();
+  if (rawMethod === "paypal") {
+    throw new Error("PayPal décommissionné — utiliser Square/carte");
+  }
   const paymentReferenceRaw = String(payload.payment.reference || "");
   const inferredCardByReference = paymentReferenceRaw.toLowerCase().startsWith("pi_");
   // ★ CRITICAL: A PI reference (pi_xxx) does NOT mean captured.
@@ -371,22 +375,16 @@ export async function fallbackCheckout(
   const cardCaptured = isCardMethod && payload.payment.status === "captured";
   // ★ Card payments are AUTHORIZED ONLY (manual capture) — NOT considered "paid" until admin captures
   const isCardAuthorizedOnly = isCardMethod && !cardCaptured;
-  const isPaid = (rawMethod === "paypal" && !!payload.payment.paypal_capture_id) || cardCaptured;
+  const isPaid = cardCaptured;
   const isFree = rawMethod === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
-  const billingMethod: "paypal" | "interac" | "card" | "manual" =
-    rawMethod === "paypal"
-      ? "paypal"
-      : (["etransfer", "e_transfer", "interac"].includes(rawMethod)
+  const billingMethod: "interac" | "card" | "manual" =
+    (["etransfer", "e_transfer", "interac"].includes(rawMethod)
           ? "interac"
-          : (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference ? "card" : "manual"));
-  const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : billingMethod === "card" ? "card" : "manual";
-  const paymentReference = paymentProvider === "paypal"
-    ? null
-    : (payload.payment.reference || paymentNumber || null);
-  const paymentProviderPaymentId = paymentProvider === "paypal"
-    ? (payload.payment.paypal_capture_id || null)
-    : paymentProvider === "card"
+          : (["credit_card", "card", "square", "card_manual"].includes(rawMethod) || inferredCardByReference ? "card" : "manual"));
+  const paymentProvider = billingMethod === "interac" ? "interac" : billingMethod === "card" ? "square" : "manual";
+  const paymentReference = payload.payment.reference || paymentNumber || null;
+  const paymentProviderPaymentId = paymentProvider === "square"
       ? (payload.payment.reference || null)
       : null;
   const isStreamingOnly = (payload.services?.length || 0) === 0 && (payload.streaming_addons?.length || 0) > 0;
@@ -502,7 +500,7 @@ export async function fallbackCheckout(
     },
     billing_snapshot_payment: {
       method: payload.payment.method,
-      reference: payload.payment.reference || payload.payment.paypal_capture_id || null,
+      reference: payload.payment.reference || null,
       status: payload.payment.status,
     },
   });

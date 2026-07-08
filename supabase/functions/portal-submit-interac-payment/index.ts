@@ -5,9 +5,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
  * PORTAL SUBMIT INTERAC PAYMENT — DECOMMISSIONED
  * ============================================================================
  *
- * Nivra n'accepte plus les virements Interac.
- * Tous les paiements doivent passer par PayPal (incluant les cartes de
- * crédit via PayPal). Cet endpoint est conservé en stub HTTP 410 pour
+ * Cet ancien endpoint Interac est conservé en stub HTTP 410 pour
  * éviter les 404 et signaler clairement le retrait du service.
  */
 
@@ -26,7 +24,7 @@ serve((req) => {
     JSON.stringify({
       error: "endpoint_decommissioned",
       message:
-        "Le virement Interac n'est plus accepté. Veuillez payer par PayPal / Carte de crédit dans votre portail client.",
+        "Endpoint désactivé. Veuillez payer par le flux Square/carte du portail client.",
     }),
     {
       status: 410,
