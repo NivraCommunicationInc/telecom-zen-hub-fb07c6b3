@@ -68,6 +68,9 @@ export default function ClientLoyalty() {
 
   useEffect(() => { if (!canonicalLoading) load(); /* eslint-disable-next-line */ }, [user?.id, canonicalLoading, canonicalData?.projection?.lastRefreshedAt]);
 
+  // Realtime: any admin adjustment/approval/transfer in Core refreshes here.
+  useLoyaltyReferralRealtime(user?.id, () => { refetch(); });
+
   const handleRedeem = async () => {
     if (!confirmReward || !points) return;
     setRedeeming(true);
