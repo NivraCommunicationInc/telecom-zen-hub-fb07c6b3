@@ -48,7 +48,7 @@ export function ClientModuleShell(p: Props) {
 
   return (
     <Dialog open={p.open} onOpenChange={(o) => !o && p.onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col bg-card text-card-foreground border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <span>{p.title}</span>
