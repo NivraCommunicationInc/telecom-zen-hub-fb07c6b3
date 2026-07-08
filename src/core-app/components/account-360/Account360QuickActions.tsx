@@ -594,7 +594,9 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           onClose={() => setFraudOpen(false)}
           clientUserId={clientId}
           clientName={clientName}
+          accountId={accountId ?? null}
         />
+
       )}
 
       {/* 10 new actions */}
