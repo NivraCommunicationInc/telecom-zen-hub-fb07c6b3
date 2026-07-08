@@ -45,6 +45,7 @@ import {
   QuickRefundDialog, AccountWriteOffDialog, PaymentPlanDialog, AutopayRetryDialog,
   RemoteRebootDialog, LineDiagnosticDialog, QuickPlanChangeDialog, ServiceMoveDialog,
   SupervisorEscalationDialog, CompensationVoucherDialog, VipChurnToggleDialog,
+  FreezeCycleTrialDialog, NpsSatisfactionDialog, FraudLockDialog, ConsentJournalDialog,
 } from "@/core-app/components/account-360/Account360NewActionDialogs";
 import { ClientNotesDrawer } from "@/core-app/components/notes/ClientNotesDrawer";
 
@@ -113,6 +114,10 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [escalationOpen, setEscalationOpen] = useState(false);
   const [voucherOpen, setVoucherOpen] = useState(false);
   const [vipOpen, setVipOpen] = useState(false);
+  const [freezeOpen, setFreezeOpen] = useState(false);
+  const [npsOpen, setNpsOpen] = useState(false);
+  const [fraudLockOpen, setFraudLockOpen] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
   const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
 
   const handleImpersonate = async () => {
@@ -172,7 +177,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: RotateCcw, label: "Reboot équipement", onClick: () => setRebootOpen(true), color: "warning" },
         { icon: Activity, label: "Diagnostic ligne", onClick: () => setDiagnosticOpen(true), color: "emerald" },
         { icon: ArrowUpCircle, label: "Upgrade/Downgrade", onClick: () => setPlanChangeOpen(true), color: "emerald" },
-        { icon: PauseCircle, label: "Geler cycle / essai", onClick: () => setPauseOpen(true), color: "warning" },
+        { icon: PauseCircle, label: "Geler cycle / essai", onClick: () => setFreezeOpen(true), color: "warning" },
         { icon: Home, label: "Transfert (déménagement)", onClick: () => setMoveOpen(true), color: "violet" },
         { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" },
       ],
@@ -196,7 +201,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: Mail, label: "Envoyer rappel", onClick: () => setReminderOpen(true) },
         { icon: PhoneCall, label: "Appels & téléphonie", onClick: () => setCallsOpen(true), color: "violet" },
         { icon: Calendar, label: "Planifier RDV", onClick: () => setApptOpen(true) },
-        { icon: TrendingUp, label: "NPS / Satisfaction", onClick: () => setTimelineOpen(true), color: "emerald" },
+        { icon: TrendingUp, label: "NPS / Satisfaction", onClick: () => setNpsOpen(true), color: "emerald" },
         { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true) },
         { icon: Settings2, label: "Préférences comm.", onClick: () => setPreferencesOpen(true), color: "violet" },
       ],
@@ -207,12 +212,12 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: ShieldCheck, label: "Vérification KYC", onClick: () => setKycOpen(true), color: "violet" },
         { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
         { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
-        { icon: ShieldAlert, label: "Verrouiller compte (fraude)", onClick: () => setRestrictionsOpen(true), color: "danger" },
+        { icon: ShieldAlert, label: "Verrouiller compte (fraude)", onClick: () => setFraudLockOpen(true), color: "danger" },
         { icon: Tag, label: "Étiquettes & alertes", onClick: () => setTagsOpen(true), color: "warning" },
         { icon: ListTodo, label: "Tâches & suivis", onClick: () => setFollowupsOpen(true), color: "violet" },
         { icon: FolderOpen, label: "Documents", onClick: () => setDocumentsOpen(true), color: "violet" },
         { icon: History, label: "Historique & activité", onClick: () => setTimelineOpen(true), color: "violet" },
-        { icon: ShieldCheck, label: "Journal consentements", onClick: () => setPreferencesOpen(true), color: "violet" },
+        { icon: ShieldCheck, label: "Journal consentements", onClick: () => setConsentOpen(true), color: "violet" },
         { icon: ShieldAlert, label: "Sécurité & sessions", onClick: () => setSecurityOpen(true), color: "danger" },
         { icon: ShieldQuestion, label: "Demandes Loi 25", onClick: () => setPrivacyOpen(true), color: "danger" },
         { icon: ScanSearch, label: "Risque & fraude", onClick: () => setFraudOpen(true), color: "danger" },
@@ -248,16 +253,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
               <span className="text-[9px] text-core-text-disabled">({group.actions.length})</span>
               <div className="flex-1 h-px bg-[hsl(220,15%,16%)]" />
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
               {group.actions.map((a, i) => (
                 <button
                   key={i}
                   onClick={a.onClick}
                   disabled={loading}
-                  className={`flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] px-2.5 py-1.5 text-[10px] font-medium transition-all disabled:opacity-40 ${colorMap[a.color ?? "default"]}`}
+                  className={`flex min-h-[44px] w-full items-center gap-2 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] px-3 py-2 text-left text-[11px] font-medium leading-tight transition-all disabled:opacity-40 ${colorMap[a.color ?? "default"]}`}
                 >
-                  <a.icon className="h-3 w-3 shrink-0" />
-                  {a.label}
+                  <a.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0 break-words">{a.label}</span>
                 </button>
               ))}
             </div>
@@ -586,7 +591,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
 
       )}
 
-      {/* 10 new actions */}
+      {/* Advanced 360 actions */}
       <QuickRefundDialog
         open={quickRefundOpen}
         onClose={() => setQuickRefundOpen(false)}
@@ -685,6 +690,42 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
       <VipChurnToggleDialog
         open={vipOpen}
         onClose={() => setVipOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <FreezeCycleTrialDialog
+        open={freezeOpen}
+        onClose={() => setFreezeOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <NpsSatisfactionDialog
+        open={npsOpen}
+        onClose={() => setNpsOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <FraudLockDialog
+        open={fraudLockOpen}
+        onClose={() => setFraudLockOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <ConsentJournalDialog
+        open={consentOpen}
+        onClose={() => setConsentOpen(false)}
         accountId={accountId ?? null}
         clientUserId={clientId ?? null}
         clientName={clientName}
