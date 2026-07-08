@@ -32,6 +32,7 @@ import { ClientAdminNotesSection } from "@/core-app/components/admin-notes/Clien
 import { ClientFullHistory } from "@/core-app/components/client-history/ClientFullHistory";
 import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
+import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -181,7 +182,7 @@ const CoreClientProfile = () => {
     queryKey: ["core-client-orders", clientId],
     queryFn: async () => {
       const { data } = await supabase.from("orders")
-        .select("id, order_number, status, created_at, service_type, total_amount, payment_status")
+        .select("id, order_number, status, created_at, service_type, total_amount, payment_status, client_first_name, client_last_name, client_email, client_phone, client_full_address, shipping_address, shipping_city, shipping_province, shipping_postal_code, carrier, tracking_number, shipped_at, equipment_details")
         .eq("user_id", clientId!)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -338,15 +339,16 @@ const CoreClientProfile = () => {
   const { data: autoDocs = [] } = useQuery({
     queryKey: ["core-client-auto-documents", clientId],
     queryFn: async () => {
-      if (!account) return [];
+      const filters = [`client_id.eq.${clientId}`];
+      if (account?.id) filters.push(`account_id.eq.${account.id}`);
       const { data } = await supabase.from("client_auto_documents")
-        .select("id, doc_type, doc_number, storage_path, created_at, event_type")
-        .eq("account_id", account.id)
+        .select("id, doc_type, doc_number, storage_path, created_at, event_type, idempotency_key, metadata, email_sent")
+        .or(filters.join(","))
         .order("created_at", { ascending: false })
         .limit(30);
       return (data || []) as any[];
     },
-    enabled: !!clientId && !!account,
+    enabled: !!clientId,
     refetchInterval: 30_000,
   });
 
@@ -420,6 +422,50 @@ const CoreClientProfile = () => {
   }
 
   const displayName = profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.email || "—";
+  const shippingSlipByOrder = new Map(
+    autoDocs
+      .filter((doc: any) => doc.doc_type === "order_shipping_slip")
+      .map((doc: any) => [String(doc.idempotency_key || "").replace(/^order_/, "").replace(/_order_shipping_slip$/, ""), doc])
+  );
+
+  const openShippingSlip = async (orderRow: any) => {
+    const persisted = shippingSlipByOrder.get(String(orderRow.order_number || ""));
+    if (persisted?.storage_path) {
+      await openClientDocumentUrl(persisted.storage_path);
+      return;
+    }
+
+    const equipmentItems = Array.isArray(orderRow.equipment_details)
+      ? orderRow.equipment_details.map((item: any) => ({
+          description: item.label || item.name || item.type || "Équipement",
+          serial_number: item.serial_number || undefined,
+          quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+        }))
+      : [];
+    const result = generateDeliverySlipPDF({
+      slip_number: `BL-${orderRow.order_number || orderRow.id?.slice(0, 8) || "commande"}`,
+      issue_date: orderRow.shipped_at || orderRow.created_at || new Date().toISOString(),
+      client_name: [orderRow.client_first_name, orderRow.client_last_name].filter(Boolean).join(" ") || displayName || "Client Nivra",
+      client_email: orderRow.client_email || profile.email || "",
+      client_phone: orderRow.client_phone || profile.phone || "",
+      account_number: account?.account_number || "",
+      delivery_address: orderRow.shipping_address || orderRow.client_full_address || account?.primary_service_address || "",
+      delivery_city: orderRow.shipping_city || account?.primary_service_city || "",
+      delivery_province: orderRow.shipping_province || account?.primary_service_province || "QC",
+      delivery_postal: orderRow.shipping_postal_code || account?.primary_service_postal_code || "",
+      order_number: String(orderRow.order_number || ""),
+      carrier: orderRow.carrier || "En préparation",
+      tracking_number: orderRow.tracking_number || "—",
+      items: equipmentItems.length ? equipmentItems : [{ description: "Équipement à expédier", quantity: 1 }],
+    });
+    if (!result.success || !result.blob) {
+      toast.error("Bordereau non disponible");
+      return;
+    }
+    const url = URL.createObjectURL(result.blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
 
   // Quick action button component
   const QAction = ({ icon: Icon, label, onClick, color = "emerald" }: { icon: any; label: string; onClick: () => void; color?: string }) => (
@@ -854,6 +900,12 @@ const CoreClientProfile = () => {
                               <td className="px-2 py-2"><StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" /></td>
                               <td className="px-2 py-2 text-[#A1A1AA]">{o.created_at ? format(new Date(o.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
                               <td className="px-2 py-2">
+                                <button
+                                  onClick={() => openShippingSlip(o)}
+                                  className="h-6 px-2 mr-1 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10"
+                                >
+                                  Bordereau
+                                </button>
                                 <Link to={corePath(`/orders/${o.id}`)}>
                                   <button className="h-6 px-2 rounded border border-[hsl(220,15%,20%)] text-[10px] text-[hsl(220,10%,50%)] hover:text-white">Ouvrir</button>
                                 </Link>
@@ -931,6 +983,28 @@ const CoreClientProfile = () => {
                   </>
                 ) : (
                   <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun contrat</p>
+                )}
+                {orders.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-[hsl(220,15%,14%)]">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] mb-2">Bordereaux de livraison</p>
+                    <div className="space-y-2">
+                      {orders.slice(0, 5).map((o: any) => (
+                        <div key={`slip-${o.id}`} className="flex flex-wrap items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                          <FileText className="h-4 w-4 text-blue-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-medium text-white truncate font-mono">Bon de livraison — {o.order_number}</p>
+                            <p className="text-[10px] text-[#A1A1AA]">{shippingSlipByOrder.has(String(o.order_number || "")) ? "PDF enregistré" : "Disponible en génération instantanée"}</p>
+                          </div>
+                          <button
+                            onClick={() => openShippingSlip(o)}
+                            className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
+                          >
+                            <Download className="h-3 w-3" /> Ouvrir
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </Section>
 
