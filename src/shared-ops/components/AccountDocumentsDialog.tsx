@@ -16,6 +16,9 @@ import { Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCh
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { downloadClientDeliverySlipPDF, generateClientDeliverySlipPDF } from "@/lib/clientDeliverySlip";
+import { generateCanonicalInvoicePDF } from "@/lib/pdf/canonicalDocumentService";
+import { generateCanonicalReceiptPDF } from "@/lib/pdf/canonicalDocumentExtensions";
+import { generateReceiptPDF } from "@/lib/pdf/receiptTemplate";
 
 interface Props {
   open: boolean;
@@ -44,6 +47,8 @@ interface DocItem {
 }
 
 const DELIVERY_SLIP_KIND = "delivery_slip";
+const INVOICE_PDF_KIND = "invoice_pdf";
+const RECEIPT_PDF_KIND = "receipt_pdf";
 
 const sourceMeta: Record<DocItem["source"], { label: string; icon: any; tone: string }> = {
   contract: { label: "Contrats", icon: FileSignature, tone: "bg-violet-500/15 text-violet-300 border-violet-500/30" },
@@ -94,7 +99,7 @@ function docsFromCanonical(data: any): DocItem[] {
     created_at: inv.created_at,
     url: inv.pdf_url || inv.invoice_pdf_url || null,
     signed: false,
-    metadata: { status: inv.status, total: inv.total, balance_due: inv.balance_due },
+    metadata: { generatedDocument: INVOICE_PDF_KIND, invoice_id: inv.id, status: inv.status, total: inv.total, balance_due: inv.balance_due },
   }));
   (data.payments || []).forEach((p: any) => rows.push({
     id: `canonical-receipt-${p.id}`,
@@ -105,7 +110,7 @@ function docsFromCanonical(data: any): DocItem[] {
     created_at: p.received_at || p.created_at,
     url: p.receipt_url || null,
     signed: false,
-    metadata: { status: p.status, amount: p.amount, method: p.method },
+    metadata: { generatedDocument: RECEIPT_PDF_KIND, payment: p, payment_id: p.id, invoice_id: p.invoice_id, status: p.status, amount: p.amount, method: p.method },
   }));
   (data.orders || []).forEach((o: any) => rows.push({
     id: `delivery-slip-${o.id}`,
@@ -130,6 +135,25 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfViewer = usePDFViewer();
 
+  const documentKey = (item: DocItem) => {
+    const rawId = item.id
+      .replace(/^canonical-(contract|upload|invoice|receipt|order)-/, "")
+      .replace(/^delivery-slip-/, "delivery-slip:");
+    return `${item.source}:${rawId}`;
+  };
+
+  const mergeDocuments = (docs: DocItem[]) => {
+    const merged = new Map<string, DocItem>();
+    for (const doc of docs) {
+      const key = documentKey(doc);
+      const current = merged.get(key);
+      if (!current || (!current.url && doc.url) || (!current.metadata?.generatedDocument && doc.metadata?.generatedDocument)) {
+        merged.set(key, doc);
+      }
+    }
+    return Array.from(merged.values()).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  };
+
   const load = async () => {
     if (!clientUserId) return;
     setLoading(true);
@@ -141,8 +165,8 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Erreur");
-      const merged = [...(data.items ?? []), ...fallbackItems];
-      setItems(Array.from(new Map(merged.map((i: DocItem) => [`${i.source}-${i.id}`, i])).values()));
+      const merged = [...fallbackItems, ...(data.items ?? [])];
+      setItems(mergeDocuments(merged));
     } catch (e: any) {
       toast.error("Erreur chargement documents", { description: e.message });
     } finally {
@@ -166,6 +190,10 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
   }, [items, tab, search]);
 
   const isGeneratedDeliverySlip = (it: DocItem) => it.metadata?.generatedDocument === DELIVERY_SLIP_KIND;
+  const isGeneratedInvoice = (it: DocItem) => it.source === "invoice" && (!!it.metadata?.invoice_id || it.metadata?.generatedDocument === INVOICE_PDF_KIND);
+  const isGeneratedReceipt = (it: DocItem) => it.source === "receipt" && (!!it.metadata?.invoice_id || !!it.metadata?.payment || it.metadata?.generatedDocument === RECEIPT_PDF_KIND);
+
+  const fileSafeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || "document";
 
   const resolveOrderForDeliverySlip = (it: DocItem) => {
     const orderFromMetadata = it.metadata?.order;
@@ -212,9 +240,72 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
     }
   };
 
+  const openGeneratedInvoice = (it: DocItem) => {
+    const invoiceId = it.metadata?.invoice_id || it.id.replace(/^canonical-invoice-/, "");
+    pdfViewer.openWithGenerator(async () => {
+      const result = await generateCanonicalInvoicePDF(supabase as any, invoiceId);
+      if (!result.success || !result.blob) throw new Error(result.error || "Facture indisponible");
+      return result.blob;
+    }, it.name, `${fileSafeName(it.name)}.pdf`);
+  };
+
+  const fetchPaymentDetail = async (it: DocItem) => {
+    if (it.metadata?.payment) return it.metadata.payment;
+    const paymentId = it.metadata?.payment_id || it.id.replace(/^canonical-receipt-/, "");
+    const { data } = await supabase
+      .from("billing_payments")
+      .select("id, invoice_id, payment_number, amount, method, status, reference, received_at, created_at, invoice:billing_invoices(invoice_number, total, balance_due, order_id)")
+      .eq("id", paymentId)
+      .maybeSingle();
+    return data || null;
+  };
+
+  const openGeneratedReceipt = (it: DocItem) => {
+    pdfViewer.openWithGenerator(async () => {
+      const payment = await fetchPaymentDetail(it);
+      const invoiceId = it.metadata?.invoice_id || payment?.invoice_id;
+      if (invoiceId) {
+        const canonical = await generateCanonicalReceiptPDF(supabase as any, invoiceId);
+        if (canonical.success && canonical.blob) return canonical.blob;
+      }
+
+      const profile = initialData?.profile || {};
+      const account = initialData?.account || {};
+      const result = generateReceiptPDF({
+        receipt_number: it.number || payment?.payment_number || payment?.reference || it.id.slice(-8),
+        payment_date: payment?.received_at || payment?.created_at || it.created_at,
+        payment_method: payment?.method || payment?.payment_method || it.metadata?.method || "Paiement",
+        amount_paid: Number(payment?.amount ?? it.metadata?.amount ?? 0),
+        invoice_number: payment?.invoice?.invoice_number || it.metadata?.invoice_number || "—",
+        invoice_total: Number(payment?.invoice?.total ?? payment?.amount ?? it.metadata?.amount ?? 0),
+        order_number: payment?.invoice?.order_id || undefined,
+        client_name: profile.full_name || clientName,
+        client_email: profile.email || "",
+        client_phone: profile.phone || undefined,
+        client_address: account.service_address || profile.service_address || undefined,
+        account_number: account.account_number || "—",
+        transaction_reference: payment?.reference || it.number || undefined,
+        balance_remaining: Number(payment?.invoice?.balance_due ?? 0),
+        payment_status: payment?.status || it.metadata?.status || "paid",
+      });
+      if (!result.success || !result.blob) throw new Error(result.error || "Reçu indisponible");
+      return result.blob;
+    }, it.name, `${fileSafeName(it.name)}.pdf`);
+  };
+
   const openDoc = async (it: DocItem) => {
     if (isGeneratedDeliverySlip(it)) {
       openGeneratedDeliverySlip(it);
+      return;
+    }
+
+    if (isGeneratedInvoice(it) && !it.url) {
+      openGeneratedInvoice(it);
+      return;
+    }
+
+    if (isGeneratedReceipt(it) && !it.url) {
+      openGeneratedReceipt(it);
       return;
     }
 
@@ -233,6 +324,16 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
   const downloadDoc = async (it: DocItem) => {
     if (isGeneratedDeliverySlip(it)) {
       downloadGeneratedDeliverySlip(it);
+      return;
+    }
+
+    if (isGeneratedInvoice(it) && !it.url) {
+      openGeneratedInvoice(it);
+      return;
+    }
+
+    if (isGeneratedReceipt(it) && !it.url) {
+      openGeneratedReceipt(it);
       return;
     }
 
@@ -412,7 +513,7 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
                 const isExpired = sigStatus?.label === "Expiré";
                 const canResend = isContract && !isSigned && !isExpired && isStaff;
                 const isUploaded = it.source === "uploaded";
-                const canOpen = !!it.url || isGeneratedDeliverySlip(it);
+                const canOpen = !!it.url || isGeneratedDeliverySlip(it) || isGeneratedInvoice(it) || isGeneratedReceipt(it);
                 return (
                   <li
                     key={`${it.source}-${it.id}`}
