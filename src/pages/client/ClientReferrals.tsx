@@ -448,8 +448,9 @@ const ClientReferrals = () => {
 
                         <CycleProgress
                           paid={r.qualifying_cycles_paid || 0}
-                          total={r.required_cycles || 2}
+                          total={r.required_cycles || 3}
                         />
+
 
                         <p className="text-xs text-muted-foreground">
                           Parrainé le {new Date(r.created_at).toLocaleDateString("fr-CA")}
