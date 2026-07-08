@@ -157,6 +157,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: Banknote, label: "Write-off / Ajustement", onClick: () => setWriteOffOpen(true), color: "danger" },
         { icon: Repeat, label: "Plan de paiement", onClick: () => setPaymentPlanOpen(true), color: "violet" },
         { icon: RotateCcw, label: "Force AutoPay", onClick: () => setAutopayRetryOpen(true), color: "warning" },
+        { icon: CreditCard, label: "Méthode de paiement", onClick: () => setBillingOpen(true), color: "violet" },
         { icon: Wallet, label: "Gestion facturation", onClick: () => setBillingOpen(true), color: "violet" },
         { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => setCollectionsOpen(true), color: "warning" },
         { icon: DollarSign, label: "Litige facturation", onClick: () => setDisputesOpen(true), color: "warning" },
@@ -171,6 +172,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: RotateCcw, label: "Reboot équipement", onClick: () => setRebootOpen(true), color: "warning" },
         { icon: Activity, label: "Diagnostic ligne", onClick: () => setDiagnosticOpen(true), color: "emerald" },
         { icon: ArrowUpCircle, label: "Upgrade/Downgrade", onClick: () => setPlanChangeOpen(true), color: "emerald" },
+        { icon: PauseCircle, label: "Geler cycle / essai", onClick: () => setPauseOpen(true), color: "warning" },
         { icon: Home, label: "Transfert (déménagement)", onClick: () => setMoveOpen(true), color: "violet" },
         { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" },
       ],
@@ -194,6 +196,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: Mail, label: "Envoyer rappel", onClick: () => setReminderOpen(true) },
         { icon: PhoneCall, label: "Appels & téléphonie", onClick: () => setCallsOpen(true), color: "violet" },
         { icon: Calendar, label: "Planifier RDV", onClick: () => setApptOpen(true) },
+        { icon: TrendingUp, label: "NPS / Satisfaction", onClick: () => setTimelineOpen(true), color: "emerald" },
         { icon: StickyNote, label: "Note interne", onClick: () => setNoteOpen(true) },
         { icon: Settings2, label: "Préférences comm.", onClick: () => setPreferencesOpen(true), color: "violet" },
       ],
@@ -204,10 +207,12 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: ShieldCheck, label: "Vérification KYC", onClick: () => setKycOpen(true), color: "violet" },
         { icon: KeyRound, label: "Réinitialiser NIP", onClick: () => setPinResetOpen(true), color: "warning" },
         { icon: Shield, label: "Restrictions", onClick: () => setRestrictionsOpen(true), color: "danger" },
+        { icon: ShieldAlert, label: "Verrouiller compte (fraude)", onClick: () => setRestrictionsOpen(true), color: "danger" },
         { icon: Tag, label: "Étiquettes & alertes", onClick: () => setTagsOpen(true), color: "warning" },
         { icon: ListTodo, label: "Tâches & suivis", onClick: () => setFollowupsOpen(true), color: "violet" },
         { icon: FolderOpen, label: "Documents", onClick: () => setDocumentsOpen(true), color: "violet" },
         { icon: History, label: "Historique & activité", onClick: () => setTimelineOpen(true), color: "violet" },
+        { icon: ShieldCheck, label: "Journal consentements", onClick: () => setPreferencesOpen(true), color: "violet" },
         { icon: ShieldAlert, label: "Sécurité & sessions", onClick: () => setSecurityOpen(true), color: "danger" },
         { icon: ShieldQuestion, label: "Demandes Loi 25", onClick: () => setPrivacyOpen(true), color: "danger" },
         { icon: ScanSearch, label: "Risque & fraude", onClick: () => setFraudOpen(true), color: "danger" },
@@ -224,60 +229,42 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     violet: "text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/10",
   };
 
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const toggleGroup = (t: string) => {
-    setCollapsedGroups(prev => {
-      const n = new Set(prev);
-      if (n.has(t)) n.delete(t); else n.add(t);
-      return n;
-    });
-  };
-
   return (
     <>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <p className="text-[10px] uppercase tracking-wider text-core-text-disabled font-semibold">Actions rapides</p>
         <button
           onClick={() => setNotesDrawerOpen(true)}
-          className="flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] px-2 py-1 text-[10px] font-medium text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/5"
+          className="flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] px-2.5 py-1 text-[10px] font-medium text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/5 transition-colors"
         >
           <StickyNote className="h-3 w-3" /> Notes internes
         </button>
       </div>
-      <div className="space-y-2">
-        {groups.map((group) => {
-          const collapsed = collapsedGroups.has(group.title);
-          return (
-            <div key={group.title} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)]">
-              <button
-                onClick={() => toggleGroup(group.title)}
-                className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-semibold text-core-text-secondary hover:text-white transition-colors"
-              >
-                <span className="flex items-center gap-1.5">
-                  {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  {group.title}
-                  <span className="ml-1 text-[9px] text-core-text-disabled font-normal">({group.actions.length})</span>
-                </span>
-              </button>
-              {!collapsed && (
-                <div className="flex flex-wrap gap-1.5 p-2 pt-0">
-                  {group.actions.map((a, i) => (
-                    <button
-                      key={i}
-                      onClick={a.onClick}
-                      disabled={loading}
-                      className={`flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] px-2.5 py-1.5 text-[10px] font-medium transition-all disabled:opacity-40 ${colorMap[a.color ?? "default"]}`}
-                    >
-                      <a.icon className="h-3 w-3 shrink-0" />
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+      <div className="space-y-3">
+        {groups.map((group) => (
+          <div key={group.title}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-core-text-secondary">{group.title}</span>
+              <span className="text-[9px] text-core-text-disabled">({group.actions.length})</span>
+              <div className="flex-1 h-px bg-[hsl(220,15%,16%)]" />
             </div>
-          );
-        })}
+            <div className="flex flex-wrap gap-1.5">
+              {group.actions.map((a, i) => (
+                <button
+                  key={i}
+                  onClick={a.onClick}
+                  disabled={loading}
+                  className={`flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] px-2.5 py-1.5 text-[10px] font-medium transition-all disabled:opacity-40 ${colorMap[a.color ?? "default"]}`}
+                >
+                  <a.icon className="h-3 w-3 shrink-0" />
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
+
 
 
 
