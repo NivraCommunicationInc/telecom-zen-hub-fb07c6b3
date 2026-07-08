@@ -48,6 +48,7 @@ import {
   FreezeCycleTrialDialog, NpsSatisfactionDialog, FraudLockDialog, ConsentJournalDialog,
 } from "@/core-app/components/account-360/Account360NewActionDialogs";
 import { ClientNotesDrawer } from "@/core-app/components/notes/ClientNotesDrawer";
+import { PlanChangeModule } from "@/core-app/components/account-360/modules/PlanChangeModule";
 
 
 
