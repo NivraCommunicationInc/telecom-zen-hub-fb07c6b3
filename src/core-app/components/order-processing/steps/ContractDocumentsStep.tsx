@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
+import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { SignatureStatusBlock } from "./SignatureStatusBlock";
 import { StepCompletionCard } from "../StepCompletionCard";
