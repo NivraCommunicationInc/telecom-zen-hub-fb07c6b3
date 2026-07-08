@@ -594,9 +594,121 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           onClose={() => setFraudOpen(false)}
           clientUserId={clientId}
           clientName={clientName}
-          accountId={accountId ?? null}
         />
       )}
+
+      {/* 10 new actions */}
+      <QuickRefundDialog
+        open={quickRefundOpen}
+        onClose={() => setQuickRefundOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        latestPaymentId={latestPayment?.id ?? null}
+        onRefresh={onRefresh}
+      />
+      <AccountWriteOffDialog
+        open={writeOffOpen}
+        onClose={() => setWriteOffOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <PaymentPlanDialog
+        open={paymentPlanOpen}
+        onClose={() => setPaymentPlanOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <AutopayRetryDialog
+        open={autopayRetryOpen}
+        onClose={() => setAutopayRetryOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        invoiceId={latestUnpaidInvoice?.id ?? null}
+        invoiceNumber={latestUnpaidInvoice?.invoice_number ?? null}
+        amount={latestUnpaidInvoice?.balance_due ?? undefined}
+        onRefresh={onRefresh}
+      />
+      <RemoteRebootDialog
+        open={rebootOpen}
+        onClose={() => setRebootOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <LineDiagnosticDialog
+        open={diagnosticOpen}
+        onClose={() => setDiagnosticOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <QuickPlanChangeDialog
+        open={planChangeOpen}
+        onClose={() => setPlanChangeOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <ServiceMoveDialog
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <SupervisorEscalationDialog
+        open={escalationOpen}
+        onClose={() => setEscalationOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <CompensationVoucherDialog
+        open={voucherOpen}
+        onClose={() => setVoucherOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        monthlyRevenue={monthlyRevenue}
+        onRefresh={onRefresh}
+      />
+      <VipChurnToggleDialog
+        open={vipOpen}
+        onClose={() => setVipOpen(false)}
+        accountId={accountId ?? null}
+        clientUserId={clientId ?? null}
+        clientName={clientName}
+        clientEmail={clientEmail}
+        onRefresh={onRefresh}
+      />
+      <ClientNotesDrawer
+        open={notesDrawerOpen}
+        onClose={() => setNotesDrawerOpen(false)}
+        clientId={clientId}
+        onMutationSuccess={onRefresh}
+      />
+
     </>
   );
 }
