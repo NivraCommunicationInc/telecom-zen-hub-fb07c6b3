@@ -49,6 +49,29 @@ export function ContractDocumentsStep({ proc }: Props) {
     const loadKey = download ? `dl-${doc.key}` : doc.key;
     setLoading(loadKey);
     try {
+      // Shipping slip lives in storage (client-documents bucket) — fetch signed URL
+      if (doc.key === "shipping_slip") {
+        if (!shippingSlip?.storage_path) { toast.error("Bordereau non disponible"); return; }
+        const { data: signed, error: sErr } = await supabase.storage
+          .from("client-documents")
+          .createSignedUrl(shippingSlip.storage_path, 900);
+        if (sErr || !signed?.signedUrl) { toast.error("Erreur d'accès au bordereau"); return; }
+        const resp = await fetch(signed.signedUrl);
+        const blob = await resp.blob();
+        const filename = `Bon_Livraison_${shippingSlip.doc_number || order.order_number}.pdf`;
+        if (download) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url; link.download = filename;
+          document.body.appendChild(link); link.click(); document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          toast.success("Téléchargement démarré");
+        } else {
+          setPdfBlob(blob); setPdfTitle("Bordereau de livraison"); setPdfFilename(filename); setPdfViewerOpen(true);
+        }
+        return;
+      }
+
       const result = await generateOrderDocuments(order.id);
       if (!result) { toast.error("Données de document introuvables"); return; }
 
