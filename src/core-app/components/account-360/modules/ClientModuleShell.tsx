@@ -122,6 +122,42 @@ export function ClientModuleShell(p: Props) {
                 </div>
               )}
 
+              {(p.impactedTables?.length || p.plannedEmails?.length) && (
+                <div className="grid md:grid-cols-2 gap-2">
+                  {p.impactedTables && p.impactedTables.length > 0 && (
+                    <div className="border rounded-md p-3 bg-muted/40">
+                      <p className="text-xs font-semibold mb-2">Écritures prévues</p>
+                      <ul className="space-y-1 text-xs">
+                        {p.impactedTables.map((t, i) => (
+                          <li key={i} className="flex justify-between gap-2">
+                            <code className="text-[11px]">{t.table}</code>
+                            <span className="text-muted-foreground">
+                              {t.rows != null ? `${t.rows} row(s)` : ""}{t.note ? ` · ${t.note}` : ""}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {p.plannedEmails && p.plannedEmails.length > 0 && (
+                    <div className="border rounded-md p-3 bg-muted/40">
+                      <p className="text-xs font-semibold mb-2">Emails prévus</p>
+                      <ul className="space-y-1 text-xs">
+                        {p.plannedEmails.map((e, i) => (
+                          <li key={i} className="flex justify-between gap-2">
+                            <code className="text-[11px]">{e.template}</code>
+                            <span className="text-muted-foreground">
+                              {e.recipient ?? ""}{e.note ? ` · ${e.note}` : ""}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+
               {p.onConfirm && (
                 <div className="space-y-2">
                   {p.requireReason && (
