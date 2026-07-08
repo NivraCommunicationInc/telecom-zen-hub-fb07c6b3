@@ -27,6 +27,7 @@ import {
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminReferralAdvancedDialog } from "@/core-app/components/loyalty/AdminReferralAdvancedDialog";
 
 const STATUS_LABELS: Record<string, string> = {
   code_used: "Code utilisé",
@@ -60,6 +61,7 @@ export default function CoreReferralsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [rewardFilter, setRewardFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [rewardNotes, setRewardNotes] = useState("");
   const [rewardRef, setRewardRef] = useState("");
 
@@ -431,9 +433,13 @@ export default function CoreReferralsPage() {
 
               <div className="space-y-5 mt-5">
                 {/* Status */}
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap items-center">
                   <Badge className={`${statusBadgeClass(selected.status)} text-sm`}>{STATUS_LABELS[selected.status]}</Badge>
                   {selected.fraud_flag && <Badge className="bg-red-500/15 text-red-400 border-0">⚠ Fraude</Badge>}
+                  <Button size="sm" variant="outline" className="ml-auto"
+                    onClick={() => setAdvancedOpen(true)}>
+                    Actions avancées
+                  </Button>
                 </div>
 
                 {/* Referrer & Referred */}
@@ -577,6 +583,11 @@ export default function CoreReferralsPage() {
           )}
         </SheetContent>
       </Sheet>
+      <AdminReferralAdvancedDialog
+        referral={advancedOpen ? selected : null}
+        onClose={() => setAdvancedOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["core-client-referrals"] })}
+      />
     </div>
   );
 }

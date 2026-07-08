@@ -76,6 +76,7 @@ const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommuni
 const CoreReferralsPage = lazy(() => import("@/core-app/pages/CoreReferralsPage"));
 const CoreReferralRewardsPage = lazy(() => import("@/core-app/pages/CoreReferralRewardsPage"));
 const CoreReferralTermsPage = lazy(() => import("@/core-app/pages/CoreReferralTermsPage"));
+const CoreLoyaltyPage = lazy(() => import("@/core-app/pages/CoreLoyaltyPage"));
 
 // Support
 const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));
@@ -265,6 +266,7 @@ export const coreRoutes: RouteObject = {
     { path: "referrals", element: <CoreReferralsPage /> },
     { path: "referral-rewards", element: <CoreReferralRewardsPage /> },
     { path: "referral-terms", element: <CoreReferralTermsPage /> },
+    { path: "loyalty", element: <CoreLoyaltyPage /> },
     // Support
     { path: "support", element: <CoreSupportPage /> },
     { path: "internal-tickets", element: <CoreInternalTicketsPage /> },

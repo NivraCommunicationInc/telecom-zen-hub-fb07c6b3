@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import ClientLayout from "@/components/client/ClientLayout";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
+import { useLoyaltyReferralRealtime } from "@/hooks/useLoyaltyReferralRealtime";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

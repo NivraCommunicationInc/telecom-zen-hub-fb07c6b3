@@ -5087,6 +5087,9 @@ export type Database = {
       }
       client_referrals: {
         Row: {
+          clawback_at: string | null
+          clawback_by: string | null
+          clawback_reason: string | null
           created_at: string
           discount_applied_months: number | null
           discount_total_months: number | null
@@ -5097,12 +5100,16 @@ export type Database = {
           fraud_flag: boolean
           fraud_review_notes: string | null
           id: string
+          manual_reward: boolean
           notes: string | null
           payment_email: string | null
           payment_method: string | null
           payment_reference: string | null
           qualified_at: string | null
           qualifying_cycles_paid: number
+          reassigned_at: string | null
+          reassigned_by: string | null
+          reassigned_from: string | null
           referral_code_used: string
           referred_account_id: string | null
           referred_billing_customer_id: string | null
@@ -5126,6 +5133,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          clawback_at?: string | null
+          clawback_by?: string | null
+          clawback_reason?: string | null
           created_at?: string
           discount_applied_months?: number | null
           discount_total_months?: number | null
@@ -5136,12 +5146,16 @@ export type Database = {
           fraud_flag?: boolean
           fraud_review_notes?: string | null
           id?: string
+          manual_reward?: boolean
           notes?: string | null
           payment_email?: string | null
           payment_method?: string | null
           payment_reference?: string | null
           qualified_at?: string | null
           qualifying_cycles_paid?: number
+          reassigned_at?: string | null
+          reassigned_by?: string | null
+          reassigned_from?: string | null
           referral_code_used: string
           referred_account_id?: string | null
           referred_billing_customer_id?: string | null
@@ -5165,6 +5179,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          clawback_at?: string | null
+          clawback_by?: string | null
+          clawback_reason?: string | null
           created_at?: string
           discount_applied_months?: number | null
           discount_total_months?: number | null
@@ -5175,12 +5192,16 @@ export type Database = {
           fraud_flag?: boolean
           fraud_review_notes?: string | null
           id?: string
+          manual_reward?: boolean
           notes?: string | null
           payment_email?: string | null
           payment_method?: string | null
           payment_reference?: string | null
           qualified_at?: string | null
           qualifying_cycles_paid?: number
+          reassigned_at?: string | null
+          reassigned_by?: string | null
+          reassigned_from?: string | null
           referral_code_used?: string
           referred_account_id?: string | null
           referred_billing_customer_id?: string | null
@@ -15602,6 +15623,7 @@ export type Database = {
       loyalty_transactions: {
         Row: {
           account_id: string
+          admin_reason: string | null
           balance_after: number
           created_at: string
           description: string
@@ -15610,10 +15632,14 @@ export type Database = {
           points: number
           reference_id: string | null
           reference_type: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
           type: string
         }
         Insert: {
           account_id: string
+          admin_reason?: string | null
           balance_after: number
           created_at?: string
           description: string
@@ -15622,10 +15648,14 @@ export type Database = {
           points: number
           reference_id?: string | null
           reference_type?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           type: string
         }
         Update: {
           account_id?: string
+          admin_reason?: string | null
           balance_after?: number
           created_at?: string
           description?: string
@@ -15634,6 +15664,9 @@ export type Database = {
           points?: number
           reference_id?: string | null
           reference_type?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           type?: string
         }
         Relationships: [
@@ -29716,6 +29749,19 @@ export type Database = {
       }
     }
     Functions: {
+      _admin_log_loyalty_or_ref: {
+        Args: {
+          _account_id: string
+          _action: string
+          _actor: string
+          _entity_id: string
+          _entity_type: string
+          _new: Json
+          _old: Json
+          _reason: string
+        }
+        Returns: undefined
+      }
       _agent_get_supplier_passwords: {
         Args: { p_ids: string[] }
         Returns: {
@@ -29749,6 +29795,7 @@ export type Database = {
         }
         Returns: string
       }
+      _require_admin: { Args: never; Returns: string }
       _resolve_client_from_account: {
         Args: { _account_id: string }
         Returns: string
@@ -29779,8 +29826,73 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_loyalty_adjust: {
+        Args: {
+          p_account_id: string
+          p_delta_points: number
+          p_expires_at?: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      admin_loyalty_approve_pending: {
+        Args: { p_decision: string; p_reason: string; p_transaction_id: string }
+        Returns: Json
+      }
+      admin_loyalty_convert_to_credit: {
+        Args: {
+          p_account_id: string
+          p_credit_amount: number
+          p_points: number
+          p_reason: string
+        }
+        Returns: Json
+      }
+      admin_loyalty_extend_expiration: {
+        Args: {
+          p_new_expires_at: string
+          p_reason: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
+      admin_loyalty_transfer: {
+        Args: {
+          p_from_account: string
+          p_points: number
+          p_reason: string
+          p_to_account: string
+        }
+        Returns: Json
+      }
       admin_promote_order_to_confirmed: {
         Args: { p_order_id: string }
+        Returns: Json
+      }
+      admin_referral_clawback: {
+        Args: { p_reason: string; p_referral_id: string }
+        Returns: Json
+      }
+      admin_referral_decide: {
+        Args: { p_decision: string; p_reason: string; p_referral_id: string }
+        Returns: Json
+      }
+      admin_referral_manual_reward: {
+        Args: {
+          p_kind: string
+          p_reason: string
+          p_referred_user_id?: string
+          p_referrer_user_id: string
+          p_value: number
+        }
+        Returns: Json
+      }
+      admin_referral_reassign: {
+        Args: {
+          p_new_referrer_user_id: string
+          p_reason: string
+          p_referral_id: string
+        }
         Returns: Json
       }
       admin_sign_contract: {
