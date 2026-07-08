@@ -12,7 +12,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCheck2, Upload, PackageCheck, Receipt, FileSpreadsheet, FileQuestion, Send, Trash2, UploadCloud, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { FileText, Download, Loader2, RefreshCw, Search, FolderOpen, FileSignature, FileCheck2, Upload, PackageCheck, Receipt, FileSpreadsheet, FileQuestion, Send, Trash2, UploadCloud, Clock, CheckCircle2, XCircle, Eye } from "lucide-react";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { usePDFViewer } from "@/hooks/usePDFViewer";
+import { downloadClientDeliverySlipPDF, generateClientDeliverySlipPDF } from "@/lib/clientDeliverySlip";
 
 interface Props {
   open: boolean;
@@ -39,6 +42,8 @@ interface DocItem {
   size_bytes?: number | null;
   metadata?: Record<string, any> | null;
 }
+
+const DELIVERY_SLIP_KIND = "delivery_slip";
 
 const sourceMeta: Record<DocItem["source"], { label: string; icon: any; tone: string }> = {
   contract: { label: "Contrats", icon: FileSignature, tone: "bg-violet-500/15 text-violet-300 border-violet-500/30" },
@@ -103,15 +108,15 @@ function docsFromCanonical(data: any): DocItem[] {
     metadata: { status: p.status, amount: p.amount, method: p.method },
   }));
   (data.orders || []).forEach((o: any) => rows.push({
-    id: `canonical-order-${o.id}`,
+    id: `delivery-slip-${o.id}`,
     source: "order",
-    category: "Commande",
-    name: `Commande ${o.order_number || o.id.slice(0, 8)}`,
+    category: "Bordereau de livraison",
+    name: `Bordereau de livraison — ${o.order_number || o.id.slice(0, 8)}`,
     number: o.order_number,
     created_at: o.created_at,
     url: null,
     signed: false,
-    metadata: { status: o.status, total: o.total_amount },
+    metadata: { generatedDocument: DELIVERY_SLIP_KIND, order: o, order_id: o.id, status: o.status, total: o.total_amount },
   }));
   return rows;
 }
@@ -123,6 +128,7 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfViewer = usePDFViewer();
 
   const load = async () => {
     if (!clientUserId) return;
@@ -159,7 +165,59 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
       .filter((i) => !q || i.name.toLowerCase().includes(q) || (i.number ?? "").toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
   }, [items, tab, search]);
 
+  const isGeneratedDeliverySlip = (it: DocItem) => it.metadata?.generatedDocument === DELIVERY_SLIP_KIND;
+
+  const resolveOrderForDeliverySlip = (it: DocItem) => {
+    const orderFromMetadata = it.metadata?.order;
+    if (orderFromMetadata) return orderFromMetadata;
+    const orderId = it.metadata?.order_id || it.id.replace(/^delivery-slip-/, "");
+    return (initialData?.orders || []).find((o: any) => o.id === orderId || o.order_number === it.number) || {
+      id: orderId,
+      order_number: it.number || orderId,
+      created_at: it.created_at,
+    };
+  };
+
+  const deliverySlipCanonicalData = (order: any) => initialData || {
+    profile: { full_name: clientName },
+    account: { id: accountId },
+    orders: [order],
+    equipment: [],
+    orderItems: [],
+    equipmentOrderLines: [],
+    serviceAddresses: [],
+  };
+
+  const openGeneratedDeliverySlip = (it: DocItem) => {
+    const order = resolveOrderForDeliverySlip(it);
+    const result = generateClientDeliverySlipPDF(deliverySlipCanonicalData(order), order);
+    if (!result.success || !result.blob) {
+      toast.error(result.error || "Bordereau indisponible");
+      return;
+    }
+    pdfViewer.openWithBlob(
+      result.blob,
+      `Bordereau de livraison — ${order.order_number || it.number || "Commande"}`,
+      result.filename || `Bon_Livraison_${order.order_number || order.id || "commande"}.pdf`,
+    );
+  };
+
+  const downloadGeneratedDeliverySlip = (it: DocItem) => {
+    const order = resolveOrderForDeliverySlip(it);
+    try {
+      downloadClientDeliverySlipPDF(deliverySlipCanonicalData(order), order);
+      toast.success("Bordereau téléchargé");
+    } catch (e: any) {
+      toast.error(e?.message || "Téléchargement impossible");
+    }
+  };
+
   const openDoc = async (it: DocItem) => {
+    if (isGeneratedDeliverySlip(it)) {
+      openGeneratedDeliverySlip(it);
+      return;
+    }
+
     if (!it.url) {
       toast.warning("Aucun fichier disponible pour ce document");
       return;
@@ -169,6 +227,31 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (e: any) {
       toast.error("Impossible d'ouvrir le document", { description: e?.message });
+    }
+  };
+
+  const downloadDoc = async (it: DocItem) => {
+    if (isGeneratedDeliverySlip(it)) {
+      downloadGeneratedDeliverySlip(it);
+      return;
+    }
+
+    if (!it.url) {
+      toast.warning("Aucun fichier disponible pour ce document");
+      return;
+    }
+
+    try {
+      const url = await resolveDocumentUrl(it.url);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${it.name || "document"}.pdf`;
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e: any) {
+      toast.error("Impossible de télécharger le document", { description: e?.message });
     }
   };
 
@@ -328,6 +411,7 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
                 const isExpired = sigStatus?.label === "Expiré";
                 const canResend = isContract && !isSigned && !isExpired && isStaff;
                 const isUploaded = it.source === "uploaded";
+                const canOpen = !!it.url || isGeneratedDeliverySlip(it);
                 return (
                   <li
                     key={`${it.source}-${it.id}`}
@@ -360,9 +444,14 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
                           {busyId === it.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Send className="h-3.5 w-3.5 mr-1" /> Renvoyer</>}
                         </Button>
                       )}
-                      <Button size="sm" variant="outline" onClick={() => openDoc(it)} disabled={!it.url}>
-                        {it.url ? <><Download className="h-3.5 w-3.5 mr-1.5" /> Ouvrir</> : <><FileText className="h-3.5 w-3.5 mr-1.5" /> N/A</>}
+                      <Button size="sm" variant="outline" onClick={() => openDoc(it)} disabled={!canOpen}>
+                        <Eye className="h-3.5 w-3.5 mr-1.5" /> Voir
                       </Button>
+                      {canOpen && (
+                        <Button size="sm" variant="outline" onClick={() => downloadDoc(it)}>
+                          <Download className="h-3.5 w-3.5 mr-1.5" /> Télécharger
+                        </Button>
+                      )}
                       {isAdmin && isUploaded && (
                         <Button size="sm" variant="outline" onClick={() => handleDelete(it)} disabled={busyId === it.id}
                           className="border-red-500/30 text-red-300 hover:bg-red-500/10">
@@ -376,6 +465,15 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
             </ul>
           )}
         </ScrollArea>
+        <PDFViewerDialog
+          open={pdfViewer.isOpen}
+          onOpenChange={pdfViewer.setOpen}
+          pdfBlob={pdfViewer.pdfBlob}
+          title={pdfViewer.title}
+          filename={pdfViewer.filename}
+          isLoading={pdfViewer.isLoading}
+          error={pdfViewer.error}
+        />
       </DialogContent>
     </Dialog>
   );
