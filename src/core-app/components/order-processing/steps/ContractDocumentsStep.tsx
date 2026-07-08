@@ -1,9 +1,9 @@
 /**
  * ContractDocumentsStep — Step 8: Contract & Documents
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download } from "lucide-react";
+import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download, Truck } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -22,12 +22,26 @@ export function ContractDocumentsStep({ proc }: Props) {
   const [pdfTitle, setPdfTitle] = useState("");
   const [pdfFilename, setPdfFilename] = useState("");
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [shippingSlip, setShippingSlip] = useState<any>(null);
+
+  // Fetch shipping slip PDF (order_shipping_slip) from client_auto_documents
+  useEffect(() => {
+    if (!order?.order_number) return;
+    const idempKey = `order_${order.order_number}_order_shipping_slip`;
+    supabase
+      .from("client_auto_documents")
+      .select("storage_path, created_at, doc_number, metadata")
+      .eq("idempotency_key", idempKey)
+      .maybeSingle()
+      .then(({ data }) => setShippingSlip(data));
+  }, [order?.order_number]);
 
   const documents = [
     { type: "Contrat", key: "contract", available: contracts.length > 0, data: contracts[0] },
     { type: "Facture", key: "invoice", available: !!invoice, data: invoice },
     { type: "Sommaire de commande", key: "summary", available: true, data: order },
     { type: "Reçu", key: "receipt", available: !!invoice?.paid_at, data: invoice },
+    { type: "Bordereau de livraison", key: "shipping_slip", available: !!shippingSlip, data: shippingSlip },
     { type: "Conditions de service", key: "terms", available: true, data: null },
   ];
 
