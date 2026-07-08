@@ -1,9 +1,9 @@
 /**
  * ContractDocumentsStep — Step 8: Contract & Documents
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download } from "lucide-react";
+import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download, Truck } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -22,12 +22,26 @@ export function ContractDocumentsStep({ proc }: Props) {
   const [pdfTitle, setPdfTitle] = useState("");
   const [pdfFilename, setPdfFilename] = useState("");
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [shippingSlip, setShippingSlip] = useState<any>(null);
+
+  // Fetch shipping slip PDF (order_shipping_slip) from client_auto_documents
+  useEffect(() => {
+    if (!order?.order_number) return;
+    const idempKey = `order_${order.order_number}_order_shipping_slip`;
+    supabase
+      .from("client_auto_documents")
+      .select("storage_path, created_at, doc_number, metadata")
+      .eq("idempotency_key", idempKey)
+      .maybeSingle()
+      .then(({ data }) => setShippingSlip(data));
+  }, [order?.order_number]);
 
   const documents = [
     { type: "Contrat", key: "contract", available: contracts.length > 0, data: contracts[0] },
     { type: "Facture", key: "invoice", available: !!invoice, data: invoice },
     { type: "Sommaire de commande", key: "summary", available: true, data: order },
     { type: "Reçu", key: "receipt", available: !!invoice?.paid_at, data: invoice },
+    { type: "Bordereau de livraison", key: "shipping_slip", available: !!shippingSlip, data: shippingSlip },
     { type: "Conditions de service", key: "terms", available: true, data: null },
   ];
 
@@ -35,6 +49,29 @@ export function ContractDocumentsStep({ proc }: Props) {
     const loadKey = download ? `dl-${doc.key}` : doc.key;
     setLoading(loadKey);
     try {
+      // Shipping slip lives in storage (client-documents bucket) — fetch signed URL
+      if (doc.key === "shipping_slip") {
+        if (!shippingSlip?.storage_path) { toast.error("Bordereau non disponible"); return; }
+        const { data: signed, error: sErr } = await supabase.storage
+          .from("client-documents")
+          .createSignedUrl(shippingSlip.storage_path, 900);
+        if (sErr || !signed?.signedUrl) { toast.error("Erreur d'accès au bordereau"); return; }
+        const resp = await fetch(signed.signedUrl);
+        const blob = await resp.blob();
+        const filename = `Bon_Livraison_${shippingSlip.doc_number || order.order_number}.pdf`;
+        if (download) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url; link.download = filename;
+          document.body.appendChild(link); link.click(); document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          toast.success("Téléchargement démarré");
+        } else {
+          setPdfBlob(blob); setPdfTitle("Bordereau de livraison"); setPdfFilename(filename); setPdfViewerOpen(true);
+        }
+        return;
+      }
+
       const result = await generateOrderDocuments(order.id);
       if (!result) { toast.error("Données de document introuvables"); return; }
 
