@@ -15,6 +15,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export interface ImpactRow { label: string; before: string; after: string; delta?: string; }
+export interface ImpactedTable { table: string; rows?: number; note?: string; }
+export interface PlannedEmail { template: string; recipient?: string; note?: string; }
 
 interface Props {
   open: boolean;
@@ -24,10 +26,13 @@ interface Props {
   clientId: string;
   moduleTag: string;
   badges?: { label: string; variant?: "default" | "secondary" | "destructive" | "outline" }[];
+  clientContext?: ReactNode;   // Bandeau contexte client (persistant, en tête)
   state: ReactNode;           // Onglet État actuel
   history?: ReactNode;         // Onglet Historique métier
   actions: ReactNode;          // Onglet Actions (formulaires)
   impact?: ImpactRow[];        // Aperçu chiffré avant confirmation
+  impactedTables?: ImpactedTable[]; // Tables/écritures prévues
+  plannedEmails?: PlannedEmail[];   // Emails/templates qui seront envoyés
   requireReason?: boolean;
   confirmLabel?: string;
   disabled?: boolean;
