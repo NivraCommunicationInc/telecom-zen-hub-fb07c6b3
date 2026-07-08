@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
   MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi, Wallet, Users,
+  StickyNote, Package, UserPen, Shield, KeyRound, Gift, XCircle, Eye, Smartphone, Tv, Wifi, Wallet, Users, Award,
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
@@ -128,6 +128,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     { icon: MessageSquare, label: "Ticket support", onClick: () => setTicketOpen(true), color: "default" },
     { icon: Mail, label: "Envoyer rappel", onClick: () => setReminderOpen(true), color: "default" },
     { icon: Package, label: "Gestion équipement", onClick: () => setEquipmentOpen(true), color: "violet" as const },
+    { icon: Award, label: "Récompenses", onClick: () => onNavigateSection("loyalty"), color: "emerald" as const },
     { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" as const },
     { icon: Calendar, label: "Planifier RDV", onClick: () => setApptOpen(true), color: "default" },
     { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => setCollectionsOpen(true), color: "warning" },

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAccountProfile } from "@/core-app/hooks/useAccountProfile";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Loader2, User, AlertTriangle, LayoutGrid, Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare, Calendar, Shield, Activity, Briefcase, Receipt, Home } from "lucide-react";
+import { Loader2, User, AlertTriangle, LayoutGrid, Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare, Calendar, Shield, Activity, Briefcase, Receipt, Home, Award } from "lucide-react";
 
 import { Account360Header } from "@/core-app/components/account-360/Account360Header";
 import { Account360KPIStrip } from "@/core-app/components/account-360/Account360KPIStrip";
@@ -22,9 +22,10 @@ import {
   FinancialDocsSection, AdminDocsSection,
 } from "@/core-app/components/account-360/Account360Sections";
 import { AccountAddressesSection } from "@/core-app/components/account-360/AccountAddressesSection";
+import { ClientLoyaltyReferralSection } from "@/core-app/components/loyalty/ClientLoyaltyReferralSection";
 
 /* ── Section definitions ── */
-type SectionId = "profile" | "billing" | "addresses" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "appointments" | "contracts" | "financial_docs" | "admin_docs" | "tickets" | "timeline";
+type SectionId = "profile" | "billing" | "addresses" | "subscriptions" | "orders" | "invoices" | "payments" | "kyc" | "equipment" | "loyalty" | "appointments" | "contracts" | "financial_docs" | "admin_docs" | "tickets" | "timeline";
 
 const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
   { id: "profile", label: "Profil", icon: User },
@@ -36,6 +37,7 @@ const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "kyc", label: "KYC / Identité", icon: Shield },
   { id: "equipment", label: "Équipements", icon: Package },
+  { id: "loyalty", label: "Récompenses", icon: Award },
   { id: "appointments", label: "RDV / Technicien", icon: Calendar },
   { id: "contracts", label: "Contrats & Documents", icon: Briefcase },
   { id: "financial_docs", label: "Documents financiers", icon: Receipt },
@@ -151,6 +153,7 @@ const CoreAccountDetail = () => {
       case "payments": return <PaymentsSection data={data} customerId={data.customerId} customerUserId={data.clientId} profileEmail={prof?.email} billingCustomerEmail={data.billingCustomer?.email} onRefresh={data.refetch} />;
       case "kyc": return <KycSection data={data} />;
       case "equipment": return <EquipmentSection data={data} accountId={accountId} onRefresh={data.refetch} />;
+      case "loyalty": return data.clientId ? <ClientLoyaltyReferralSection clientId={data.clientId} accountId={accountId} /> : null;
       case "appointments": return <AppointmentsSection data={data} {...actionProps} />;
       case "contracts": return <ContractsSection data={data} />;
       case "financial_docs": return <FinancialDocsSection data={data} acct={acct} prof={prof} clientName={clientName} />;
