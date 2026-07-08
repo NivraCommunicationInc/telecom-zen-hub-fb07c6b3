@@ -97,8 +97,8 @@ const Parrainage = () => {
               Vous recevez{' '}<span className="n-shimmer-text">25$</span>,<br />
               votre proche économise{' '}<span style={{ color: '#06B6D4' }}>50$</span>
             </h1>
-            <p className="n-animate-in-delay-2" style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', maxWidth: 600, margin: '0 auto 32px', lineHeight: 1.6 }}>
-              Partagez votre code de parrainage. Après 2 mois de service payé, vous recevez 25$. Votre filleul économise 5$ par mois pendant 10 mois (50$ au total). Sans limite de parrainages.
+            <p className="n-animate-in-delay-2" style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', maxWidth: 640, margin: '0 auto 32px', lineHeight: 1.6 }}>
+              Partagez votre code de parrainage. Après <strong>3 factures mensuelles consécutives payées</strong> par votre filleul, vous recevez <strong>25 $</strong> (Interac ou carte prépayée) et <strong>300 points de fidélité</strong>. Versement en 7 à 14 jours. Sans limite.
             </p>
             <div className="n-animate-in-delay-3 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
