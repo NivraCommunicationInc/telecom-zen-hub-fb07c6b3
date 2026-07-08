@@ -1875,28 +1875,16 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
     }
 
-    // Step 2: Update account status + bootstrap billing cycle ONLY if missing (anchor is immutable)
+    // Step 2: Update account status only.
+    // Billing anchor/cycle bootstrap is handled by the backend provisioning RPC/trigger.
+    // The frontend must never write billing_cycle_day/anchor fields during activation,
+    // because those fields are immutable once the account has billable subscriptions.
     const account = data?.account;
     if (account?.id) {
-      const { data: acct } = await supabase
-        .from("accounts")
-        .select("billing_cycle_day")
-        .eq("id", account.id)
-        .maybeSingle();
-
-      const patch: Record<string, unknown> = {
+      await supabase.from("accounts").update({
         status: "active",
         updated_at: new Date().toISOString(),
-      };
-      if (!acct?.billing_cycle_day) {
-        const activationDay = new Date().getDate();
-        const nextInvoice = new Date();
-        nextInvoice.setMonth(nextInvoice.getMonth() + 1);
-        nextInvoice.setDate(activationDay);
-        patch.billing_cycle_day = activationDay;
-        patch.next_invoice_date = nextInvoice.toISOString().split("T")[0];
-      }
-      await supabase.from("accounts").update(patch).eq("id", account.id);
+      }).eq("id", account.id);
     }
 
     // Step 3: Save provider ref and activation notes on order
