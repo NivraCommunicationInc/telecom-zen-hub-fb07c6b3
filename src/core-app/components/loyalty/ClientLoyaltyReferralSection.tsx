@@ -102,6 +102,26 @@ export function ClientLoyaltyReferralSection({ clientId, accountId }: Props) {
     },
   });
 
+  const { data: rewardsCatalog = [] } = useQuery({
+    queryKey: ["cl-loyalty-rewards"],
+    queryFn: async () => {
+      const { data } = await supabase.from("loyalty_rewards").select("*")
+        .order("points_required", { ascending: true });
+      return data ?? [];
+    },
+  });
+
+  const { data: redemptions = [] } = useQuery({
+    queryKey: ["cl-loyalty-redemptions", clientId, accountId],
+    queryFn: async () => {
+      if (!accountId) return [];
+      const { data } = await supabase.from("loyalty_redemptions").select("*")
+        .eq("account_id", accountId).order("created_at", { ascending: false }).limit(15);
+      return data ?? [];
+    },
+    enabled: !!accountId,
+  });
+
   // ── Loyalty actions ──
   const adjust = async (sign: 1 | -1) => {
     if (!accountId) return toast.error("Aucun compte lié");
@@ -176,7 +196,7 @@ export function ClientLoyaltyReferralSection({ clientId, accountId }: Props) {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Award className="h-4 w-4 text-emerald-400" />
-            <h3 className="text-[13px] font-semibold text-white">Points de fidélité</h3>
+            <h3 className="text-[13px] font-semibold text-white">Récompenses — Points de fidélité</h3>
             {points?.tier && <Badge variant="outline" className="text-[10px]">{points.tier}</Badge>}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -245,6 +265,47 @@ export function ClientLoyaltyReferralSection({ clientId, accountId }: Props) {
           ))}
         </div>
       </div>
+
+      {/* ── Rewards catalog + redemptions ── */}
+      <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Gift className="h-4 w-4 text-amber-400" />
+          <h3 className="text-[13px] font-semibold text-white">Catalogue de récompenses & rédemptions</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-[hsl(220,10%,45%)] mb-1">Récompenses disponibles ({rewardsCatalog.length})</div>
+            <div className="max-h-48 overflow-y-auto divide-y divide-[hsl(220,15%,14%)]">
+              {rewardsCatalog.length === 0 && <div className="py-3 text-center text-[11px] text-[hsl(220,10%,45%)]">Aucune récompense configurée</div>}
+              {rewardsCatalog.map((r: any) => (
+                <div key={r.id} className="py-1.5 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-white truncate">{r.name || r.title || r.type}</div>
+                    <div className="text-[10px] text-[hsl(220,10%,45%)]">{r.points_required ?? 0} pts{r.value ? ` · ${r.value}$` : ""}</div>
+                  </div>
+                  {r.active === false && <Badge variant="outline" className="text-[9px]">inactif</Badge>}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-[hsl(220,10%,45%)] mb-1">Rédemptions récentes ({redemptions.length})</div>
+            <div className="max-h-48 overflow-y-auto divide-y divide-[hsl(220,15%,14%)]">
+              {redemptions.length === 0 && <div className="py-3 text-center text-[11px] text-[hsl(220,10%,45%)]">Aucune rédemption</div>}
+              {redemptions.map((r: any) => (
+                <div key={r.id} className="py-1.5">
+                  <div className="text-[11px] text-white">−{r.points_used ?? r.points ?? 0} pts</div>
+                  <div className="text-[10px] text-[hsl(220,10%,45%)]">
+                    {r.created_at && format(new Date(r.created_at), "d MMM yyyy HH:mm", { locale: fr })}
+                    {r.status && <> · {r.status}</>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
 
       {/* ── Referrals ── */}
       <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
