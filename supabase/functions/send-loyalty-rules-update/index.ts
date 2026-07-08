@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       for (const p of profiles ?? []) {
         const email = (p as any).email;
         if (!email) { skipped++; continue; }
-        const first = (p as any).first_name || ((p as any).full_name?.split(" ")[0]);
+        const first = (p as any).first_name || "";
         const parts = buildBody(first);
 
         // Idempotence — insertion préalable dans email_queue via event_key
