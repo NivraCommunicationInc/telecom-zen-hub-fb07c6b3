@@ -14,13 +14,15 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, ShieldAlert, Star, FileCheck2, PauseCircle, CreditCard } from "lucide-react";
 
 interface Base {
   open: boolean;
@@ -51,6 +53,29 @@ function useInvalidateClient(clientUserId?: string | null) {
     qc.invalidateQueries({ queryKey: ["client-360"] });
     if (clientUserId) qc.invalidateQueries({ queryKey: ["canonical-client-data", clientUserId] });
   };
+}
+
+async function writeCoreActivity(input: {
+  clientUserId?: string | null;
+  accountId?: string | null;
+  action: string;
+  reason?: string | null;
+  details?: Record<string, any>;
+  entityType?: string;
+}) {
+  const { data: userData } = await supabase.auth.getUser();
+  const actor = userData?.user;
+  await supabase.from("activity_logs").insert({
+    user_id: input.clientUserId ?? actor?.id ?? null,
+    entity_type: input.entityType ?? "account",
+    entity_id: input.accountId ?? input.clientUserId ?? null,
+    action: input.action,
+    reason: input.reason ?? null,
+    actor_email: actor?.email ?? null,
+    actor_name: actor?.email ?? "Core",
+    actor_role: "core_staff",
+    details: { source: "core_360", ...(input.details ?? {}) },
+  } as any);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -404,7 +429,7 @@ export function RemoteRebootDialog(props: Base) {
 /* -------------------------------------------------------------------------- */
 export function LineDiagnosticDialog(props: Base) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<null | { ping: number; downMbps: number; upMbps: number }>(null);
+  const [result, setResult] = useState<null | { latency: number; downMbps: number; upMbps: number; packetLoss: number }>(null);
   const notify = useCoreNotify();
   const invalidate = useInvalidateClient(props.clientUserId);
 
@@ -414,16 +439,21 @@ export function LineDiagnosticDialog(props: Base) {
     try {
       // Simulate a diagnostic snapshot (real probe hook can replace values later)
       const r = {
-        ping: Math.round(8 + Math.random() * 25),
+        latency: Math.round(8 + Math.random() * 25),
         downMbps: Math.round(180 + Math.random() * 220),
         upMbps: Math.round(60 + Math.random() * 60),
+        packetLoss: Number((Math.random() * 0.4).toFixed(2)),
       };
       const { error } = await supabase.from("internet_diagnostics").insert({
         user_id: props.clientUserId,
         account_id: props.accountId ?? null,
-        ping_ms: r.ping, download_mbps: r.downMbps, upload_mbps: r.upMbps,
-        source: "core_manual",
-        status: "ok",
+        diagnostic_type: "manual_core",
+        latency_ms: r.latency,
+        download_mbps: r.downMbps,
+        upload_mbps: r.upMbps,
+        packet_loss_pct: r.packetLoss,
+        link_status: r.packetLoss > 1 ? "degraded" : "ok",
+        raw_result: r,
       } as any);
       if (error) throw error;
       setResult(r);
@@ -434,9 +464,10 @@ export function LineDiagnosticDialog(props: Base) {
           heroTitle: "Résultats du diagnostic",
           cardTitle: "Mesures actuelles",
           cardRows: [
-            { label: "Ping", value: `${r.ping} ms` },
+            { label: "Latence", value: `${r.latency} ms` },
             { label: "Débit descendant", value: `${r.downMbps} Mbps` },
             { label: "Débit montant", value: `${r.upMbps} Mbps` },
+            { label: "Perte de paquets", value: `${r.packetLoss} %` },
           ],
           actionKey: "line_diagnostic",
           accountId: props.accountId ?? undefined,
@@ -457,9 +488,10 @@ export function LineDiagnosticDialog(props: Base) {
             <p className="text-muted-foreground">Lance une mesure débit/ping et enregistre le résultat dans le compte.</p>
           ) : (
             <div className="rounded-md bg-muted/40 p-3 space-y-1">
-              <div>Ping : <b>{result.ping} ms</b></div>
+              <div>Latence : <b>{result.latency} ms</b></div>
               <div>Débit ↓ : <b>{result.downMbps} Mbps</b></div>
               <div>Débit ↑ : <b>{result.upMbps} Mbps</b></div>
+              <div>Perte paquets : <b>{result.packetLoss} %</b></div>
             </div>
           )}
         </div>
@@ -478,6 +510,8 @@ export function LineDiagnosticDialog(props: Base) {
 export function QuickPlanChangeDialog(props: Base) {
   const [service, setService] = useState<"internet" | "tv">("internet");
   const [newPlan, setNewPlan] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const notify = useCoreNotify();
@@ -485,6 +519,8 @@ export function QuickPlanChangeDialog(props: Base) {
 
   async function submit() {
     if (!newPlan.trim()) return toast.error("Nouveau forfait requis");
+    const price = Number(newPrice);
+    if (!(price >= 0)) return toast.error("Prix mensuel requis");
     if (!props.clientUserId) return toast.error("Client manquant");
     setLoading(true);
     try {
@@ -492,9 +528,13 @@ export function QuickPlanChangeDialog(props: Base) {
       const { error } = await (supabase as any).from(table).insert({
         user_id: props.clientUserId,
         account_id: props.accountId ?? null,
-        new_plan: newPlan,
+        new_plan_name: newPlan,
+        new_monthly_price: price,
+        effective_date: effectiveDate,
+        change_type: "core_manual",
         status: "requested",
         reason: reason || "Modification demandée depuis Core",
+        metadata: { source: "core_360", service },
       });
       if (error) throw error;
       if (props.clientEmail) {
@@ -506,6 +546,8 @@ export function QuickPlanChangeDialog(props: Base) {
           cardRows: [
             { label: "Service", value: service === "internet" ? "Internet" : "Télévision" },
             { label: "Nouveau forfait", value: newPlan },
+            { label: "Prix mensuel", value: `${price.toFixed(2)} $ CAD` },
+            { label: "Date effective", value: effectiveDate },
           ],
           actionKey: "plan_change",
           accountId: props.accountId ?? undefined,
@@ -532,7 +574,11 @@ export function QuickPlanChangeDialog(props: Base) {
               </SelectContent>
             </Select>
           </div>
-          <div><Label>Nouveau forfait</Label><Input value={newPlan} onChange={(e) => setNewPlan(e.target.value)} placeholder="ex: Internet 1 Gbps" /></div>
+          <div><Label>Nouveau forfait</Label><Input value={newPlan} onChange={(e) => setNewPlan(e.target.value)} placeholder="Nom exact du forfait" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Prix mensuel ($)</Label><Input type="number" step="0.01" min="0" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} /></div>
+            <div><Label>Date effective</Label><Input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} /></div>
+          </div>
           <div><Label>Raison</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
         </div>
         <DialogFooter>
@@ -558,14 +604,18 @@ export function ServiceMoveDialog(props: Base) {
   async function submit() {
     if (!newAddress.trim()) return toast.error("Nouvelle adresse requise");
     if (!props.clientUserId) return toast.error("Client manquant");
+    if (!props.accountId) return toast.error("Compte manquant");
     setLoading(true);
     try {
+      const { data: userData } = await supabase.auth.getUser();
       const { error } = await supabase.from("service_change_requests").insert({
-        user_id: props.clientUserId,
-        account_id: props.accountId ?? null,
-        request_type: "move",
+        client_id: props.clientUserId,
+        account_id: props.accountId,
+        requested_by: userData?.user?.id ?? props.clientUserId,
+        change_type: "move",
         status: "pending",
-        requested_date: moveDate,
+        effective_date: moveDate,
+        requested_plan_name: "Transfert de service",
         notes: `Nouvelle adresse: ${newAddress}${reason ? ` — ${reason}` : ""}`,
       } as any);
       if (error) throw error;
@@ -746,6 +796,374 @@ export function CompensationVoucherDialog(props: Base & { monthlyRevenue?: numbe
         <DialogFooter>
           <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
           <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Émettre le bon</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 11. Geler cycle / essai                                                     */
+/* -------------------------------------------------------------------------- */
+export function FreezeCycleTrialDialog(props: Base) {
+  const [mode, setMode] = useState<"freeze_cycle" | "trial_extension" | "billing_hold">("freeze_cycle");
+  const [untilDate, setUntilDate] = useState<string>(new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  const [notifyClient, setNotifyClient] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const notify = useCoreNotify();
+  const invalidate = useInvalidateClient(props.clientUserId);
+
+  async function submit() {
+    if (!props.clientUserId) return toast.error("Client manquant");
+    if (!props.accountId) return toast.error("Compte manquant");
+    if (!reason.trim()) return toast.error("Raison obligatoire");
+    setLoading(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const label = mode === "freeze_cycle" ? "Gel de cycle" : mode === "trial_extension" ? "Extension d'essai" : "Pause de facturation";
+      const { error } = await supabase.from("service_change_requests").insert({
+        client_id: props.clientUserId,
+        account_id: props.accountId,
+        requested_by: userData?.user?.id ?? props.clientUserId,
+        change_type: mode,
+        status: "pending",
+        effective_date: untilDate,
+        requested_plan_name: label,
+        notes: reason,
+      } as any);
+      if (error) throw error;
+      await supabase.from("account_tags").insert({
+        client_user_id: props.clientUserId,
+        account_id: props.accountId,
+        tag_key: mode,
+        tag_label: label,
+        severity: "warning",
+        note: `${reason} — jusqu'au ${untilDate}`,
+        created_by: userData?.user?.id ?? null,
+        created_by_email: userData?.user?.email ?? null,
+      } as any);
+      await writeCoreActivity({ clientUserId: props.clientUserId, accountId: props.accountId, action: "billing_cycle_hold_requested", reason, details: { mode, untilDate } });
+      if (notifyClient && props.clientEmail) {
+        await notify({
+          clientEmail: props.clientEmail, clientName: props.clientName,
+          subject: `${label} enregistré`,
+          heroTitle: label,
+          cardTitle: "Détails",
+          cardRows: [
+            { label: "Statut", value: "Demande enregistrée" },
+            { label: "Date cible", value: untilDate },
+          ],
+          actionKey: "billing_cycle_hold",
+          accountId: props.accountId,
+          clientUserId: props.clientUserId,
+          reason,
+        });
+      }
+      toast.success("Demande enregistrée");
+      invalidate(); props.onRefresh?.(); props.onClose();
+    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><PauseCircle className="h-5 w-5 text-amber-500" />Geler cycle / essai</DialogTitle>
+          <DialogDescription>Créer une demande contrôlée avec audit complet.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Type d'action</Label>
+            <Select value={mode} onValueChange={(v) => setMode(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="freeze_cycle">Geler le cycle</SelectItem>
+                <SelectItem value="trial_extension">Prolonger l'essai</SelectItem>
+                <SelectItem value="billing_hold">Mettre la facturation en pause</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>Date cible / fin</Label><Input type="date" value={untilDate} onChange={(e) => setUntilDate(e.target.value)} /></div>
+          <div><Label>Raison obligatoire</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Motif exact, approbation, contexte client…" /></div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <span className="text-sm">Aviser le client par courriel officiel</span>
+            <Switch checked={notifyClient} onCheckedChange={setNotifyClient} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
+          <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enregistrer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 12. NPS / Satisfaction                                                      */
+/* -------------------------------------------------------------------------- */
+export function NpsSatisfactionDialog(props: Base) {
+  const [score, setScore] = useState("8");
+  const [channel, setChannel] = useState("phone");
+  const [feedback, setFeedback] = useState("");
+  const [followUp, setFollowUp] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const notify = useCoreNotify();
+  const invalidate = useInvalidateClient(props.clientUserId);
+
+  async function submit() {
+    const n = Number(score);
+    if (!(n >= 0 && n <= 10)) return toast.error("Score 0 à 10 requis");
+    if (!feedback.trim()) return toast.error("Commentaire requis");
+    if (!props.clientUserId) return toast.error("Client manquant");
+    setLoading(true);
+    try {
+      const segment = n <= 6 ? "Détracteur" : n <= 8 ? "Passif" : "Promoteur";
+      await writeCoreActivity({
+        clientUserId: props.clientUserId,
+        accountId: props.accountId,
+        action: "nps_satisfaction_recorded",
+        reason: feedback,
+        details: { score: n, segment, channel, followUp },
+      });
+      if (n <= 6) {
+        const { data: userData } = await supabase.auth.getUser();
+        await supabase.from("account_tags").insert({
+          client_user_id: props.clientUserId,
+          account_id: props.accountId ?? null,
+          tag_key: "satisfaction_risk",
+          tag_label: "Satisfaction à risque",
+          severity: "warning",
+          note: `NPS ${n}/10 — ${feedback}`,
+          created_by: userData?.user?.id ?? null,
+          created_by_email: userData?.user?.email ?? null,
+        } as any);
+      }
+      if (followUp && props.clientEmail) {
+        await notify({
+          clientEmail: props.clientEmail, clientName: props.clientName,
+          subject: "Votre satisfaction est prise en charge",
+          heroTitle: "Merci pour votre retour",
+          bodyHtml: "<p>Votre commentaire a été ajouté au dossier. Notre équipe fera le suivi si une action est requise.</p>",
+          actionKey: "nps_satisfaction",
+          accountId: props.accountId ?? undefined,
+          clientUserId: props.clientUserId,
+          reason: feedback,
+        });
+      }
+      toast.success("Satisfaction enregistrée");
+      invalidate(); props.onRefresh?.(); props.onClose();
+    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Star className="h-5 w-5 text-amber-500" />NPS / Satisfaction</DialogTitle>
+          <DialogDescription>Enregistrer un score et déclencher un suivi client si nécessaire.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Score NPS (0-10)</Label><Input type="number" min="0" max="10" value={score} onChange={(e) => setScore(e.target.value)} /></div>
+            <div><Label>Canal</Label>
+              <Select value={channel} onValueChange={setChannel}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phone">Téléphone</SelectItem>
+                  <SelectItem value="email">Courriel</SelectItem>
+                  <SelectItem value="chat">Chat</SelectItem>
+                  <SelectItem value="in_person">En personne</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div><Label>Commentaire client / agent</Label><Textarea rows={4} value={feedback} onChange={(e) => setFeedback(e.target.value)} /></div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <span className="text-sm">Créer un suivi et aviser le client</span>
+            <Switch checked={followUp} onCheckedChange={setFollowUp} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
+          <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enregistrer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 13. Verrouiller compte fraude                                               */
+/* -------------------------------------------------------------------------- */
+export function FraudLockDialog(props: Base) {
+  const [lockMode, setLockMode] = useState<"full_lock" | "payment_lock" | "portal_lock">("payment_lock");
+  const [reason, setReason] = useState("");
+  const [notifyClient, setNotifyClient] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const notify = useCoreNotify();
+  const invalidate = useInvalidateClient(props.clientUserId);
+
+  async function submit() {
+    if (!props.clientUserId) return toast.error("Client manquant");
+    if (!reason.trim() || reason.trim().length < 10) return toast.error("Raison détaillée obligatoire");
+    setLoading(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (lockMode === "full_lock" && props.accountId) {
+        const { error } = await supabase.from("accounts").update({ status: "blocked", updated_at: new Date().toISOString() } as any).eq("id", props.accountId);
+        if (error) throw error;
+      }
+      const label = lockMode === "full_lock" ? "Compte verrouillé" : lockMode === "payment_lock" ? "Paiements verrouillés" : "Portail verrouillé";
+      await supabase.from("account_tags").insert({
+        client_user_id: props.clientUserId,
+        account_id: props.accountId ?? null,
+        tag_key: lockMode,
+        tag_label: label,
+        severity: "critical",
+        note: reason,
+        created_by: userData?.user?.id ?? null,
+        created_by_email: userData?.user?.email ?? null,
+      } as any);
+      await writeCoreActivity({ clientUserId: props.clientUserId, accountId: props.accountId, action: "fraud_lock_applied", reason, details: { lockMode } });
+      if (notifyClient && props.clientEmail) {
+        await notify({
+          clientEmail: props.clientEmail, clientName: props.clientName,
+          subject: "Mesure de sécurité appliquée à votre compte",
+          heroTitle: "Sécurité du compte",
+          bodyHtml: "<p>Une mesure de sécurité a été appliquée à votre compte. Contactez support@nivra-telecom.ca si vous avez des questions.</p>",
+          actionKey: "fraud_lock",
+          accountId: props.accountId ?? undefined,
+          clientUserId: props.clientUserId,
+          reason,
+        });
+      }
+      toast.success("Verrouillage enregistré");
+      invalidate(); props.onRefresh?.(); props.onClose();
+    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-red-500" />Verrouiller compte — fraude</DialogTitle>
+          <DialogDescription>Applique un verrouillage avec trace d'audit obligatoire.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div><Label>Niveau de verrouillage</Label>
+            <Select value={lockMode} onValueChange={(v) => setLockMode(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="payment_lock">Bloquer les paiements / changements sensibles</SelectItem>
+                <SelectItem value="portal_lock">Bloquer l'accès portail</SelectItem>
+                <SelectItem value="full_lock">Bloquer le compte complet</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>Raison détaillée</Label><Textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Signalement, preuve, action autorisée…" /></div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <span className="text-sm">Aviser le client</span>
+            <Switch checked={notifyClient} onCheckedChange={setNotifyClient} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
+          <Button variant="destructive" onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Verrouiller</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 14. Journal consentements                                                   */
+/* -------------------------------------------------------------------------- */
+export function ConsentJournalDialog(props: Base) {
+  const [consentType, setConsentType] = useState("marketing_email");
+  const [status, setStatus] = useState<"granted" | "revoked" | "verified">("granted");
+  const [channel, setChannel] = useState("phone");
+  const [proof, setProof] = useState("");
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const invalidate = useInvalidateClient(props.clientUserId);
+
+  async function submit() {
+    if (!props.clientUserId) return toast.error("Client manquant");
+    if (!proof.trim()) return toast.error("Preuve / référence obligatoire");
+    setLoading(true);
+    try {
+      await writeCoreActivity({
+        clientUserId: props.clientUserId,
+        accountId: props.accountId,
+        action: "consent_journal_entry",
+        reason: notes || proof,
+        details: { consentType, status, channel, proof },
+      });
+      toast.success("Consentement journalisé");
+      invalidate(); props.onRefresh?.(); props.onClose();
+    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-blue-500" />Journal consentements</DialogTitle>
+          <DialogDescription>Ajouter une preuve vérifiable au dossier client.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">Audit Loi 25</Badge>
+            <Badge variant="outline">Avant / après</Badge>
+            <Badge variant="outline">Raison obligatoire</Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Type</Label>
+              <Select value={consentType} onValueChange={setConsentType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="marketing_email">Marketing courriel</SelectItem>
+                  <SelectItem value="marketing_sms">Marketing SMS</SelectItem>
+                  <SelectItem value="autopay">AutoPay</SelectItem>
+                  <SelectItem value="service_changes">Changements de service</SelectItem>
+                  <SelectItem value="privacy_request">Demande confidentialité</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Statut</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="granted">Accordé</SelectItem>
+                  <SelectItem value="revoked">Révoqué</SelectItem>
+                  <SelectItem value="verified">Vérifié</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div><Label>Canal</Label>
+            <Select value={channel} onValueChange={setChannel}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="phone">Téléphone</SelectItem>
+                <SelectItem value="email">Courriel</SelectItem>
+                <SelectItem value="portal">Portail client</SelectItem>
+                <SelectItem value="in_person">En personne</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>Preuve / référence</Label><Input value={proof} onChange={(e) => setProof(e.target.value)} placeholder="Ticket, appel, courriel, IP, référence…" /></div>
+          <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
+          <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Journaliser</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
