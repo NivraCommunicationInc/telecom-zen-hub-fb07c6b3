@@ -42,7 +42,7 @@ export function ContractDocumentsStep({ proc }: Props) {
     { type: "Facture", key: "invoice", available: !!invoice, data: invoice },
     { type: "Sommaire de commande", key: "summary", available: true, data: order },
     { type: "Reçu", key: "receipt", available: !!invoice?.paid_at, data: invoice },
-    { type: "Bordereau de livraison", key: "shipping_slip", available: !!shippingSlip, data: shippingSlip },
+    { type: "Bordereau de livraison", key: "shipping_slip", available: true, data: shippingSlip || order },
     { type: "Conditions de service", key: "terms", available: true, data: null },
   ];
 
