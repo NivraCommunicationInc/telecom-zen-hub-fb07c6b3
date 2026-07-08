@@ -833,7 +833,7 @@ export function FreezeCycleTrialDialog(props: Base) {
         notes: reason,
       } as any);
       if (error) throw error;
-      await supabase.from("account_tags").insert({
+      await supabase.from("account_tags").upsert({
         client_user_id: props.clientUserId,
         account_id: props.accountId,
         tag_key: mode,
@@ -842,7 +842,7 @@ export function FreezeCycleTrialDialog(props: Base) {
         note: `${reason} — jusqu'au ${untilDate}`,
         created_by: userData?.user?.id ?? null,
         created_by_email: userData?.user?.email ?? null,
-      } as any);
+      } as any, { onConflict: "client_user_id,tag_key" });
       await writeCoreActivity({ clientUserId: props.clientUserId, accountId: props.accountId, action: "billing_cycle_hold_requested", reason, details: { mode, untilDate } });
       if (notifyClient && props.clientEmail) {
         await notify({
@@ -930,7 +930,7 @@ export function NpsSatisfactionDialog(props: Base) {
       });
       if (n <= 6) {
         const { data: userData } = await supabase.auth.getUser();
-        await supabase.from("account_tags").insert({
+        await supabase.from("account_tags").upsert({
           client_user_id: props.clientUserId,
           account_id: props.accountId ?? null,
           tag_key: "satisfaction_risk",
@@ -939,7 +939,7 @@ export function NpsSatisfactionDialog(props: Base) {
           note: `NPS ${n}/10 — ${feedback}`,
           created_by: userData?.user?.id ?? null,
           created_by_email: userData?.user?.email ?? null,
-        } as any);
+        } as any, { onConflict: "client_user_id,tag_key" });
       }
       if (followUp && props.clientEmail) {
         await notify({
@@ -1018,7 +1018,7 @@ export function FraudLockDialog(props: Base) {
         if (error) throw error;
       }
       const label = lockMode === "full_lock" ? "Compte verrouillé" : lockMode === "payment_lock" ? "Paiements verrouillés" : "Portail verrouillé";
-      await supabase.from("account_tags").insert({
+      await supabase.from("account_tags").upsert({
         client_user_id: props.clientUserId,
         account_id: props.accountId ?? null,
         tag_key: lockMode,
@@ -1027,7 +1027,7 @@ export function FraudLockDialog(props: Base) {
         note: reason,
         created_by: userData?.user?.id ?? null,
         created_by_email: userData?.user?.email ?? null,
-      } as any);
+      } as any, { onConflict: "client_user_id,tag_key" });
       await writeCoreActivity({ clientUserId: props.clientUserId, accountId: props.accountId, action: "fraud_lock_applied", reason, details: { lockMode } });
       if (notifyClient && props.clientEmail) {
         await notify({
@@ -1184,7 +1184,7 @@ export function VipChurnToggleDialog(props: Base) {
     setLoading(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const { error } = await supabase.from("account_tags").insert({
+      const { error } = await supabase.from("account_tags").upsert({
         client_user_id: props.clientUserId,
         account_id: props.accountId ?? null,
         tag_key: tagKey,
@@ -1193,7 +1193,7 @@ export function VipChurnToggleDialog(props: Base) {
         note: note || null,
         created_by: userData?.user?.id ?? null,
         created_by_email: userData?.user?.email ?? null,
-      } as any);
+      } as any, { onConflict: "client_user_id,tag_key" });
       if (error) throw error;
       toast.success("Étiquette appliquée");
       invalidate(); props.onRefresh?.(); props.onClose();
