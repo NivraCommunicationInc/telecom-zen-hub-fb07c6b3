@@ -583,6 +583,11 @@ export default function CoreReferralsPage() {
           )}
         </SheetContent>
       </Sheet>
+      <AdminReferralAdvancedDialog
+        referral={advancedOpen ? selected : null}
+        onClose={() => setAdvancedOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["core-client-referrals"] })}
+      />
     </div>
   );
 }
