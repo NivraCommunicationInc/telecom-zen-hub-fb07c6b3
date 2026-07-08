@@ -14,8 +14,9 @@ import { corePath } from "@/core-app/lib/corePaths";
 import {
   ChevronDown, ChevronRight, DollarSign, FileText, CreditCard,
   Shield, Package, Calendar, ScrollText, Wifi, ExternalLink,
-  Hash, AlertTriangle, MessageSquare, Loader2, Users, Radio
+  Hash, AlertTriangle, MessageSquare, Loader2, Users, Radio, Download
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   proc: any;
@@ -129,6 +130,35 @@ export function CoreOrderFilePanel({ proc }: Props) {
       return data || [];
     },
   });
+
+  const { data: shippingSlip } = useQuery({
+    queryKey: ["order-shipping-slip-document", order.order_number],
+    enabled: !!order.order_number,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_auto_documents")
+        .select("id, doc_number, storage_path, created_at")
+        .eq("idempotency_key", `order_${order.order_number}_order_shipping_slip`)
+        .maybeSingle();
+      return data || null;
+    },
+  });
+
+  const openShippingSlip = async () => {
+    if (!shippingSlip?.storage_path) {
+      toast.info("Bordereau disponible dans l'étape Contrat & Documents");
+      return;
+    }
+    const { data, error } = await supabase.storage
+      .from("client-documents")
+      .createSignedUrl(shippingSlip.storage_path, 300);
+    if (error || !data?.signedUrl) {
+      toast.error("Impossible d'ouvrir le bordereau");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
@@ -309,9 +339,31 @@ export function CoreOrderFilePanel({ proc }: Props) {
             <Row label="Créé le" value={fmtDate(contract.created_at)} />
             {contract.client_signed_at && <Row label="Client signé" value={fmtDateTime(contract.client_signed_at)} accent="text-emerald-400" />}
             {contract.admin_signed_at && <Row label="Admin signé" value={fmtDateTime(contract.admin_signed_at)} accent="text-emerald-400" />}
+            <div className="mt-2 pt-2 border-t border-[hsl(220,15%,16%)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-[hsl(220,10%,38%)] uppercase tracking-wider">Bordereau livraison</span>
+                <button
+                  onClick={openShippingSlip}
+                  className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
+                >
+                  <Download className="h-3 w-3" /> {shippingSlip?.storage_path ? "Ouvrir" : "Étape documents"}
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
-          <p className="text-[10px] text-[hsl(220,10%,30%)]">Aucun contrat généré</p>
+          <div className="space-y-2">
+            <p className="text-[10px] text-[hsl(220,10%,30%)]">Aucun contrat généré</p>
+            <div className="flex items-center justify-between gap-2 rounded border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,10%)] p-2">
+              <span className="text-[10px] text-[hsl(220,10%,55%)]">Bordereau de livraison</span>
+              <button
+                onClick={openShippingSlip}
+                className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
+              >
+                <Download className="h-3 w-3" /> {shippingSlip?.storage_path ? "Ouvrir" : "Étape documents"}
+              </button>
+            </div>
+          </div>
         )}
       </FileSection>
 
