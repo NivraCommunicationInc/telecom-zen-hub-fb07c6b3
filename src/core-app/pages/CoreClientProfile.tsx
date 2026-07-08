@@ -676,6 +676,7 @@ const CoreClientProfile = () => {
               <TabsTrigger value="facturation" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Facturation</TabsTrigger>
               <TabsTrigger value="equipement" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Équipement</TabsTrigger>
               <TabsTrigger value="notes" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Notes & Activité</TabsTrigger>
+              <TabsTrigger value="loyalty" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Fidélité & Références</TabsTrigger>
             </TabsList>
 
             {/* ── Profil ── */}
