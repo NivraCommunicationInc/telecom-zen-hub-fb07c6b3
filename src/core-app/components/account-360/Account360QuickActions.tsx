@@ -279,7 +279,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         })}
       </div>
 
-      </div>
+
 
       <AccountRestrictionsDialog
         accountId={accountId}
