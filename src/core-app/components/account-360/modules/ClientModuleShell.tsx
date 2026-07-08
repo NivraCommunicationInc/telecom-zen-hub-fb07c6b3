@@ -64,6 +64,12 @@ export function ClientModuleShell(p: Props) {
           {p.subtitle && <p className="text-sm text-muted-foreground">{p.subtitle}</p>}
         </DialogHeader>
 
+        {p.clientContext && (
+          <div className="border rounded-md p-3 bg-muted/30 text-xs">
+            {p.clientContext}
+          </div>
+        )}
+
         <Tabs value={tab} onValueChange={setTab} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="state">État</TabsTrigger>
