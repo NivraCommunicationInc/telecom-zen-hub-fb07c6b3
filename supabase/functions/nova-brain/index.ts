@@ -193,7 +193,7 @@ const TOOLS = [
   {
     name: "trigger_cancellation",
     description:
-      "Trigger the orchestrated cancellation engine (cancel-account function). Cascades PayPal, " +
+      "Trigger the orchestrated cancellation engine (cancel-account function). Cascades subscriptions, " +
       "subscriptions, invoices, commissions, email. Use ONLY when the user explicitly asks to cancel AND confirms. " +
       "scope='service' keeps the account open; scope='full' closes it permanently. Always confirm before executing.",
     input_schema: {
