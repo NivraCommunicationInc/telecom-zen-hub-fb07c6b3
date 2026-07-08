@@ -1,121 +1,86 @@
-# Plan — Environnement QA Nivra pour validation Client 360 (Option C)
 
-Objectif : créer un compte de test permanent, isolé, utilisable pour valider Upgrade/Downgrade **et** tous les futurs modules Client 360, sans jamais toucher un vrai client ni un vrai flux.
+# Client 360 — Standard "Centre de Contrôle" appliqué à tous les modules
 
----
+Compris. Upgrade/Downgrade devient le **modèle de référence obligatoire**. Aucun module n'est considéré terminé sans les 10 critères ci-dessous. Voici la feuille de route, ordonnée par risque métier et fréquence d'utilisation par les agents.
 
-## 1. Découvertes de schéma (fait)
+## Definition of Done (obligatoire pour chaque module)
 
-- `billing_subscriptions.environment` existe déjà (`'live'` aujourd'hui) → **canal officiel de séparation test/prod**. On introduit la valeur `'test'`.
-- Pas de colonne `is_test` sur `accounts` / `profiles`.
-- `account_tags` = mécanisme canonique de marquage (`tag_key` texte libre déjà utilisé : `vip`, `portal_lock`, `payment_lock`). On ajoute `tag_key = 'qa_test_account'`.
-- Plans Internet actifs : Internet 100 (45$), Internet 500 (50$), Internet Giga (60$) → couverts pour upgrade **et** downgrade.
-- `email_queue` existe déjà → on garde les emails en `status='queued'` et on ne déclenche jamais `process-email-queue` sur les rows du compte test (filtre par recipient domain `@nivra-test.ca`).
+Un module Client 360 est livré uniquement quand il présente :
 
----
+1. **Contexte client complet** en tête (compte, statut, services actifs, dettes, alertes)
+2. **Onglet État** — situation actuelle réelle (lue des tables canoniques)
+3. **Onglet Historique** — historique métier propre au module
+4. **Onglet Audit** — `admin_audit_log` filtré (`module_tag`), avec acteur, motif, before/after
+5. **Onglet Actions** — formulaires branchés sur workflows canoniques existants
+6. **Simulation avant confirmation** — impact chiffré (prix, prorata, tables touchées, emails prévus)
+7. **Motif obligatoire** journalisé, exécution via `callCoreAction` → RPC/Edge Function existante
+8. **Synchronisation temps réel** — `useModuleRealtime` sur les tables touchées, portail client rafraîchi
+9. **Emails via templates officiels Nivra** (bleu corporatif, jamais de template ad-hoc)
+10. **Preuve documentée** — tables/RPC/Edge Functions/triggers listés dans le PR + audit visible
 
-## 2. Périmètre du compte QA
+Interdictions absolues : nouveau workflow parallèle, formulaire "simplifié" qui contourne les règles existantes, note interne à la place d'une vraie action, calcul de prix en frontend.
 
-Un seul compte, permanent, réutilisable :
+## Ordre d'exécution (par lot, un module = un lot fermé)
 
-| Élément | Valeur |
-|---|---|
-| Email | `test-c360-planchange@nivra-test.ca` |
-| Nom | `QA C360 PlanChange` |
-| Marquage | `account_tags(tag_key='qa_test_account', severity='info', note='Compte QA interne — ne jamais facturer, ne jamais provisionner')` |
-| Profil | `profiles` row lié à un `auth.users` créé via `auth.admin.createUser` (email non confirmé, mot de passe aléatoire non exposé) |
-| Account | `accounts` row standard, `status='active'` |
-| Abonnement | `billing_subscriptions` sur **Internet 500 Mbps** (50 $), `environment='test'`, `auto_billing_enabled=false`, `recurring_provider=null` |
-| Cycle | `cycle_start_date = today`, `cycle_end_date = today + 29`, `billing_anchor_date = today` (cohérent avec l'invariant qu'on a corrigé ce matin) |
-| Adresse service | `service_addresses` factice à Laval (utilisée uniquement en interne, jamais soumise à provisioning) |
-| Équipement | 1 `equipment_inventory` fictif type `router`, serial `QA-ROUTER-C360-001`, statut `assigned` |
-| Méthode paiement | Aucune. `client_payment_methods` vide → toute tentative de charge Square échoue immédiatement, on ne risque pas d'appel réel |
-| Historique | 1 facture passée `billing_invoices` status `paid` (montant symbolique) + 1 ligne dans `billing_invoice_lines`, pour que Upgrade/Downgrade ait un contexte réaliste |
+Chaque lot suit : audit du workflow existant → refonte UI en `ClientModuleShell` → branchement RPC/Edge → simulation → audit → realtime → validation QA sur `test-c360-planchange@nivra-test.ca` → capture Playwright → fermeture.
 
-Aucune écriture dans : `provisioning_jobs`, `activation_requests`, `paypal_*`, `square_payment_attempts`, `card_payment_intents`, `payments` réels, `sms_queue`.
+### Lot 2 — Sécurité & Conformité (priorité haute, risque légal)
+- **KYC** — orchestrer `identity_verification_sessions` + `kyc_requests` + `kyc_requested_documents`. Réutiliser le flux d'upload existant (pas de nouveau formulaire). Afficher statut, documents, historique, événements. Actions : demander pièce, relancer, approuver, rejeter.
+- **Verrouillage fraude** — vrai verrou : `accounts.status` + `account_fraud_incidents` + révocation sessions + blocage services + email + audit + durée. Sync Core/portail client/accès services.
+- **Restrictions** — appliquer réellement via `account_tags` + triggers services concernés (suspension facturation, blocage support, blocage checkout). Simulation d'impact avant activation.
+- **Risque & Fraude** — score `account_risk_scores`, alertes, événements, workflow de résolution avec assignation.
+- **Sessions & Sécurité** — sessions actives, révocation, reset MFA, historique connexion via `auth_login_attempts`, `admin_audit_sessions`.
 
----
+### Lot 3 — Facturation & Paiements (priorité haute, impact financier)
+- **Facturation** — vue consolidée `billing_invoices` + lignes, actions : régénérer facture, ajuster ligne, annuler, rembourser. Simulation impact solde.
+- **Paiements** — `billing_payments` + `card_payment_intents`. Actions : rembourser (via Square), enregistrer paiement manuel, contester. Refuser toute action PayPal.
+- **Plans de paiement** — `client_payment_plans` orchestré, échéancier réel avec simulation.
+- **Ajustements** — `account_adjustments` (crédit/débit) avec motif obligatoire et impact solde simulé.
+- **Autopay** — `client_autopay_settings` + `paypal_autopay_attempts` (lecture historique seulement), gestion Square uniquement.
 
-## 3. Isolement — garde-fous techniques
+### Lot 4 — Services & Équipements
+- **Services actifs** — vue `billing_subscriptions` par adresse, actions : suspendre, réactiver, transférer adresse.
+- **Équipements** — `equipment_inventory` par abonnement, actions : commander remplacement (`replacement_orders`), demander retour (`equipment_return_requests`), reboot, marquer défectueux.
+- **Commandes** — `orders` + `order_status_history`, actions : réactiver, annuler, modifier statut via workflow canonique.
+- **Rendez-vous** — `appointments` + `technician_assignments`, replanifier, annuler, réassigner.
 
-Pour garantir zéro fuite vers de vrais systèmes :
+### Lot 5 — Relation Client
+- **Fidélité** — orchestrer le système `loyalty_points/transactions/redemptions` déjà en place (déjà partiellement fait, à mettre au standard shell).
+- **Parrainages** — `client_referrals` + `referral_attributions`, actions admin complètes.
+- **Communications** — `telephony_logs` + `email_queue` + `sms_queue`, timeline unifiée, envoi manuel via templates.
+- **Documents** — `client_documents` + `client_auto_documents` + `document_requests`, actions demander/générer/envoyer.
+- **Notes internes** — `client_internal_notes` (existant, à mettre au standard drawer).
 
-1. **`environment='test'`** sur toute row `billing_subscriptions` du compte → les edge functions de charge Square (`square-charge-*`) refusent déjà les subs non-`live` (à vérifier ; sinon on ajoute un garde `if environment != 'live' return early` dans un patch dédié — pas dans ce lot).
-2. **Domaine `@nivra-test.ca`** → filtrable partout. On ajoute une note dans `email_queue.metadata` : `{ "qa_test": true }` sur toute insertion générée par ces tests.
-3. **Tag `qa_test_account`** vérifiable via une seule requête : `SELECT account_id FROM account_tags WHERE tag_key='qa_test_account'`.
-4. **Pas de méthode de paiement enregistrée** → impossible de déclencher un paiement réel même en cas de bug.
+### Lot 6 — Vue transverse
+- **Timeline complet** — utiliser `v_customer_timeline` (déjà en place) comme onglet global du 360, filtres par type d'événement.
+- **Historique agents** — actions effectuées par agents sur ce compte, `admin_audit_log` non filtré par module.
 
----
+## Fondations à durcir avant Lot 2
 
-## 4. Migration proposée (contenu, pas encore soumise)
+Petites améliorations à `ClientModuleShell` / hooks partagés, faites une seule fois :
 
-Une seule migration idempotente :
+- Ajouter un slot **"Contexte client"** persistant en haut du shell (bandeau : nom, #compte, statut, MRR, dette, alertes actives) — évite de répéter dans chaque module.
+- Ajouter un slot **"Impact simulé — tables touchées"** structuré (liste des tables + nombre de rows + emails prévus) séparé de `impact` chiffré.
+- Standardiser `callCoreAction` pour toujours écrire `admin_audit_log` avec `module_tag`, `before_state`, `after_state`, `reason`.
+- Hook `useModuleRealtime` : accepter un tableau de tables et rafraîchir automatiquement le shell.
 
-```text
--- 1. Créer auth user (via extension helper si dispo, sinon INSERT direct dans auth.users
---    est INTERDIT par la règle "ne pas toucher schema auth")
---    ⇒ on utilisera plutôt un edge function admin one-shot avec service_role,
---       PAS une migration SQL, pour créer l'utilisateur auth proprement.
--- 2. Migration SQL = uniquement les rows public.* :
---    - profiles
---    - accounts
---    - service_addresses
---    - account_tags (qa_test_account)
---    - services : réutilisation Internet 500 existant, aucune création
---    - billing_subscriptions (environment='test')
---    - equipment_inventory (1 router fictif)
---    - billing_invoices + billing_invoice_lines (historique minimal)
--- 3. Toutes les INSERT sont wrappées dans un ON CONFLICT DO NOTHING sur un UUID stable
---    (défini en constantes) → migration ré-exécutable sans doublon.
-```
+## Livraison
 
-**Point à confirmer avec toi** : la création du `auth.users` doit se faire via un edge function `qa-provision-test-account` avec `service_role` (pattern déjà utilisé ailleurs), pas via SQL migration, parce que le schema `auth` est interdit d'écriture directe par nos règles internes. C'est **exactement** le workflow canonique.
+- Un lot à la fois. Chaque lot ouvert = feu vert explicite de ta part.
+- À la fin de chaque module : capture Playwright sur le compte QA + résumé (tables, RPC, Edge Functions, triggers, emails, audit) collé dans le fil.
+- Aucun module ne passe en "fait" sans cette preuve.
 
----
+## Détails techniques (référence)
 
-## 5. Validation Upgrade/Downgrade
-
-Scénarios exécutés sur ce compte, dans cet ordre :
-
-### 5.1 Upgrade Internet 500 → Internet Giga (+10 $/mois)
-- Snapshot **avant** : `billing_subscriptions`, `billing_invoices` open, MRR, équipement, cycle
-- Appel `core_simulate_plan_change` → prorata attendu = `10 * (jours_restants / 30)`, MRR delta = +10
-- Appel `core-apply-plan-change` avec `effective='immediate'`
-- Snapshot **après** : `billing_subscriptions.plan_code`, `service_change_requests`, `billing_invoice_lines` (ligne prorata), `admin_audit_log` (before/after), `activity_logs`, `email_queue` (template `plan-change-confirmation` — enqueued, jamais envoyé)
-
-### 5.2 Downgrade Internet Giga → Internet 100 (–15 $/mois)
-- Idem, avec `effective='next_cycle'` pour tester le second mode
-- Vérifier absence de ligne prorata négative + création d'un `service_change_requests` scheduled
-
-### 5.3 Contrôles réutilisables
-- Realtime : ouvrir le portail client dans un second onglet (session impersonation sur ce compte QA) et vérifier propagation live.
-- Rollback : après chaque scénario, `UPDATE billing_subscriptions SET plan_code='internet_500', plan_price=50 …` pour ré-armer le compte en état initial.
+- Shell : `src/core-app/components/account-360/modules/ClientModuleShell.tsx`
+- Wrapper d'action auditée : `src/core-app/lib/callCoreAction.ts`
+- Hook audit : `src/core-app/hooks/useModuleAudit.ts`
+- Hook realtime : `src/core-app/hooks/useModuleRealtime.ts`
+- Timeline unifié : vue SQL `public.v_customer_timeline`
+- Environnement QA : compte `test-c360-planchange@nivra-test.ca`, script reset `scripts/qa-c360-reset.sql`, provisioning `supabase/functions/qa-provision-test-account`.
 
 ---
 
-## 6. Teardown & réutilisation
+**Prochaine action proposée** : durcir les fondations du shell (bandeau contexte + slot "tables touchées" + `callCoreAction` standardisé) puis attaquer **Lot 2 – KYC** comme second module de référence après Upgrade/Downgrade.
 
-Le compte **reste en base** (c'est le but : QA permanent). Le teardown est un **script de reset** livré à côté :
-
-```text
--- scripts/qa-c360-reset.sql
--- Remet le compte QA dans son état initial (Internet 500, cycle courant, historique nettoyé)
--- Idempotent, safe à relancer avant chaque nouvelle passe.
-```
-
-Livrables à la fin :
-
-- IDs stables (UUID) : `account_id`, `subscription_id`, `user_id`, `equipment_id`, `service_address_id` documentés dans `.lovable/qa/c360-test-account.md`
-- Script `qa-c360-reset.sql`
-- Bloc de preuve (before/after/tables/RPC/audit) pour Upgrade **et** Downgrade
-- Confirmation SQL : `SELECT count(*) FROM billing_subscriptions WHERE environment='test'` = attendu / `WHERE environment='live'` inchangé
-
----
-
-## 7. Ce que je te demande avant d'exécuter
-
-1. **Tu confirmes le compte unique** `test-c360-planchange@nivra-test.ca` sur **Internet 500 Mbps** comme point de départ ? (permet upgrade vers Giga et downgrade vers 100 dans la même passe)
-2. **Tu confirmes le pattern edge function `qa-provision-test-account` + migration SQL** (auth via service_role, public via migration) plutôt qu'une migration monolithique ? C'est le seul chemin propre qui respecte la règle "ne pas toucher `auth`".
-3. **Tu confirmes qu'aucune vraie carte / vrai Square sandbox n'est branchée** sur ce compte (juste `client_payment_methods` vide) ? Les tests Upgrade/Downgrade ne nécessitent pas de charge réelle : la simulation + l'application génèrent des lignes de facture, pas un débit.
-
-Dès que tu réponds oui/oui/oui (ou ajustements), je livre : edge function + migration + script reset + doc, dans le même lot, puis j'enchaîne la validation Upgrade/Downgrade et je te ramène le bloc de preuve.
+Donne-moi le go et je démarre par les fondations + KYC.
