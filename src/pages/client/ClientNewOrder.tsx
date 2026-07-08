@@ -2870,7 +2870,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           payment_method_snapshot: {
             method: paymentMethod,
             reference: paymentConfirmationNumber || nivraPaymentRef,
-            paypal_capture_id: paypalCaptureId || null,
+            provider_capture_id: null,
           },
           accepted_at: new Date().toISOString(),
           accepted_method: 'web_checkout',
