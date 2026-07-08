@@ -109,10 +109,10 @@ Deno.serve(async (req) => {
       // Clients actifs avec au moins un abonnement actif
       const { data: subs, error: subsErr } = await supabase
         .from("billing_subscriptions")
-        .select("client_id")
+        .select("customer_id")
         .eq("status", "active");
       if (subsErr) throw subsErr;
-      const clientIds = Array.from(new Set((subs ?? []).map((s: any) => s.client_id).filter(Boolean)));
+      const clientIds = Array.from(new Set((subs ?? []).map((s: any) => s.customer_id).filter(Boolean)));
 
       if (clientIds.length === 0) {
         return new Response(JSON.stringify({ mode: "all", total: 0, sent: 0 }), {
