@@ -33,6 +33,7 @@ import { ClientFullHistory } from "@/core-app/components/client-history/ClientFu
 import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
+import { ClientLoyaltyReferralSection } from "@/core-app/components/loyalty/ClientLoyaltyReferralSection";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -675,6 +676,7 @@ const CoreClientProfile = () => {
               <TabsTrigger value="facturation" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Facturation</TabsTrigger>
               <TabsTrigger value="equipement" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Équipement</TabsTrigger>
               <TabsTrigger value="notes" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Notes & Activité</TabsTrigger>
+              <TabsTrigger value="loyalty" className="text-[11px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Fidélité & Références</TabsTrigger>
             </TabsList>
 
             {/* ── Profil ── */}
@@ -1083,6 +1085,10 @@ const CoreClientProfile = () => {
                   <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune activité enregistrée</p>
                 )}
               </Section>
+            </TabsContent>
+
+            <TabsContent value="loyalty" className="space-y-4">
+              <ClientLoyaltyReferralSection clientId={clientId!} accountId={account?.id} />
             </TabsContent>
           </Tabs>
         </TabsContent>
