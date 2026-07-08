@@ -1,203 +1,304 @@
 project_id = "xtgngmtxggascbxnswvb"
 
-[functions]
-  [functions.admin-bootstrap]
-    verify_jwt = false
-  [functions.admin-change-password]
-    verify_jwt = false
-  [functions.admin-create-user]
-    verify_jwt = true
-  [functions.admin-employee-management]
-    verify_jwt = true
-  [functions.admin-manage-staff]
-    verify_jwt = false
-  [functions.admin-review-verification]
-    verify_jwt = false
-  [functions.admin-web-form-list]
-    verify_jwt = true
-  [functions.admin-web-form-reply]
-    verify_jwt = true
-  [functions.admin-web-form-thread]
-    verify_jwt = true
-  [functions.agent-supervisor]
-    verify_jwt = false
-  [functions.ai-improve-message]
-    verify_jwt = true
-  [functions.audit-generate-pdfs]
-    verify_jwt = true
-  [functions.auth-email-hook]
-    verify_jwt = false
-  [functions.auto-create-client-account]
-    verify_jwt = false
-  [functions.billing-create-order-with-paypal-subscription]
-    verify_jwt = false
-  [functions.billing-lifecycle]
-    verify_jwt = false
-  [functions.calendly-webhook]
-    verify_jwt = false
-  [functions.check-overdue-invoices]
-    verify_jwt = false
-  [functions.client-password-reset-send]
-    verify_jwt = false
-  [functions.client-pin-send]
-    verify_jwt = false
-  [functions.client-pin-verify]
-    verify_jwt = false
-  [functions.client-web-form-reply]
-    verify_jwt = true
-  [functions.contracts-backfill-missing]
-    verify_jwt = true
-  [functions.core-ai-converse]
-    verify_jwt = true
-  [functions.elevenlabs-stt-token]
-    verify_jwt = true
-  [functions.elevenlabs-tts]
-    verify_jwt = true
-  [functions.email-unsubscribe]
-    verify_jwt = false
-  [functions.employee-auth]
-    verify_jwt = false
-  [functions.employee-data]
-    verify_jwt = false
-  [functions.employee-operations]
-    verify_jwt = false
-  [functions.employee-verify-customer-pin]
-    verify_jwt = true
-  [functions.employee-work-engine]
-    verify_jwt = false
-  [functions.field-sales-complete-onboarding]
-    verify_jwt = false
-  [functions.field-sales-sync]
-    verify_jwt = false
-  [functions.generate-monthly-invoices]
-    verify_jwt = false
-  [functions.generate-verification-qr]
-    verify_jwt = false
-  [functions.ingest-web-form-email]
-    verify_jwt = false
-  [functions.interview-send-invitations]
-    verify_jwt = false
-  [functions.interview-submit]
-    verify_jwt = false
-  [functions.interview-transcribe]
-    verify_jwt = false
-  [functions.interview-tts]
-    verify_jwt = false
-  [functions.kyc-health]
-    verify_jwt = false
-  [functions.log-telephony-action]
-    verify_jwt = false
-  [functions.mapbox-address-autocomplete]
-    verify_jwt = false
-  [functions.marketing-resend-webhook]
-    verify_jwt = false
-  [functions.marketing-send]
-    verify_jwt = true
-  [functions.marketing-send-sms]
-    verify_jwt = false
-  [functions.marketing-stats]
-    verify_jwt = false
-  [functions.nivra-diagnostic]
-    verify_jwt = false
-  [functions.noc-monitor]
-    verify_jwt = false
-  [functions.notify-admin-alert]
-    verify_jwt = false
-  [functions.notify-client-update]
-    verify_jwt = false
-  [functions.nova-watchdog]
-    verify_jwt = false
-  [functions.onboarding-form-submit]
-    verify_jwt = false
-  [functions.openphone-call-history]
-    verify_jwt = false
-  [functions.openphone-conversations]
-    verify_jwt = false
-  [functions.openphone-phone-numbers]
-    verify_jwt = false
-  [functions.openphone-sms]
-    verify_jwt = false
-  [functions.openphone-webhook]
-    verify_jwt = false
-  [functions.order-tracking-lookup]
-    verify_jwt = false
-  [functions.paypal-capture-order]
-    verify_jwt = false
-  [functions.paypal-charge-subscription]
-    verify_jwt = false
-  [functions.paypal-create-order]
-    verify_jwt = false
-  [functions.paypal-create-subscription]
-    verify_jwt = false
-  [functions.paypal-reconcile]
-    verify_jwt = false
-  [functions.paypal-webhook]
-    verify_jwt = false
-  [functions.process-email-queue]
-    verify_jwt = true
-  [functions.process-email-triggers]
-    verify_jwt = false
-  [functions.process-id-ocr]
-    verify_jwt = false
-  [functions.resend-webhook]
-    verify_jwt = false
-  [functions.revenue-assurance]
-    verify_jwt = false
-  [functions.send-appointment-notification]
-    verify_jwt = true
-  [functions.send-billing-notification]
-    verify_jwt = false
-  [functions.send-blank-pdf-templates]
-    verify_jwt = false
-  [functions.send-cancellation-notification]
-    verify_jwt = false
-  [functions.send-channel-notification]
-    verify_jwt = false
-  [functions.send-contract-notification]
-    verify_jwt = false
-  [functions.send-email-previews]
-    verify_jwt = true
-  [functions.send-marketing-email]
-    verify_jwt = false
-  [functions.send-order-confirmation]
-    verify_jwt = false
-  [functions.send-pdf-templates-email]
-    verify_jwt = false
-  [functions.staff-complete-onboarding]
-    verify_jwt = false
-  [functions.staff-otp-send]
-    verify_jwt = false
-  [functions.staff-otp-verify]
-    verify_jwt = false
-  [functions.submit-contact-form]
-    verify_jwt = false
-  [functions.submit-id-verification]
-    verify_jwt = false
-  [functions.submit-nps-survey]
-    verify_jwt = false
-  [functions.submit-web-form]
-    verify_jwt = false
-  [functions.support-ai-responder]
-    verify_jwt = true
-  [functions.support-email-inbound]
-    verify_jwt = false
-  [functions.technician-auth]
-    verify_jwt = false
-  [functions.technician-update-status]
-    verify_jwt = false
-  [functions.technician-work-orders]
-    verify_jwt = false
-  [functions.temp-pwd-reset]
-    verify_jwt = false
-  [functions.toggle-lockdown]
-    verify_jwt = false
-  [functions.track-email-click]
-    verify_jwt = false
-  [functions.track-email-open]
-    verify_jwt = false
-  [functions.validate-promo]
-    verify_jwt = false
-  [functions.validate-verification-token]
-    verify_jwt = false
-  [functions.verify-lockdown-password]
-    verify_jwt = false
+[functions.auto-create-client-account]
+verify_jwt = false
+
+[functions.nova-watchdog]
+verify_jwt = false
+
+[functions.noc-monitor]
+verify_jwt = false
+
+[functions.revenue-assurance]
+verify_jwt = false
+
+[functions.agent-supervisor]
+verify_jwt = false
+
+[functions.temp-pwd-reset]
+verify_jwt = false
+
+
+[functions.verify-lockdown-password]
+verify_jwt = false
+
+[functions.toggle-lockdown]
+verify_jwt = false
+
+[functions.send-order-confirmation]
+verify_jwt = false
+
+[functions.calendly-webhook]
+verify_jwt = false
+
+[functions.send-appointment-notification]
+verify_jwt = true
+
+[functions.send-billing-notification]
+verify_jwt = false
+
+[functions.check-overdue-invoices]
+verify_jwt = false
+
+[functions.send-contract-notification]
+verify_jwt = false
+
+[functions.send-channel-notification]
+verify_jwt = false
+
+[functions.technician-auth]
+verify_jwt = false
+
+[functions.technician-work-orders]
+verify_jwt = false
+
+[functions.employee-auth]
+verify_jwt = false
+
+[functions.employee-data]
+verify_jwt = false
+
+[functions.employee-operations]
+verify_jwt = false
+
+[functions.admin-employee-management]
+verify_jwt = true
+
+[functions.generate-monthly-invoices]
+verify_jwt = false
+
+[functions.validate-promo]
+verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = true
+
+[functions.mapbox-address-autocomplete]
+verify_jwt = false
+
+[functions.process-email-queue]
+verify_jwt = true
+
+
+[functions.admin-bootstrap]
+verify_jwt = false
+
+[functions.admin-manage-staff]
+verify_jwt = false
+
+[functions.admin-change-password]
+verify_jwt = false
+
+[functions.client-pin-send]
+verify_jwt = false
+
+[functions.client-pin-verify]
+verify_jwt = false
+
+[functions.technician-update-status]
+verify_jwt = false
+
+[functions.send-cancellation-notification]
+verify_jwt = false
+
+[functions.staff-otp-send]
+verify_jwt = false
+
+[functions.staff-otp-verify]
+verify_jwt = false
+
+[functions.submit-contact-form]
+verify_jwt = false
+
+[functions.submit-web-form]
+verify_jwt = false
+
+[functions.admin-web-form-list]
+verify_jwt = true
+
+[functions.admin-web-form-thread]
+verify_jwt = true
+
+[functions.admin-web-form-reply]
+verify_jwt = true
+
+[functions.ingest-web-form-email]
+verify_jwt = false
+
+[functions.client-web-form-reply]
+verify_jwt = true
+
+[functions.log-telephony-action]
+verify_jwt = false
+
+[functions.openphone-webhook]
+verify_jwt = false
+
+[functions.openphone-conversations]
+verify_jwt = false
+
+[functions.openphone-call-history]
+verify_jwt = false
+
+[functions.openphone-sms]
+verify_jwt = false
+
+[functions.openphone-phone-numbers]
+verify_jwt = false
+
+[functions.marketing-stats]
+verify_jwt = false
+
+[functions.marketing-send-sms]
+verify_jwt = false
+
+[functions.order-tracking-lookup]
+verify_jwt = false
+
+[functions.send-marketing-email]
+verify_jwt = false
+
+[functions.resend-webhook]
+verify_jwt = false
+
+[functions.process-email-triggers]
+verify_jwt = false
+
+[functions.send-email-previews]
+verify_jwt = true
+
+[functions.ai-improve-message]
+verify_jwt = true
+
+[functions.notify-client-update]
+verify_jwt = false
+
+[functions.notify-admin-alert]
+verify_jwt = false
+
+[functions.paypal-create-order]
+verify_jwt = false
+
+[functions.paypal-capture-order]
+verify_jwt = false
+
+[functions.paypal-create-subscription]
+verify_jwt = false
+
+[functions.paypal-charge-subscription]
+verify_jwt = false
+
+[functions.paypal-webhook]
+verify_jwt = false
+
+[functions.staff-complete-onboarding]
+verify_jwt = false
+
+[functions.field-sales-complete-onboarding]
+verify_jwt = false
+
+[functions.field-sales-sync]
+verify_jwt = false
+
+[functions.billing-create-order-with-paypal-subscription]
+verify_jwt = false
+
+[functions.client-password-reset-send]
+verify_jwt = false
+
+[functions.paypal-reconcile]
+verify_jwt = false
+
+[functions.contracts-backfill-missing]
+verify_jwt = true
+
+[functions.send-pdf-templates-email]
+verify_jwt = false
+
+[functions.send-blank-pdf-templates]
+verify_jwt = false
+
+[functions.billing-lifecycle]
+verify_jwt = false
+
+[functions.generate-verification-qr]
+verify_jwt = false
+
+[functions.submit-id-verification]
+verify_jwt = false
+
+[functions.admin-review-verification]
+verify_jwt = false
+
+[functions.validate-verification-token]
+verify_jwt = false
+
+[functions.kyc-health]
+verify_jwt = false
+
+[functions.process-id-ocr]
+verify_jwt = false
+
+[functions.employee-work-engine]
+verify_jwt = false
+
+[functions.employee-verify-customer-pin]
+verify_jwt = true
+
+[functions.email-unsubscribe]
+verify_jwt = false
+
+[functions.track-email-open]
+verify_jwt = false
+
+[functions.track-email-click]
+verify_jwt = false
+
+[functions.audit-generate-pdfs]
+verify_jwt = true
+
+[functions.support-email-inbound]
+verify_jwt = false
+
+[functions.support-ai-responder]
+verify_jwt = true
+
+[functions.interview-submit]
+verify_jwt = false
+
+[functions.interview-send-invitations]
+verify_jwt = false
+
+[functions.onboarding-form-submit]
+verify_jwt = false
+
+
+[functions.core-ai-converse]
+verify_jwt = true
+
+[functions.elevenlabs-tts]
+verify_jwt = true
+
+[functions.elevenlabs-stt-token]
+verify_jwt = true
+
+[functions.interview-tts]
+verify_jwt = false
+
+[functions.interview-transcribe]
+verify_jwt = false
+
+[functions.submit-nps-survey]
+verify_jwt = false
+
+[functions.nivra-diagnostic]
+verify_jwt = false
+
+
+
+
+[functions.marketing-send]
+verify_jwt = true
+
+[functions.marketing-resend-webhook]
+verify_jwt = false
