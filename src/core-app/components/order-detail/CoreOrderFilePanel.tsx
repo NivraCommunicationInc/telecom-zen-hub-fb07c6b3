@@ -14,8 +14,10 @@ import { corePath } from "@/core-app/lib/corePaths";
 import {
   ChevronDown, ChevronRight, DollarSign, FileText, CreditCard,
   Shield, Package, Calendar, ScrollText, Wifi, ExternalLink,
-  Hash, AlertTriangle, MessageSquare, Loader2, Users, Radio
+  Hash, AlertTriangle, MessageSquare, Loader2, Users, Radio, Download
 } from "lucide-react";
+import { toast } from "sonner";
+import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 
 interface Props {
   proc: any;
@@ -129,6 +131,75 @@ export function CoreOrderFilePanel({ proc }: Props) {
       return data || [];
     },
   });
+
+  const { data: shippingSlip } = useQuery({
+    queryKey: ["order-shipping-slip-document", order.order_number],
+    enabled: !!order.order_number,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_auto_documents")
+        .select("id, doc_number, storage_path, created_at")
+        .eq("idempotency_key", `order_${order.order_number}_order_shipping_slip`)
+        .maybeSingle();
+      return data || null;
+    },
+  });
+
+  const openShippingSlip = async () => {
+    if (shippingSlip?.storage_path) {
+      const { data, error } = await supabase.storage
+        .from("client-documents")
+        .createSignedUrl(shippingSlip.storage_path, 300);
+      if (error || !data?.signedUrl) {
+        toast.error("Impossible d'ouvrir le bordereau");
+        return;
+      }
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const equipmentItems = (items || [])
+      .filter((item: any) => {
+        const text = `${item.product_name || item.plan_name || item.name || ""} ${item.description || ""}`.toLowerCase();
+        return !text.includes("mensuel") && !text.includes("forfait") && !text.includes("plan internet") && !text.includes("plan tv") && !text.includes("plan mobile");
+      })
+      .map((item: any) => ({
+        description: item.product_name || item.plan_name || item.name || item.description || "Équipement",
+        serial_number: item.serial_number || undefined,
+        quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+      }));
+    const snapshotItems = Array.isArray(order?.equipment_details)
+      ? order.equipment_details.map((item: any) => ({
+          description: item.label || item.name || item.type || "Équipement",
+          serial_number: item.serial_number || undefined,
+          quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+        }))
+      : [];
+    const result = generateDeliverySlipPDF({
+      slip_number: `BL-${order.order_number || order.id?.slice(0, 8) || "commande"}`,
+      issue_date: order.shipped_at || order.created_at || new Date().toISOString(),
+      client_name: [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || profile?.full_name || "Client Nivra",
+      client_email: order.client_email || profile?.email || "",
+      client_phone: order.client_phone || profile?.phone || "",
+      account_number: account?.account_number || order.account_number || "",
+      delivery_address: order.shipping_address || order.client_full_address || account?.primary_service_address || "",
+      delivery_city: order.shipping_city || account?.primary_service_city || "",
+      delivery_province: order.shipping_province || account?.primary_service_province || "QC",
+      delivery_postal: order.shipping_postal_code || account?.primary_service_postal_code || "",
+      order_number: String(order.order_number || ""),
+      carrier: order.carrier || "En préparation",
+      tracking_number: order.tracking_number || "—",
+      items: equipmentItems.length ? equipmentItems : snapshotItems.length ? snapshotItems : [{ description: "Équipement à expédier", quantity: 1 }],
+    });
+    if (!result.success || !result.blob) {
+      toast.error("Bordereau non disponible");
+      return;
+    }
+    const url = URL.createObjectURL(result.blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
 
   return (
     <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
@@ -309,9 +380,31 @@ export function CoreOrderFilePanel({ proc }: Props) {
             <Row label="Créé le" value={fmtDate(contract.created_at)} />
             {contract.client_signed_at && <Row label="Client signé" value={fmtDateTime(contract.client_signed_at)} accent="text-emerald-400" />}
             {contract.admin_signed_at && <Row label="Admin signé" value={fmtDateTime(contract.admin_signed_at)} accent="text-emerald-400" />}
+            <div className="mt-2 pt-2 border-t border-[hsl(220,15%,16%)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-[hsl(220,10%,38%)] uppercase tracking-wider">Bordereau livraison</span>
+                <button
+                  onClick={openShippingSlip}
+                  className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
+                >
+                  <Download className="h-3 w-3" /> {shippingSlip?.storage_path ? "Ouvrir" : "Générer"}
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
-          <p className="text-[10px] text-[hsl(220,10%,30%)]">Aucun contrat généré</p>
+          <div className="space-y-2">
+            <p className="text-[10px] text-[hsl(220,10%,30%)]">Aucun contrat généré</p>
+            <div className="flex items-center justify-between gap-2 rounded border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,10%)] p-2">
+              <span className="text-[10px] text-[hsl(220,10%,55%)]">Bordereau de livraison</span>
+              <button
+                onClick={openShippingSlip}
+                className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
+              >
+                <Download className="h-3 w-3" /> {shippingSlip?.storage_path ? "Ouvrir" : "Générer"}
+              </button>
+            </div>
+          </div>
         )}
       </FileSection>
 

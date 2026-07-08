@@ -136,11 +136,30 @@ export function ContractDetailDialog({ doc, open, onClose }: any) {
     const isContract = rawId.startsWith("c-");
 
     if (!isContract) {
-      if (doc.url) {
-        window.open(doc.url, "_blank", "noopener,noreferrer");
-      } else {
-        toast.error("Aucun fichier PDF associé à ce document.");
-      }
+      const openDocument = async () => {
+        if (!doc.url) {
+          toast.error("Aucun fichier PDF associé à ce document.");
+          return;
+        }
+        if (/^https?:/i.test(doc.url) || String(doc.url).startsWith("blob:")) {
+          window.open(doc.url, "_blank", "noopener,noreferrer");
+          return;
+        }
+        const popup = window.open("", "_blank", "noopener,noreferrer");
+        const knownBuckets = ["client-documents", "contracts", "invoices", "receipts", "order-documents"];
+        const parts = String(doc.url).split("/");
+        const bucket = knownBuckets.includes(parts[0]) ? parts[0] : "client-documents";
+        const key = knownBuckets.includes(parts[0]) ? parts.slice(1).join("/") : String(doc.url);
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, 300);
+        if (error || !data?.signedUrl) {
+          popup?.close();
+          toast.error("Impossible d'ouvrir le PDF");
+          return;
+        }
+        if (popup) popup.location.href = data.signedUrl;
+        else window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      };
+      openDocument();
       onClose();
       return;
     }

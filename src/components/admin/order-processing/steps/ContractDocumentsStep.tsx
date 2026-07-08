@@ -2,15 +2,16 @@
  * ContractDocumentsStep — Step 8: Contract & Documents
  * All buttons are fully functional: View, Send, Regenerate, Sign.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
-import { safePDFOpen } from "@/lib/pdfUtils";
+import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props { proc: any; }
 
@@ -21,12 +22,24 @@ export function ContractDocumentsStep({ proc }: Props) {
   const [pdfTitle, setPdfTitle] = useState("");
   const [pdfFilename, setPdfFilename] = useState("");
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [shippingSlip, setShippingSlip] = useState<any>(null);
+
+  useEffect(() => {
+    if (!order?.order_number) return;
+    supabase
+      .from("client_auto_documents")
+      .select("storage_path, created_at, doc_number, metadata")
+      .eq("idempotency_key", `order_${order.order_number}_order_shipping_slip`)
+      .maybeSingle()
+      .then(({ data }) => setShippingSlip(data));
+  }, [order?.order_number]);
 
   const documents = [
     { type: "Contrat", key: "contract", available: contracts.length > 0, data: contracts[0] },
     { type: "Facture", key: "invoice", available: !!invoice, data: invoice },
     { type: "Sommaire de commande", key: "summary", available: true, data: order },
     { type: "Reçu", key: "receipt", available: !!invoice?.paid_at, data: invoice },
+    { type: "Bordereau de livraison", key: "shipping_slip", available: true, data: shippingSlip || order },
     { type: "Conditions de service", key: "terms", available: true, data: null },
   ];
 
@@ -34,6 +47,80 @@ export function ContractDocumentsStep({ proc }: Props) {
     const loadKey = download ? `dl-${doc.key}` : doc.key;
     setLoading(loadKey);
     try {
+      if (doc.key === "shipping_slip") {
+        let blob: Blob | null = null;
+        let filename = `Bon_Livraison_${order.order_number || order.id?.slice(0, 8) || "commande"}.pdf`;
+
+        if (shippingSlip?.storage_path) {
+          const { data: signed, error } = await supabase.storage
+            .from("client-documents")
+            .createSignedUrl(shippingSlip.storage_path, 900);
+          if (!error && signed?.signedUrl) {
+            const response = await fetch(signed.signedUrl);
+            blob = await response.blob();
+            filename = `Bon_Livraison_${shippingSlip.doc_number || order.order_number || "commande"}.pdf`;
+          }
+        }
+
+        if (!blob) {
+          const equipmentItems = (proc.items || [])
+            .filter((item: any) => {
+              const text = `${item.product_name || item.plan_name || item.name || ""} ${item.description || ""}`.toLowerCase();
+              return !text.includes("mensuel") && !text.includes("forfait") && !text.includes("plan internet") && !text.includes("plan tv") && !text.includes("plan mobile");
+            })
+            .map((item: any) => ({
+              description: item.product_name || item.plan_name || item.name || item.description || "Équipement",
+              serial_number: item.serial_number || undefined,
+              quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+            }));
+          const snapshotItems = Array.isArray(order?.equipment_details)
+            ? order.equipment_details.map((item: any) => ({
+                description: item.label || item.name || item.type || "Équipement",
+                serial_number: item.serial_number || undefined,
+                quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+              }))
+            : [];
+          const meta = shippingSlip?.metadata || {};
+          const result = generateDeliverySlipPDF({
+            slip_number: shippingSlip?.doc_number || `BL-${order.order_number || order.id?.slice(0, 8) || "commande"}`,
+            issue_date: order.shipped_at || order.created_at || new Date().toISOString(),
+            client_name: [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || proc.profile?.full_name || "Client Nivra",
+            client_email: order.client_email || proc.profile?.email || "",
+            client_phone: order.client_phone || proc.profile?.phone || "",
+            account_number: proc.account?.account_number || order.account_number || "",
+            delivery_address: order.shipping_address || order.client_full_address || proc.account?.primary_service_address || "",
+            delivery_city: order.shipping_city || proc.account?.primary_service_city || "",
+            delivery_province: order.shipping_province || proc.account?.primary_service_province || "QC",
+            delivery_postal: order.shipping_postal_code || proc.account?.primary_service_postal_code || "",
+            order_number: String(order.order_number || ""),
+            carrier: meta.carrier || order.carrier || "En préparation",
+            tracking_number: meta.tracking_number || order.tracking_number || "—",
+            items: equipmentItems.length ? equipmentItems : snapshotItems.length ? snapshotItems : [{ description: "Équipement à expédier", quantity: 1 }],
+          });
+          if (result.success && result.blob) blob = result.blob;
+        }
+
+        if (!blob) { toast.error("Bordereau non disponible"); return; }
+
+        if (download) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          toast.success("Téléchargement démarré");
+        } else {
+          setPdfBlob(blob);
+          setPdfTitle("Bordereau de livraison");
+          setPdfFilename(filename);
+          setPdfViewerOpen(true);
+        }
+        return;
+      }
+
       const result = await generateOrderDocuments(order.id);
       if (!result) {
         toast.error("Données de document introuvables");

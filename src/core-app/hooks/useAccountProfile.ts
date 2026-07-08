@@ -402,16 +402,39 @@ export function useAccountProfile(accountId: string | undefined) {
   });
 
   const documents = useQuery({
-    queryKey: ["account-profile-documents", clientId],
+    queryKey: ["account-profile-documents", clientId, accountId],
     queryFn: async () => {
       if (!clientId) return [];
-      const { data, error } = await supabase
+      const uploaded = await supabase
         .from("client_documents")
         .select("*")
         .eq("user_id", clientId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      if (uploaded.error) throw uploaded.error;
+
+      const autoFilters = [`client_id.eq.${clientId}`];
+      if (accountId) autoFilters.push(`account_id.eq.${accountId}`);
+      const auto = await supabase
+        .from("client_auto_documents")
+        .select("id, doc_type, doc_number, storage_path, created_at, event_type, email_sent")
+        .or(autoFilters.join(","))
+        .order("created_at", { ascending: false });
+      if (auto.error) throw auto.error;
+
+      const autoDocs = (auto.data || []).map((doc: any) => ({
+        id: `auto-${doc.id}`,
+        document_name: doc.doc_type === "order_shipping_slip"
+          ? `Bordereau de livraison${doc.doc_number ? ` ${doc.doc_number}` : ""}`
+          : `${doc.doc_type || "Document"}${doc.doc_number ? ` ${doc.doc_number}` : ""}`,
+        document_type: doc.doc_type,
+        document_url: doc.storage_path ? `client-documents/${doc.storage_path}` : null,
+        storage_path: doc.storage_path,
+        created_at: doc.created_at,
+        source: "auto",
+      }));
+
+      return [...autoDocs, ...(uploaded.data || [])]
+        .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     },
     enabled: !!clientId,
   });
