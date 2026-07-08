@@ -591,7 +591,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
 
       )}
 
-      {/* 10 new actions */}
+      {/* Advanced 360 actions */}
       <QuickRefundDialog
         open={quickRefundOpen}
         onClose={() => setQuickRefundOpen(false)}
