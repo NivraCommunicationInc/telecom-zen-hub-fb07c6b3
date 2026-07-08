@@ -29,13 +29,24 @@ const t = {
     email: "Courriel",
     serviceType: "Service",
     serviceAddress: "Adresse de service",
-    monthlyPrice: "Prix mensuel",
+    monthlyPrice: "Prix mensuel récurrent (taxes incluses)",
+    monthlySubtotal: "Prix mensuel avant taxes",
+    firstInvoiceTotal: "Total 1ʳᵉ facture (équipement, frais, activation)",
     invoiceTotal: "Total facturé",
+    itemsTitle: "Détail de la commande",
+    itemQty: "Qté",
+    itemUnit: "Prix unitaire",
+    itemTotal: "Total",
+    recurringBadge: "Récurrent /mois",
+    oneTimeBadge: "Unique",
     keyTerms: "Conditions clés",
     term1: "Sans engagement, résiliable à tout moment",
     term2: "Garantie 30 jours satisfait ou remboursé",
     term3: "Aucun frais caché — facturation transparente",
     term4: "Support local au Québec, en français",
+    viewPdf: "Voir le contrat complet (PDF)",
+    openingPdf: "Ouverture du PDF…",
+    pdfUnavailable: "PDF pas encore disponible",
     fullText: "Texte complet du contrat",
     fullTextBody:
       "En cliquant sur \"Signer le contrat\", vous reconnaissez avoir lu et accepté les Conditions de service de Nivra Telecom, la Politique de confidentialité (Loi 25), la Politique de remboursement et les Modalités de paiement disponibles sur nivra-telecom.ca. Cette signature électronique a la même valeur légale qu'une signature manuscrite (Loi sur l'encadrement technologique, Québec).",
@@ -72,13 +83,24 @@ const t = {
     email: "Email",
     serviceType: "Service",
     serviceAddress: "Service address",
-    monthlyPrice: "Monthly price",
+    monthlyPrice: "Recurring monthly price (taxes included)",
+    monthlySubtotal: "Monthly price before taxes",
+    firstInvoiceTotal: "1st invoice total (equipment, fees, activation)",
     invoiceTotal: "Invoice total",
+    itemsTitle: "Order details",
+    itemQty: "Qty",
+    itemUnit: "Unit price",
+    itemTotal: "Total",
+    recurringBadge: "Recurring /mo",
+    oneTimeBadge: "One-time",
     keyTerms: "Key terms",
     term1: "No commitment, cancel anytime",
     term2: "30-day satisfaction guarantee",
     term3: "No hidden fees — transparent billing",
     term4: "Local Quebec support, in French",
+    viewPdf: "View full contract (PDF)",
+    openingPdf: "Opening PDF…",
+    pdfUnavailable: "PDF not yet available",
     fullText: "Full contract text",
     fullTextBody:
       "By clicking \"Sign contract\", you acknowledge that you have read and accepted the Nivra Telecom Terms of Service, Privacy Policy (Law 25), Refund Policy, and Payment Terms available on nivra-telecom.ca. This electronic signature has the same legal value as a handwritten signature (Quebec Act to establish a legal framework for IT).",
@@ -132,17 +154,32 @@ interface ContractData {
     version?: number;
     created_at?: string;
     expires_at?: string;
+    has_pdf?: boolean;
   };
   order?: {
     id: string;
     order_number?: string;
     service_type?: string;
     total_amount?: number;
+    first_invoice_total?: number;
+    monthly_recurring_subtotal?: number;
+    monthly_recurring_total?: number;
+    tps_rate?: number;
+    tvq_rate?: number;
     created_at?: string;
     service_address?: string;
     service_city?: string;
     service_postal_code?: string;
     service_province?: string;
+    line_items?: Array<{
+      plan_name?: string;
+      plan_code?: string;
+      service_type?: string;
+      is_recurring?: boolean;
+      quantity?: number;
+      unit_price?: number;
+      line_total?: number;
+    }>;
   };
   client?: { full_name?: string; email?: string; phone?: string };
   account_number?: string;
@@ -164,8 +201,30 @@ export default function SignContract() {
   const [signerName, setSignerName] = useState("");
   const [signing, setSigning] = useState(false);
   const [signedOk, setSignedOk] = useState(false);
+  const [openingPdf, setOpeningPdf] = useState(false);
 
   const tr = t[lang];
+
+  const handleViewPdf = async () => {
+    if (!token || openingPdf) return;
+    setOpeningPdf(true);
+    try {
+      const res = await fetch(`${FN_URL}?token=${encodeURIComponent(token)}&action=pdf`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      });
+      const json = await res.json();
+      if (json?.success && json.url) {
+        window.open(json.url, "_blank", "noopener,noreferrer");
+      } else {
+        alert(tr.pdfUnavailable);
+      }
+    } catch (e) {
+      console.error("[SignContract] view PDF failed:", e);
+      alert(tr.pdfUnavailable);
+    } finally {
+      setOpeningPdf(false);
+    }
+  };
 
   useEffect(() => {
     setLang(detectLang());
@@ -319,14 +378,69 @@ export default function SignContract() {
           {cl?.email && <Field label={tr.email} value={cl.email} />}
           {o?.service_type && <Field label={tr.serviceType} value={o.service_type} />}
           {fullAddr && <Field label={tr.serviceAddress} value={fullAddr} full />}
-          {o?.total_amount != null && (
-            <Field label={tr.monthlyPrice} value={fmtMoney(o.total_amount, lang)} highlight />
+          {o?.monthly_recurring_total != null && o.monthly_recurring_total > 0 && (
+            <Field label={tr.monthlyPrice} value={fmtMoney(o.monthly_recurring_total, lang)} highlight />
           )}
-          {inv?.total != null && (
-            <Field label={tr.invoiceTotal} value={fmtMoney(inv.total, lang)} highlight />
+          {o?.monthly_recurring_subtotal != null && o.monthly_recurring_subtotal > 0 && (
+            <Field label={tr.monthlySubtotal} value={fmtMoney(o.monthly_recurring_subtotal, lang)} />
+          )}
+          {o?.first_invoice_total != null && (
+            <Field label={tr.firstInvoiceTotal} value={fmtMoney(o.first_invoice_total, lang)} full />
           )}
         </div>
+
+        {/* View PDF button */}
+        {c?.has_pdf && (
+          <button
+            type="button"
+            onClick={handleViewPdf}
+            disabled={openingPdf}
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-60"
+          >
+            <FileText className="h-4 w-4" />
+            {openingPdf ? tr.openingPdf : tr.viewPdf}
+          </button>
+        )}
       </div>
+
+      {/* Line items breakdown */}
+      {o?.line_items && o.line_items.length > 0 && (
+        <div className="mt-5 px-5 sm:px-8">
+          <h2 className="mb-2 text-sm font-semibold text-foreground">{tr.itemsTitle}</h2>
+          <div className="overflow-hidden rounded-xl border border-border bg-card text-sm shadow-sm">
+            <ul className="divide-y divide-border">
+              {o.line_items.map((li, idx) => (
+                <li key={idx} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-foreground">{li.plan_name || "—"}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                          li.is_recurring
+                            ? "bg-primary/15 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {li.is_recurring ? tr.recurringBadge : tr.oneTimeBadge}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {tr.itemQty}: {li.quantity ?? 1} · {tr.itemUnit}: {fmtMoney(li.unit_price, lang)}
+                    </div>
+                  </div>
+                  <div
+                    className={`shrink-0 text-right font-semibold ${
+                      (li.line_total ?? 0) < 0 ? "text-emerald-500" : "text-foreground"
+                    }`}
+                  >
+                    {fmtMoney(li.line_total, lang)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Key terms */}
       <div className="mt-5 px-5 sm:px-8">

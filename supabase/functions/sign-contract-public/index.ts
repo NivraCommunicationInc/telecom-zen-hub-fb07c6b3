@@ -56,6 +56,7 @@ serve(async (req: Request) => {
     if (req.method === "GET") {
       const url = new URL(req.url);
       const token = url.searchParams.get("token");
+      const action = url.searchParams.get("action");
       if (!token || token.length < 16) {
         return jsonResponse({ success: false, error: "TOKEN_INVALID" }, 400);
       }
@@ -67,6 +68,24 @@ serve(async (req: Request) => {
         console.error("[sign-contract-public][GET] RPC error:", error);
         return jsonResponse({ success: false, error: "SERVER_ERROR" }, 500);
       }
+
+      // Action=pdf → generate a short-lived signed URL for viewing the contract PDF
+      if (action === "pdf") {
+        const payload = (data ?? {}) as any;
+        const storagePath: string | null = payload?.contract?.contract_pdf_url ?? null;
+        if (!storagePath) {
+          return jsonResponse({ success: false, error: "PDF_NOT_AVAILABLE" }, 404);
+        }
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("client-documents")
+          .createSignedUrl(storagePath, 60 * 15); // 15 minutes
+        if (signErr || !signed?.signedUrl) {
+          console.error("[sign-contract-public][GET pdf] sign error:", signErr);
+          return jsonResponse({ success: false, error: "PDF_SIGN_FAILED" }, 500);
+        }
+        return jsonResponse({ success: true, url: signed.signedUrl, expires_in: 900 });
+      }
+
       return jsonResponse(data ?? { success: false, error: "TOKEN_NOT_FOUND" });
     }
 
