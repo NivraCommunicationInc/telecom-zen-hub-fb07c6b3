@@ -14,13 +14,13 @@ export interface BackfillResult {
   errors: string[];
 }
 
-type BillingMethod = "paypal" | "interac" | "card" | "manual";
+type BillingMethod = "interac" | "card" | "manual";
 
 const toBillingMethod = (method?: string, reference?: string | null): BillingMethod => {
   const normalizedMethod = String(method || "").toLowerCase();
   const normalizedReference = String(reference || "").toLowerCase();
 
-  if (normalizedMethod === "paypal") return "paypal";
+  if (normalizedMethod === "paypal") throw new Error("PayPal décommissionné — utiliser Square/carte");
   if (normalizedMethod === "etransfer" || normalizedMethod === "e_transfer" || normalizedMethod === "interac") return "interac";
   if (normalizedMethod === "credit_card" || normalizedMethod === "card") return "card";
   if (normalizedReference.startsWith("pi_")) return "card";
@@ -34,11 +34,7 @@ const isPaidCheckout = (payload: NivraFullCheckoutPayload) => {
     (method === "credit_card" || method === "card" || reference.startsWith("pi_")) &&
     (payload.payment.status === "captured" || reference.startsWith("pi_"));
 
-  return (
-    (method === "paypal" && !!payload.payment.paypal_capture_id) ||
-    method === "promo_free" ||
-    cardCaptured
-  );
+  return method === "promo_free" || cardCaptured;
 };
 
 async function resolveServiceAddressId(
@@ -225,14 +221,9 @@ export async function backfillCheckoutToSupabase(
         installation_type: isStreamingOnly ? "digital_email" : (payload.installation.type || null),
         delivery_fee: isStreamingOnly ? 0 : (payload.installation.delivery_fee || 0),
         installation_fee: isStreamingOnly ? 0 : (payload.installation.installation_fee || 0),
-        provider_payment_id:
-          billingMethod === "paypal"
-            ? (payload.payment.paypal_capture_id || null)
-            : billingMethod === "card"
-              ? (payload.payment.reference || null)
-              : null,
+        provider_payment_id: billingMethod === "card" ? (payload.payment.capture_id || payload.payment.reference || null) : null,
         payment_method: billingMethod === "card" ? "card" : payload.payment.method,
-        payment_reference: billingMethod === "paypal" ? null : (payload.payment.reference || response.payment_number || null),
+        payment_reference: payload.payment.reference || response.payment_number || null,
       },
       { onConflict: "order_number" },
     );
@@ -276,7 +267,7 @@ export async function backfillCheckoutToSupabase(
         },
         billing_snapshot_payment: {
           method: billingMethod,
-          reference: billingMethod === "paypal" ? null : (payload.payment.reference || response.payment_number || null),
+          reference: payload.payment.reference || response.payment_number || null,
           status: payload.payment.status,
         },
       },
@@ -440,20 +431,13 @@ export async function backfillCheckoutToSupabase(
   try {
     const total = pricing?.grand_total ?? Number(payload.pricing_snapshot?.grand_total ?? 0);
     const provider =
-      billingMethod === "paypal"
-        ? "paypal"
-        : billingMethod === "interac"
+      billingMethod === "interac"
           ? "interac"
           : billingMethod === "card"
-            ? "card"
+            ? "square"
             : "manual";
-    const reference = provider === "paypal" ? null : (payload.payment.reference || response.payment_number || null);
-    const providerPaymentId =
-      provider === "paypal"
-        ? (payload.payment.paypal_capture_id || null)
-        : provider === "card"
-          ? (payload.payment.reference || null)
-          : null;
+    const reference = payload.payment.reference || response.payment_number || null;
+    const providerPaymentId = provider === "square" ? (payload.payment.capture_id || payload.payment.reference || null) : null;
 
     const { error } = await supabase.from("billing_payments").upsert(
       {

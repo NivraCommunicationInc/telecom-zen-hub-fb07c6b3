@@ -2420,7 +2420,6 @@ const ClientNewOrder = () => {
               ? "captured"
               : "pre_authorized",
           reference: paymentConfirmationNumber || null,
-          paypal_capture_id: null,
           preauth_opt_in: acceptPreauthorized,
           preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
         },

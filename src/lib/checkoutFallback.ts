@@ -364,7 +364,7 @@ export async function fallbackCheckout(
 
   // ── 5. Determine canonical billing fields ──
   const rawMethod = String(payload.payment.method || "").toLowerCase();
-  if (rawMethod === "paypal" || payload.payment.paypal_capture_id) {
+  if (rawMethod === "paypal") {
     throw new Error("PayPal décommissionné — utiliser Square/carte");
   }
   const paymentReferenceRaw = String(payload.payment.reference || "");
