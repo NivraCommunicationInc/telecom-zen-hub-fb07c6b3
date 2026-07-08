@@ -339,7 +339,7 @@ const CoreReferralRewardsPage = () => {
     {
       key: "qualifying_cycles_paid",
       label: "Cycles",
-      render: (r) => cycleProgress(r.qualifying_cycles_paid || 0, r.required_cycles || 2),
+      render: (r) => cycleProgress(r.qualifying_cycles_paid || 0, r.required_cycles || 3),
     },
     {
       key: "payment_method",
