@@ -109,21 +109,21 @@ Deno.serve(async (req) => {
       // Clients actifs avec au moins un abonnement actif
       const { data: subs, error: subsErr } = await supabase
         .from("billing_subscriptions")
-        .select("client_id")
+        .select("customer_id")
         .eq("status", "active");
       if (subsErr) throw subsErr;
-      const clientIds = Array.from(new Set((subs ?? []).map((s: any) => s.client_id).filter(Boolean)));
+      const customerIds = Array.from(new Set((subs ?? []).map((s: any) => s.customer_id).filter(Boolean)));
 
-      if (clientIds.length === 0) {
+      if (customerIds.length === 0) {
         return new Response(JSON.stringify({ mode: "all", total: 0, sent: 0 }), {
           headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
       const { data: profiles, error: profErr } = await supabase
-        .from("profiles")
-        .select("id, email, first_name, full_name")
-        .in("id", clientIds);
+        .from("billing_customers")
+        .select("id, email, first_name, last_name")
+        .in("id", customerIds);
       if (profErr) throw profErr;
 
       let sent = 0, skipped = 0, failed = 0;
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       for (const p of profiles ?? []) {
         const email = (p as any).email;
         if (!email) { skipped++; continue; }
-        const first = (p as any).first_name || ((p as any).full_name?.split(" ")[0]);
+        const first = (p as any).first_name || "";
         const parts = buildBody(first);
 
         // Idempotence — insertion préalable dans email_queue via event_key
