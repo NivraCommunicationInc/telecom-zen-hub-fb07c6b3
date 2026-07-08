@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
+import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { SignatureStatusBlock } from "./SignatureStatusBlock";
 import { StepCompletionCard } from "../StepCompletionCard";
@@ -41,7 +42,7 @@ export function ContractDocumentsStep({ proc }: Props) {
     { type: "Facture", key: "invoice", available: !!invoice, data: invoice },
     { type: "Sommaire de commande", key: "summary", available: true, data: order },
     { type: "Reçu", key: "receipt", available: !!invoice?.paid_at, data: invoice },
-    { type: "Bordereau de livraison", key: "shipping_slip", available: !!shippingSlip, data: shippingSlip },
+    { type: "Bordereau de livraison", key: "shipping_slip", available: true, data: shippingSlip || order },
     { type: "Conditions de service", key: "terms", available: true, data: null },
   ];
 
@@ -49,16 +50,57 @@ export function ContractDocumentsStep({ proc }: Props) {
     const loadKey = download ? `dl-${doc.key}` : doc.key;
     setLoading(loadKey);
     try {
-      // Shipping slip lives in storage (client-documents bucket) — fetch signed URL
+      // Shipping slip: use persisted PDF if it exists, otherwise generate a
+      // preview from the order data so it's always viewable/downloadable.
       if (doc.key === "shipping_slip") {
-        if (!shippingSlip?.storage_path) { toast.error("Bordereau non disponible"); return; }
-        const { data: signed, error: sErr } = await supabase.storage
-          .from("client-documents")
-          .createSignedUrl(shippingSlip.storage_path, 900);
-        if (sErr || !signed?.signedUrl) { toast.error("Erreur d'accès au bordereau"); return; }
-        const resp = await fetch(signed.signedUrl);
-        const blob = await resp.blob();
-        const filename = `Bon_Livraison_${shippingSlip.doc_number || order.order_number}.pdf`;
+        let blob: Blob | null = null;
+        let filename = `Bon_Livraison_${order.order_number}.pdf`;
+
+        if (shippingSlip?.storage_path) {
+          const { data: signed, error: sErr } = await supabase.storage
+            .from("client-documents")
+            .createSignedUrl(shippingSlip.storage_path, 900);
+          if (!sErr && signed?.signedUrl) {
+            const resp = await fetch(signed.signedUrl);
+            blob = await resp.blob();
+            filename = `Bon_Livraison_${shippingSlip.doc_number || order.order_number}.pdf`;
+          }
+        }
+
+        if (!blob) {
+          // Client-side fallback — generate from order data
+          const items = (proc.items || [])
+            .filter((it: any) => {
+              const s = `${it.name || ""} ${it.description || ""}`.toLowerCase();
+              return !s.includes("mensuel") && !s.includes("plan internet") && !s.includes("plan tv") && !s.includes("plan mobile");
+            })
+            .map((it: any) => ({
+              description: it.name || it.description || "Équipement",
+              serial_number: it.serial_number || undefined,
+              quantity: Number(it.quantity || 1),
+            }));
+          const meta = shippingSlip?.metadata || {};
+          const result = generateDeliverySlipPDF({
+            slip_number: shippingSlip?.doc_number || `BL-${order.order_number}`,
+            issue_date: order.created_at || new Date().toISOString(),
+            client_name: [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || "Client Nivra",
+            client_email: order.client_email || "",
+            client_phone: order.client_phone || "",
+            account_number: order.account_number || "",
+            delivery_address: order.shipping_address || "",
+            delivery_city: order.shipping_city || "",
+            delivery_province: order.shipping_province || "QC",
+            delivery_postal: order.shipping_postal_code || "",
+            order_number: String(order.order_number || ""),
+            carrier: meta.carrier || "En préparation",
+            tracking_number: meta.tracking_number || "—",
+            items: items.length ? items : [{ description: "Équipement à expédier", quantity: 1 }],
+          });
+          if (result.success && result.blob) blob = result.blob;
+        }
+
+        if (!blob) { toast.error("Bordereau non disponible"); return; }
+
         if (download) {
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
