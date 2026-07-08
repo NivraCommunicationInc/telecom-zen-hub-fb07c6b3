@@ -236,10 +236,11 @@ const ClientReferrals = () => {
               <div>
                 <p className="font-medium text-sm text-foreground mb-1">Comment ça fonctionne ?</p>
                 <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Partagez votre code avec un proche</li>
-                  <li>Il l'utilise lors de sa commande sur nivra-telecom.ca</li>
-                  <li>Après <strong>2 cycles mensuels payés</strong>, vous êtes qualifié</li>
-                  <li>Vous recevez <strong>25$ (versement unique)</strong> selon votre mode de versement</li>
+                  <li>Partagez votre code de parrainage</li>
+                  <li>Votre proche commande chez Nivra Telecom avec votre code</li>
+                  <li>Il complète <strong>3 factures mensuelles consécutives</strong> payées</li>
+                  <li>Nous validons automatiquement le dossier</li>
+                  <li>Vous recevez <strong>25 $</strong> + <strong>300 points de fidélité</strong> (versement 7 à 14 jours)</li>
                 </ol>
               </div>
             </div>
