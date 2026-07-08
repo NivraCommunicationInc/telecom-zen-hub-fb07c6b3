@@ -30029,6 +30029,7 @@ export type Database = {
         Returns: Json
       }
       auto_resume_paused_services: { Args: never; Returns: number }
+      award_account_anniversary_points: { Args: never; Returns: number }
       backfill_field_sales_sync: { Args: never; Returns: undefined }
       billing_reconciliation_check: {
         Args: never
