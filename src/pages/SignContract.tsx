@@ -154,17 +154,32 @@ interface ContractData {
     version?: number;
     created_at?: string;
     expires_at?: string;
+    has_pdf?: boolean;
   };
   order?: {
     id: string;
     order_number?: string;
     service_type?: string;
     total_amount?: number;
+    first_invoice_total?: number;
+    monthly_recurring_subtotal?: number;
+    monthly_recurring_total?: number;
+    tps_rate?: number;
+    tvq_rate?: number;
     created_at?: string;
     service_address?: string;
     service_city?: string;
     service_postal_code?: string;
     service_province?: string;
+    line_items?: Array<{
+      plan_name?: string;
+      plan_code?: string;
+      service_type?: string;
+      is_recurring?: boolean;
+      quantity?: number;
+      unit_price?: number;
+      line_total?: number;
+    }>;
   };
   client?: { full_name?: string; email?: string; phone?: string };
   account_number?: string;
