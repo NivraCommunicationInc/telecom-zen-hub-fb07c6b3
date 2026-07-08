@@ -185,9 +185,9 @@ const ClientReferrals = () => {
             Programme de parrainage
           </h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Parrainez vos proches : ils reçoivent <strong>5$/mois × 10 mois = 50$ de rabais total</strong>,
-            et vous recevez <strong>25$ (versement unique)</strong> par parrainage qualifié — payable en
-            Interac e-Transfer ou carte-cadeau Visa/Mastercard.
+            Parrainez vos proches : après <strong>3 factures mensuelles consécutives payées</strong>, vous recevez
+            <strong> 25 $ (versement unique)</strong> et <strong>300 points de fidélité</strong>. Versement Interac e-Transfer (recommandé)
+            ou carte-cadeau Visa/Mastercard, effectué dans un délai de 7 à 14 jours.
           </p>
         </div>
 
