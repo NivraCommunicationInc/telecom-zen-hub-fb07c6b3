@@ -112,18 +112,18 @@ Deno.serve(async (req) => {
         .select("customer_id")
         .eq("status", "active");
       if (subsErr) throw subsErr;
-      const clientIds = Array.from(new Set((subs ?? []).map((s: any) => s.customer_id).filter(Boolean)));
+      const customerIds = Array.from(new Set((subs ?? []).map((s: any) => s.customer_id).filter(Boolean)));
 
-      if (clientIds.length === 0) {
+      if (customerIds.length === 0) {
         return new Response(JSON.stringify({ mode: "all", total: 0, sent: 0 }), {
           headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
       const { data: profiles, error: profErr } = await supabase
-        .from("profiles")
-        .select("id, email, first_name, full_name")
-        .in("id", clientIds);
+        .from("billing_customers")
+        .select("id, email, first_name, last_name")
+        .in("id", customerIds);
       if (profErr) throw profErr;
 
       let sent = 0, skipped = 0, failed = 0;
