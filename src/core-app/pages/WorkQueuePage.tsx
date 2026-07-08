@@ -255,19 +255,10 @@ const WorkQueuePage = () => {
   });
 
   const processCard = useMutation({
-    mutationFn: async (intentId: string) => {
-      const { data, error } = await supabase.functions.invoke("core-process-card-payment", {
-        body: { card_intent_id: intentId },
-      });
-      if (error) throw new Error(error.message);
-      if ((data as any)?.error) throw new Error((data as any).error);
-      return data;
+    mutationFn: async (_intentId: string) => {
+      throw new Error("PayPal décommissionné (Phase 3.B). Utilisez le flux Square pour traiter ce paiement carte.");
     },
-    onSuccess: () => {
-      toast.success("Paiement carte traité avec succès");
-      refetchCards();
-    },
-    onError: (e: Error) => toast.error("Erreur traitement carte", { description: e.message }),
+    onError: (e: Error) => toast.error("PayPal désactivé", { description: e.message }),
   });
 
   const { data: orders = [], isLoading, refetch, dataUpdatedAt } = useQuery({
@@ -439,12 +430,12 @@ const WorkQueuePage = () => {
                       </td>
                       <td className="py-2 pr-1 text-right">
                         <button
-                          onClick={() => processCard.mutate(ci.id)}
-                          disabled={isProcessing || processCard.isPending}
-                          className="inline-flex items-center gap-1 rounded-md bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed px-2.5 py-1 text-[11px] font-semibold text-white transition-colors"
+                          disabled
+                          title="PayPal décommissionné — migrer vers Square"
+                          className="inline-flex items-center gap-1 rounded-md bg-[#3a2f52] px-2.5 py-1 text-[11px] font-semibold text-white/60 cursor-not-allowed"
                         >
-                          {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CreditCard className="h-3 w-3" />}
-                          Traiter
+                          <CreditCard className="h-3 w-3" />
+                          Square requis
                         </button>
                       </td>
                     </tr>

@@ -69,28 +69,9 @@ export function CoreCardManualPanel({ orderId, orderReference }: Props) {
   if (!intent) return null;
 
   const handleProcess = async () => {
-    setError(null);
-    setProcessing(true);
-    try {
-      const { data, error: invErr } = await supabase.functions.invoke(
-        "core-process-card-payment",
-        { body: { card_intent_id: intent.id } },
-      );
-      if (invErr) throw invErr;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Paiement carte confirmé", {
-        description: `PayPal ${(data as any)?.paypal_order_id?.slice(0, 8) || ""}`,
-      });
-      await refetch();
-      qc.invalidateQueries({ queryKey: ["order", orderId] });
-      qc.invalidateQueries({ queryKey: ["admin-orders-v2"] });
-    } catch (e: any) {
-      const msg = e?.message || String(e);
-      setError(msg);
-      toast.error("Paiement refusé", { description: msg });
-    } finally {
-      setProcessing(false);
-    }
+    const msg = "PayPal est décommissionné (Phase 3.B). Utilisez le flux Square pour traiter ce paiement carte.";
+    setError(msg);
+    toast.error("PayPal désactivé", { description: msg });
   };
 
   const expiresMs = new Date(intent.expires_at).getTime() - Date.now();
@@ -144,14 +125,11 @@ export function CoreCardManualPanel({ orderId, orderReference }: Props) {
       <button
         type="button"
         onClick={handleProcess}
-        disabled={processing}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#7C3AED] hover:bg-[#6d28d9] disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-[12px] font-semibold text-white transition-colors"
+        disabled
+        title="PayPal décommissionné — flux Square requis"
+        className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#3a2f52] px-4 py-2 text-[12px] font-semibold text-white/70 cursor-not-allowed"
       >
-        {processing ? (
-          <><Loader2 className="h-4 w-4 animate-spin" /> Traitement PayPal en cours…</>
-        ) : (
-          <>Traiter le paiement via PayPal — {Number(intent.amount).toLocaleString("fr-CA", { style: "currency", currency: intent.currency || "CAD" })}</>
-        )}
+        Traitement PayPal désactivé — migrer vers Square ({Number(intent.amount).toLocaleString("fr-CA", { style: "currency", currency: intent.currency || "CAD" })})
       </button>
     </div>
   );
