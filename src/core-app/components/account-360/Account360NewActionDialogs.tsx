@@ -293,21 +293,27 @@ export function AutopayRetryDialog(props: Base & { invoiceId?: string | null; in
     if (!props.invoiceId) return toast.error("Facture manquante");
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("square-autopay-retry", {
-        body: { invoice_id: props.invoiceId, force: true, reason },
-      });
+      // Force the invoice to be picked up on the next autopay batch (runs every hour):
+      // clear the "stopped" flag and null out next_attempt so it becomes eligible immediately.
+      const { error } = await supabase
+        .from("billing_invoices")
+        .update({
+          autopay_stopped: false,
+          autopay_next_attempt_at: null,
+          autopay_last_attempt_at: null,
+        } as any)
+        .eq("id", props.invoiceId);
       if (error) throw error;
-      const ok = (data as any)?.success === true || (data as any)?.status === "paid";
       if (props.clientEmail) {
         await notify({
           clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: ok ? "Paiement AutoPay réussi" : "Tentative AutoPay effectuée",
-          heroTitle: ok ? "Paiement confirmé" : "Nouvelle tentative de paiement",
+          subject: "Nouvelle tentative AutoPay planifiée",
+          heroTitle: "Tentative AutoPay reprogrammée",
           cardTitle: "Détails",
           cardRows: [
             { label: "Facture", value: props.invoiceNumber || props.invoiceId },
             ...(props.amount ? [{ label: "Montant", value: `${props.amount.toFixed(2)} $ CAD` }] : []),
-            { label: "Résultat", value: ok ? "Réussi" : "Échec — nous vous recontacterons" },
+            { label: "Statut", value: "Réessai planifié — vous recevrez une confirmation au succès" },
           ],
           actionKey: "autopay_retry",
           accountId: props.accountId ?? undefined,
@@ -315,11 +321,12 @@ export function AutopayRetryDialog(props: Base & { invoiceId?: string | null; in
           reason,
         });
       }
-      toast[ok ? "success" : "warning"](ok ? "AutoPay réussi" : "Tentative envoyée");
+      toast.success("AutoPay reprogrammé");
       invalidate(); props.onRefresh?.(); props.onClose();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
     finally { setLoading(false); }
   }
+
 
   return (
     <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
