@@ -47,13 +47,13 @@ serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Authz check via has_role
+  // Authz check via has_role (canonical app_role enum values only)
   const { data: isAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
   const { data: isSupervisor } = await admin.rpc("has_role", { _user_id: user.id, _role: "supervisor" });
-  const { data: isStaffAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "staff_admin" });
+  const { data: isBillingAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "billing_admin" });
   const { data: isSupport } = await admin.rpc("has_role", { _user_id: user.id, _role: "support" });
-  if (!isAdmin && !isSupervisor && !isStaffAdmin && !isSupport) {
-    return json(403, { error: "Rôle admin/staff_admin/supervisor/support requis" });
+  if (!isAdmin && !isSupervisor && !isBillingAdmin && !isSupport) {
+    return json(403, { error: "Rôle admin/billing_admin/supervisor/support requis" });
   }
 
   let body: {
