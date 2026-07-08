@@ -196,7 +196,7 @@ export function ClientLoyaltyReferralSection({ clientId, accountId }: Props) {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Award className="h-4 w-4 text-emerald-400" />
-            <h3 className="text-[13px] font-semibold text-white">Points de fidélité</h3>
+            <h3 className="text-[13px] font-semibold text-white">Récompenses — Points de fidélité</h3>
             {points?.tier && <Badge variant="outline" className="text-[10px]">{points.tier}</Badge>}
           </div>
           <div className="flex flex-wrap gap-1.5">
