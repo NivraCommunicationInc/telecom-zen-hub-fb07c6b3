@@ -2,9 +2,8 @@
  * core-client-notify
  * Generic branded notification email dispatched from Core 360 actions.
  * Uses the official Nivra template (violetShell / #0066CC).
- * Every action from Account360NewActionDialogs invokes this function.
  */
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { sendOfficialEmail } from "../_shared/officialEmail.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -18,30 +17,30 @@ interface Payload {
   bodyHtml?: string;
   cardTitle?: string;
   cardRows?: Array<{ label: string; value: string }>;
-  actionKey: string;   // audit action key
+  actionKey: string;
   accountId?: string;
   clientUserId?: string;
   reason?: string;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const pre = handleCorsPreflightRequest(req);
+  if (pre) return pre;
+  const cors = getCorsHeaders(req.headers.get("origin"));
+
   try {
     const body = (await req.json()) as Payload;
     if (!body.clientEmail || !body.subject || !body.heroTitle || !body.actionKey) {
       return new Response(JSON.stringify({ error: "missing_fields" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
-    const authHeader = req.headers.get("Authorization") || "";
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
     );
 
-    // Send email via official template
     const result = await sendOfficialEmail({
       to: body.clientEmail,
       subject: body.subject,
@@ -54,7 +53,6 @@ Deno.serve(async (req) => {
       helpVariant: "support",
     });
 
-    // Audit: activity_logs
     try {
       await supabase.from("activity_logs").insert({
         user_id: body.clientUserId ?? null,
@@ -67,7 +65,6 @@ Deno.serve(async (req) => {
           subject: body.subject,
           email_result: result.success ? "sent" : "failed",
           email_id: result.id,
-          hero_title: body.heroTitle,
         },
       });
     } catch (e) {
@@ -78,12 +75,12 @@ Deno.serve(async (req) => {
       success: result.success, email_id: result.id, error: result.error,
     }), {
       status: result.success ? 200 : 502,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("[core-client-notify] error", e);
     return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });
