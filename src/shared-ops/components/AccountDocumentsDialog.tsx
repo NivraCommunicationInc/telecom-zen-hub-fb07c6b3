@@ -275,7 +275,7 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
   const fetchPaymentDetail = async (it: DocItem) => {
     if (it.metadata?.payment) return it.metadata.payment;
     const paymentId = it.metadata?.payment_id || it.id.replace(/^canonical-receipt-/, "");
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("billing_payments")
       .select("id, invoice_id, payment_number, amount, method, status, reference, received_at, created_at, invoice:billing_invoices(invoice_number, total, balance_due, order_id)")
       .eq("id", paymentId)
