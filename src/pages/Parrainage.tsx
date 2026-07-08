@@ -152,7 +152,7 @@ const Parrainage = () => {
               {[
                 { Icon: ShieldCheck, title: "Système sécurisé", desc: "Suivi automatique, anti-fraude intégré, traçabilité complète de chaque parrainage." },
                 { Icon: CheckCircle, title: "Transparent", desc: "Suivez la progression de vos parrainages en temps réel depuis votre portail client." },
-                { Icon: CreditCard, title: "Récompense au choix", desc: "PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac : 25$ versés à votre convenance." },
+                { Icon: CreditCard, title: "Récompense au choix", desc: "Interac e-Transfer (recommandé) ou carte-cadeau Visa/Mastercard prépayée. Versement dans les 7 à 14 jours après validation." },
               ].map(({ Icon, title, desc }, i) => (
                 <div key={i}>
                   <div className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(124,58,237,0.12)' }}>
