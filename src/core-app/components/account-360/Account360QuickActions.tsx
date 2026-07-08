@@ -466,13 +466,14 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         />
       )}
 
-      {clientId && (
-        <KYCReviewDialog
+      {clientId && accountId && (
+        <KycModule
           open={kycOpen}
           onClose={() => setKycOpen(false)}
-          clientUserId={clientId}
+          clientId={clientId}
+          accountId={accountId}
           clientName={clientName}
-          accountId={accountId ?? null}
+          clientEmail={clientEmail}
         />
       )}
 
