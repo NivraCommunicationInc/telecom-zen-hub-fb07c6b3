@@ -194,6 +194,17 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
   const isGeneratedReceipt = (it: DocItem) => it.source === "receipt" && (!!it.metadata?.invoice_id || !!it.metadata?.payment || it.metadata?.generatedDocument === RECEIPT_PDF_KIND);
 
   const fileSafeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || "document";
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
 
   const resolveOrderForDeliverySlip = (it: DocItem) => {
     const orderFromMetadata = it.metadata?.order;
@@ -249,6 +260,18 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
     }, it.name, `${fileSafeName(it.name)}.pdf`);
   };
 
+  const downloadGeneratedInvoice = async (it: DocItem) => {
+    try {
+      const invoiceId = it.metadata?.invoice_id || it.id.replace(/^canonical-invoice-/, "");
+      const result = await generateCanonicalInvoicePDF(supabase as any, invoiceId);
+      if (!result.success || !result.blob) throw new Error(result.error || "Facture indisponible");
+      downloadBlob(result.blob, `${fileSafeName(it.name)}.pdf`);
+      toast.success("Facture téléchargée");
+    } catch (e: any) {
+      toast.error(e?.message || "Téléchargement impossible");
+    }
+  };
+
   const fetchPaymentDetail = async (it: DocItem) => {
     if (it.metadata?.payment) return it.metadata.payment;
     const paymentId = it.metadata?.payment_id || it.id.replace(/^canonical-receipt-/, "");
@@ -293,6 +316,47 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
     }, it.name, `${fileSafeName(it.name)}.pdf`);
   };
 
+  const buildGeneratedReceiptBlob = async (it: DocItem): Promise<Blob> => {
+    const payment = await fetchPaymentDetail(it);
+    const invoiceId = it.metadata?.invoice_id || payment?.invoice_id;
+    if (invoiceId) {
+      const canonical = await generateCanonicalReceiptPDF(supabase as any, invoiceId);
+      if (canonical.success && canonical.blob) return canonical.blob;
+    }
+
+    const profile = initialData?.profile || {};
+    const account = initialData?.account || {};
+    const result = generateReceiptPDF({
+      receipt_number: it.number || payment?.payment_number || payment?.reference || it.id.slice(-8),
+      payment_date: payment?.received_at || payment?.created_at || it.created_at,
+      payment_method: payment?.method || payment?.payment_method || it.metadata?.method || "Paiement",
+      amount_paid: Number(payment?.amount ?? it.metadata?.amount ?? 0),
+      invoice_number: payment?.invoice?.invoice_number || it.metadata?.invoice_number || "—",
+      invoice_total: Number(payment?.invoice?.total ?? payment?.amount ?? it.metadata?.amount ?? 0),
+      order_number: payment?.invoice?.order_id || undefined,
+      client_name: profile.full_name || clientName,
+      client_email: profile.email || "",
+      client_phone: profile.phone || undefined,
+      client_address: account.service_address || profile.service_address || undefined,
+      account_number: account.account_number || "—",
+      transaction_reference: payment?.reference || it.number || undefined,
+      balance_remaining: Number(payment?.invoice?.balance_due ?? 0),
+      payment_status: payment?.status || it.metadata?.status || "paid",
+    });
+    if (!result.success || !result.blob) throw new Error(result.error || "Reçu indisponible");
+    return result.blob;
+  };
+
+  const downloadGeneratedReceipt = async (it: DocItem) => {
+    try {
+      const blob = await buildGeneratedReceiptBlob(it);
+      downloadBlob(blob, `${fileSafeName(it.name)}.pdf`);
+      toast.success("Reçu téléchargé");
+    } catch (e: any) {
+      toast.error(e?.message || "Téléchargement impossible");
+    }
+  };
+
   const openDoc = async (it: DocItem) => {
     if (isGeneratedDeliverySlip(it)) {
       openGeneratedDeliverySlip(it);
@@ -300,12 +364,12 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
     }
 
     if (isGeneratedInvoice(it) && !it.url) {
-      openGeneratedInvoice(it);
+      void openGeneratedInvoice(it);
       return;
     }
 
     if (isGeneratedReceipt(it) && !it.url) {
-      openGeneratedReceipt(it);
+      void openGeneratedReceipt(it);
       return;
     }
 
@@ -314,8 +378,13 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
       return;
     }
     try {
+      const popup = window.open("about:blank", "_blank");
       const url = await resolveDocumentUrl(it.url);
-      window.open(url, "_blank", "noopener,noreferrer");
+      if (popup) {
+        popup.location.href = url;
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
     } catch (e: any) {
       toast.error("Impossible d'ouvrir le document", { description: e?.message });
     }
@@ -328,12 +397,12 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
     }
 
     if (isGeneratedInvoice(it) && !it.url) {
-      openGeneratedInvoice(it);
+      void downloadGeneratedInvoice(it);
       return;
     }
 
     if (isGeneratedReceipt(it) && !it.url) {
-      openGeneratedReceipt(it);
+      void downloadGeneratedReceipt(it);
       return;
     }
 
