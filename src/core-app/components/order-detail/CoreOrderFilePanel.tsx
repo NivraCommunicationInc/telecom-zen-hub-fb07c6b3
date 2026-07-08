@@ -17,6 +17,7 @@ import {
   Hash, AlertTriangle, MessageSquare, Loader2, Users, Radio, Download
 } from "lucide-react";
 import { toast } from "sonner";
+import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 
 interface Props {
   proc: any;
@@ -146,18 +147,58 @@ export function CoreOrderFilePanel({ proc }: Props) {
   });
 
   const openShippingSlip = async () => {
-    if (!shippingSlip?.storage_path) {
-      toast.info("Bordereau disponible dans l'étape Contrat & Documents");
+    if (shippingSlip?.storage_path) {
+      const { data, error } = await supabase.storage
+        .from("client-documents")
+        .createSignedUrl(shippingSlip.storage_path, 300);
+      if (error || !data?.signedUrl) {
+        toast.error("Impossible d'ouvrir le bordereau");
+        return;
+      }
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
       return;
     }
-    const { data, error } = await supabase.storage
-      .from("client-documents")
-      .createSignedUrl(shippingSlip.storage_path, 300);
-    if (error || !data?.signedUrl) {
-      toast.error("Impossible d'ouvrir le bordereau");
+
+    const equipmentItems = (items || [])
+      .filter((item: any) => {
+        const text = `${item.product_name || item.plan_name || item.name || ""} ${item.description || ""}`.toLowerCase();
+        return !text.includes("mensuel") && !text.includes("forfait") && !text.includes("plan internet") && !text.includes("plan tv") && !text.includes("plan mobile");
+      })
+      .map((item: any) => ({
+        description: item.product_name || item.plan_name || item.name || item.description || "Équipement",
+        serial_number: item.serial_number || undefined,
+        quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+      }));
+    const snapshotItems = Array.isArray(order?.equipment_details)
+      ? order.equipment_details.map((item: any) => ({
+          description: item.label || item.name || item.type || "Équipement",
+          serial_number: item.serial_number || undefined,
+          quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+        }))
+      : [];
+    const result = generateDeliverySlipPDF({
+      slip_number: `BL-${order.order_number || order.id?.slice(0, 8) || "commande"}`,
+      issue_date: order.shipped_at || order.created_at || new Date().toISOString(),
+      client_name: [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || profile?.full_name || "Client Nivra",
+      client_email: order.client_email || profile?.email || "",
+      client_phone: order.client_phone || profile?.phone || "",
+      account_number: account?.account_number || order.account_number || "",
+      delivery_address: order.shipping_address || order.client_full_address || account?.primary_service_address || "",
+      delivery_city: order.shipping_city || account?.primary_service_city || "",
+      delivery_province: order.shipping_province || account?.primary_service_province || "QC",
+      delivery_postal: order.shipping_postal_code || account?.primary_service_postal_code || "",
+      order_number: String(order.order_number || ""),
+      carrier: order.carrier || "En préparation",
+      tracking_number: order.tracking_number || "—",
+      items: equipmentItems.length ? equipmentItems : snapshotItems.length ? snapshotItems : [{ description: "Équipement à expédier", quantity: 1 }],
+    });
+    if (!result.success || !result.blob) {
+      toast.error("Bordereau non disponible");
       return;
     }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    const url = URL.createObjectURL(result.blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   return (
@@ -346,7 +387,7 @@ export function CoreOrderFilePanel({ proc }: Props) {
                   onClick={openShippingSlip}
                   className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
                 >
-                  <Download className="h-3 w-3" /> {shippingSlip?.storage_path ? "Ouvrir" : "Étape documents"}
+                  <Download className="h-3 w-3" /> {shippingSlip?.storage_path ? "Ouvrir" : "Générer"}
                 </button>
               </div>
             </div>
@@ -360,7 +401,7 @@ export function CoreOrderFilePanel({ proc }: Props) {
                 onClick={openShippingSlip}
                 className="h-6 px-2 rounded border border-blue-500/30 text-[10px] text-blue-400 hover:bg-blue-500/10 flex items-center gap-1"
               >
-                <Download className="h-3 w-3" /> {shippingSlip?.storage_path ? "Ouvrir" : "Étape documents"}
+                <Download className="h-3 w-3" /> {shippingSlip?.storage_path ? "Ouvrir" : "Générer"}
               </button>
             </div>
           </div>
