@@ -61,6 +61,7 @@ export default function CoreReferralsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [rewardFilter, setRewardFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [rewardNotes, setRewardNotes] = useState("");
   const [rewardRef, setRewardRef] = useState("");
 
