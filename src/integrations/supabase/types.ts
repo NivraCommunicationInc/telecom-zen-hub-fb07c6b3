@@ -21583,6 +21583,8 @@ export type Database = {
           discount_stacks: boolean
           id: string
           min_cashout_amount: number
+          payout_delay_max_days: number
+          payout_delay_min_days: number
           required_cycles: number
           updated_at: string
         }
@@ -21596,6 +21598,8 @@ export type Database = {
           discount_stacks?: boolean
           id?: string
           min_cashout_amount?: number
+          payout_delay_max_days?: number
+          payout_delay_min_days?: number
           required_cycles?: number
           updated_at?: string
         }
@@ -21609,6 +21613,8 @@ export type Database = {
           discount_stacks?: boolean
           id?: string
           min_cashout_amount?: number
+          payout_delay_max_days?: number
+          payout_delay_min_days?: number
           required_cycles?: number
           updated_at?: string
         }

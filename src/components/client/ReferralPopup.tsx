@@ -78,7 +78,7 @@ export const ReferralPopup = () => {
                   Gagnez 25$ par parrainage
                 </h3>
                 <p className="text-primary-foreground/70 text-sm">
-                  Carte-cadeau Visa/Mastercard prépayée
+                  Interac e-Transfer ou carte prépayée + 300 points
                 </p>
               </div>
             </div>
@@ -87,7 +87,7 @@ export const ReferralPopup = () => {
           {/* Body */}
           <div className="px-6 py-5 space-y-4">
             <p className="text-muted-foreground text-sm leading-relaxed">
-              {profile.first_name ? `${profile.first_name}, invitez` : "Invitez"} vos proches chez Nivra et recevez une carte-cadeau de <span className="font-semibold text-foreground">25$</span> après leur 3e cycle mensuel payé.
+              {profile.first_name ? `${profile.first_name}, invitez` : "Invitez"} vos proches chez Nivra et recevez <span className="font-semibold text-foreground">25 $</span> + 300 points après <span className="font-semibold text-foreground">3 factures mensuelles consécutives payées</span>. Versement 7 à 14 jours.
             </p>
 
             {/* Code block */}

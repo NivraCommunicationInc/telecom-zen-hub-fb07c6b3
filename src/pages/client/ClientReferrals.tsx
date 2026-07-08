@@ -27,8 +27,9 @@ const STATUS_LABELS: Record<string, string> = {
   code_used: "Code utilisé",
   order_created: "Commande créée",
   service_activated: "Service activé",
-  cycle_1_paid: "Cycle 1 payé",
-  cycle_2_paid: "Cycle 2 payé",
+  cycle_1_paid: "Facture 1 payée",
+  cycle_2_paid: "Facture 2 payée",
+  cycle_3_paid: "Facture 3 payée",
   qualified: "Qualifié",
   reward_pending: "Récompense en attente",
   reward_issued: "Récompense envoyée",
@@ -57,7 +58,7 @@ function getStatusColor(status: string) {
 }
 
 function CycleProgress({ paid, total }: { paid: number; total: number }) {
-  const safeTotal = Math.max(total || 2, 1);
+  const safeTotal = Math.max(total || 3, 1);
   return (
     <div className="flex gap-1.5 items-center">
       {Array.from({ length: safeTotal }, (_, i) => (
@@ -67,7 +68,7 @@ function CycleProgress({ paid, total }: { paid: number; total: number }) {
               i < paid ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700"
             }`}
           />
-          <span className="text-[10px] text-muted-foreground">M{i + 1}</span>
+          <span className="text-[10px] text-muted-foreground">F{i + 1}</span>
         </div>
       ))}
       <span className="ml-2 text-xs font-medium text-muted-foreground">{paid}/{safeTotal}</span>
@@ -185,9 +186,9 @@ const ClientReferrals = () => {
             Programme de parrainage
           </h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Parrainez vos proches : ils reçoivent <strong>5$/mois × 10 mois = 50$ de rabais total</strong>,
-            et vous recevez <strong>25$ (versement unique)</strong> par parrainage qualifié — payable en
-            Interac e-Transfer ou carte-cadeau Visa/Mastercard.
+            Parrainez vos proches : après <strong>3 factures mensuelles consécutives payées</strong>, vous recevez
+            <strong> 25 $ (versement unique)</strong> et <strong>300 points de fidélité</strong>. Versement Interac e-Transfer (recommandé)
+            ou carte-cadeau Visa/Mastercard, effectué dans un délai de 7 à 14 jours.
           </p>
         </div>
 
@@ -236,10 +237,11 @@ const ClientReferrals = () => {
               <div>
                 <p className="font-medium text-sm text-foreground mb-1">Comment ça fonctionne ?</p>
                 <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Partagez votre code avec un proche</li>
-                  <li>Il l'utilise lors de sa commande sur nivra-telecom.ca</li>
-                  <li>Après <strong>2 cycles mensuels payés</strong>, vous êtes qualifié</li>
-                  <li>Vous recevez <strong>25$ (versement unique)</strong> selon votre mode de versement</li>
+                  <li>Partagez votre code de parrainage</li>
+                  <li>Votre proche commande chez Nivra Telecom avec votre code</li>
+                  <li>Il complète <strong>3 factures mensuelles consécutives</strong> payées</li>
+                  <li>Nous validons automatiquement le dossier</li>
+                  <li>Vous recevez <strong>25 $</strong> + <strong>300 points de fidélité</strong> (versement 7 à 14 jours)</li>
                 </ol>
               </div>
             </div>
@@ -446,8 +448,9 @@ const ClientReferrals = () => {
 
                         <CycleProgress
                           paid={r.qualifying_cycles_paid || 0}
-                          total={r.required_cycles || 2}
+                          total={r.required_cycles || 3}
                         />
+
 
                         <p className="text-xs text-muted-foreground">
                           Parrainé le {new Date(r.created_at).toLocaleDateString("fr-CA")}
@@ -485,12 +488,13 @@ const ClientReferrals = () => {
         <div className="text-xs text-muted-foreground space-y-1 p-4 bg-muted/40 rounded-xl border">
           <p className="font-medium text-foreground">Conditions du programme</p>
           <ul className="list-disc list-inside space-y-0.5">
-            <li>Récompense parrain : 25$ versement unique • Rabais filleul : 5$/mois × 10 mois = 50$ de rabais total</li>
-            <li>Le client référé doit compléter <strong>2 cycles mensuels payés</strong> pour qualifier</li>
-            <li>Versements au choix : Interac e-Transfer ou carte-cadeau Visa/Mastercard</li>
-            <li>L'auto-parrainage est interdit</li>
-            <li>Un seul parrainage par nouveau client</li>
-            <li>Nivra se réserve le droit de disqualifier les parrainages frauduleux</li>
+            <li>25 $ versés une seule fois pour chaque client référé admissible + 300 points de fidélité au parrain</li>
+            <li>Le client référé doit compléter <strong>3 factures mensuelles consécutives entièrement payées</strong></li>
+            <li>Le compte doit être actif au moment de la validation (aucun remboursement ni annulation en cours)</li>
+            <li>Le versement est effectué dans un délai de <strong>7 à 14 jours</strong> suivant la validation</li>
+            <li>Modes de versement : Interac e-Transfer (recommandé) ou carte-cadeau Visa/Mastercard prépayée</li>
+            <li>Aucun plafond de références — l'auto-parrainage est interdit — un seul parrain par nouveau client</li>
+            <li>Nivra Telecom se réserve le droit de refuser tout parrainage frauduleux</li>
           </ul>
         </div>
       </div>

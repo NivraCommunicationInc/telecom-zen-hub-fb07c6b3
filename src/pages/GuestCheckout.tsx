@@ -1094,7 +1094,7 @@ const GuestCheckout = () => {
             referred_order_id: response.order_id,
             status: "pending",
             qualifying_cycles_paid: 0,
-            required_cycles: 2,
+            required_cycles: 3,
             reward_status: "not_eligible",
             reward_type: "gift_card",
             reward_amount: 25.00,

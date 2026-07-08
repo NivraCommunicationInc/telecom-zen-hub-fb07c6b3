@@ -5286,24 +5286,24 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
         : "Virement électronique";
       return {
         subject: isEn
-          ? `Your referral is qualified — 25$/mo for 10 months`
-          : `Votre parrainage est qualifié — 25 $/mois pendant 10 mois`,
+          ? `Your referral is qualified — 25$ + 300 points`
+          : `Votre parrainage est qualifié — 25 $ + 300 points`,
         html: shell({
           preheader: isEn
-            ? `Your referral has completed 2 paid cycles. Reward starts now.`
-            : `Votre filleul a complété 2 cycles payés. La récompense démarre maintenant.`,
+            ? `Your referral has completed 3 consecutive paid monthly invoices. Reward on its way.`
+            : `Votre filleul a complété 3 factures mensuelles consécutives payées. Récompense en préparation.`,
           badge: t("PARRAINAGE QUALIFIÉ", "REFERRAL QUALIFIED", lang),
           heroTitle: t("Félicitations 🎉", "Congratulations 🎉", lang),
           icon: "check",
           greeting,
           bodyText: isEn
-            ? `Your referral has reached the 2-paid-cycles milestone. You'll now receive 25$/month for 10 months (250$ total) via ${methodLabel}.`
-            : `Votre filleul a atteint le seuil de 2 cycles payés. Vous recevrez maintenant 25 $/mois pendant 10 mois (250 $ au total) via ${methodLabel}.`,
+            ? `Your referral has reached the 3 consecutive paid monthly invoices milestone. You'll now receive $25 plus 300 loyalty points via ${methodLabel}. Payout within 7 to 14 days.`
+            : `Votre filleul a atteint le seuil de 3 factures mensuelles consécutives payées. Vous recevrez 25 $ ainsi que 300 points de fidélité via ${methodLabel}. Versement dans un délai de 7 à 14 jours.`,
           cardTitle: t("Détails de la récompense", "Reward details", lang),
           cardRows: [
-            [t("Récompense mensuelle", "Monthly reward", lang), money(25)],
-            [t("Durée", "Duration", lang), t("10 mois", "10 months", lang)],
-            [t("Total", "Total", lang), money(250)],
+            [t("Récompense", "Reward", lang), money(25)],
+            [t("Points de fidélité", "Loyalty points", lang), "300"],
+            [t("Délai de versement", "Payout delay", lang), t("7 à 14 jours", "7 to 14 days", lang)],
             [t("Mode de versement", "Payout method", lang), methodLabel],
           ],
           ctaPrimaryUrl: `${portalUrl}/referrals`,

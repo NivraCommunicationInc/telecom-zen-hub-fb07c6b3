@@ -27,14 +27,14 @@ const steps = [
   {
     icon: Clock,
     num: "3",
-    title: "2 cycles mensuels payés",
-    desc: "Le nouveau client doit maintenir son service actif et payer 2 cycles de facturation mensuels consécutifs. Vous suivez la progression en temps réel dans votre portail.",
+    title: "3 factures mensuelles consécutives payées",
+    desc: "Le compte parrainé doit rester actif et régler 3 factures mensuelles consécutives entièrement payées. Vous suivez la progression en temps réel dans votre portail.",
   },
   {
     icon: CreditCard,
     num: "4",
-    title: "Recevez votre 25$",
-    desc: "Une fois les 2 cycles payés, votre récompense de 25$ est mise en file d'attente. Choisissez votre mode de versement : PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac.",
+    title: "Recevez 25 $ + 300 points",
+    desc: "Après validation, vous recevez 25 $ (versement Interac e-Transfer recommandé, ou carte prépayée Visa/Mastercard au choix) ainsi que 300 points de fidélité. Versement effectué dans un délai de 7 à 14 jours.",
   },
 ];
 
@@ -45,7 +45,7 @@ const faq = [
   },
   {
     q: "Quand est-ce que je reçois ma récompense ?",
-    a: "La récompense est émise après que la personne parrainée ait payé 2 cycles de facturation mensuels. Vous pouvez suivre la progression dans votre portail.",
+    a: "La récompense est validée une fois que la personne parrainée a complété 3 factures mensuelles consécutives entièrement payées, avec un compte toujours actif. Le versement est ensuite effectué dans un délai de 7 à 14 jours (validations administratives).",
   },
   {
     q: "Quel rabais reçoit la personne que je parraine ?",
@@ -53,15 +53,15 @@ const faq = [
   },
   {
     q: "Sous quelle forme est ma récompense ?",
-    a: "Vous choisissez : versement PayPal, carte-cadeau Visa/Mastercard prépayée, ou virement Interac. Le choix se fait dans votre portail dès qu'un parrainage est qualifié.",
+    a: "Le versement recommandé est l'Interac e-Transfer. Vous pouvez aussi choisir une carte-cadeau Visa/Mastercard prépayée. Le choix se fait dans votre portail dès qu'un parrainage est qualifié. Vous recevez également 300 points de fidélité.",
   },
   {
     q: "Puis-je me parrainer moi-même ?",
     a: "Non. L'auto-parrainage est interdit et détecté automatiquement par notre système anti-fraude.",
   },
   {
-    q: "Que se passe-t-il si le client annule avant 2 mois ?",
-    a: "Le parrainage est annulé et la récompense n'est pas émise. Le statut est visible dans votre portail en temps réel.",
+    q: "Que se passe-t-il si le client annule avant les 3 factures payées ?",
+    a: "Le parrainage est annulé et la récompense n'est pas émise. Le compte doit être actif au moment de la validation et aucun remboursement ne doit être en cours. Le statut est visible dans votre portail en temps réel.",
   },
   {
     q: "Mon code est-il permanent ?",
@@ -76,8 +76,8 @@ const Parrainage = () => {
       <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       <SEOHead
-        title="Programme de parrainage | Nivra Telecom — 25$ pour vous, 50$ pour votre proche"
-        description="Parrainez vos proches chez Nivra Telecom : 25$ pour vous après 2 mois, 5$/mois pendant 10 mois (50$) pour votre proche. Sans limite, transparent et simple."
+        title="Programme de parrainage | Nivra Telecom — 25 $ + 300 points par parrainage"
+        description="Parrainez vos proches chez Nivra Telecom : 25 $ + 300 points de fidélité après 3 factures mensuelles consécutives payées. Versement Interac ou carte prépayée en 7 à 14 jours. Sans limite."
       />
       <Header />
 
@@ -97,8 +97,8 @@ const Parrainage = () => {
               Vous recevez{' '}<span className="n-shimmer-text">25$</span>,<br />
               votre proche économise{' '}<span style={{ color: '#06B6D4' }}>50$</span>
             </h1>
-            <p className="n-animate-in-delay-2" style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', maxWidth: 600, margin: '0 auto 32px', lineHeight: 1.6 }}>
-              Partagez votre code de parrainage. Après 2 mois de service payé, vous recevez 25$. Votre filleul économise 5$ par mois pendant 10 mois (50$ au total). Sans limite de parrainages.
+            <p className="n-animate-in-delay-2" style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', maxWidth: 640, margin: '0 auto 32px', lineHeight: 1.6 }}>
+              Partagez votre code de parrainage. Après <strong>3 factures mensuelles consécutives payées</strong> par votre filleul, vous recevez <strong>25 $</strong> (Interac ou carte prépayée) et <strong>300 points de fidélité</strong>. Versement en 7 à 14 jours. Sans limite.
             </p>
             <div className="n-animate-in-delay-3 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
@@ -152,7 +152,7 @@ const Parrainage = () => {
               {[
                 { Icon: ShieldCheck, title: "Système sécurisé", desc: "Suivi automatique, anti-fraude intégré, traçabilité complète de chaque parrainage." },
                 { Icon: CheckCircle, title: "Transparent", desc: "Suivez la progression de vos parrainages en temps réel depuis votre portail client." },
-                { Icon: CreditCard, title: "Récompense au choix", desc: "PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac : 25$ versés à votre convenance." },
+                { Icon: CreditCard, title: "Récompense au choix", desc: "Interac e-Transfer (recommandé) ou carte-cadeau Visa/Mastercard prépayée. Versement dans les 7 à 14 jours après validation." },
               ].map(({ Icon, title, desc }, i) => (
                 <div key={i}>
                   <div className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(124,58,237,0.12)' }}>
@@ -211,13 +211,15 @@ const Parrainage = () => {
           <div className="container mx-auto px-4 max-w-3xl">
             <h3 className="text-sm font-semibold text-foreground mb-3">Conditions du programme</h3>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-              <li>La récompense référent est de 25$ (PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac, au choix)</li>
-              <li>Le rabais filleul est de 5$/mois pendant 10 mois (50$ d'économies au total)</li>
-              <li>Le client référé doit compléter 2 cycles de facturation mensuels payés pour que le référent soit qualifié</li>
+              <li>25 $ versés une seule fois pour chaque client référé admissible, plus 300 points de fidélité au parrain</li>
+              <li>Le client référé doit compléter <strong>3 factures mensuelles consécutives entièrement payées</strong></li>
+              <li>Le compte doit être actif au moment de la validation, sans remboursement ni annulation en cours</li>
+              <li>Le versement est effectué dans un délai de <strong>7 à 14 jours</strong> suivant la validation</li>
+              <li>Modes de versement : Interac e-Transfer (recommandé) ou carte-cadeau Visa/Mastercard prépayée</li>
+              <li>Aucun plafond de références — plus vous parrainez, plus vous gagnez</li>
               <li>L'auto-parrainage est interdit et détecté automatiquement (même adresse, même courriel ou même mode de paiement)</li>
-              <li>Un seul code de parrainage par nouveau client</li>
-              <li>Nivra se réserve le droit de disqualifier les parrainages frauduleux</li>
-              <li>Programme sujet à modification sans préavis</li>
+              <li>Un seul parrain par nouveau client</li>
+              <li>Nivra Telecom se réserve le droit de refuser tout parrainage frauduleux</li>
             </ul>
           </div>
         </section>
