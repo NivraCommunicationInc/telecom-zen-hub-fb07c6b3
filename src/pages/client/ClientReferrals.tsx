@@ -57,7 +57,7 @@ function getStatusColor(status: string) {
 }
 
 function CycleProgress({ paid, total }: { paid: number; total: number }) {
-  const safeTotal = Math.max(total || 2, 1);
+  const safeTotal = Math.max(total || 3, 1);
   return (
     <div className="flex gap-1.5 items-center">
       {Array.from({ length: safeTotal }, (_, i) => (
@@ -67,7 +67,7 @@ function CycleProgress({ paid, total }: { paid: number; total: number }) {
               i < paid ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700"
             }`}
           />
-          <span className="text-[10px] text-muted-foreground">M{i + 1}</span>
+          <span className="text-[10px] text-muted-foreground">F{i + 1}</span>
         </div>
       ))}
       <span className="ml-2 text-xs font-medium text-muted-foreground">{paid}/{safeTotal}</span>
