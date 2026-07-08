@@ -34,6 +34,7 @@ import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHis
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 import { ClientLoyaltyReferralSection } from "@/core-app/components/loyalty/ClientLoyaltyReferralSection";
+import { Account360QuickActions } from "@/core-app/components/account-360/Account360QuickActions";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
