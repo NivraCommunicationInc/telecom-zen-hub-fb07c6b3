@@ -1086,6 +1086,10 @@ const CoreClientProfile = () => {
                 )}
               </Section>
             </TabsContent>
+
+            <TabsContent value="loyalty" className="space-y-4">
+              <ClientLoyaltyReferralSection clientId={clientId!} accountId={account?.id} />
+            </TabsContent>
           </Tabs>
         </TabsContent>
 
