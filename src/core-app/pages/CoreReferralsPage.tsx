@@ -433,9 +433,13 @@ export default function CoreReferralsPage() {
 
               <div className="space-y-5 mt-5">
                 {/* Status */}
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap items-center">
                   <Badge className={`${statusBadgeClass(selected.status)} text-sm`}>{STATUS_LABELS[selected.status]}</Badge>
                   {selected.fraud_flag && <Badge className="bg-red-500/15 text-red-400 border-0">⚠ Fraude</Badge>}
+                  <Button size="sm" variant="outline" className="ml-auto"
+                    onClick={() => setAdvancedOpen(true)}>
+                    Actions avancées
+                  </Button>
                 </div>
 
                 {/* Referrer & Referred */}
