@@ -26,6 +26,7 @@ import CanvasSignaturePad from "@/components/client/CanvasSignaturePad";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { useClientPDF } from "@/hooks/useClientPDF";
+import { ClientDeliverySlipsList } from "@/components/client/ClientDeliverySlipsList";
 
 /**
  * ClientContracts — CANONICAL DOCUMENT ARCHITECTURE
@@ -313,6 +314,8 @@ const ClientContracts = () => {
             )}
           </CardContent>
         </Card>
+
+        <ClientDeliverySlipsList canonicalData={canonicalData} isLoading={isLoading} />
 
         {/* Sign Contract Dialog */}
         <Dialog open={signDialogOpen} onOpenChange={setSignDialogOpen}>
