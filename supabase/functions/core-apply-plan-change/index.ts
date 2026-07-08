@@ -226,23 +226,42 @@ serve(async (req) => {
     }).catch(() => {});
   }
 
-  // ── 6. Rich audit log ─────────────────────────────────────
-  await admin.from("admin_audit_log").insert({
-    actor_id: user.id,
+  // ── 6. Rich audit log (canonical admin_audit_log schema) ──────
+  const { error: auditErr } = await admin.from("admin_audit_log").insert({
+    admin_user_id: user.id,
+    admin_email: user.email ?? null,
     action: "core.plan_change.applied",
     target_type: "account",
     target_id: account_id,
-    payload: {
+    target_email: clientEmail,
+    details: {
       module: "core-360-plan-change",
+      module_tag: "core.plan_change",
       change_type,
       subscription_id,
+      client_id: clientId,
       new_plan_code, new_plan_name, new_plan_price,
+      reason,
+      source: "core-360",
       results,
+      before_state: {
+        plan_name: bSub?.frozen_name ?? bSub?.plan_name ?? null,
+        plan_price: bSub?.frozen_unit_price ?? bSub?.plan_price ?? null,
+        cycle_start_date: bSub?.cycle_start_date ?? null,
+        cycle_end_date: bSub?.cycle_end_date ?? null,
+      },
+      after_state: {
+        plan_name: new_plan_name,
+        plan_price: new_plan_price,
+        change_type,
+        effective_date: isImmediate ? effectiveDate : null,
+      },
       simulation_snapshot: simulation_snapshot || null,
     },
-    reason,
-    source: "core-360",
-  }).catch(() => {});
+  });
+  if (auditErr) {
+    console.error("[core-apply-plan-change] admin_audit_log insert failed:", auditErr.message);
+  }
 
   return json(200, { ok: true, ...results });
 });
