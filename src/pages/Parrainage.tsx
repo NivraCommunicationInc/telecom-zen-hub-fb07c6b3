@@ -27,14 +27,14 @@ const steps = [
   {
     icon: Clock,
     num: "3",
-    title: "2 cycles mensuels payés",
-    desc: "Le nouveau client doit maintenir son service actif et payer 2 cycles de facturation mensuels consécutifs. Vous suivez la progression en temps réel dans votre portail.",
+    title: "3 factures mensuelles consécutives payées",
+    desc: "Le compte parrainé doit rester actif et régler 3 factures mensuelles consécutives entièrement payées. Vous suivez la progression en temps réel dans votre portail.",
   },
   {
     icon: CreditCard,
     num: "4",
-    title: "Recevez votre 25$",
-    desc: "Une fois les 2 cycles payés, votre récompense de 25$ est mise en file d'attente. Choisissez votre mode de versement : PayPal, carte-cadeau Visa/Mastercard prépayée ou Interac.",
+    title: "Recevez 25 $ + 300 points",
+    desc: "Après validation, vous recevez 25 $ (versement Interac e-Transfer recommandé, ou carte prépayée Visa/Mastercard au choix) ainsi que 300 points de fidélité. Versement effectué dans un délai de 7 à 14 jours.",
   },
 ];
 
