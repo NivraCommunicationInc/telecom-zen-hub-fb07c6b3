@@ -48,6 +48,7 @@ import {
   FreezeCycleTrialDialog, NpsSatisfactionDialog, FraudLockDialog, ConsentJournalDialog,
 } from "@/core-app/components/account-360/Account360NewActionDialogs";
 import { ClientNotesDrawer } from "@/core-app/components/notes/ClientNotesDrawer";
+import { PlanChangeModule } from "@/core-app/components/account-360/modules/PlanChangeModule";
 
 
 
@@ -650,15 +651,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         clientEmail={clientEmail}
         onRefresh={onRefresh}
       />
-      <QuickPlanChangeDialog
-        open={planChangeOpen}
-        onClose={() => setPlanChangeOpen(false)}
-        accountId={accountId ?? null}
-        clientUserId={clientId ?? null}
-        clientName={clientName}
-        clientEmail={clientEmail}
-        onRefresh={onRefresh}
-      />
+      {accountId && clientId && (
+        <PlanChangeModule
+          open={planChangeOpen}
+          onClose={() => setPlanChangeOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientName={clientName}
+          subscriptions={subscriptions}
+        />
+      )}
       <ServiceMoveDialog
         open={moveOpen}
         onClose={() => setMoveOpen(false)}

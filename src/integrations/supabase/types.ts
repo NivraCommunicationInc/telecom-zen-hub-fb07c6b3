@@ -30240,6 +30240,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      core_simulate_plan_change: {
+        Args: {
+          p_account_id: string
+          p_change_type?: string
+          p_effective_date?: string
+          p_new_plan_code: string
+          p_new_plan_name: string
+          p_new_plan_price: number
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
       count_claimable_records: { Args: { _email: string }; Returns: Json }
       create_activity_log: {
         Args: {
