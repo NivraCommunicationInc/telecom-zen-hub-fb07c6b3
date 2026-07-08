@@ -108,7 +108,10 @@ const ClientDocuments = () => {
 
           {/* Official Auto-Generated Documents Tab */}
           <TabsContent value="official" className="mt-6">
-            <AutoDocumentsTab userId={user?.id} />
+            <div className="space-y-4">
+              <AutoDocumentsTab userId={user?.id} />
+              <ClientDeliverySlipsList canonicalData={canonicalData} isLoading={isLoading} />
+            </div>
           </TabsContent>
 
           {/* Terms Tab */}
