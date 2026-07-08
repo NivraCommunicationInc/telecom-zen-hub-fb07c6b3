@@ -27,6 +27,7 @@ import {
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminReferralAdvancedDialog } from "@/core-app/components/loyalty/AdminReferralAdvancedDialog";
 
 const STATUS_LABELS: Record<string, string> = {
   code_used: "Code utilisé",
