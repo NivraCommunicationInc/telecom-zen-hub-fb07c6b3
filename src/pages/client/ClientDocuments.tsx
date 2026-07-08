@@ -29,7 +29,6 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { safePDFDownload } from "@/lib/pdfUtils";
 import { ClientDeliverySlipsList } from "@/components/client/ClientDeliverySlipsList";
 
 // Static terms document info
