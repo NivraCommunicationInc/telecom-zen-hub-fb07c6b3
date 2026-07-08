@@ -40,7 +40,14 @@ import { AccountTagsDialog } from "@/shared-ops/components/AccountTagsDialog";
 import { AccountFollowupsDialog } from "@/shared-ops/components/AccountFollowupsDialog";
 import { AccountPrivacyRequestsDialog } from "@/shared-ops/components/AccountPrivacyRequestsDialog";
 import { AccountFraudRiskDialog } from "@/shared-ops/components/AccountFraudRiskDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch } from "lucide-react";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch, RotateCcw, Undo2, Banknote, Repeat, Activity, TrendingUp, Home, ArrowUpCircle, TicketCheck, Sparkles, Star, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  QuickRefundDialog, AccountWriteOffDialog, PaymentPlanDialog, AutopayRetryDialog,
+  RemoteRebootDialog, LineDiagnosticDialog, QuickPlanChangeDialog, ServiceMoveDialog,
+  SupervisorEscalationDialog, CompensationVoucherDialog, VipChurnToggleDialog,
+} from "@/core-app/components/account-360/Account360NewActionDialogs";
+import { ClientNotesDrawer } from "@/core-app/components/notes/ClientNotesDrawer";
+
 
 
 interface Props {
