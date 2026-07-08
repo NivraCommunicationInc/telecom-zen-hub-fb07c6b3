@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldAlert, Star, FileCheck2, PauseCircle, CreditCard } from "lucide-react";
+import { Loader2, ShieldAlert, Star, FileCheck2, PauseCircle } from "lucide-react";
 
 interface Base {
   open: boolean;
