@@ -45,7 +45,7 @@ const faq = [
   },
   {
     q: "Quand est-ce que je reçois ma récompense ?",
-    a: "La récompense est émise après que la personne parrainée ait payé 2 cycles de facturation mensuels. Vous pouvez suivre la progression dans votre portail.",
+    a: "La récompense est validée une fois que la personne parrainée a complété 3 factures mensuelles consécutives entièrement payées, avec un compte toujours actif. Le versement est ensuite effectué dans un délai de 7 à 14 jours (validations administratives).",
   },
   {
     q: "Quel rabais reçoit la personne que je parraine ?",
@@ -53,15 +53,15 @@ const faq = [
   },
   {
     q: "Sous quelle forme est ma récompense ?",
-    a: "Vous choisissez : versement PayPal, carte-cadeau Visa/Mastercard prépayée, ou virement Interac. Le choix se fait dans votre portail dès qu'un parrainage est qualifié.",
+    a: "Le versement recommandé est l'Interac e-Transfer. Vous pouvez aussi choisir une carte-cadeau Visa/Mastercard prépayée. Le choix se fait dans votre portail dès qu'un parrainage est qualifié. Vous recevez également 300 points de fidélité.",
   },
   {
     q: "Puis-je me parrainer moi-même ?",
     a: "Non. L'auto-parrainage est interdit et détecté automatiquement par notre système anti-fraude.",
   },
   {
-    q: "Que se passe-t-il si le client annule avant 2 mois ?",
-    a: "Le parrainage est annulé et la récompense n'est pas émise. Le statut est visible dans votre portail en temps réel.",
+    q: "Que se passe-t-il si le client annule avant les 3 factures payées ?",
+    a: "Le parrainage est annulé et la récompense n'est pas émise. Le compte doit être actif au moment de la validation et aucun remboursement ne doit être en cours. Le statut est visible dans votre portail en temps réel.",
   },
   {
     q: "Mon code est-il permanent ?",
