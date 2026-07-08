@@ -76,8 +76,8 @@ const Parrainage = () => {
       <div aria-hidden style={{ position: "absolute", top: "-10%", right: "-8%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div aria-hidden style={{ position: "absolute", bottom: "-10%", left: "-6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(6,182,212,0.07) 0%, transparent 65%)", pointerEvents: "none" }} />
       <SEOHead
-        title="Programme de parrainage | Nivra Telecom — 25$ pour vous, 50$ pour votre proche"
-        description="Parrainez vos proches chez Nivra Telecom : 25$ pour vous après 2 mois, 5$/mois pendant 10 mois (50$) pour votre proche. Sans limite, transparent et simple."
+        title="Programme de parrainage | Nivra Telecom — 25 $ + 300 points par parrainage"
+        description="Parrainez vos proches chez Nivra Telecom : 25 $ + 300 points de fidélité après 3 factures mensuelles consécutives payées. Versement Interac ou carte prépayée en 7 à 14 jours. Sans limite."
       />
       <Header />
 
