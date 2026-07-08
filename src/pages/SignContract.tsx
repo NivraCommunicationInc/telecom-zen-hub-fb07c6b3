@@ -378,14 +378,69 @@ export default function SignContract() {
           {cl?.email && <Field label={tr.email} value={cl.email} />}
           {o?.service_type && <Field label={tr.serviceType} value={o.service_type} />}
           {fullAddr && <Field label={tr.serviceAddress} value={fullAddr} full />}
-          {o?.total_amount != null && (
-            <Field label={tr.monthlyPrice} value={fmtMoney(o.total_amount, lang)} highlight />
+          {o?.monthly_recurring_total != null && o.monthly_recurring_total > 0 && (
+            <Field label={tr.monthlyPrice} value={fmtMoney(o.monthly_recurring_total, lang)} highlight />
           )}
-          {inv?.total != null && (
-            <Field label={tr.invoiceTotal} value={fmtMoney(inv.total, lang)} highlight />
+          {o?.monthly_recurring_subtotal != null && o.monthly_recurring_subtotal > 0 && (
+            <Field label={tr.monthlySubtotal} value={fmtMoney(o.monthly_recurring_subtotal, lang)} />
+          )}
+          {o?.first_invoice_total != null && (
+            <Field label={tr.firstInvoiceTotal} value={fmtMoney(o.first_invoice_total, lang)} full />
           )}
         </div>
+
+        {/* View PDF button */}
+        {c?.has_pdf && (
+          <button
+            type="button"
+            onClick={handleViewPdf}
+            disabled={openingPdf}
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-60"
+          >
+            <FileText className="h-4 w-4" />
+            {openingPdf ? tr.openingPdf : tr.viewPdf}
+          </button>
+        )}
       </div>
+
+      {/* Line items breakdown */}
+      {o?.line_items && o.line_items.length > 0 && (
+        <div className="mt-5 px-5 sm:px-8">
+          <h2 className="mb-2 text-sm font-semibold text-foreground">{tr.itemsTitle}</h2>
+          <div className="overflow-hidden rounded-xl border border-border bg-card text-sm shadow-sm">
+            <ul className="divide-y divide-border">
+              {o.line_items.map((li, idx) => (
+                <li key={idx} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-foreground">{li.plan_name || "—"}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                          li.is_recurring
+                            ? "bg-primary/15 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {li.is_recurring ? tr.recurringBadge : tr.oneTimeBadge}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {tr.itemQty}: {li.quantity ?? 1} · {tr.itemUnit}: {fmtMoney(li.unit_price, lang)}
+                    </div>
+                  </div>
+                  <div
+                    className={`shrink-0 text-right font-semibold ${
+                      (li.line_total ?? 0) < 0 ? "text-emerald-500" : "text-foreground"
+                    }`}
+                  >
+                    {fmtMoney(li.line_total, lang)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Key terms */}
       <div className="mt-5 px-5 sm:px-8">
