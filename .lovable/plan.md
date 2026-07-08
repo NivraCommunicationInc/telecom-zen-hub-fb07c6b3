@@ -1,84 +1,144 @@
-# Gestion Points & Références dans Nivra Core
+## Objectif
 
-## 1. Backend — RPCs sécurisées (migration)
+Dans le **Nivra Core → Compte client 360**, faire deux choses en même temps :
+1. **Réorganiser** les 41 boutons à plat en 6 groupes lisibles + déplacer les **Notes internes** dans un **drawer latéral** (avec filtre "cacher les notes système" et regroupement des doublons).
+2. **Ajouter les 10 options manquantes**, réellement fonctionnelles, avec audit, RLS, sync temps réel Supabase, et courriels via le **template officiel du site** (`send-transactional-email`).
 
-Toutes les actions passent par des RPC `SECURITY DEFINER` qui exigent `has_role(auth.uid(),'admin')`, journalisent dans `activity_logs` + `admin_audit_log`, et enregistrent une transaction traçable.
+Aucun bouton ne sera juste "un texte". Chaque action ouvre un dialog fonctionnel → écrit en DB → journalise dans `activity_logs` / `admin_audit_log` → notifie le client au besoin par courriel branded → se reflète **en temps réel** dans le 360 et le portail client.
 
-### Points de fidélité
-- `admin_loyalty_adjust(account_id, delta_points, reason, expires_at?)` — crédit/débit manuel (`type='adjusted'`, raison obligatoire, snapshot avant/après)
-- `admin_loyalty_approve_pending(transaction_id, decision, reason)` — approuve/rejette une écriture `pending` (nouveau champ `status`)
-- `admin_loyalty_transfer(from_account, to_account, points, reason)` — débit source + crédit destination, lien croisé via `reference_id`
-- `admin_loyalty_extend_expiration(transaction_id, new_expires_at, reason)`
-- `admin_loyalty_convert_to_credit(account_id, points, credit_amount, reason)` — débite points + crée `account_adjustments` type `credit`
+---
 
-### Références
-- `admin_referral_approve(referral_id, reason)` / `admin_referral_reject(referral_id, reason)` — met à jour `status`/`reward_status`, `fraud_checked_by`, `qualified_at`/`disqualified_at`
-- `admin_referral_reassign(referral_id, new_referrer_user_id, reason)` — change le parrain (log ancien+nouveau)
-- `admin_referral_manual_reward(referred_user_id, referrer_user_id, kind, amount_or_points, reason)` — crée une entrée manuelle
-- `admin_referral_clawback(referral_id, reason)` — annule une récompense payée, débite points/crédit si applicable
+## Réorganisation UI (Account360)
 
-Ajouts DB minimaux :
-- `loyalty_transactions.status` (`pending|approved|rejected|posted`, défaut `posted`)
-- `loyalty_transactions.reviewed_by`, `reviewed_at`, `admin_reason`
-- `client_referrals.reassigned_from`, `reassigned_at`, `reassigned_by`
-- Triggers projection portail déjà en place — rien à changer.
+Fichier principal : `src/core-app/components/account-360/Account360QuickActions.tsx`
 
-## 2. Realtime portail client
+Nouveaux groupes (accordions repliables, ouverts par défaut) :
 
-Migration :
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE
-  public.loyalty_points,
-  public.loyalty_transactions,
-  public.loyalty_redemptions,
-  public.client_referrals,
-  public.client_referral_events;
+```text
+1. Compte         — Voir client, Modifier profil, Accès en ligne, Impersonation, Pause/Annuler, VIP/Churn
+2. Facturation    — Enregistrer paiement, Crédit/Frais, Promotions, Remboursement rapide,
+                    Ajustement/Write-off, Plan de paiement, Force AutoPay retry, Facture, Reçu
+3. Services       — Gestion Internet/TV/Mobile, Reboot équipement, Diagnostic ligne,
+                    Upgrade/Downgrade, Transfert de service (déménagement), Équipement
+4. Commandes      — Nouvelle commande, Nouvelle soumission, Voir soumissions, Ouvrir commande
+5. Communication  — Ticket, Note interne, SMS, Courriel, Rappel, Escalation superviseur,
+                    Bon de compensation
+6. Conformité     — KYC, NIP, Restrictions, Documents, Contrats
 ```
 
-Portail (`src/pages/client/ClientReferrals.tsx` + hook loyalty existant) : ajouter un `useEffect` qui `supabase.channel(...)` sur ces tables filtré par `account_id`/`referrer_user_id` et invalide les queries React Query concernées, avec cleanup `removeChannel`.
+Notes internes :
+- Retirées du panneau droit collant.
+- Nouveau **drawer** ouvert via bouton "Notes (N)" en haut à droite du 360.
+- Filtre par défaut : masquer `note_type IN ('system','auto')`.
+- Regroupement : si ≥3 notes système identiques dans 24h → une seule ligne "NIP émis (×4) — 2026-07-08".
+- Composant : `src/core-app/components/notes/ClientNotesDrawer.tsx` (utilise le `ClientNotesPanel` existant en interne).
 
-## 3. Core admin — nouvelles pages
+---
 
-- `src/core-app/pages/CoreLoyaltyManagement.tsx` — liste comptes avec solde, filtre tier/pending, actions par ligne (ajuster, transférer, convertir, prolonger, approuver/rejeter pending). Historique complet des transactions avec badges statut + auteur.
-- `src/core-app/pages/CoreReferralsManagement.tsx` — liste `client_referrals` avec filtres (status, reward_status, fraud_flag), actions (approuver, rejeter, réattribuer, clawback, récompense manuelle). Panneau détail avec timeline `client_referral_events`.
-- Intégration dans `CoreClientProfile.tsx` (onglet 360) : sections **Points** et **Références** avec les mêmes actions scoped au client courant, plus la timeline live.
+## 10 options manquantes — livraison complète
 
-Composants réutilisables :
-- `LoyaltyAdjustDialog` (delta ± / raison / expiration)
-- `LoyaltyTransferDialog` (recherche compte cible par courriel/téléphone/#)
-- `LoyaltyConvertDialog` (points ↔ crédit facture, aperçu du taux)
-- `ReferralActionDialog` (approve/reject/reassign/clawback avec raison obligatoire)
-- `ManualReferralRewardDialog`
+Chacune = dialog + edge function (si envoi/paiement/webhook) + RLS + audit + email officiel + realtime.
 
-Toutes utilisent `zod` pour valider (raison min 5 char, montants > 0, etc.) et appellent les RPC via `supabase.rpc(...)`.
+### Financier
+1. **Remboursement rapide** — Dialog `QuickRefundDialog` → edge fn `square-refund-payment` (existe déjà, on wire l'UI) → email template `payment-refunded` → refresh 360.
+2. **Ajustement / Write-off** — Dialog `AccountWriteOffDialog` → insert `account_adjustments` (type `write_off`) + `activity_logs` → email `account-adjustment-notice`.
+3. **Plan de paiement** — Dialog `PaymentPlanDialog` → insert `client_payment_plans` (existe) + génère échéances → email `payment-plan-created`.
+4. **Force AutoPay retry** — Bouton → edge fn `square-autopay-retry` (nouveau) qui recharge la carte enregistrée pour la facture impayée → email `autopay-retry-result`.
 
-## 4. Audit & notifications
+### Services
+5. **Reboot équipement à distance** — Dialog `RemoteRebootDialog` → insert `internet_modem_actions` (action=`reboot`) → email `equipment-reboot-scheduled`.
+6. **Diagnostic ligne** — Dialog `LineDiagnosticDialog` → insert `internet_diagnostics` avec résultat (débit/ping simulé initial + hook réel plus tard) → affiche résultat en direct.
+7. **Upgrade / Downgrade rapide** — Dialog `QuickPlanChangeDialog` → utilise RPC existants `internet_plan_changes` / `tv_plan_changes` → email `plan-change-confirmed`.
+8. **Transfert de service (déménagement)** — Dialog `ServiceMoveDialog` → insert `service_change_requests` (type=`move`) avec nouvelle adresse via `service_addresses` → email `service-move-scheduled`.
 
-- Chaque RPC écrit `activity_logs` (client-visible dans son historique) **et** `admin_audit_log` (interne).
-- Notification client automatique via `notification_outbox` sur : approbation points, rejet, transfert reçu, référence approuvée/rejetée/clawback.
-- Toast Core sur succès/erreur, avec message serveur.
+### Relation client
+9. **Escalade superviseur** — Dialog `SupervisorEscalationDialog` → insert `internal_tickets` (priority=`urgent`, category=`escalation`) + notif `staff_notifications` aux superviseurs → email interne + accusé au client.
+10. **Bon de compensation standardisé** — Dialog `CompensationVoucherDialog` avec presets ($10 / $25 / $50 / mois gratuit) → insert `promotions` + `promotion_redemptions` liés au compte → email `compensation-voucher-issued` avec code.
 
-## 5. Permissions
+**Bonus (demandé plus haut) :** marquage **VIP / Churn Risk** — toggle dans le groupe Compte → écrit dans `account_tags` (tag `vip` ou `churn_risk`) → badge visible dans le panneau droit.
 
-- RPC gated `has_role(auth.uid(),'admin')` — refuse tout autre rôle avec `RAISE EXCEPTION`.
-- Boutons UI cachés si `useIsCoreAdmin()` renvoie faux (déjà en place).
-- Pas de nouvelle policy RLS nécessaire : les tables acceptent déjà les admins en écriture.
+---
 
-## Détails techniques
+## Templates courriels officiels
 
-- Concurrency : `SELECT ... FOR UPDATE` sur `loyalty_points` pendant delta/transfert pour éviter les race conditions.
-- Convert-to-credit : taux configurable via `core_settings` clé `loyalty_points_to_dollar_rate` (défaut 100 pts = 1 $).
-- Sync live : React Query `invalidateQueries` sur événement realtime — pas de polling.
-- Pas de suppression physique de transactions — un rejet crée un contre-écriture pour garder la piste d'audit intacte.
-- Tests smoke : rejouer les 9 RPC via `supabase--test_edge_functions` sur un compte staging avant merge.
+Tous nouveaux templates sont créés dans `supabase/functions/_shared/transactional-email-templates/` en suivant **strictement** le template corporate bleu #0066CC existant (header/footer/signature `support@nivra-telecom.ca`) :
 
-## Fichiers touchés
+- `account-adjustment-notice.tsx`
+- `payment-plan-created.tsx`
+- `autopay-retry-result.tsx`
+- `equipment-reboot-scheduled.tsx`
+- `plan-change-confirmed.tsx`
+- `service-move-scheduled.tsx`
+- `compensation-voucher-issued.tsx`
 
-- `supabase/migrations/*_loyalty_referrals_admin.sql` (RPCs + colonnes + realtime)
-- `src/core-app/pages/CoreLoyaltyManagement.tsx` (nouveau)
-- `src/core-app/pages/CoreReferralsManagement.tsx` (nouveau)
-- `src/core-app/components/loyalty/*` (5 dialogs)
-- `src/core-app/components/referrals/*` (2 dialogs)
-- `src/core-app/pages/CoreClientProfile.tsx` (ajout sections + realtime)
-- `src/pages/client/ClientReferrals.tsx` + hook loyalty client (channels realtime)
-- Route + nav Core (2 entrées menu)
+Enregistrés dans `registry.ts`. Envoi via `send-transactional-email` avec `idempotencyKey`.
+
+---
+
+## Synchronisation temps réel
+
+- Chaque dialog fait un `queryClient.invalidateQueries` sur les clés canoniques (`useCanonicalClientData`, `shared-client-profile`, `client-360-*`).
+- Abonnement Supabase Realtime déjà en place sur `customer_portal_snapshots` — les nouvelles tables mutées (`account_adjustments`, `client_payment_plans`, `internet_modem_actions`, etc.) déclenchent les triggers existants qui rafraîchissent le snapshot → **portail client voit les changements en direct**.
+- Ajout de Realtime `postgres_changes` sur `activity_logs` filtré par `client_id` dans le 360 Core pour un badge live "Nouvelle activité".
+
+---
+
+## Sécurité / RLS / Audit
+
+- Aucune nouvelle table sauf `compensation_vouchers` si besoin (sinon on réutilise `promotions`). Si créée : `GRANT` + RLS `has_role('admin'|'core_staff')`.
+- Chaque action serveur passe par une edge function `verify_jwt=true` qui appelle `has_role(auth.uid(), 'core_staff' OR 'admin')`.
+- Chaque écriture insère une ligne dans `admin_audit_log` : `actor_id`, `action`, `target_client_id`, `before`, `after`, `reason` (obligatoire pour write-off, refund > 50$, compensation > 25$, escalation, transfert).
+
+---
+
+## Détails techniques (résumé fichiers)
+
+```text
+src/core-app/components/account-360/
+  Account360QuickActions.tsx         # refonte groupes accordion
+  Account360RightPanel.tsx           # retirer Notes
+  dialogs/QuickRefundDialog.tsx
+  dialogs/AccountWriteOffDialog.tsx
+  dialogs/PaymentPlanDialog.tsx
+  dialogs/AutopayRetryDialog.tsx
+  dialogs/RemoteRebootDialog.tsx
+  dialogs/LineDiagnosticDialog.tsx
+  dialogs/QuickPlanChangeDialog.tsx
+  dialogs/ServiceMoveDialog.tsx
+  dialogs/SupervisorEscalationDialog.tsx
+  dialogs/CompensationVoucherDialog.tsx
+  dialogs/VipChurnToggleDialog.tsx
+
+src/core-app/components/notes/
+  ClientNotesDrawer.tsx              # nouveau drawer + filtre + dédup
+
+supabase/functions/
+  square-autopay-retry/index.ts      # nouvelle
+  core-write-off/index.ts            # nouvelle (audit obligatoire)
+  core-compensation-voucher/index.ts # nouvelle
+
+supabase/functions/_shared/transactional-email-templates/
+  (7 nouveaux templates + registry.ts mis à jour)
+```
+
+Migration DB : uniquement ajout de colonnes utiles (`account_tags.tag` étendu à `vip|churn_risk` — enum ou libre selon existant), plus les GRANT/RLS si nouvelle table.
+
+---
+
+## Ordre d'exécution
+
+1. Migration DB (audit, tags VIP/Churn, éventuelle table `compensation_vouchers`).
+2. Templates courriels + `registry.ts` + deploy `send-transactional-email`.
+3. Edge functions nouvelles + deploy.
+4. Dialogs + refonte `Account360QuickActions` + Notes drawer.
+5. Vérification : `tsgo`, ouverture d'un compte test dans le preview via Playwright, screenshots des 6 groupes et de chaque dialog fonctionnel, vérif temps réel entre Core et portail client.
+
+---
+
+## Ce que je ne fais PAS (pour rester dans ton scope)
+
+- Aucun changement au checkout public, au parrainage, aux loyalty rules, à Square Charge Invoice (déjà traité).
+- Aucun renommage d'options existantes qui fonctionnent déjà.
+- Aucune suppression de bouton — tout est conservé, juste regroupé.
+
+Confirme et je livre le tout d'un bloc.
