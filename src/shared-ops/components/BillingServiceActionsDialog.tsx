@@ -82,7 +82,6 @@ export function BillingServiceActionsDialog({
   const [newType, setNewType] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [newLast4, setNewLast4] = useState("");
-  const [newPaypalEmail, setNewPaypalEmail] = useState("");
   const [newHolder, setNewHolder] = useState("");
   const [newDefault, setNewDefault] = useState(false);
 
@@ -115,7 +114,7 @@ export function BillingServiceActionsDialog({
   useEffect(() => {
     if (!open) return;
     setTab(customerId ? "square" : "methods");
-    setNewType(""); setNewBrand(""); setNewLast4(""); setNewPaypalEmail("");
+    setNewType(""); setNewBrand(""); setNewLast4("");
     setNewHolder(""); setNewDefault(false);
     setAutopayReason("");
     setPlanTotal(""); setPlanCount("3"); setPlanFreq("monthly");
@@ -201,7 +200,7 @@ export function BillingServiceActionsDialog({
         idempotency_key: `pm-${clientUserId}-${Date.now()}`,
       });
       toast.success("Méthode ajoutée — courriel envoyé");
-      setNewType(""); setNewBrand(""); setNewLast4(""); setNewPaypalEmail("");
+      setNewType(""); setNewBrand(""); setNewLast4("");
       setNewHolder(""); setNewDefault(false);
     } catch (e) { toast.error((e as Error).message); }
   };

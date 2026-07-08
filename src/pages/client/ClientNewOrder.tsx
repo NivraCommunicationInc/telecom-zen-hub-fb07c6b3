@@ -22,7 +22,6 @@ import { useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useCanonicalFees } from "@/hooks/useCanonicalFees";
 import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
 import { fallbackCheckout } from "@/lib/checkoutFallback";
-import { notifyNivraCorePaid } from "@/lib/nivraCore";
 import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";

@@ -100,7 +100,6 @@ export interface NivraCheckoutPayment {
   status: 'captured' | 'pending' | 'pre_authorized';
   reference?: string | null;
   capture_id?: string | null;
-  paypal_capture_id?: string | null;
   preauth_opt_in?: boolean;
   preauth_discount?: number;
 }

@@ -82,8 +82,8 @@ type CheckoutPayload = {
     method?: string;
     status?: string;
     reference?: string | null;
-  capture_id?: string | null;
-  paypal_capture_id?: string | null;
+    capture_id?: string | null;
+    paypal_capture_id?: string | null; // legacy guard only: explicit legacy payload returns 410
     preauth_opt_in?: boolean;
   };
   pricing_snapshot?: {
