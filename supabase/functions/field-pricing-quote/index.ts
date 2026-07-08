@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     const items: QuoteItem[] = body.items || [];
     const promos: PromoRequest[] = body.promos || [];
     const installationType: string = body.installation_type || "self_install";
-    const paymentMethod: string = body.payment_method || "paypal";
+    const paymentMethod: string = body.payment_method || "card";
 
     if (items.length === 0) {
       return new Response(JSON.stringify({ error: "Aucun article dans le panier" }), { status: 400, headers });

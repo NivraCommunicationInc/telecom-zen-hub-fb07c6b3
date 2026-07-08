@@ -82,7 +82,8 @@ type CheckoutPayload = {
     method?: string;
     status?: string;
     reference?: string | null;
-    paypal_capture_id?: string | null;
+  capture_id?: string | null;
+  paypal_capture_id?: string | null;
     preauth_opt_in?: boolean;
   };
   pricing_snapshot?: {
@@ -137,13 +138,12 @@ type CheckoutResponse = {
   created_at?: string;
 };
 
-const toBillingMethod = (method?: string, reference?: string | null): "paypal" | "interac" | "card" | "manual" => {
+const toBillingMethod = (method?: string, reference?: string | null): "interac" | "card" | "manual" => {
   const m = String(method || "").toLowerCase();
   const ref = String(reference || "").toLowerCase();
-  if (m === "paypal") return "paypal";
   if (m === "etransfer" || m === "e_transfer" || m === "interac") return "interac";
-  if (m === "credit_card" || m === "card") return "card";
-  if (ref.startsWith("pi_")) return "card";
+  if (["credit_card", "card", "square", "card_manual", "square_inline", "square_onsite", "square_email"].includes(m)) return "card";
+  if (ref.startsWith("pi_") || ref.startsWith("sq_") || ref.startsWith("cnon:")) return "card";
   return "manual";
 };
 
@@ -155,7 +155,6 @@ const isPaidCheckout = (payload: CheckoutPayload) => {
     (payload.payment?.status === "captured" || reference.startsWith("pi_"));
 
   return (
-    (method === "paypal" && !!payload.payment?.paypal_capture_id) ||
     method === "promo_free" ||
     cardCaptured
   );
@@ -405,6 +404,12 @@ serve(async (req) => {
 
     const body = await req.json();
     const payload = body?.payload as CheckoutPayload;
+    if (String(payload?.payment?.method || "").toLowerCase() === "paypal" || payload?.payment?.paypal_capture_id) {
+      return new Response(JSON.stringify({ ok: false, error: "PayPal décommissionné — utiliser Square/carte" }), {
+        status: 410,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     let response = (body?.response || {}) as Partial<CheckoutResponse>;
 
     const referralContext = {
@@ -787,16 +792,8 @@ serve(async (req) => {
             delivery_fee: isStreamingOnly ? 0 : toMoney(payload.installation?.delivery_fee),
             installation_fee: isStreamingOnly ? 0 : toMoney(payload.installation?.installation_fee),
             payment_method: billingMethod === "card" ? "card" : (payload.payment?.method || null),
-            payment_reference:
-              billingMethod === "paypal"
-                ? null
-                : (payload.payment?.reference || response.payment_number || null),
-            provider_payment_id:
-              billingMethod === "paypal"
-                ? (payload.payment?.paypal_capture_id || null)
-                : billingMethod === "card"
-                  ? (payload.payment?.reference || null)
-                  : null,
+            payment_reference: payload.payment?.reference || response.payment_number || null,
+            provider_payment_id: billingMethod === "card" ? (payload.payment?.reference || payload.payment?.capture_id || null) : null,
             // â˜… FIX GAP 1: Promo fields propagated from pricing_snapshot
             promo_code: snapshotPromoCode,
             promo_discount_amount: snapshotPromoDiscount,
@@ -907,7 +904,7 @@ serve(async (req) => {
             },
             billing_snapshot_payment: {
               method: billingMethod,
-              reference: billingMethod === "paypal" ? null : (payload.payment?.reference || response.payment_number || null),
+              reference: payload.payment?.reference || response.payment_number || null,
               status: payload.payment?.status || null,
             },
           },
@@ -1153,19 +1150,10 @@ serve(async (req) => {
         // response.pricing (from Nivra Core API) returns GROSS totals that ignore discounts.
         // Priority MUST match order (line 565) and invoice (line 626): pricing_snapshot FIRST.
         const total = toMoney(payload.pricing_snapshot?.grand_total ?? response.pricing?.grand_total);
-        const provider =
-          billingMethod === "paypal"
-            ? "paypal"
-            : billingMethod === "interac"
-              ? "interac"
-              : billingMethod === "card"
-                ? "card"
-                : "manual";
-        const reference = provider === "paypal" ? null : (payload.payment?.reference || response.payment_number || null);
+        const provider = billingMethod === "interac" ? "interac" : billingMethod === "card" ? "square" : "manual";
+        const reference = payload.payment?.reference || response.payment_number || null;
         const providerPaymentId =
-          provider === "paypal"
-            ? (payload.payment?.paypal_capture_id || null)
-            : provider === "card"
+          provider === "square"
               ? (payload.payment?.reference || null)
               : null;
 
@@ -1220,9 +1208,7 @@ serve(async (req) => {
         const subscriptionId = existingSub?.id || response.subscription_id || crypto.randomUUID();
         const planPrice = toMoney((payload.services || []).reduce((sum, s) => sum + toMoney(s.plan_price), 0));
 
-        // Determine recurring_provider from payment context
-        const hasPayPal = !!(payload.payment?.paypal_subscription_id || payload.payment?.provider === "paypal");
-        const recurringProvider = hasPayPal ? "paypal" : "internal";
+        const recurringProvider = payload.payment?.preauth_opt_in ? "square" : "internal";
 
         const { error: subError } = await admin.from("billing_subscriptions").upsert(
           {

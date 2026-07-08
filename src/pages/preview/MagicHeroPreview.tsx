@@ -310,7 +310,7 @@ function LiveProductCards({ mouseX, mouseY }: { mouseX: number; mouseY: number }
 // ──────────────────────────────────────────────────────────────────────────────
 function TrustMarquee() {
   const items = [
-    "Visa", "Mastercard", "PayPal", "Interac",
+    "Visa", "Mastercard", "Square", "Interac",
     "Cloudflare", "SSL 256-bit", "Loi 25", "CRTC",
   ];
   return (

@@ -35,7 +35,7 @@ export interface NivraOrderResponse {
   gst: number;
   qst: number;
   total: number;
-  /** Payment number returned by Nivra Core — used to notify mark-paid after PayPal capture */
+  /** Payment number returned by Nivra Core — used to notify mark-paid after payment capture */
   payment_number: string;
   /** Invoice number returned by Nivra Core */
   invoice_number: string;
@@ -96,9 +96,10 @@ export interface NivraCheckoutPromo {
 }
 
 export interface NivraCheckoutPayment {
-  method: 'paypal' | 'etransfer' | 'credit_card' | 'promo_free';
+  method: 'card' | 'square' | 'etransfer' | 'credit_card' | 'promo_free';
   status: 'captured' | 'pending' | 'pre_authorized';
   reference?: string | null;
+  capture_id?: string | null;
   paypal_capture_id?: string | null;
   preauth_opt_in?: boolean;
   preauth_discount?: number;

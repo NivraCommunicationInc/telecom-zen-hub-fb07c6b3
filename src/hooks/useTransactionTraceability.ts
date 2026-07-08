@@ -40,8 +40,8 @@ export interface TransactionEventPayload {
   invoice_number?: string;
   payment_number?: string;
   payment_reference?: string;
-  paypal_order_id?: string;
-  paypal_capture_id?: string;
+  provider_order_id?: string;
+  provider_capture_id?: string;
   amount?: number;
   error_message?: string;
   error_code?: string;
@@ -124,13 +124,17 @@ export function useTransactionTraceability() {
             invoice_number: payload.invoice_number || null,
             payment_number: payload.payment_number || null,
             payment_reference: payload.payment_reference || null,
-            paypal_order_id: payload.paypal_order_id || null,
-            paypal_capture_id: payload.paypal_capture_id || null,
+            paypal_order_id: null,
+            paypal_capture_id: null,
+            metadata: {
+              ...(payload.metadata || {}),
+              provider_order_id: payload.provider_order_id || null,
+              provider_capture_id: payload.provider_capture_id || null,
+            },
             amount: payload.amount || null,
             currency: "CAD",
             error_message: payload.error_message || null,
             error_code: payload.error_code || null,
-            metadata: payload.metadata || {},
             source: "client",
           });
         }
@@ -176,8 +180,8 @@ export function useTransactionTraceability() {
     (params: {
       order_number?: string;
       payment_reference?: string;
-      paypal_capture_id?: string;
-      paypal_order_id?: string;
+      provider_capture_id?: string;
+      provider_order_id?: string;
       amount?: number;
       method?: string;
     }) => {
@@ -201,7 +205,7 @@ export function useTransactionTraceability() {
       error_code?: string;
       amount?: number;
       method?: string;
-      paypal_order_id?: string;
+      provider_order_id?: string;
     }) => {
       return logEvent({
         event_type: "payment_failed",

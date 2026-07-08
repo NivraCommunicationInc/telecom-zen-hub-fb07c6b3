@@ -62,7 +62,7 @@ serve(async (req) => {
         invoice_number: inv.invoice_number,
         order_number: inv.order_id?.slice(0, 8) || "â€”",
         amount_paid_today: inv.total,
-        payment_method: "PayPal",
+        payment_method: "Square",
         payment_date: inv.paid_at,
         reference: inv.invoice_number,
       },

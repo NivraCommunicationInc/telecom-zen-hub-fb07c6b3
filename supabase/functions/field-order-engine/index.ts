@@ -467,7 +467,7 @@ Deno.serve(async (req) => {
     const postAction = body.action || action;
 
     // Finalize a paid field_payment_intent into a real Core order/invoice.
-    // Called by internal payment processors after PayPal/card capture.
+    // Called by internal Square/card processors after capture.
     if (postAction === "finalize_paid_intent") {
       if (!isServiceRoleCall) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
       const intentId = body.field_payment_intent_id;
@@ -485,7 +485,7 @@ Deno.serve(async (req) => {
 
       // NEW: shell order pre-materialized → just mark paid, no re-materialization
       if (intent.converted_order_id) {
-        const captureRef = body.payment_reference || body.paypal_order_id || null;
+        const captureRef = body.payment_reference || body.square_payment_id || null;
         if (intent.converted_field_order_id) {
           await admin.from("field_sales_orders").update({
             payment_status: "confirmed",
@@ -568,7 +568,7 @@ Deno.serve(async (req) => {
           services: fieldServices,
           total_amount: Number(intent.amount || quote.total || 0),
           payment_method: body.payment_method || "card_manual",
-          payment_reference: body.paypal_order_id || null,
+          payment_reference: body.payment_reference || body.square_payment_id || null,
           payment_status: "confirmed",
           sync_status: "pending",
           discount_data: quote.discount || null,
@@ -680,9 +680,7 @@ Deno.serve(async (req) => {
 
       // Normalize payment_method for field_sales_orders (its enum accepts a subset)
       const rawPm = String(intent.payment_method || "card_manual").toLowerCase();
-      const fsoPaymentMethod = rawPm.includes("paypal") ? "paypal"
-        : rawPm.includes("square") ? "card_manual"
-        : "card_manual";
+      const fsoPaymentMethod = rawPm.includes("interac") ? "interac" : "card_manual";
 
       const { data: fso, error: fsoErr } = await admin
         .from("field_sales_orders")
@@ -748,8 +746,7 @@ Deno.serve(async (req) => {
 
 
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // FIX 1 â€” materialize_from_quote: called by paypal-webhook
-    // after a field_payment_intent capture is confirmed. Reads the
+    // materialize_from_quote: called after Square/card capture is confirmed. Reads the
     // stored field_quote and creates the real Core order/invoice.
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (postAction === "materialize_from_quote") {
@@ -788,7 +785,7 @@ Deno.serve(async (req) => {
           customer_date_of_birth: c.date_of_birth || null,
           services: normalizedServices,
           total_amount: Number(quote.total || 0),
-          payment_method: "paypal",
+          payment_method: "card_manual",
           payment_status: "confirmed",
           sync_status: "pending",
           source_quote_id: quoteId,
@@ -845,7 +842,7 @@ Deno.serve(async (req) => {
       ];
 
       const now = new Date().toISOString();
-      const paymentMethod = body.payment?.method === "paypal" ? "paypal" : sanitizeString(body.payment?.method || "paypal", 50);
+      const paymentMethod = sanitizeString(body.payment?.method || "card_manual", 50);
       const paymentStatus = sanitizeString(body.payment?.status || "pending", 50);
 
       const draftInsert = {

@@ -828,7 +828,7 @@ function PremiumTestimonials() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 function PremiumTrustRow() {
-  const items = ["Visa", "Mastercard", "PayPal", "Interac", "Cloudflare", "SSL 256-bit", "Loi 25", "CRTC", "Award Local 2026"];
+  const items = ["Visa", "Mastercard", "Square", "Interac", "Cloudflare", "SSL 256-bit", "Loi 25", "CRTC", "Award Local 2026"];
   return (
     <div
       className="relative overflow-hidden border-y py-6 backdrop-blur"
@@ -853,7 +853,7 @@ function PremiumTrustRow() {
 
 function PremiumTrustBadges() {
   const badges = [
-    { icon: Shield, title: "100% sécurisé", text: "SSL 256-bit, paiement Visa/Mastercard/PayPal, conformité Loi 25." },
+    { icon: Shield, title: "100% sécurisé", text: "SSL 256-bit, paiement Visa/Mastercard via Square, conformité Loi 25." },
     { icon: Lock, title: "Sans engagement", text: "Annulez quand vous voulez. Aucun frais de résiliation, aucun préavis." },
     { icon: Heart, title: "Support local", text: "Équipe basée à Montréal. Vrai support en français québécois, 7 jours sur 7." },
     { icon: Zap, title: "Activation rapide", text: "Installation en 2-3 jours ouvrables après confirmation de votre adresse." },

@@ -77,7 +77,7 @@ interface CreateOrderRequest {
   services: ServiceItem[];
   order_id?: string;
   order_number?: string;
-  payment_method?: "paypal" | "interac" | "etransfer" | "credit_card" | "promo_free";
+  payment_method?: "square" | "card" | "card_manual" | "interac" | "etransfer" | "credit_card" | "promo_free";
   payment_status?: "paid" | "captured" | "pending" | "pre_authorized";
   payment_reference?: string;
   total_amount?: number;
@@ -148,13 +148,18 @@ serve(async (req) => {
       return json({ error: "At least one service is required" }, 400);
     }
 
-    // Détection paiement PayPal capturé (règle métier inchangée)
-    const isPayPalPaid = (
-      body.payment_method === "paypal" &&
+    if (String((body as any).payment_method || "").toLowerCase() === "paypal") {
+      return json({ error: "PayPal décommissionné — utiliser Square/carte" }, 410);
+    }
+
+    const isCardPaid = (
+      ["square", "card", "card_manual", "credit_card"].includes(String(body.payment_method || "").toLowerCase()) &&
       !!body.payment_reference &&
       (body.payment_status === "paid" || body.payment_status === "captured")
     );
-    const effectivePaymentMethod = body.payment_method === "etransfer" ? "interac" : (body.payment_method || "interac");
+    const effectivePaymentMethod = body.payment_method === "etransfer" ? "interac"
+      : ["square", "card", "card_manual", "credit_card"].includes(String(body.payment_method || "").toLowerCase()) ? "card"
+      : (body.payment_method || "interac");
 
     // ── Résolution du billing_customer ────────────────────────────────────
     let customerId: string;
@@ -220,7 +225,7 @@ serve(async (req) => {
 
       // 3. RPC canonique — application du paiement si capturé
       let paymentId: string | null = null;
-      if (isPayPalPaid) {
+      if (isCardPaid) {
         const { data: invRow } = await supabase
           .from("billing_invoices")
           .select("total")
@@ -231,8 +236,8 @@ serve(async (req) => {
           {
             p_invoice_id: invoiceId,
             p_amount: invRow.total,
-            p_method: "paypal",
-            p_provider: "paypal",
+            p_method: "card",
+            p_provider: "square",
             p_external_reference: body.payment_reference,
             p_source: "live",
             p_context: provenanceContext,
@@ -251,7 +256,7 @@ serve(async (req) => {
 
       // 5. Email
       await queueOrderEmail(supabase, {
-        isPaid: isPayPalPaid,
+        isPaid: isCardPaid,
         invoiceId: invoice.id,
         invoiceNumber: invoice.invoice_number,
         customerEmail: body.email,
@@ -342,14 +347,14 @@ serve(async (req) => {
         p_context: provenanceContext,
         p_address_id: null,
         p_order_id: null,
-        p_status: isPayPalPaid ? "active" : "pending",
-        p_auto_billing: isPayPalPaid,
+        p_status: isCardPaid ? "active" : "pending",
+        p_auto_billing: isCardPaid,
       },
     );
     if (subErr) throw new Error(`create_subscription_ad_hoc failed: ${subErr.message}`);
 
     let paymentId: string | null = null;
-    if (isPayPalPaid) {
+    if (isCardPaid) {
       const { data: invRow } = await supabase
         .from("billing_invoices").select("total").eq("id", invoiceId).single();
       const { data: pid, error: payErr } = await supabase.rpc(
@@ -357,8 +362,8 @@ serve(async (req) => {
         {
           p_invoice_id: invoiceId,
           p_amount: invRow.total,
-          p_method: "paypal",
-          p_provider: "paypal",
+          p_method: "card",
+          p_provider: "square",
           p_external_reference: body.payment_reference,
           p_source: "live",
           p_context: provenanceContext,
@@ -375,7 +380,7 @@ serve(async (req) => {
       .single();
 
     await queueOrderEmail(supabase, {
-      isPaid: isPayPalPaid,
+      isPaid: isCardPaid,
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoice_number,
       customerEmail: body.email,
@@ -449,7 +454,7 @@ async function queueOrderEmail(supabase: any, args: {
       due_date: args.dueDate,
       cycle_start: args.cycleStart,
       cycle_end: args.cycleEnd,
-      payment_method: args.paymentMethod === "paypal" ? "PayPal" : "Interac e-Transfer",
+      payment_method: args.paymentMethod === "card" ? "Carte / Square" : "Interac e-Transfer",
       payment_email: "support@nivra-telecom.ca",
       reference: args.paymentReference,
     },

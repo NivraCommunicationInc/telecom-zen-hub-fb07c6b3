@@ -29733,7 +29733,7 @@ export type Database = {
         Returns: undefined
       }
       _is_paypal_context: {
-        Args: { _payment_kind: string; _provider: string; _rpc_used: string }
+        Args: { _payment_kind?: string; _provider: string; _rpc_used?: string }
         Returns: boolean
       }
       _nivra_record_provenance: {

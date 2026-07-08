@@ -4,9 +4,7 @@
  * Runs once per day (recommend 03:00 UTC via pg_cron). For every account it
  * cross-checks the three sources of truth that MUST agree:
  *
- *   1. The PayPal subscription state (we don't call PayPal here — too slow.
- *      Instead we trust `billing_subscriptions.recurring_setup_status` which
- *      our webhooks keep in sync).
+ *   1. The subscription recurring setup state from billing_subscriptions.
  *   2. `billing_subscriptions.status` (our internal state)
  *   3. `billing_invoices` (paid/unpaid history)
  *   4. Sum of `billing_payments` (cash actually received)

@@ -8,7 +8,7 @@ export type BillingCustomerStatus = 'active' | 'suspended' | 'closed';
 export type BillingSubscriptionStatus = 'active' | 'pending' | 'suspended' | 'cancelled';
 export type BillingInvoiceType = 'initial' | 'renewal' | 'adjustment' | 'credit';
 export type BillingInvoiceStatus = 'draft' | 'pending' | 'partially_paid' | 'paid' | 'paid_by_promo' | 'failed' | 'cancelled' | 'refunded' | 'overdue' | 'void' | 'not_renewed';
-export type BillingPaymentMethod = 'interac' | 'manual' | 'paypal';
+export type BillingPaymentMethod = 'interac' | 'manual' | 'card' | 'square';
 export type BillingPaymentStatus = 'pending' | 'confirmed' | 'failed';
 
 // Tables

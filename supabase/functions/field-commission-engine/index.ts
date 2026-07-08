@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
 
     if (action === "withdraw") {
       const amount = Number(body.amount);
-      const method = sanitizeString(body.method || "paypal", 50).toLowerCase();
+      const method = sanitizeString(body.method || "interac", 50).toLowerCase();
       const destination = sanitizeString(body.destination || "", 500);
       const notesInput = sanitizeString(body.notes || "", 2000);
 
@@ -189,8 +189,8 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "Montant et destination requis" }), { status: 400, headers });
       }
 
-      if (method !== "paypal") {
-        return new Response(JSON.stringify({ error: "PayPal uniquement" }), { status: 400, headers });
+      if (!new Set(["interac", "bank_transfer", "cheque", "direct_deposit"]).has(method)) {
+        return new Response(JSON.stringify({ error: "Méthode de retrait invalide" }), { status: 400, headers });
       }
 
       const { data: commissionsRes, error: commissionsError } = await admin
@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
       }
 
       const notes = [
-        "Méthode: PayPal",
+        `Méthode: ${method}`,
         `Destination: ${destination}`,
         notesInput || null,
       ].filter(Boolean).join(" | ");

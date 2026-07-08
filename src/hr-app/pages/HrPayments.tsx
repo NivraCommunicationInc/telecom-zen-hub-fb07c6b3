@@ -37,7 +37,7 @@ const STATUS_META: Record<string, { label: string; color: string; icon: any }> =
 
 const METHOD_LABEL: Record<string, string> = {
   interac: "Interac e-Transfer", direct_deposit: "Dépôt direct", cheque: "Chèque",
-  cash: "Comptant", wire_transfer: "Virement bancaire", paypal: "PayPal", other: "Autre",
+  cash: "Comptant", wire_transfer: "Virement bancaire", card: "Carte", square: "Square", other: "Autre",
 };
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(Number(n) || 0);

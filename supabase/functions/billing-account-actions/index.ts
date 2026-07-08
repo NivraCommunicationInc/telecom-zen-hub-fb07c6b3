@@ -1,6 +1,6 @@
 // Billing account actions — Nivra Core & Nivra OneView CS
 // Single entry for all client billing management operations:
-//   - add_payment_method     : register a tokenized payment method (PayPal/Visa/Mastercard/Interac)
+//   - add_payment_method     : register a tokenized payment method (Visa/Mastercard/Interac/bank)
 //   - remove_payment_method  : soft-delete a payment method
 //   - set_default_method     : promote a method to default (unique active default per user)
 //   - toggle_autopay         : enable/disable auto-pay, link to method, set day offset
@@ -9,7 +9,7 @@
 //   - update_billing_settings: cycle day, delivery format, language, billing email
 //   - create_direct_refund   : record an out-of-band refund (manual processing)
 //
-// Authorization (PayPal is primary, Stripe decommissioned — no charge logic here,
+// Authorization (Square/card is primary — no charge logic here,
 // this function only records administrative state and triggers client emails):
 //   - payment_method / autopay / billing_settings : admin, employee, supervisor, support, billing_admin
 //   - payment_plan / direct_refund               : admin, supervisor, billing_admin only
@@ -42,13 +42,12 @@ interface Body {
 
   // payment method
   method_id?: string;
-  method_type?: "paypal" | "visa" | "mastercard" | "interac" | "bank_account";
+  method_type?: "visa" | "mastercard" | "interac" | "bank_account" | "square_card";
   brand?: string;
   last4?: string;
   exp_month?: number;
   exp_year?: number;
   holder_name?: string;
-  paypal_email?: string;
   provider_token?: string;
   is_default?: boolean;
 
@@ -75,7 +74,7 @@ interface Body {
   // refund
   payment_id?: string;
   amount?: number;
-  refund_method?: "paypal" | "interac" | "cheque" | "credit_balance" | "bank_transfer";
+  refund_method?: "interac" | "cheque" | "credit_balance" | "bank_transfer" | "square";
   external_reference?: string;
 }
 
@@ -96,7 +95,8 @@ const fmtMoney = (n: number, currency = "CAD") => {
 };
 
 const METHOD_LABELS: Record<string, string> = {
-  paypal: "PayPal",
+  square: "Square",
+  square_card: "Carte Square",
   visa: "Carte Visa",
   mastercard: "Carte Mastercard",
   interac: "Débit Interac",
@@ -215,6 +215,9 @@ serve(async (req) => {
       case "add_payment_method": {
         const method_type = body.method_type;
         if (!method_type) return json(400, { error: "method_type requis" });
+        if (String(method_type).toLowerCase() === "paypal") {
+          return json(410, { error: "paypal_decommissioned", message: "PayPal est désactivé. Utilisez Square/carte." });
+        }
 
         // If marking as default, demote previous defaults
         if (body.is_default) {
@@ -253,7 +256,7 @@ serve(async (req) => {
             exp_month: body.exp_month ?? null,
             exp_year: body.exp_year ?? null,
             holder_name: body.holder_name ?? null,
-            paypal_email: body.paypal_email ?? null,
+            paypal_email: null,
             provider_token: body.provider_token ?? null,
             is_default: !!body.is_default,
             status: "active",
@@ -532,7 +535,7 @@ serve(async (req) => {
           return json(400, { error: "Raison détaillée obligatoire (min. 5 caractères)" });
         }
         const refund_method = body.refund_method;
-        if (!refund_method || !["paypal","interac","cheque","credit_balance","bank_transfer"].includes(refund_method)) {
+        if (!refund_method || !["interac","cheque","credit_balance","bank_transfer","square"].includes(refund_method)) {
           return json(400, { error: "refund_method invalide" });
         }
 
@@ -550,24 +553,8 @@ serve(async (req) => {
           return json(200, { ok: true, refund_id: existingRef.id, idempotent: true });
         }
 
-        // ── PayPal: appel API réel AVANT toute écriture en DB ──
-        // Si l'appel échoue, on n'enregistre rien et on retourne une erreur.
         // ────────────────────────────────────────────────────────────────
-        // Phase 3 V2 — PayPal décommissionné (3.C.4).
-        // Le chemin "confirm PayPal refund" est mort. Aucun fetch vers l'API
-        // PayPal, aucune mutation directe de billing_payments/billing_invoices.
-        // ────────────────────────────────────────────────────────────────
-        if (refund_method === "paypal") {
-          return json(410, {
-            error: "paypal_refund_decommissioned",
-            code: "PAYPAL_DECOMMISSIONED",
-            message: "Les remboursements PayPal ne sont plus possibles. Utilisez `refund_payment` (RPC) pour les paiements Square.",
-            phase: "3.V2",
-          });
-        }
-
-        // ────────────────────────────────────────────────────────────────
-        // Chemin Square / "original" : passage obligatoire par la RPC
+        // Chemin Square / original : passage obligatoire par la RPC
         // canonique `refund_payment` — aucune mutation directe des tables
         // financières côté Edge Function.
         // ────────────────────────────────────────────────────────────────
