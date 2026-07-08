@@ -195,24 +195,35 @@ serve(async (req) => {
     results.equipment_returned = return_equipment_ids.length;
   }
 
-  // ── 5. Communications via official template ───────────────
+  // ── 5. Communications via canonical email_queue (official template) ─────
   if (clientEmail) {
-    await admin.functions.invoke("send-transactional-email", {
-      body: {
-        templateName: "plan-change-notification",
-        recipientEmail: clientEmail,
-        idempotencyKey: `core-plan-change-${scr.id}`,
-        templateData: {
-          first_name: firstName,
-          previous_plan: bSub?.frozen_name || bSub?.plan_name || "—",
-          new_plan: new_plan_name,
-          new_price: new_plan_price,
-          change_type,
-          effective: isImmediate ? "immédiatement" : "au prochain renouvellement",
-          account_number: accountNumber,
-        },
+    await admin.from("email_queue").insert({
+      to_email: clientEmail,
+      template_key: isImmediate ? "plan_change_approved" : "plan_change_requested",
+      template_vars: {
+        first_name: firstName,
+        client_name: firstName,
+        to_email: clientEmail,
+        current_plan_name: bSub?.frozen_name || bSub?.plan_name || "—",
+        requested_plan_name: new_plan_name,
+        effective_date: isImmediate ? "immédiatement" : "au prochain renouvellement",
+        change_type,
+        account_number: accountNumber,
       },
-    }).catch((e) => console.warn("[core-apply-plan-change] email queue failed:", e));
+      status: "queued",
+      priority: 0,
+    }).catch((e) => console.warn("[core-apply-plan-change] email_queue failed:", e));
+    await admin.from("email_queue").insert({
+      to_email: "support@nivra-telecom.ca",
+      template_key: "plan_change_admin_alert",
+      template_vars: {
+        client_name: firstName, account_number: accountNumber,
+        current_plan_name: bSub?.frozen_name || bSub?.plan_name || "—",
+        requested_plan_name: new_plan_name, change_type,
+        core_actor: user.email, reason,
+      },
+      status: "queued", priority: 0,
+    }).catch(() => {});
   }
 
   // ── 6. Rich audit log ─────────────────────────────────────
