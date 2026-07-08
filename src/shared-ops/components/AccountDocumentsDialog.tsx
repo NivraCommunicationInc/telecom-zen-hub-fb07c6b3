@@ -335,6 +335,7 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
@@ -465,16 +466,17 @@ export function AccountDocumentsDialog({ open, onClose, clientUserId, clientName
             </ul>
           )}
         </ScrollArea>
-        <PDFViewerDialog
-          open={pdfViewer.isOpen}
-          onOpenChange={pdfViewer.setOpen}
-          pdfBlob={pdfViewer.pdfBlob}
-          title={pdfViewer.title}
-          filename={pdfViewer.filename}
-          isLoading={pdfViewer.isLoading}
-          error={pdfViewer.error}
-        />
       </DialogContent>
     </Dialog>
+    <PDFViewerDialog
+      open={pdfViewer.isOpen}
+      onOpenChange={pdfViewer.setOpen}
+      pdfBlob={pdfViewer.pdfBlob}
+      title={pdfViewer.title}
+      filename={pdfViewer.filename}
+      isLoading={pdfViewer.isLoading}
+      error={pdfViewer.error}
+    />
+    </>
   );
 }
