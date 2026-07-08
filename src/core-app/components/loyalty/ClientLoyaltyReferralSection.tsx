@@ -102,6 +102,26 @@ export function ClientLoyaltyReferralSection({ clientId, accountId }: Props) {
     },
   });
 
+  const { data: rewardsCatalog = [] } = useQuery({
+    queryKey: ["cl-loyalty-rewards"],
+    queryFn: async () => {
+      const { data } = await supabase.from("loyalty_rewards").select("*")
+        .order("points_required", { ascending: true });
+      return data ?? [];
+    },
+  });
+
+  const { data: redemptions = [] } = useQuery({
+    queryKey: ["cl-loyalty-redemptions", clientId, accountId],
+    queryFn: async () => {
+      if (!accountId) return [];
+      const { data } = await supabase.from("loyalty_redemptions").select("*")
+        .eq("account_id", accountId).order("created_at", { ascending: false }).limit(15);
+      return data ?? [];
+    },
+    enabled: !!accountId,
+  });
+
   // ── Loyalty actions ──
   const adjust = async (sign: 1 | -1) => {
     if (!accountId) return toast.error("Aucun compte lié");
