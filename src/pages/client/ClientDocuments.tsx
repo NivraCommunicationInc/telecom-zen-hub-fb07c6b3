@@ -30,6 +30,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { safePDFDownload } from "@/lib/pdfUtils";
+import { ClientDeliverySlipsList } from "@/components/client/ClientDeliverySlipsList";
 
 // Static terms document info
 const TERMS_DOCUMENT_INFO = {
@@ -205,96 +206,100 @@ const ClientDocuments = () => {
 
           {/* Contracts Tab */}
           <TabsContent value="contracts" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-cyan-500" />
-                  Contrats de services
-                </CardTitle>
-                <CardDescription>
-                  Vos accords de services et ententes contractuelles.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full mx-auto"></div>
-                    <p className="text-muted-foreground mt-2">Chargement...</p>
-                  </div>
-                ) : contracts && contracts.length > 0 ? (
-                  <div className="space-y-3">
-                    {contracts.map((contract) => (
-                      <div
-                        key={contract.id}
-                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border hover:border-cyan-500/30 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center border">
-                            <FileText className="w-5 h-5 text-cyan-500" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {contract.contract_name || contract.contract_number || "Contrat"}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {format(new Date(contract.created_at), "d MMM yyyy", { locale: fr })}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-cyan-500" />
+                    Contrats de services
+                  </CardTitle>
+                  <CardDescription>
+                    Vos accords de services et ententes contractuelles.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full mx-auto"></div>
+                      <p className="text-muted-foreground mt-2">Chargement...</p>
+                    </div>
+                  ) : contracts && contracts.length > 0 ? (
+                    <div className="space-y-3">
+                      {contracts.map((contract) => (
+                        <div
+                          key={contract.id}
+                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border hover:border-cyan-500/30 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center border">
+                              <FileText className="w-5 h-5 text-cyan-500" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {contract.contract_name || contract.contract_number || "Contrat"}
                               </p>
-                              {contract.is_signed ? (
-                                <Badge className="bg-emerald-500/20 text-emerald-500 border-0 text-xs">
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Signé
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-amber-500/20 text-amber-600 border-0 text-xs">
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  En attente
-                                </Badge>
-                              )}
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {format(new Date(contract.created_at), "d MMM yyyy", { locale: fr })}
+                                </p>
+                                {contract.is_signed ? (
+                                  <Badge className="bg-emerald-500/20 text-emerald-500 border-0 text-xs">
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Signé
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-amber-500/20 text-amber-600 border-0 text-xs">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    En attente
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => navigate("/portal/contracts")}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            <span className="hidden sm:inline">Voir</span>
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => navigate("/portal/contracts")}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          <span className="hidden sm:inline">Voir</span>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                    <p>Aucun contrat trouvé</p>
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => navigate("/portal/contracts")}
-                    >
-                      Voir tous mes contrats
-                    </Button>
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                      <p>Aucun contrat trouvé</p>
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() => navigate("/portal/contracts")}
+                      >
+                        Voir tous mes contrats
+                      </Button>
+                    </div>
+                  )}
 
-                {contracts && contracts.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <Button
-                      variant="outline"
-                      className="w-full gap-2"
-                      onClick={() => navigate("/portal/contracts")}
-                    >
-                      <FileText className="w-4 h-4" />
-                      Gérer mes contrats
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {contracts && contracts.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={() => navigate("/portal/contracts")}
+                      >
+                        <FileText className="w-4 h-4" />
+                        Gérer mes contrats
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <ClientDeliverySlipsList canonicalData={canonicalData} isLoading={isLoading} />
+            </div>
           </TabsContent>
 
           {/* Invoices Tab */}
