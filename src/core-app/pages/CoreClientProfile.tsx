@@ -505,160 +505,30 @@ const CoreClientProfile = () => {
         )}
       </div>
 
-      {/* ═══ QUICK ACTIONS BAR ═══ */}
+      {/* ═══ QUICK ACTIONS BAR (unified with Account360QuickActions) ═══ */}
       <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#A1A1AA] mb-2">Actions rapides</p>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <button onClick={() => navigate(corePath("/pos"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-emerald-500/20 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 min-w-[80px]">
-            <ShoppingCart className="h-4 w-4" /> Commande
-          </button>
-          <button onClick={() => navigate(corePath("/pos"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-blue-500/20 text-[10px] font-medium text-blue-400 hover:bg-blue-500/10 min-w-[80px]">
-            <Plus className="h-4 w-4" /> Service
-          </button>
-          <button onClick={() => navigate(corePath("/equipment"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-cyan-500/20 text-[10px] font-medium text-cyan-400 hover:bg-cyan-500/10 min-w-[80px]">
-            <Package className="h-4 w-4" /> Équipement
-          </button>
-          <button onClick={() => { setMainTab("overview"); setOverviewTab("adresses"); }} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-teal-500/20 text-[10px] font-medium text-teal-400 hover:bg-teal-500/10 min-w-[80px]">
-            <Home className="h-4 w-4" /> Adresses
-          </button>
-          <button onClick={() => {
-            if (account) {
-              navigate(corePath(`/accounts/${account.id}`));
-              toast.info("Ouvrir la section Facturation du compte pour enregistrer un paiement");
-            } else {
-              toast.error("Aucun compte lié — créez un compte d'abord");
+        <Account360QuickActions
+          accountId={account?.id}
+          clientId={clientId}
+          accountStatus={account?.status ?? null}
+          customerId={undefined}
+          clientName={displayName}
+          clientEmail={profile?.email ?? null}
+          monthlyRevenue={(account as any)?.monthly_amount || 0}
+          subscriptions={[]}
+          canonicalData={{ invoices: [], payments: [] }}
+          onRefresh={() => queryClient.invalidateQueries({ queryKey: ["core-client-profile"] })}
+          onNavigateSection={(section) => {
+            if (section === "orders") { navigate(corePath("/pos")); return; }
+            if (section === "payments" || section === "invoices") {
+              if (account) navigate(corePath(`/accounts/${account.id}`));
+              else toast.error("Aucun compte lié");
+              return;
             }
-          }} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-amber-500/20 text-[10px] font-medium text-amber-400 hover:bg-amber-500/10 min-w-[80px]">
-            <DollarSign className="h-4 w-4" /> Paiement
-          </button>
-          <button onClick={() => {
-            if (account) {
-              navigate(corePath(`/accounts/${account.id}`));
-              toast.info("Ouvrir la section Factures du compte pour envoyer une facture");
-            } else {
-              toast.error("Aucun compte lié — créez un compte d'abord");
-            }
-          }} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-purple-500/20 text-[10px] font-medium text-purple-400 hover:bg-purple-500/10 min-w-[80px]">
-            <Send className="h-4 w-4" /> Facture
-          </button>
-          <button
-            onClick={() => {
-              setMainTab("overview");
-              setOverviewTab("notes");
-            }}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-slate-500/20 text-[10px] font-medium text-slate-400 hover:bg-slate-500/10 min-w-[80px]"
-          >
-            <StickyNote className="h-4 w-4" /> Note
-          </button>
-          <button onClick={() => navigate(corePath("/appointments"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-pink-500/20 text-[10px] font-medium text-pink-400 hover:bg-pink-500/10 min-w-[80px]">
-            <Calendar className="h-4 w-4" /> RDV
-          </button>
-          <button
-            onClick={() => setCancelOpen(true)}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-orange-500/20 text-[10px] font-medium text-orange-400 hover:bg-orange-500/10 min-w-[80px]"
-          >
-            <FileX className="h-4 w-4" /> Résilier
-          </button>
-          <button
-            onClick={() => setCloseAccountOpen(true)}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-red-500/20 text-[10px] font-medium text-red-400 hover:bg-red-500/10 min-w-[80px]"
-          >
-            <UserX className="h-4 w-4" /> Fermer compte
-          </button>
-          <ImpersonateButton
-            clientId={clientId!}
-            clientEmail={profile.email}
-            clientName={displayName}
-          />
-          <button
-            onClick={async () => {
-              if (!profile?.email) { toast.error("Email manquant"); return; }
-              const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
-                redirectTo: `${window.location.origin}/portail/creer-mot-de-passe`,
-              });
-              if (error) { toast.error(error.message); return; }
-              await supabase.from("email_queue").insert({
-                to_email: profile.email,
-                template_key: "password_reset_request",
-                template_vars: { first_name: profile.first_name || "Client" },
-                status: "queued",
-                language: "fr",
-              });
-              toast.success("Email de réinitialisation envoyé");
-            }}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-cyan-500/20 text-[10px] font-medium text-cyan-400 hover:bg-cyan-500/10 min-w-[80px]"
-          >
-            <Shield className="h-4 w-4" /> Reset MDP
-          </button>
-          <button
-            onClick={async () => {
-              if (!profile?.email) { toast.error("Email manquant"); return; }
-              await supabase.from("email_queue").insert({
-                to_email: profile.email,
-                template_key: "account_welcome",
-                template_vars: { first_name: profile.first_name || "Client" },
-                status: "queued",
-                language: "fr",
-              });
-              toast.success("Email de bienvenue renvoyé");
-            }}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-emerald-500/20 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 min-w-[80px]"
-          >
-            <Mail className="h-4 w-4" /> Bienvenue
-          </button>
-          <button
-            onClick={async () => {
-              if (!profile?.email) { toast.error("Email manquant"); return; }
-              await supabase.from("email_queue").insert({
-                to_email: profile.email,
-                template_key: "account_summary",
-                template_vars: {
-                  first_name: profile.first_name || "Client",
-                  plan_name: (account as any)?.plan_name || "Forfait Nivra",
-                  monthly_amount: (account as any)?.monthly_amount || 0,
-                  renewal_date: (account as any)?.next_renewal_at || null,
-                  status: account?.status === "active" ? "Actif ✅" : (account?.status || "Inactif"),
-                },
-                status: "queued",
-                language: "fr",
-              });
-              toast.success("Résumé du compte envoyé");
-            }}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-violet-500/20 text-[10px] font-medium text-violet-400 hover:bg-violet-500/10 min-w-[80px]"
-          >
-            <FileText className="h-4 w-4" /> Résumé
-          </button>
-          {account && (
-            <button
-              onClick={async () => {
-                const isActive = account.status === "active";
-                const action = isActive ? "suspendre" : "réactiver";
-                const reason = prompt(`Raison pour ${action} le compte:`);
-                if (reason === null) return;
-                const newStatus = isActive ? "suspended" : "active";
-                const { error } = await supabase
-                  .from("accounts")
-                  .update({ status: newStatus, updated_at: new Date().toISOString() })
-                  .eq("id", account.id);
-                if (error) { toast.error(error.message); return; }
-                addClientAutoNote({
-                  clientId,
-                  event: isActive ? "account_suspended" : "account_reactivated",
-                  detail: reason || undefined,
-                });
-                toast.success(`Compte ${isActive ? "suspendu" : "réactivé"}`);
-                queryClient.invalidateQueries({ queryKey: ["core-client-profile"] });
-              }}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg border min-w-[80px] text-[10px] font-medium ${
-                account.status === "active"
-                  ? "border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/10"
-                  : "border-green-500/20 text-green-400 hover:bg-green-500/10"
-              }`}
-            >
-              {account.status === "active" ? <><PauseCircle className="h-4 w-4" /> Suspendre</> : <><PlayCircle className="h-4 w-4" /> Réactiver</>}
-            </button>
-          )}
-        </div>
+            if (section === "loyalty") { setMainTab("overview"); setOverviewTab("loyalty"); return; }
+          }}
+          onEditProfile={() => { setMainTab("overview"); setOverviewTab("profil"); }}
+        />
       </div>
 
       {/* ═══ TABS ═══ */}
