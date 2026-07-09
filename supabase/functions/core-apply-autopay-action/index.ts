@@ -223,7 +223,7 @@ serve(async (req) => {
         .from("billing_invoices")
         .update({ autopay_next_attempt_at: new Date().toISOString(), autopay_stopped: false })
         .eq("customer_id", customer_id)
-        .in("status", ["unpaid", "overdue", "failed", "partially_paid"])
+        .in("status", ["pending", "overdue", "failed", "partially_paid"])
         .gt("balance_due", 0);
       const scoped = invoice_id ? q.eq("id", invoice_id) : q;
       const { data: updated, error: upErr } = await scoped.select("id, invoice_number");
