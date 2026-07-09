@@ -589,6 +589,18 @@ serve(async (req) => {
           band_mode, guest_enabled: !!body.guest_enabled,
           ssid_24: body.ssid_24, ssid_5: body.ssid_5,
         });
+        await activity(
+          "internet_wifi_change",
+          null,
+          "internet_wifi_settings",
+          `WiFi mis à jour — bande ${band_mode}${body.guest_enabled ? ` · invité activé (${body.guest_ssid || "—"})` : " · invité désactivé"}`,
+          { band_mode, ssid_24: body.ssid_24 ?? null, ssid_5: body.ssid_5 ?? null, guest_enabled: !!body.guest_enabled, guest_ssid: body.guest_ssid ?? null },
+        );
+        await sysNote(
+          `[INTERNET] WiFi mis à jour — bande ${band_mode}` +
+          ` · SSID 2.4: ${body.ssid_24 ?? "—"} · SSID 5: ${body.ssid_5 ?? "—"}` +
+          ` · Invité: ${body.guest_enabled ? `oui (${body.guest_ssid ?? "—"})` : "non"}`,
+        );
         await enqueueEmail("client_internet_wifi_change", {
           ssid_24: body.ssid_24 || "—",
           ssid_5: body.ssid_5 || "—",
