@@ -18531,7 +18531,7 @@ export type Database = {
             foreignKeyName: "payment_disputes_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
-            referencedRelation: "billing"
+            referencedRelation: "billing_payments"
             referencedColumns: ["id"]
           },
         ]
