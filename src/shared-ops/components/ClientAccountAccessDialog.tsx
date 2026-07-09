@@ -65,6 +65,18 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
           ...extra,
         },
       });
+      // Try to extract server error message even when SDK returns a generic FunctionsHttpError
+      let serverError: string | null = null;
+      if (error) {
+        try {
+          const resp = (error as any)?.context?.response;
+          if (resp && typeof resp.json === "function") {
+            const parsed = await resp.clone().json();
+            serverError = parsed?.error || parsed?.message || null;
+          }
+        } catch (_e) { /* ignore */ }
+      }
+      if (serverError) throw new Error(serverError);
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       toast.success((data as any)?.message || "Action complétée");
@@ -81,7 +93,7 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
         toast.error("Motif obligatoire pour changer le courriel.");
       } else if (msg.includes("Seul un admin")) {
         toast.error("Seul un admin Core peut changer le courriel.");
-      } else if (msg.toLowerCase().includes("invalid")) {
+      } else if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("invalide")) {
         toast.error("Nouveau courriel invalide.");
       } else {
         toast.error(msg);
