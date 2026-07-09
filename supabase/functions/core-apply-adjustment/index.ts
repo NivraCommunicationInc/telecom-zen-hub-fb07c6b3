@@ -127,6 +127,36 @@ serve(async (req) => {
         },
       });
 
+      // Traceability parity (Modules 5-8): activity + system note
+      if (client_id) {
+        try {
+          await admin.from("client_activity_logs").insert({
+            client_id,
+            action_type: "adjustment_writeoff",
+            action_data: {
+              module_tag: "adjustments",
+              invoice_id,
+              invoice_number: invBefore?.invoice_number ?? null,
+              balance_due: invBefore?.balance_due ?? null,
+              collections_action_id: collJson?.id ?? null,
+              reason,
+            },
+            performed_by: user.id,
+            performed_by_role: "admin_core",
+          });
+          await admin.from("client_internal_notes").insert({
+            client_id,
+            note_type: "system",
+            body: `Radiation de facture — Facture #${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$ — motif: ${reason}`,
+            created_by_user_id: user.id,
+            created_by_role: "admin_core",
+            created_by_name: user.email ?? "Admin Core",
+          });
+        } catch (e) {
+          console.warn("[core-apply-adjustment] writeoff traceability failed:", (e as any)?.message);
+        }
+      }
+
       return json({ ok: true, collections_action_id: collJson?.id ?? null });
     }
 
