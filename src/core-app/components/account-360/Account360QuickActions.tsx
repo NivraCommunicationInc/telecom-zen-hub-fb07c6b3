@@ -292,22 +292,20 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         onRefresh={onRefresh}
       />
 
-      <AddCreditWithDurationDialog
-        accountId={accountId}
-        customerId={customerId}
-        clientName={clientName}
-        open={creditOpen}
-        onClose={() => setCreditOpen(false)}
-        onRefresh={onRefresh}
-      />
+      {accountId && clientId && (
+        <AdjustmentsModule
+          open={adjustmentsOpen}
+          onClose={() => setAdjustmentsOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientUserId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
+        />
+      )}
 
-      <AccountAdjustmentDialog
-        accountId={accountId}
-        clientName={clientName}
-        open={adjustmentOpen}
-        onClose={() => setAdjustmentOpen(false)}
-        onRefresh={onRefresh}
-      />
+
 
       <PauseAccountDialog
         accountId={accountId}
