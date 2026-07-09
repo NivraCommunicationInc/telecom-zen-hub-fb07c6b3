@@ -17938,7 +17938,9 @@ export type Database = {
           total_amount: number | null
           tps_amount: number | null
           tps_rate: number | null
+          tracking_last_update_at: string | null
           tracking_number: string | null
+          tracking_status: string | null
           tracking_url: string | null
           tv_channels_count: number
           tvq_amount: number | null
@@ -18068,7 +18070,9 @@ export type Database = {
           total_amount?: number | null
           tps_amount?: number | null
           tps_rate?: number | null
+          tracking_last_update_at?: string | null
           tracking_number?: string | null
+          tracking_status?: string | null
           tracking_url?: string | null
           tv_channels_count?: number
           tvq_amount?: number | null
@@ -18198,7 +18202,9 @@ export type Database = {
           total_amount?: number | null
           tps_amount?: number | null
           tps_rate?: number | null
+          tracking_last_update_at?: string | null
           tracking_number?: string | null
+          tracking_status?: string | null
           tracking_url?: string | null
           tv_channels_count?: number
           tvq_amount?: number | null
@@ -31557,7 +31563,9 @@ export type Database = {
           total_amount: number | null
           tps_amount: number | null
           tps_rate: number | null
+          tracking_last_update_at: string | null
           tracking_number: string | null
+          tracking_status: string | null
           tracking_url: string | null
           tv_channels_count: number
           tvq_amount: number | null

@@ -152,6 +152,7 @@ export function OrderSummaryPanel({ proc }: Props) {
       <Row label="Mode" value={order.fulfillment_type} />
       <Row label="Transporteur" value={order.carrier} />
       <Row label="Suivi" value={order.tracking_number} />
+      {order.tracking_status && <Row label="Statut suivi" value={String(order.tracking_status).replace(/_/g, " ")} />}
 
       {/* Appointment */}
       {appointment && (

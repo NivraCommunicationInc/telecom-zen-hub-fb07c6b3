@@ -419,6 +419,22 @@ export function CoreOrderFilePanel({ proc }: Props) {
           {order.fulfillment_type && <Row label="Fulfillment" value={order.fulfillment_type} />}
           <Row label="Transporteur" value={order.carrier} />
           <Row label="Suivi" value={order.tracking_number} mono />
+          {order.tracking_status && (
+            <Row
+              label="Statut suivi"
+              value={String(order.tracking_status).replace(/_/g, " ")}
+              accent={
+                ["delivered"].includes(String(order.tracking_status).toLowerCase())
+                  ? "text-emerald-400"
+                  : ["exception", "returned", "failure"].includes(String(order.tracking_status).toLowerCase())
+                  ? "text-red-400"
+                  : "text-sky-400"
+              }
+            />
+          )}
+          {order.tracking_last_update_at && (
+            <Row label="Suivi mis à jour" value={fmtDateTime(order.tracking_last_update_at)} />
+          )}
           {order.activated_at && <Row label="Activé le" value={fmtDateTime(order.activated_at)} accent="text-emerald-400" />}
           {order.processed_at && <Row label="Traité le" value={fmtDateTime(order.processed_at)} accent="text-sky-400" />}
         </div>
