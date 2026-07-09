@@ -1582,7 +1582,7 @@ export function renderQueueTemplate(
     case "kyc_request_client": {
       const idType = esc(v.requested_id_type || v.id_type || "Pièce d'identité");
       const reason = esc(v.reason || v.notes || "Vérification requise");
-      const verificationUrl = String(v.verification_url || `${portalUrl}/identite`);
+      const verificationUrl = String(v.kyc_link || v.verification_url || `${portalUrl}/identite`);
       return {
         subject: "Vérification d'identité requise — Nivra",
         html: shell({
