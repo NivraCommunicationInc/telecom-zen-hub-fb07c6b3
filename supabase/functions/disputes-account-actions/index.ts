@@ -201,18 +201,56 @@ serve(async (req) => {
   };
 
   try {
+    // ── Parity helpers: client_activity_logs + client_internal_notes ──────
+    const activity = async (
+      action_type: string,
+      entity_type: string,
+      entity_id: string | null,
+      summary: string,
+      before_data: Record<string, unknown> | null = null,
+      after_data: Record<string, unknown> | null = null,
+    ) => {
+      try {
+        await admin.from("client_activity_logs").insert({
+          client_id: client_user_id,
+          actor_user_id: user.id,
+          actor_name: callerName,
+          actor_role: "staff",
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          before_data,
+          after_data,
+        });
+      } catch (_e) { /* swallow */ }
+    };
+    const internalNote = async (body_text: string) => {
+      try {
+        await admin.from("client_internal_notes").insert({
+          client_id: client_user_id,
+          note_type: "system",
+          body: body_text,
+          created_by_user_id: user.id,
+          created_by_role: "staff",
+          created_by_name: callerName,
+        });
+      } catch (_e) { /* swallow */ }
+    };
+
     switch (action) {
       case "open_on_behalf": {
         if (!body.payment_id) return json(400, { error: "payment_id requis" });
         if (!body.reason_code) return json(400, { error: "Motif requis" });
 
+        // F12-1: payment_id vient de billing_payments (module UI), pas de billing.
         const { data: pay } = await admin
-          .from("billing")
-          .select("id, user_id")
+          .from("billing_payments")
+          .select("id, customer_id, payment_number, amount")
           .eq("id", body.payment_id)
           .maybeSingle();
         if (!pay) return json(404, { error: "Paiement introuvable" });
-        if (pay.user_id !== client_user_id) return json(403, { error: "Paiement hors compte" });
+        if (pay.customer_id !== client_user_id) return json(403, { error: "Paiement hors compte" });
 
         const { data, error } = await admin
           .from("payment_disputes")
@@ -234,6 +272,17 @@ serve(async (req) => {
           payment_id: body.payment_id,
           reason_code: body.reason_code,
         });
+        await activity(
+          "dispute_opened_on_behalf",
+          "payment_dispute",
+          data.id,
+          `Litige ${data.dispute_number} ouvert au nom du client (motif: ${REASON_LABEL[body.reason_code] ?? body.reason_code})`,
+          null,
+          { dispute_id: data.id, payment_id: body.payment_id, reason_code: body.reason_code, status: "submitted" },
+        );
+        await internalNote(
+          `Litige ${data.dispute_number} ouvert au nom du client par ${callerName} — motif: ${REASON_LABEL[body.reason_code] ?? body.reason_code}.`,
+        );
         return json(200, { ok: true, dispute_id: data.id, dispute_number: data.dispute_number });
       }
 
