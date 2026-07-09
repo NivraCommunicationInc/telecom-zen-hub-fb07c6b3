@@ -187,6 +187,42 @@ serve(async (req) => {
       },
     });
 
+    // ── Client activity log + system note (traçabilité client) ──────────
+    if (cust?.user_id) {
+      const amountLabel = new Intl.NumberFormat("fr-CA", {
+        style: "currency", currency: "CAD",
+      }).format(amt);
+      const methodLabel = method === "credit_account"
+        ? "Crédit compte"
+        : method === "cash" ? "Argent comptant"
+        : method === "cheque" ? "Chèque"
+        : "Interac / Virement";
+      const invNum = invBefore.invoice_number ?? invoice_id.slice(0, 8);
+
+      await admin.from("client_activity_logs").insert({
+        client_id:     cust.user_id,
+        actor_user_id: user.id,
+        actor_name:    user.email ?? null,
+        actor_role:    "admin",
+        action_type:   "payment_recorded",
+        entity_type:   "billing_invoice",
+        entity_id:     invoice_id,
+        summary:       `Paiement ${amountLabel} enregistré sur facture ${invNum} — ${methodLabel} — motif: ${reason}`,
+        before_data:   { balance_due: invBefore.balance_due, status: invBefore.status },
+        after_data:    { balance_due: invAfter?.balance_due, status: invAfter?.status },
+      });
+
+      await admin.from("client_internal_notes").insert({
+        client_id:          cust.user_id,
+        account_id:         cust.account_id ?? null,
+        note_type:          "system",
+        body:               `Paiement ${amountLabel} enregistré (${methodLabel}) sur facture ${invNum} — par ${user.email ?? user.id} — motif: ${reason}${reference ? ` — ref ${reference}` : ""}`,
+        created_by_user_id: user.id,
+        created_by_role:    "admin",
+        created_by_name:    user.email ?? null,
+      });
+    }
+
     return json({
       ok: true,
       payment_id,
