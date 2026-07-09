@@ -165,8 +165,9 @@ serve(async (req) => {
     "unknown";
 
   const audit = async (label: string, payload: Record<string, unknown>) => {
+    console.log(`[audit-start] ${label} target=${client_user_id}`);
     try {
-      const { error: audErr } = await admin.from("admin_audit_log").insert({
+      const { data: aud, error: audErr } = await admin.from("admin_audit_log").insert({
         action: `billing.${label}`,
         admin_user_id: user.id,
         admin_email: user.email ?? null,
@@ -175,9 +176,10 @@ serve(async (req) => {
         target_email: clientEmail,
         ip_address: ip,
         details: payload,
-      });
-      if (audErr) console.error("[audit-insert]", audErr);
-    } catch (e) { console.error("[audit-throw]", e); }
+      }).select("id").maybeSingle();
+      if (audErr) console.error("[audit-insert]", JSON.stringify(audErr));
+      else console.log(`[audit-ok] ${label} id=${aud?.id}`);
+    } catch (e) { console.error("[audit-throw]", String(e)); }
   };
 
   const enqueueEmail = async (template: string, vars: Record<string, unknown>, attachments?: Array<{ filename: string; content: string; contentType: string }> | null) => {
