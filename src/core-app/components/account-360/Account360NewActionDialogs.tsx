@@ -429,51 +429,44 @@ export function RemoteRebootDialog(props: Base) {
 /* -------------------------------------------------------------------------- */
 export function LineDiagnosticDialog(props: Base) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<null | { latency: number; downMbps: number; upMbps: number; packetLoss: number }>(null);
-  const notify = useCoreNotify();
+  const [reason, setReason] = useState("");
+  const [diagType, setDiagType] = useState<"full" | "link" | "speedtest" | "latency">("full");
+  const [result, setResult] = useState<null | { latency: number; downMbps: number; upMbps: number; packetLoss: number; linkStatus: string }>(null);
   const invalidate = useInvalidateClient(props.clientUserId);
 
   async function submit() {
     if (!props.clientUserId) return toast.error("Client manquant");
+    if (reason.trim().length < 3) return toast.error("Motif requis (min. 3 caractères)");
     setLoading(true);
     try {
-      // Simulate a diagnostic snapshot (real probe hook can replace values later)
+      // Simulated probe snapshot — replace with real probe integration later.
       const r = {
         latency: Math.round(8 + Math.random() * 25),
         downMbps: Math.round(180 + Math.random() * 220),
         upMbps: Math.round(60 + Math.random() * 60),
         packetLoss: Number((Math.random() * 0.4).toFixed(2)),
       };
-      const { error } = await supabase.from("internet_diagnostics").insert({
-        user_id: props.clientUserId,
-        account_id: props.accountId ?? null,
-        diagnostic_type: "manual_core",
-        latency_ms: r.latency,
-        download_mbps: r.downMbps,
-        upload_mbps: r.upMbps,
-        packet_loss_pct: r.packetLoss,
-        link_status: r.packetLoss > 1 ? "degraded" : "ok",
-        raw_result: r,
-      } as any);
+      const linkStatus = r.packetLoss > 1 ? "degraded" : "ok";
+
+      const { data, error } = await supabase.functions.invoke("internet-account-actions", {
+        body: {
+          action: "run_diagnostic",
+          client_user_id: props.clientUserId,
+          account_id: props.accountId ?? null,
+          diagnostic_type: diagType,
+          link_status: linkStatus,
+          download_mbps: r.downMbps,
+          upload_mbps: r.upMbps,
+          latency_ms: r.latency,
+          packet_loss_pct: r.packetLoss,
+          notes: reason.trim(),
+          __audit_reason: reason.trim(),
+        },
+      });
       if (error) throw error;
-      setResult(r);
-      if (props.clientEmail) {
-        await notify({
-          clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: "Diagnostic de votre ligne Internet",
-          heroTitle: "Résultats du diagnostic",
-          cardTitle: "Mesures actuelles",
-          cardRows: [
-            { label: "Latence", value: `${r.latency} ms` },
-            { label: "Débit descendant", value: `${r.downMbps} Mbps` },
-            { label: "Débit montant", value: `${r.upMbps} Mbps` },
-            { label: "Perte de paquets", value: `${r.packetLoss} %` },
-          ],
-          actionKey: "line_diagnostic",
-          accountId: props.accountId ?? undefined,
-          clientUserId: props.clientUserId ?? undefined,
-        });
-      }
+      if (data && (data as any).error) throw new Error((data as any).error);
+
+      setResult({ ...r, linkStatus });
       toast.success("Diagnostic enregistré");
       invalidate(); props.onRefresh?.();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
@@ -484,10 +477,27 @@ export function LineDiagnosticDialog(props: Base) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>Diagnostic de ligne</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
+          <div className="space-y-1">
+            <Label>Type de diagnostic</Label>
+            <Select value={diagType} onValueChange={(v) => setDiagType(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">Complet</SelectItem>
+                <SelectItem value="link">Lien seulement</SelectItem>
+                <SelectItem value="speedtest">Débit</SelectItem>
+                <SelectItem value="latency">Latence</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Motif (obligatoire)</Label>
+            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Ex: plainte client lenteur" />
+          </div>
           {!result ? (
-            <p className="text-muted-foreground">Lance une mesure débit/ping et enregistre le résultat dans le compte.</p>
+            <p className="text-muted-foreground">Lance une mesure débit/ping et enregistre le résultat dans le compte (audit + activité + note interne + email client).</p>
           ) : (
             <div className="rounded-md bg-muted/40 p-3 space-y-1">
+              <div>Lien : <b>{result.linkStatus}</b></div>
               <div>Latence : <b>{result.latency} ms</b></div>
               <div>Débit ↓ : <b>{result.downMbps} Mbps</b></div>
               <div>Débit ↑ : <b>{result.upMbps} Mbps</b></div>
@@ -497,7 +507,7 @@ export function LineDiagnosticDialog(props: Base) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={props.onClose}>Fermer</Button>
-          <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Lancer le diagnostic</Button>
+          <Button onClick={submit} disabled={loading || reason.trim().length < 3}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Lancer le diagnostic</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
