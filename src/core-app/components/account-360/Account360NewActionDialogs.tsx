@@ -10,7 +10,7 @@
  *
  * All amount inputs are validated. Every destructive action requires a reason.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -1171,56 +1171,197 @@ export function ConsentJournalDialog(props: Base) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Bonus. VIP / Churn toggle (writes to account_tags)                          */
+/* Bonus. VIP / Churn toggle — routed through account-tags-actions            */
 /* -------------------------------------------------------------------------- */
+type VipChurnKey = "vip" | "churn_risk";
+interface AccountTagRow {
+  id: string;
+  tag_key: string;
+  tag_label: string;
+  severity: string;
+  note: string | null;
+  created_at: string;
+}
+
+function mapTagError(msg?: string): string {
+  const m = (msg || "").toLowerCase();
+  if (m.includes("motif")) return "Motif obligatoire.";
+  if (m.includes("réservée") || m.includes("reservee") || m.includes("unauthorized") || m.includes("forbidden")) {
+    return "Action réservée au personnel autorisé.";
+  }
+  if (m.includes("déjà") || m.includes("existe déjà") || m.includes("already")) {
+    return "Cette étiquette existe déjà sur ce compte.";
+  }
+  if (m.includes("introuvable") || m.includes("not found")) return "Étiquette introuvable.";
+  return msg || "Échec de l'opération.";
+}
+
 export function VipChurnToggleDialog(props: Base) {
-  const [tagKey, setTagKey] = useState<"vip" | "churn_risk">("vip");
+  const [tagKey, setTagKey] = useState<VipChurnKey>("vip");
   const [note, setNote] = useState("");
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
+  const [listing, setListing] = useState(false);
+  const [existing, setExisting] = useState<Record<VipChurnKey, AccountTagRow | null>>({
+    vip: null,
+    churn_risk: null,
+  });
   const invalidate = useInvalidateClient(props.clientUserId);
 
-  async function submit() {
+  const currentTag = existing[tagKey];
+
+  async function refreshList() {
+    if (!props.clientUserId) return;
+    setListing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-tags-actions", {
+        body: { action: "list", client_user_id: props.clientUserId },
+      });
+      if (error) throw error;
+      const tags: AccountTagRow[] = (data as any)?.tags ?? [];
+      const next: Record<VipChurnKey, AccountTagRow | null> = { vip: null, churn_risk: null };
+      for (const t of tags) {
+        if (t.tag_key === "vip") next.vip = t;
+        if (t.tag_key === "churn_risk") next.churn_risk = t;
+      }
+      setExisting(next);
+    } catch (_e) {
+      /* silencieux — la liste est informative */
+    } finally {
+      setListing(false);
+    }
+  }
+
+  useEffect(() => {
+    if (props.open) {
+      setNote("");
+      setReason("");
+      void refreshList();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.open, props.clientUserId]);
+
+  async function submitAdd() {
     if (!props.clientUserId) return toast.error("Client manquant");
+    if (!reason.trim()) return toast.error("Motif obligatoire.");
     setLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const { error } = await supabase.from("account_tags").upsert({
-        client_user_id: props.clientUserId,
-        account_id: props.accountId ?? null,
-        tag_key: tagKey,
-        tag_label: tagKey === "vip" ? "VIP" : "Risque de churn",
-        severity: tagKey === "vip" ? "info" : "warning",
-        note: note || null,
-        created_by: userData?.user?.id ?? null,
-        created_by_email: userData?.user?.email ?? null,
-      } as any, { onConflict: "client_user_id,tag_key" });
-      if (error) throw error;
-      toast.success("Étiquette appliquée");
-      invalidate(); props.onRefresh?.(); props.onClose();
-    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
-    finally { setLoading(false); }
+      const { data, error } = await supabase.functions.invoke("account-tags-actions", {
+        body: {
+          action: "add",
+          client_user_id: props.clientUserId,
+          account_id: props.accountId ?? null,
+          tag_key: tagKey,
+          tag_label: tagKey === "vip" ? "VIP" : "Risque de churn",
+          severity: tagKey === "vip" ? "info" : "warning",
+          note: note || null,
+          reason: reason.trim(),
+        },
+      });
+      const errMsg = (error as any)?.message || (data as any)?.error;
+      if (error || (data as any)?.error) throw new Error(errMsg);
+      toast.success(tagKey === "vip" ? "Étiquette VIP appliquée" : "Étiquette Risque de churn appliquée");
+      await refreshList();
+      invalidate();
+      props.onRefresh?.();
+    } catch (e: any) {
+      toast.error(mapTagError(e?.message));
+    } finally {
+      setLoading(false);
+    }
   }
+
+  async function submitRemove() {
+    if (!props.clientUserId || !currentTag) return;
+    if (!reason.trim()) return toast.error("Motif obligatoire.");
+    if (!window.confirm(`Retirer l'étiquette « ${currentTag.tag_label} » de ce compte ?`)) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-tags-actions", {
+        body: {
+          action: "remove",
+          client_user_id: props.clientUserId,
+          account_id: props.accountId ?? null,
+          tag_id: currentTag.id,
+          reason: reason.trim(),
+        },
+      });
+      const errMsg = (error as any)?.message || (data as any)?.error;
+      if (error || (data as any)?.error) throw new Error(errMsg);
+      toast.success("Étiquette retirée");
+      setReason("");
+      await refreshList();
+      invalidate();
+      props.onRefresh?.();
+    } catch (e: any) {
+      toast.error(mapTagError(e?.message));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Étiquette VIP / Risque de churn</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Étiquette VIP / Risque de churn</DialogTitle>
+          <DialogDescription>
+            Applique ou retire une étiquette officielle sur le compte. Chaque action est auditée et un motif est requis.
+          </DialogDescription>
+        </DialogHeader>
         <div className="space-y-3">
-          <div><Label>Étiquette</Label>
-            <Select value={tagKey} onValueChange={(v) => setTagKey(v as any)}>
+          <div>
+            <Label>Étiquette</Label>
+            <Select value={tagKey} onValueChange={(v) => setTagKey(v as VipChurnKey)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="vip">VIP</SelectItem>
                 <SelectItem value="churn_risk">Risque de churn</SelectItem>
               </SelectContent>
             </Select>
+            <div className="mt-2 text-xs text-muted-foreground">
+              {listing
+                ? "Chargement des étiquettes…"
+                : currentTag
+                  ? `Actuellement appliquée le ${new Date(currentTag.created_at).toLocaleDateString("fr-CA")}${currentTag.note ? ` — « ${currentTag.note} »` : ""}.`
+                  : "Aucune étiquette de ce type sur le compte."}
+            </div>
           </div>
-          <div><Label>Note</Label><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></div>
+
+          {!currentTag && (
+            <div>
+              <Label>Note (optionnelle)</Label>
+              <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Contexte visible dans le 360…" />
+            </div>
+          )}
+
+          <div>
+            <Label>Motif <span className="text-destructive">*</span></Label>
+            <Textarea
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Pourquoi cette étiquette est appliquée / retirée ?"
+            />
+          </div>
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
-          <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Appliquer</Button>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+          <Button variant="ghost" onClick={props.onClose} disabled={loading}>Annuler</Button>
+          <div className="flex gap-2">
+            {currentTag && (
+              <Button variant="destructive" onClick={submitRemove} disabled={loading || !reason.trim()}>
+                {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Retirer
+              </Button>
+            )}
+            {!currentTag && (
+              <Button onClick={submitAdd} disabled={loading || !reason.trim()}>
+                {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Appliquer
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+

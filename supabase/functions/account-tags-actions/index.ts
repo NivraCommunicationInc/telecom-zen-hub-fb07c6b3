@@ -1,4 +1,4 @@
-﻿// account-tags-actions — Phase 17
+// account-tags-actions — Phase 17
 // Staff-only: manage account tags / alerts (VIP, à risque, fraude, etc.)
 // Actions: list, add, remove. All audited under account_ops.tag_*.
 
@@ -26,6 +26,7 @@ interface Body {
 // Curated preset catalogue surfaced to UI.
 const PRESETS = [
   { key: "vip", label: "VIP", severity: "info" },
+  { key: "churn_risk", label: "Risque de churn", severity: "warning" },
   { key: "loyal", label: "Client fidèle", severity: "info" },
   { key: "watchlist", label: "Surveillance", severity: "warning" },
   { key: "at_risk", label: "À risque", severity: "warning" },
@@ -36,6 +37,11 @@ const PRESETS = [
   { key: "litigation", label: "Litige juridique", severity: "critical" },
   { key: "escalation_required", label: "Escalade requise", severity: "warning" },
 ];
+
+const ACTION_LABELS: Record<string, string> = {
+  tag_add: "Étiquette compte ajoutée",
+  tag_remove: "Étiquette compte retirée",
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -52,16 +58,53 @@ Deno.serve(async (req) => {
     });
     const { data: userData } = await userClient.auth.getUser();
     if (!userData?.user) return json({ error: "unauthorized" }, 401);
+    const actor = userData.user;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-      const { isStaff } = await checkStaffAuth(admin, user.id);
-  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
+    const { isStaff } = await checkStaffAuth(admin, actor.id);
+    if (!isStaff) return json({ error: "Action réservée au personnel autorisé" }, 403);
 
     const body = (await req.json()) as Body;
     if (!body?.client_user_id || !body?.action) {
       return json({ error: "client_user_id and action required" }, 400);
     }
+
+    const writeParityLogs = async (
+      op: "tag_add" | "tag_remove",
+      accountId: string | null,
+      details: Record<string, unknown>,
+    ) => {
+      // client_activity_logs (client timeline / portal projection)
+      try {
+        await admin.from("client_activity_logs").insert({
+          client_id: body.client_user_id,
+          actor_user_id: actor.id,
+          actor_role: "admin",
+          actor_name: actor.email || "admin",
+          action_type: "account_tag",
+          summary: ACTION_LABELS[op],
+          entity_type: "account_tag",
+          entity_id: body.client_user_id,
+          after_data: details,
+        });
+      } catch (_e) { /* best-effort */ }
+
+      // client_internal_notes (staff timeline)
+      try {
+        if (accountId) {
+          await admin.from("client_internal_notes").insert({
+            account_id: accountId,
+            client_id: body.client_user_id,
+            note_type: "system",
+            body: `${ACTION_LABELS[op]} — par ${actor.email || actor.id}`,
+            created_by_user_id: actor.id,
+            created_by_name: actor.email || "admin",
+            created_by_role: "admin",
+          });
+        }
+      } catch (_e) { /* best-effort */ }
+    };
 
     switch (body.action) {
       case "list": {
@@ -92,8 +135,8 @@ Deno.serve(async (req) => {
           severity,
           note: body.note?.trim() || null,
           expires_at: body.expires_at || null,
-          created_by: userData.user.id,
-          created_by_email: userData.user.email ?? null,
+          created_by: actor.id,
+          created_by_email: actor.email ?? null,
         };
 
         const { data, error } = await admin
@@ -109,12 +152,16 @@ Deno.serve(async (req) => {
         }
 
         await admin.from("admin_audit_log").insert({
-          admin_user_id: userData.user.id,
-          admin_email: userData.user.email,
+          admin_user_id: actor.id,
+          admin_email: actor.email,
           action: "account_ops.tag_add",
           target_type: "user",
           target_id: body.client_user_id,
           details: { account_id: body.account_id ?? null, tag: row, reason: body.reason.trim() },
+        });
+        await writeParityLogs("tag_add", body.account_id ?? null, {
+          tag: row,
+          reason: body.reason.trim(),
         });
         return json({ ok: true, tag: data });
       }
@@ -139,8 +186,8 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         await admin.from("admin_audit_log").insert({
-          admin_user_id: userData.user.id,
-          admin_email: userData.user.email,
+          admin_user_id: actor.id,
+          admin_email: actor.email,
           action: "account_ops.tag_remove",
           target_type: "user",
           target_id: body.client_user_id,
@@ -149,6 +196,10 @@ Deno.serve(async (req) => {
             removed_tag: existing,
             reason: body.reason.trim(),
           },
+        });
+        await writeParityLogs("tag_remove", body.account_id ?? null, {
+          removed_tag: existing,
+          reason: body.reason.trim(),
         });
         return json({ ok: true });
       }
