@@ -603,15 +603,6 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           canonicalData={canonicalData}
         />
       )}
-      <AccountWriteOffDialog
-        open={writeOffOpen}
-        onClose={() => setWriteOffOpen(false)}
-        accountId={accountId ?? null}
-        clientUserId={clientId ?? null}
-        clientName={clientName}
-        clientEmail={clientEmail}
-        onRefresh={onRefresh}
-      />
       <PaymentPlanDialog
         open={paymentPlanOpen}
         onClose={() => setPaymentPlanOpen(false)}
