@@ -281,6 +281,7 @@ const CoreAccountDetail = () => {
         account={acct}
         profile={prof}
         clientId={data.clientId}
+        isAdminCore={isAdminCore}
         onSaved={data.refetch}
       />
     </div>
