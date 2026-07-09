@@ -477,17 +477,18 @@ serve(async (req) => {
         }).eq("id", body.account_id);
         if (upErr) return json(500, { error: upErr.message });
 
-        // Cancel any active/past_due/trialing subscriptions
+        // Cancel any active/past_due/trialing subscriptions (billing_subscriptions is keyed by customer_id = auth user id)
         let cancelledSubs = 0;
         try {
-          const { data: subs } = await admin
+          const { data: subs, error: subErr } = await admin
             .from("billing_subscriptions")
-            .update({ status: "cancelled", cancelled_at: nowIso })
-            .eq("account_id", body.account_id)
+            .update({ status: "cancelled", updated_at: nowIso })
+            .eq("customer_id", client_user_id)
             .in("status", ["active", "past_due", "trialing"])
             .select("id");
+          if (subErr) console.error("cancel_account subs update", subErr);
           cancelledSubs = subs?.length ?? 0;
-        } catch (_e) { /* swallow */ }
+        } catch (e) { console.error("cancel_account subs exception", e); }
 
         await audit("cancel_account", {
           account_id: body.account_id,
