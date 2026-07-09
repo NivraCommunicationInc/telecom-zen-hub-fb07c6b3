@@ -77,11 +77,11 @@ Deno.serve(async (req) => {
     // Ownership: fetch account -> client_user_id
     const { data: account, error: accErr } = await admin
       .from("accounts")
-      .select("id, client_user_id, account_number, status")
+      .select("id, client_id, account_number, status")
       .eq("id", body.account_id)
       .maybeSingle();
     if (accErr || !account) return json({ error: "Compte introuvable" }, 404);
-    const clientId = account.client_user_id as string;
+    const clientId = account.client_id as string;
 
     if (body.action === "request_move") {
       const addr = (body.new_address ?? "").trim();
@@ -152,7 +152,8 @@ Deno.serve(async (req) => {
 
       // Audit
       await admin.from("admin_audit_log").insert({
-        actor_user_id: actor.id,
+        admin_user_id: actor.id,
+        admin_email: prof?.email ?? null,
         action: "service_move_requested",
         target_type: "service_change_request",
         target_id: inserted.id,
@@ -197,20 +198,26 @@ Deno.serve(async (req) => {
         .eq("user_id", clientId)
         .maybeSingle();
       if (clientProf?.email) {
-        await admin.from("email_queue").insert({
-          recipient_email: clientProf.email,
-          recipient_name: clientProf.full_name ?? null,
+        const { error: emailErr } = await admin.from("email_queue").insert({
+          to_email: clientProf.email,
           subject: "Transfert de service planifié / Service move scheduled",
           template_key: "service_move_requested",
-          template_data: {
+          template_vars: {
+            recipient_name: clientProf.full_name ?? null,
             new_address: fullAddress,
             move_date: moveDate,
             account_number: account.account_number,
-            language: clientProf.preferred_language ?? "fr",
           },
-          status: "pending",
-          priority: "normal",
+          status: "queued",
+          priority: 5,
+          language: (clientProf.preferred_language === "en" ? "en" : "fr"),
+          event_key: `service_move_requested:${inserted.id}`,
+          entity_type: "service_change_request",
+          entity_id: inserted.id,
         });
+        if (emailErr) console.error("[service-move-actions] email_queue insert failed", emailErr);
+      } else {
+        console.log("[service-move-actions] no client email to queue", { clientId });
       }
 
       return json({ ok: true, request_id: inserted.id });
@@ -239,7 +246,8 @@ Deno.serve(async (req) => {
       if (updErr) return json({ error: updErr.message }, 500);
 
       await admin.from("admin_audit_log").insert({
-        actor_user_id: actor.id,
+        admin_user_id: actor.id,
+        admin_email: prof?.email ?? null,
         action: "service_move_cancelled",
         target_type: "service_change_request",
         target_id: body.request_id,
