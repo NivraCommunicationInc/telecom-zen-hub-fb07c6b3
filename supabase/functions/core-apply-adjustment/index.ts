@@ -241,6 +241,44 @@ serve(async (req) => {
       },
     });
 
+    // Traceability parity (Modules 5-8): client_activity_logs always; system note
+    // for credit/fee only (account_promotions has trg_note_account_promotion).
+    if (client_id) {
+      try {
+        await admin.from("client_activity_logs").insert({
+          client_id,
+          action_type: `adjustment_${kind}`,
+          action_data: {
+            module_tag: "adjustments",
+            kind,
+            account_id,
+            amount: amt,
+            months: m,
+            description: desc,
+            promotion_type: kind === "promotion" ? (promotion_type ?? "monthly_discount") : null,
+            target_table,
+            target_id: inserted_id,
+            reason,
+          },
+          performed_by: user.id,
+          performed_by_role: "admin_core",
+        });
+        if (kind !== "promotion") {
+          const label = kind === "credit" ? "Crédit récurrent" : "Frais récurrent";
+          await admin.from("client_internal_notes").insert({
+            client_id,
+            note_type: "system",
+            body: `${label} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} » — motif: ${reason}`,
+            created_by_user_id: user.id,
+            created_by_role: "admin_core",
+            created_by_name: user.email ?? "Admin Core",
+          });
+        }
+      } catch (e) {
+        console.warn("[core-apply-adjustment] traceability failed:", (e as any)?.message);
+      }
+    }
+
     return json({ ok: true, id: inserted_id, target_table });
   } catch (e: any) {
     console.error("[core-apply-adjustment] fatal:", e);
