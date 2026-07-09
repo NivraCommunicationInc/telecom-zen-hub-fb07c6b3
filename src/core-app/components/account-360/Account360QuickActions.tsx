@@ -42,7 +42,7 @@ import { AccountPrivacyRequestsDialog } from "@/shared-ops/components/AccountPri
 import { AccountFraudRiskDialog } from "@/shared-ops/components/AccountFraudRiskDialog";
 import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch, RotateCcw, Undo2, Banknote, Repeat, Activity, TrendingUp, Home, ArrowUpCircle, TicketCheck, Sparkles, Star, ChevronDown, ChevronRight } from "lucide-react";
 import {
-  QuickRefundDialog, AccountWriteOffDialog, PaymentPlanDialog, AutopayRetryDialog,
+  AccountWriteOffDialog, PaymentPlanDialog, AutopayRetryDialog,
   RemoteRebootDialog, LineDiagnosticDialog, QuickPlanChangeDialog, ServiceMoveDialog,
   SupervisorEscalationDialog, CompensationVoucherDialog, VipChurnToggleDialog,
   FreezeCycleTrialDialog, NpsSatisfactionDialog, FraudLockDialog, ConsentJournalDialog,
@@ -51,6 +51,7 @@ import { ClientNotesDrawer } from "@/core-app/components/notes/ClientNotesDrawer
 import { PlanChangeModule } from "@/core-app/components/account-360/modules/PlanChangeModule";
 import { KycModule } from "@/core-app/components/account-360/modules/KycModule";
 import { RecordPaymentModule } from "@/core-app/components/account-360/modules/RecordPaymentModule";
+import { RefundModule } from "@/core-app/components/account-360/modules/RefundModule";
 
 
 
@@ -597,16 +598,17 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
       )}
 
       {/* Advanced 360 actions */}
-      <QuickRefundDialog
-        open={quickRefundOpen}
-        onClose={() => setQuickRefundOpen(false)}
-        accountId={accountId ?? null}
-        clientUserId={clientId ?? null}
-        clientName={clientName}
-        clientEmail={clientEmail}
-        latestPaymentId={latestPayment?.id ?? null}
-        onRefresh={onRefresh}
-      />
+      {accountId && clientId && (
+        <RefundModule
+          open={quickRefundOpen}
+          onClose={() => setQuickRefundOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
+        />
+      )}
       <AccountWriteOffDialog
         open={writeOffOpen}
         onClose={() => setWriteOffOpen(false)}
