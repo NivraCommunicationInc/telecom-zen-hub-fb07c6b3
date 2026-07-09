@@ -512,6 +512,10 @@ serve(async (req) => {
         await audit("set_parental", {
           enabled, max_rating, blocked_count: blocked_channels.length, pin_changed: !!body.pin,
         });
+        await activity("service_change", null, "service",
+          `Contrôles parentaux TV — ${enabled ? "activés" : "désactivés"} (rating ${max_rating}, ${blocked_channels.length} chaîne(s) bloquée(s))`,
+          { enabled, max_rating, blocked_count: blocked_channels.length, pin_changed: !!body.pin });
+        await sysNote(`Contrôles parentaux TV — ${enabled ? "activés" : "désactivés"}, rating=${max_rating}, chaînes bloquées=${blocked_channels.length}${body.pin ? ", NIP mis à jour" : ""}. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_parental_controls", {
           enabled: enabled ? "true" : "false",
           max_rating,
