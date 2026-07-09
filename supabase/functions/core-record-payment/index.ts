@@ -129,7 +129,7 @@ serve(async (req) => {
       if (!cred) return json({ ok: false, error: "credit not found" }, 404);
       if (cred.type !== "credit") return json({ ok: false, error: "adjustment is not a credit" }, 400);
       if (cred.status !== "active") return json({ ok: false, error: `credit status=${cred.status}` }, 409);
-      if (cust?.account_id && cred.account_id !== cust.account_id) {
+      if (account_id && cred.account_id !== account_id) {
         return json({ ok: false, error: "credit does not belong to invoice account" }, 409);
       }
       const { data: lineIdRes, error: rpcErr } = await admin.rpc("apply_credit_to_invoice", {
@@ -181,7 +181,7 @@ serve(async (req) => {
       details: {
         module_tag:  "record_payment",
         client_id:   cust?.user_id ?? null,
-        account_id:  cust?.account_id ?? null,
+        account_id:  account_id ?? null,
         method,
         provider:    map.provider,
         amount:      amt,
@@ -223,7 +223,7 @@ serve(async (req) => {
 
       await admin.from("client_internal_notes").insert({
         client_id:          cust.user_id,
-        account_id:         cust.account_id ?? null,
+        account_id:         account_id ?? null,
         note_type:          "system",
         body:               `Paiement ${amountLabel} enregistré (${methodLabel}) sur facture ${invNum} — par ${user.email ?? user.id} — motif: ${reason}${reference ? ` — ref ${reference}` : ""}`,
         created_by_user_id: user.id,
