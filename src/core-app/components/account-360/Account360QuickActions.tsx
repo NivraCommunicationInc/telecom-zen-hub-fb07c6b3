@@ -51,6 +51,7 @@ import { PlanChangeModule } from "@/core-app/components/account-360/modules/Plan
 import { KycModule } from "@/core-app/components/account-360/modules/KycModule";
 import { RecordPaymentModule } from "@/core-app/components/account-360/modules/RecordPaymentModule";
 import { RefundModule } from "@/core-app/components/account-360/modules/RefundModule";
+import { AutopayModule } from "@/core-app/components/account-360/modules/AutopayModule";
 
 
 
@@ -122,6 +123,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [consentOpen, setConsentOpen] = useState(false);
   const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [autopayOpen, setAutopayOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -162,8 +164,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: Gift, label: "Ajustements compte", onClick: () => setAdjustmentsOpen(true), color: "emerald" },
         { icon: Undo2, label: "Remboursement rapide", onClick: () => setQuickRefundOpen(true), color: "warning" },
         { icon: Repeat, label: "Plan de paiement", onClick: () => setPaymentPlanOpen(true), color: "violet" },
-        { icon: RotateCcw, label: "Force AutoPay", onClick: () => setAutopayRetryOpen(true), color: "warning" },
-        { icon: CreditCard, label: "Méthode de paiement", onClick: () => setBillingOpen(true), color: "violet" },
+        { icon: RotateCcw, label: "AutoPay & méthode de paiement", onClick: () => setAutopayOpen(true), color: "violet" },
         { icon: Wallet, label: "Gestion facturation", onClick: () => setBillingOpen(true), color: "violet" },
         { icon: AlertTriangle, label: "Cas recouvrement", onClick: () => setCollectionsOpen(true), color: "warning" },
         { icon: DollarSign, label: "Litige facturation", onClick: () => setDisputesOpen(true), color: "warning" },
@@ -598,6 +599,18 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           onClose={() => setQuickRefundOpen(false)}
           accountId={accountId}
           clientId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
+        />
+      )}
+      {accountId && clientId && (
+        <AutopayModule
+          open={autopayOpen}
+          onClose={() => setAutopayOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          customerId={customerId}
           clientName={clientName}
           clientEmail={clientEmail}
           canonicalData={canonicalData}

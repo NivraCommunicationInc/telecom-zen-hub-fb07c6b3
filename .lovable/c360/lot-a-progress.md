@@ -6,7 +6,7 @@
 | 2 | Remboursement | ✅ dev terminé | `RefundModule.tsx` → `billing-account-actions.create_direct_refund` → RPC `refund_payment` |
 | 3 | Ajustements unifiés (Crédit / Promo / Frais / Write-off) | ⏳ prochain | fusion → `account-ops-actions` + `account_adjustments` |
 | 4 | Plan de paiement | ⏳ | nouvelle RPC `core_create_payment_plan` |
-| 5 | AutoPay + Méthode de paiement | ⏳ | routage `square-autopay-attempt` + `billing-account-actions` |
+| 5 | AutoPay + Méthode de paiement | ✅ dev terminé | `AutopayModule.tsx` + `core-apply-autopay-action` → réutilise `square-detach-card`, `square-save-card`, `square-autopay-retry` |
 | 6 | Cas recouvrement + Litige | ⏳ | wrap shell sur EF existantes |
 
 Validation E2E : en attente d'une session admin/QA (globale sur Lot A).
