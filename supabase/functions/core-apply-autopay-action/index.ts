@@ -2,11 +2,13 @@
 // core-apply-autopay-action — Client 360 unified AutoPay & Payment Method center
 // ----------------------------------------------------------------------------
 // Actions:
-//   - enable_autopay     → billing_customers.autopay_enabled=true (card required)
-//   - disable_autopay    → billing_customers.autopay_enabled=false (keep card)
-//   - detach_card        → delegates to square-detach-card (disables autopay + removes card)
-//   - retry_now          → resets autopay_next_attempt_at=now() on invoices,
-//                          optionally triggers square-autopay-retry immediately
+//   - enable_autopay      → billing_customers.autopay_enabled=true (card required)
+//   - disable_autopay     → billing_customers.autopay_enabled=false (keep card)
+//   - detach_card         → delegates to square-detach-card (disables autopay + removes card)
+//   - retry_now           → resets autopay_next_attempt_at=now() on invoices,
+//                           optionally triggers square-autopay-retry immediately
+//   - record_replace_card → registers audit + activity log + note after SquareCardForm
+//                           has attached a new card client-side (widget writes card fields).
 //
 // Reuses:
 //   - Table billing_customers (autopay flags + Square card fields)
@@ -14,8 +16,10 @@
 //   - Edge Function square-detach-card (canonical card detach + email)
 //   - Edge Function square-autopay-retry (canonical retry executor)
 //
-// No parallel logic. Audits every write in admin_audit_log (module_tag='autopay').
-// Never touches PayPal — decommissioned per project memory.
+// Traceability parity with Modules 7/8/9/10:
+//   - admin_audit_log         (admin_user_id / details) — F10-1 mapping enforced
+//   - client_activity_logs    (action_type=autopay_*)
+//   - client_internal_notes   (note_type=system)
 // ============================================================================
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -25,7 +29,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type Action = "enable_autopay" | "disable_autopay" | "detach_card" | "retry_now";
+type Action =
+  | "enable_autopay"
+  | "disable_autopay"
+  | "detach_card"
+  | "retry_now"
+  | "record_replace_card";
+
+const VALID_ACTIONS: Action[] = [
+  "enable_autopay", "disable_autopay", "detach_card", "retry_now", "record_replace_card",
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -62,10 +75,11 @@ serve(async (req) => {
       client_id,
       account_id,
       invoice_id,
+      replaced_card,
       __audit_reason: reason,
     } = body ?? {};
 
-    if (!action || !["enable_autopay", "disable_autopay", "detach_card", "retry_now"].includes(action)) {
+    if (!action || !VALID_ACTIONS.includes(action)) {
       return json({ ok: false, error: "invalid action" }, 400);
     }
     if (!reason || String(reason).trim().length < 3) {
@@ -82,16 +96,62 @@ serve(async (req) => {
       .maybeSingle();
     if (bcErr || !bcBefore) return json({ ok: false, error: "billing customer not found" }, 404);
 
-    const auditAction = `core_autopay_${action}`;
-    const baseDetails: Record<string, unknown> = {
-      module_tag: "autopay",
-      action,
-      client_id,
-      account_id,
-      customer_id,
-      reason,
-      before_state: bcBefore,
+    const effectiveClientId = client_id ?? bcBefore.user_id ?? null;
+
+    // ── Traceability helpers ─────────────────────────────────────────────
+    const writeAudit = async (auditAction: string, after: Record<string, unknown>) => {
+      const { error: audErr } = await admin.from("admin_audit_log").insert({
+        admin_user_id: user.id,
+        admin_email: user.email ?? null,
+        action: auditAction,
+        target_type: "billing_customers",
+        target_id: customer_id,
+        target_email: bcBefore.email ?? null,
+        details: {
+          module_tag: "autopay",
+          action,
+          client_id: effectiveClientId,
+          account_id,
+          customer_id,
+          reason,
+          before_state: bcBefore,
+          after_state: after,
+        },
+      });
+      if (audErr) console.error("[autopay-audit-insert]", audErr);
     };
+
+    const writeActivityAndNote = async (
+      summary: string,
+      actionType: string,
+      afterData: Record<string, unknown>,
+    ) => {
+      if (!effectiveClientId) return;
+      try {
+        await admin.from("client_activity_logs").insert({
+          client_id:     effectiveClientId,
+          actor_user_id: user.id,
+          actor_name:    user.email ?? null,
+          actor_role:    "admin",
+          action_type:   actionType,
+          entity_type:   "billing_customer",
+          entity_id:     customer_id,
+          summary,
+          after_data:    afterData,
+        });
+        await admin.from("client_internal_notes").insert({
+          client_id:          effectiveClientId,
+          account_id:         account_id ?? null,
+          note_type:          "system",
+          body:               `${summary} — par ${user.email ?? user.id}`,
+          created_by_user_id: user.id,
+          created_by_role:    "admin",
+          created_by_name:    user.email ?? null,
+        });
+      } catch (e) { console.error("[autopay-activity-note]", e); }
+    };
+
+    const auditAction = `core_autopay_${action}`;
 
     // ── enable ──────────────────────────────────────────────────────────
     if (action === "enable_autopay") {
@@ -107,11 +167,12 @@ serve(async (req) => {
         .eq("id", customer_id);
       if (upErr) return json({ ok: false, error: `update failed: ${upErr.message}` }, 500);
 
-      await admin.from("admin_audit_log").insert({
-        admin_user_id: user.id, admin_email: user.email,
-        action: auditAction, target_type: "billing_customers", target_id: customer_id,
-        details: { ...baseDetails, after_state: { autopay_enabled: true } },
-      });
+      await writeAudit(auditAction, { autopay_enabled: true });
+      await writeActivityAndNote(
+        `AutoPay activé sur la carte ${bcBefore.square_card_brand} •••• ${bcBefore.square_card_last4} — motif: ${reason}`,
+        "autopay_enabled",
+        { autopay_enabled: true, card_last4: bcBefore.square_card_last4 },
+      );
       return json({ ok: true });
     }
 
@@ -124,11 +185,12 @@ serve(async (req) => {
         .eq("id", customer_id);
       if (upErr) return json({ ok: false, error: `update failed: ${upErr.message}` }, 500);
 
-      await admin.from("admin_audit_log").insert({
-        admin_user_id: user.id, admin_email: user.email,
-        action: auditAction, target_type: "billing_customers", target_id: customer_id,
-        details: { ...baseDetails, after_state: { autopay_enabled: false } },
-      });
+      await writeAudit(auditAction, { autopay_enabled: false, autopay_discount_active: false });
+      await writeActivityAndNote(
+        `AutoPay suspendu (carte conservée) — motif: ${reason}`,
+        "autopay_disabled",
+        { autopay_enabled: false },
+      );
       return json({ ok: true });
     }
 
@@ -143,11 +205,12 @@ serve(async (req) => {
       if (!res.ok || !detachJson?.ok) {
         return json({ ok: false, error: detachJson?.error ?? "detach failed" }, res.status || 500);
       }
-      await admin.from("admin_audit_log").insert({
-        admin_user_id: user.id, admin_email: user.email,
-        action: auditAction, target_type: "billing_customers", target_id: customer_id,
-        details: { ...baseDetails, after_state: { square_card_id: null, autopay_enabled: false } },
-      });
+      await writeAudit(auditAction, { square_card_id: null, autopay_enabled: false });
+      await writeActivityAndNote(
+        `Carte Square retirée (•••• ${bcBefore.square_card_last4 ?? "?"}) + AutoPay désactivé — motif: ${reason}`,
+        "autopay_card_detached",
+        { square_card_id: null, autopay_enabled: false },
+      );
       return json({ ok: true });
     }
 
@@ -178,18 +241,34 @@ serve(async (req) => {
         console.warn("[core-apply-autopay-action] retry executor invoke failed:", e);
       }
 
-      await admin.from("admin_audit_log").insert({
-        admin_user_id: user.id, admin_email: user.email,
-        action: auditAction, target_type: "billing_customers", target_id: customer_id,
-        details: {
-          ...baseDetails,
-          after_state: {
-            invoices_rescheduled: updated ?? [],
-            executor_summary: executor,
-          },
-        },
+      await writeAudit(auditAction, {
+        invoices_rescheduled: updated ?? [],
+        executor_summary: executor,
       });
+      await writeActivityAndNote(
+        `Relance AutoPay forcée — ${updated?.length ?? 0} facture(s) reprogrammée(s) — motif: ${reason}`,
+        "autopay_retry_forced",
+        { invoices_rescheduled_count: updated?.length ?? 0, invoice_id: invoice_id ?? null },
+      );
       return json({ ok: true, invoices_rescheduled: updated ?? [], executor });
+    }
+
+    // ── record_replace_card ─────────────────────────────────────────────
+    // The Square widget has already attached the card to billing_customers.
+    // We only stamp the audit trail + activity log + note with the operator identity.
+    if (action === "record_replace_card") {
+      const brand = replaced_card?.brand ?? bcBefore.square_card_brand ?? "?";
+      const last4 = replaced_card?.last4 ?? bcBefore.square_card_last4 ?? "?";
+      await writeAudit(auditAction, {
+        square_card_brand: brand,
+        square_card_last4: last4,
+      });
+      await writeActivityAndNote(
+        `Méthode de paiement remplacée — ${brand} •••• ${last4} — motif: ${reason}`,
+        "autopay_card_replaced",
+        { square_card_brand: brand, square_card_last4: last4 },
+      );
+      return json({ ok: true });
     }
 
     return json({ ok: false, error: "unhandled action" }, 400);
