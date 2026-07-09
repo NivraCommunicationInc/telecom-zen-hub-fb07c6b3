@@ -39,11 +39,20 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
   const [changeReason, setChangeReason] = useState("");
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
+  const CONFIRM_MESSAGES: Partial<Record<ActionKey, string>> = {
+    force_logout: "Révoquer toutes les sessions actives du client (web + mobile) ?",
+    set_temporary_password: "Générer un nouveau mot de passe temporaire ? L'ancien mot de passe sera invalidé.",
+    change_email: "Changer l'adresse courriel de connexion du client ? L'ancienne adresse sera notifiée.",
+  };
+
   const run = async (action: ActionKey, extra: Record<string, any> = {}) => {
     if (!clientEmail && action !== "force_logout") {
       toast.error("Aucun courriel client connu");
       return;
     }
+    const confirmMsg = CONFIRM_MESSAGES[action];
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+
     setBusy(action);
     setTempPassword(null);
     try {
@@ -62,9 +71,21 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
       if (action === "set_temporary_password" && (data as any)?.temporary_password) {
         setTempPassword((data as any).temporary_password);
       }
-      if (action === "change_email") setNewEmail("");
+      if (action === "change_email") {
+        setNewEmail("");
+        setChangeReason("");
+      }
     } catch (e: any) {
-      toast.error(e?.message || "Échec de l'action");
+      const msg = e?.message || "Échec de l'action";
+      if (msg.includes("Motif obligatoire")) {
+        toast.error("Motif obligatoire pour changer le courriel.");
+      } else if (msg.includes("Seul un admin")) {
+        toast.error("Seul un admin Core peut changer le courriel.");
+      } else if (msg.toLowerCase().includes("invalid")) {
+        toast.error("Nouveau courriel invalide.");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setBusy(null);
     }
