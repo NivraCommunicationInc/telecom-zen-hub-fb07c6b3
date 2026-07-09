@@ -228,14 +228,16 @@ serve(async (req) => {
           .single();
         if (error) return json(500, { error: error.message });
 
-        await audit("request_verification", { verification_id: data.id, id_type: idType });
+        const kycReq = await ensureKycRequest({ reuse: false, notes: body.notes ?? body.reason ?? null });
+        await audit("request_verification", { verification_id: data.id, id_type: idType, kyc_request_id: kycReq?.id ?? null });
         await enqueueEmail("client_kyc_requested", {
           id_type_label: idType,
           reason: body.reason || "Vérification d'identité requise",
-          expires_at: new Date(data.expires_at).toLocaleDateString("fr-CA"),
+          expires_at: new Date(kycReq?.expires_at || data.expires_at).toLocaleDateString("fr-CA"),
+          kyc_link: kycReq?.kyc_link ?? null,
         });
 
-        return json(200, { ok: true, verification_id: data.id });
+        return json(200, { ok: true, verification_id: data.id, kyc_request_id: kycReq?.id ?? null });
       }
 
       case "resend_request": {
@@ -250,13 +252,15 @@ serve(async (req) => {
         if (v.status === "approved" || v.status === "rejected") {
           return json(400, { error: "Demande déjà finalisée" });
         }
-        await audit("resend_request", { verification_id: v.id });
+        const kycReq = await ensureKycRequest({ reuse: true, notes: v.reason ?? null });
+        await audit("resend_request", { verification_id: v.id, kyc_request_id: kycReq?.id ?? null });
         await enqueueEmail("client_kyc_requested", {
           id_type_label: v.requested_id_type,
           reason: v.reason || "Rappel — vérification d'identité requise",
-          expires_at: new Date(v.expires_at).toLocaleDateString("fr-CA"),
+          expires_at: new Date(kycReq?.expires_at || v.expires_at).toLocaleDateString("fr-CA"),
+          kyc_link: kycReq?.kyc_link ?? null,
         });
-        return json(200, { ok: true });
+        return json(200, { ok: true, kyc_request_id: kycReq?.id ?? null });
       }
 
       case "approve_session": {
