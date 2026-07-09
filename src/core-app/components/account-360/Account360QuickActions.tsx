@@ -11,8 +11,7 @@ import {
 } from "lucide-react";
 import { AccountRestrictionsDialog } from "@/core-app/components/account-actions/AccountRestrictionsDialog";
 import { ResetClientPinDialog } from "@/core-app/components/account-actions/ResetClientPinDialog";
-import { AddCreditWithDurationDialog } from "@/core-app/components/account-actions/AddCreditWithDurationDialog";
-import { AccountAdjustmentDialog } from "@/core-app/components/account-actions/AccountAdjustmentDialog";
+import { AdjustmentsModule } from "@/core-app/components/account-360/modules/AdjustmentsModule";
 import { PauseAccountDialog, CancelAccountDialog } from "@/core-app/components/account-360/Account360RowDialogs";
 import { ReactivateAccountDialog } from "@/core-app/components/account-360/ReactivateAccountDialog";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -42,7 +41,7 @@ import { AccountPrivacyRequestsDialog } from "@/shared-ops/components/AccountPri
 import { AccountFraudRiskDialog } from "@/shared-ops/components/AccountFraudRiskDialog";
 import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch, RotateCcw, Undo2, Banknote, Repeat, Activity, TrendingUp, Home, ArrowUpCircle, TicketCheck, Sparkles, Star, ChevronDown, ChevronRight } from "lucide-react";
 import {
-  AccountWriteOffDialog, PaymentPlanDialog, AutopayRetryDialog,
+  PaymentPlanDialog, AutopayRetryDialog,
   RemoteRebootDialog, LineDiagnosticDialog, QuickPlanChangeDialog, ServiceMoveDialog,
   SupervisorEscalationDialog, CompensationVoucherDialog, VipChurnToggleDialog,
   FreezeCycleTrialDialog, NpsSatisfactionDialog, FraudLockDialog, ConsentJournalDialog,
@@ -75,8 +74,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [loading, setLoading] = useState(false);
   const [restrictionsOpen, setRestrictionsOpen] = useState(false);
   const [pinResetOpen, setPinResetOpen] = useState(false);
-  const [creditOpen, setCreditOpen] = useState(false);
-  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
+  const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
   const [pauseOpen, setPauseOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reactivateOpen, setReactivateOpen] = useState(false);
@@ -108,7 +106,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
 
   // New action states
   const [quickRefundOpen, setQuickRefundOpen] = useState(false);
-  const [writeOffOpen, setWriteOffOpen] = useState(false);
+  
   const [paymentPlanOpen, setPaymentPlanOpen] = useState(false);
   const [autopayRetryOpen, setAutopayRetryOpen] = useState(false);
   const [rebootOpen, setRebootOpen] = useState(false);
@@ -161,10 +159,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
       actions: [
         { icon: CreditCard, label: "Enregistrer paiement", onClick: () => setRecordPaymentOpen(true), color: "emerald" },
         { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices") },
-        { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
-        { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
+        { icon: Gift, label: "Ajustements compte", onClick: () => setAdjustmentsOpen(true), color: "emerald" },
         { icon: Undo2, label: "Remboursement rapide", onClick: () => setQuickRefundOpen(true), color: "warning" },
-        { icon: Banknote, label: "Write-off / Ajustement", onClick: () => setWriteOffOpen(true), color: "danger" },
         { icon: Repeat, label: "Plan de paiement", onClick: () => setPaymentPlanOpen(true), color: "violet" },
         { icon: RotateCcw, label: "Force AutoPay", onClick: () => setAutopayRetryOpen(true), color: "warning" },
         { icon: CreditCard, label: "Méthode de paiement", onClick: () => setBillingOpen(true), color: "violet" },
@@ -296,22 +292,20 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         onRefresh={onRefresh}
       />
 
-      <AddCreditWithDurationDialog
-        accountId={accountId}
-        customerId={customerId}
-        clientName={clientName}
-        open={creditOpen}
-        onClose={() => setCreditOpen(false)}
-        onRefresh={onRefresh}
-      />
+      {accountId && clientId && (
+        <AdjustmentsModule
+          open={adjustmentsOpen}
+          onClose={() => setAdjustmentsOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientUserId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
+        />
+      )}
 
-      <AccountAdjustmentDialog
-        accountId={accountId}
-        clientName={clientName}
-        open={adjustmentOpen}
-        onClose={() => setAdjustmentOpen(false)}
-        onRefresh={onRefresh}
-      />
+
 
       <PauseAccountDialog
         accountId={accountId}
@@ -609,15 +603,6 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           canonicalData={canonicalData}
         />
       )}
-      <AccountWriteOffDialog
-        open={writeOffOpen}
-        onClose={() => setWriteOffOpen(false)}
-        accountId={accountId ?? null}
-        clientUserId={clientId ?? null}
-        clientName={clientName}
-        clientEmail={clientEmail}
-        onRefresh={onRefresh}
-      />
       <PaymentPlanDialog
         open={paymentPlanOpen}
         onClose={() => setPaymentPlanOpen(false)}
