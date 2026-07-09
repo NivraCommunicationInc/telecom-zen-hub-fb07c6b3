@@ -670,14 +670,14 @@ serve(async (req) => {
         }
 
         // F13-3: Reject if this IP is already actively assigned (any client).
-        const { data: dup, error: dupErr } = await admin
+        const { data: dupRows, error: dupErr } = await admin
           .from("internet_static_ip_assignments")
           .select("id, user_id")
           .eq("ip_address", ip_address)
           .eq("status", "active")
-          .maybeSingle();
+          .limit(1);
         if (dupErr) return json(500, { error: dupErr.message });
-        if (dup) return json(409, { error: `IP ${ip_address} déjà attribuée` });
+        if (dupRows && dupRows.length > 0) return json(409, { error: `IP ${ip_address} déjà attribuée` });
 
         const { data, error } = await admin
           .from("internet_static_ip_assignments")
