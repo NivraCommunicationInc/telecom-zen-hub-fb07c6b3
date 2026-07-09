@@ -50,6 +50,7 @@ const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
 const CoreAccountDetail = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const data = useAccountProfile(accountId);
+  const { isAdmin: isAdminCore } = useIsCoreAdmin();
   const [activeSection, setActiveSection] = useState<SectionId>("profile");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
 
