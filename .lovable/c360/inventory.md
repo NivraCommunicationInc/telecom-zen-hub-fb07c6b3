@@ -14,8 +14,8 @@ Source vérifiée : `Account360QuickActions.tsx`, `Account360NewActionDialogs.ts
 | Bouton | Fichier UI | Edge Function canonique | État | Gap principal |
 |---|---|---|---|---|
 | Voir comme client | `useImpersonation` | `impersonation-*` (existant) | ⛔ | — |
-| Modifier le profil | `Account360ProfileEditDialog` | `client-account-admin` | 🟡 | pas dans shell, pas d'audit visible |
-| Accès en ligne | `ClientAccountAccessDialog` | `client-account-admin` | 🟡 | idem |
+| Modifier le profil | `Account360ProfileEditDialog` | `client-account-admin` | ✅ | validé E2E — voir `module1-modifier-profil.md` |
+| Accès en ligne | `ClientAccountAccessDialog` | `client-account-admin` | ✅ | validé E2E sans-email — voir `module2-access-en-ligne.md` |
 | VIP / Churn risk | `VipChurnToggleDialog` | *(aucune — écrit direct sur `accounts`/`account_tags`)* | 🟠 | pas de workflow canonique |
 | Pause temporaire | `PauseAccountDialog` | `account-ops-actions` (à confirmer) | 🟡 | — |
 | Annuler le compte | `CancelAccountDialog` | `account-ops-actions` | 🟡 | — |
