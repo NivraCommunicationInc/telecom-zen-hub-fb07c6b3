@@ -34,9 +34,8 @@ export function KYCRequestDialog({ open, onOpenChange, clientId, accountId, clie
           action: "request_verification",
           client_user_id: clientId,
           account_id: accountId ?? null,
-          requested_id_type: idType,
-          reason: reason || "Vérification d'identité requise",
-          notes: reason || null,
+          id_type: idType,
+          review_reason: reason || "Vérification d'identité requise",
         },
       });
       if (error) throw error;
