@@ -146,15 +146,29 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
-  const logActivity = async (action_type: string, description: string, metadata: Record<string, unknown>) => {
+  // Resolve actor role (best-effort) for traceability tables
+  const { data: actorRoleRow } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const actorRole = actorRoleRow?.role || "staff";
+
+  const logActivity = async (action_type: string, summary: string, metadata: Record<string, unknown>) => {
     try {
+      const before = (metadata as any)?.before ?? null;
+      const after = (metadata as any)?.after ?? null;
       await admin.from("client_activity_logs").insert({
-        user_id: client_user_id,
-        account_id: body.account_id ?? null,
+        client_id: client_user_id,
+        actor_user_id: user.id,
+        actor_name: actorName,
+        actor_role: actorRole,
         action_type,
-        description,
-        metadata: { ...metadata, actor_user_id: user.id, actor_email: actorEmail },
-        performed_by: user.id,
+        entity_type: "equipment",
+        entity_id: (metadata?.inventory_id as string) ?? null,
+        summary,
+        before_data: before,
+        after_data: after ?? { ...metadata, actor_email: actorEmail },
       });
     } catch (_e) { /* swallow */ }
   };
@@ -162,11 +176,13 @@ serve(async (req) => {
   const addSystemNote = async (prefix: string, message: string) => {
     try {
       await admin.from("client_internal_notes").insert({
-        user_id: client_user_id,
+        client_id: client_user_id,
         account_id: body.account_id ?? null,
         note_type: "system",
-        content: `[${prefix}] ${message} — par ${actorName}`,
-        created_by: user.id,
+        body: `[${prefix}] ${message} — par ${actorName}`,
+        created_by_user_id: user.id,
+        created_by_role: actorRole,
+        created_by_name: actorName,
       });
     } catch (_e) { /* swallow */ }
   };
@@ -495,19 +511,30 @@ serve(async (req) => {
         if (body.mac_address)   patch.mac_address = body.mac_address.trim();
         if (Object.keys(patch).length === 0) return json(400, { error: "Aucun identifiant à mettre à jour" });
 
+        // Capture before snapshot for audit trail
+        const { data: beforeRow } = await admin
+          .from("equipment_inventory")
+          .select("serial_number, imei, mac_address")
+          .eq("id", body.inventory_id)
+          .maybeSingle();
+        const before: Record<string, unknown> = {};
+        for (const k of Object.keys(patch)) before[k] = (beforeRow as any)?.[k] ?? null;
+
         const { error: updErr } = await admin
           .from("equipment_inventory")
           .update(patch)
           .eq("id", body.inventory_id);
         if (updErr) return json(500, { error: updErr.message });
-        await audit("update_serial", { inventory_id: body.inventory_id, patch });
+        await audit("update_serial", { inventory_id: body.inventory_id, before, after: patch });
         await logActivity("equipment_identifiers_updated", `Identifiants mis à jour: ${row.catalog_name || "Équipement"}`, {
           inventory_id: body.inventory_id,
-          patch,
+          before,
+          after: patch,
         });
         await addSystemNote("EQUIPMENT.UPDATE_SERIAL", `Identifiants mis à jour sur ${row.catalog_name || "Équipement"}: ${Object.keys(patch).join(", ")}`);
         return json(200, { ok: true });
       }
+
 
       default:
         return json(400, { error: `Action inconnue: ${action}` });
