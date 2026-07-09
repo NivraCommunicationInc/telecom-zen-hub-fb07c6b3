@@ -325,23 +325,21 @@ export function AutopayModule({
               customerId={bc.square_customer_id}
               onSaved={(brand, last4) => {
                 qc.invalidateQueries({ queryKey: ["core-autopay-bc"] });
-                // Audit trail via a lightweight admin_audit_log row through the Edge Function:
-                supabase.from("admin_audit_log").insert({
-                  admin_user_id: null,
-                  admin_email: null,
-                  action: "core_autopay_replace_card",
-                  target_type: "billing_customers",
-                  target_id: bc.id,
-                  details: {
-                    module_tag: "autopay",
-                    action: "replace_card",
-                    client_id: clientId,
-                    account_id: accountId,
-                    after_state: { square_card_brand: brand, square_card_last4: last4 },
-                  },
-                }).then(() => {});
+                // Audit + activity + note via canonical EF (F10-1 mapping enforced)
+                callCoreAction("core-apply-autopay-action", {
+                  action: "record_replace_card",
+                  customer_id: effectiveCustomerId,
+                  client_id: clientId,
+                  account_id: accountId,
+                  replaced_card: { brand, last4 },
+                }, {
+                  reason: `Remplacement méthode de paiement (${brand} •••• ${last4})`,
+                  successMessage: "Nouvelle carte enregistrée",
+                  queryClient: qc,
+                });
               }}
             />
+
           )}
         </div>
       )}
