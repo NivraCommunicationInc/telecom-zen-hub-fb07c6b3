@@ -127,36 +127,58 @@ Deno.serve(async (req) => {
       return jsonResp({ error: completeErr?.message || (completeRes as any)?.error || "Échec" }, 500, corsHeaders);
     }
 
-    // Mirror onto identity_verification_sessions for the same order so the
-    // agent-side KycStep shows all 3 photos. Best-effort: if no session row
-    // exists yet for this order, we skip silently â€” the admin can still
-    // open the document via the kyc_requests row.
-    if (reqRow.order_id) {
-      try {
+    // Mirror uploaded files onto the canonical identity_verification_sessions
+    // row so Client 360 shows all 3 photos immediately.
+    //
+    // Resolution order:
+    //   1) kyc_requests.session_id  -> account-level Client 360 request (canonical link)
+    //   2) latest IVS row for reqRow.order_id -> order-bound request
+    //
+    // If neither exists the mirror is skipped (very old requests only).
+    try {
+      let ivsId: string | null = null;
+
+      const { data: reqDetails } = await supabase
+        .from("kyc_requests")
+        .select("session_id, client_id")
+        .eq("id", reqRow.id)
+        .maybeSingle();
+
+      if (reqDetails?.session_id) {
+        ivsId = reqDetails.session_id as string;
+      } else if (reqRow.order_id) {
         const { data: ivsRows } = await supabase
           .from("identity_verification_sessions")
           .select("id")
           .eq("order_id", reqRow.order_id)
           .order("created_at", { ascending: false })
           .limit(1);
-
-        const ivsId = ivsRows?.[0]?.id;
-        if (ivsId) {
-          await supabase
-            .from("identity_verification_sessions")
-            .update({
-              document_front_path: upFront.path!,
-              document_back_path: backPath,
-              selfie_path: selfiePath,
-              document_type: docType,
-              status: "submitted",
-              submitted_at: new Date().toISOString(),
-            } as any)
-            .eq("id", ivsId);
-        }
-      } catch (e) {
-        console.warn("[kyc-public-upload] IVS mirror failed:", e);
+        ivsId = ivsRows?.[0]?.id ?? null;
       }
+
+      if (ivsId) {
+        await supabase
+          .from("identity_verification_sessions")
+          .update({
+            document_front_path: upFront.path!,
+            document_back_path: backPath,
+            selfie_path: selfiePath,
+            document_type: docType,
+            status: "submitted",
+            submitted_at: new Date().toISOString(),
+          } as any)
+          .eq("id", ivsId);
+
+        await supabase.from("identity_verification_events").insert({
+          session_id: ivsId,
+          event_type: "client_submitted",
+          actor_id: reqDetails?.client_id ?? null,
+          actor_role: "client",
+          details: { document_type: docType, three_file: isThreeFile, kyc_request_id: reqRow.id },
+        });
+      }
+    } catch (e) {
+      console.warn("[kyc-public-upload] IVS mirror failed:", e);
     }
 
     // Notify admin team
