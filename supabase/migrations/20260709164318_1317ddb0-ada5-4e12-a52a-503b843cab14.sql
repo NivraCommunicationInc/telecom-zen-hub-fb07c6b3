@@ -1,0 +1,1 @@
+DELETE FROM public.email_queue WHERE to_email ILIKE '%nivra-test.ca%';
