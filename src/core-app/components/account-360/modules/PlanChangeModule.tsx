@@ -64,19 +64,16 @@ export function PlanChangeModule({ open, onClose, accountId, clientId, clientNam
   const currentCategory = selectedSub?.service_category ?? null;
   const currentPrice = Number(selectedSub?.plan_price || 0);
 
-  // ── Catalogue: forfaits disponibles ─────────────────────
+  // ── Catalogue: 100% des forfaits disponibles (catalogue officiel Nivra) ─
   const catalogQ = useQuery({
-    queryKey: ["core-plan-catalog", currentCategory],
+    queryKey: ["core-plan-catalog-full"],
     enabled: open,
     queryFn: async () => {
-      let q = supabase.from("services")
-        .select("id, plan_code, name, category, price, short_description, is_featured, is_recommended")
-        .eq("is_active", true)
-        .eq("status", "active")
+      const { data, error } = await supabase.from("services")
+        .select("id, plan_code, name, category, price, short_description, is_featured, is_recommended, is_active, status")
+        .or("is_active.eq.true,status.eq.active")
         .order("category")
         .order("price");
-      if (currentCategory) q = q.eq("category", currentCategory);
-      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
