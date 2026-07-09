@@ -25,7 +25,7 @@ Source vérifiée : `Account360QuickActions.tsx`, `Account360NewActionDialogs.ts
 
 | Bouton | Fichier UI | Edge Function canonique | État | Gap |
 |---|---|---|---|---|
-| Enregistrer paiement | navigate → `payments` section | `record-employee-payment` / `square-charge-invoice` | 🔴 | pas de centre de contrôle dans 360 |
+| Enregistrer paiement | `RecordPaymentModule` | `core-record-payment` (→ `apply_payment_to_invoice`/`apply_credit_to_invoice`) | 🟡 | corrections statiques déposées — voir `module7-enregistrer-paiement.md`. Statut : OPEN — STATIC FIXES DONE — E2E PENDING |
 | Ouvrir facture | navigate → `invoices` | — | 🔴 | idem |
 | Crédit / Promotion | `AddCreditWithDurationDialog` | `account-ops-actions` (à vérifier) | 🟡 | pas dans shell |
 | Crédit / Frais facture | `AccountAdjustmentDialog` | idem | 🟡 | idem |
