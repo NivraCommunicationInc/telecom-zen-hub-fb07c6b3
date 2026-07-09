@@ -106,7 +106,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
 
   // New action states
   const [quickRefundOpen, setQuickRefundOpen] = useState(false);
-  const [writeOffOpen, setWriteOffOpen] = useState(false);
+  
   const [paymentPlanOpen, setPaymentPlanOpen] = useState(false);
   const [autopayRetryOpen, setAutopayRetryOpen] = useState(false);
   const [rebootOpen, setRebootOpen] = useState(false);
