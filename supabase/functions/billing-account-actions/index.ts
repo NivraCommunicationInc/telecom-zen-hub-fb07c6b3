@@ -558,7 +558,7 @@ serve(async (req) => {
         // canonique `refund_payment` — aucune mutation directe des tables
         // financières côté Edge Function.
         // ────────────────────────────────────────────────────────────────
-        if (refund_method === "original" && body.payment_id) {
+        if (refund_method === "square" && body.payment_id) {
           const { data: payment, error: payErr } = await admin
             .from("billing_payments")
             .select("id, amount, status, provider, provider_payment_id, invoice_id")
