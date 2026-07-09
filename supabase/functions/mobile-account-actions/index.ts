@@ -297,6 +297,13 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("add_addon", { addon_id: data.id, addon_code, monthly_price });
+        await logActivity(
+          "service_add",
+          `Option mobile ajoutée: ${addon_name} (${fmtMoney(monthly_price)}/mois)`,
+          data.id,
+          { addon_id: data.id, addon_code, addon_name, addon_type, monthly_price, one_time_price },
+        );
+        await addNote(`[MOBILE.ADD_ADDON] ${addon_name} — ${addon_code} — ${fmtMoney(monthly_price)}/mois`);
         await enqueueEmail("client_mobile_addon_change", {
           addon_name,
           monthly_price: fmtMoney(monthly_price),
