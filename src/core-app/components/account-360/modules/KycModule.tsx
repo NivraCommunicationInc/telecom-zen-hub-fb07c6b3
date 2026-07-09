@@ -101,9 +101,27 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
     },
   });
 
+  const kycRequestsQ = useQuery({
+    queryKey: ["core-kyc-requests", clientId],
+    enabled: open && !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("kyc_requests")
+        .select("id, token, status, expires_at, created_at, notes")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const latestVerification = verificationsQ.data?.[0];
   const latestSession = sessionsQ.data?.[0];
   const selectedSessionId = latestSession?.id ?? null;
+  const latestKycRequest = (kycRequestsQ.data ?? []).find(
+    (r: any) => ["pending", "sent"].includes(r.status) && new Date(r.expires_at).getTime() > Date.now()
+  ) ?? kycRequestsQ.data?.[0];
 
   const docsQ = useQuery({
     queryKey: ["core-kyc-docs", selectedSessionId],
