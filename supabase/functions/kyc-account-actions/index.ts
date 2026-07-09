@@ -263,6 +263,9 @@ serve(async (req) => {
         const idType = (body.requested_id_type || "drivers_license").trim();
         if (!ALLOWED_ID_TYPES.has(idType)) return json(400, { error: "Type d'identité invalide" });
 
+        // Create the IVS session + linked kyc_requests row first so we have session_id for kyc_verifications.
+        const kycReq = await ensureKycRequest({ reuse: false, notes: body.notes ?? body.reason ?? null });
+
         const { data, error } = await admin
           .from("kyc_verifications")
           .insert({
@@ -273,13 +276,13 @@ serve(async (req) => {
             notes: body.notes ?? null,
             requested_by: user.id,
             status: "pending",
+            session_id: kycReq?.session_id ?? null,
           })
           .select("id, expires_at")
           .single();
         if (error) return json(500, { error: error.message });
 
-        const kycReq = await ensureKycRequest({ reuse: false, notes: body.notes ?? body.reason ?? null });
-        await audit("request_verification", { verification_id: data.id, id_type: idType, kyc_request_id: kycReq?.id ?? null });
+        await audit("request_verification", { verification_id: data.id, id_type: idType, kyc_request_id: kycReq?.id ?? null, session_id: kycReq?.session_id ?? null });
         await enqueueEmail("client_kyc_requested", {
           id_type_label: idType,
           reason: body.reason || "Vérification d'identité requise",
@@ -287,7 +290,7 @@ serve(async (req) => {
           kyc_link: kycReq?.kyc_link ?? null,
         });
 
-        return json(200, { ok: true, verification_id: data.id, kyc_request_id: kycReq?.id ?? null });
+        return json(200, { ok: true, verification_id: data.id, kyc_request_id: kycReq?.id ?? null, session_id: kycReq?.session_id ?? null });
       }
 
       case "resend_request": {
