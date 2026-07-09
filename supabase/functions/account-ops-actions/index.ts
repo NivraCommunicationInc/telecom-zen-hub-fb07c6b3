@@ -477,14 +477,19 @@ serve(async (req) => {
         }).eq("id", body.account_id);
         if (upErr) return json(500, { error: upErr.message });
 
-        // Cancel any active/past_due/trialing subscriptions (billing_subscriptions is keyed by customer_id = auth user id)
+        // Cascade: cancel every non-terminal subscription. Include pending/paused states so QA-provisioned
+        // or trigger-normalized rows don't slip through. Terminal states (cancelled/terminated/expired/refunded)
+        // are excluded to keep this idempotent.
+        // Enum billing_subscription_status: active | pending | suspended | cancelled | expired | not_renewed.
+        // Cascade all non-terminal states; leave cancelled/expired/not_renewed alone.
+        const NON_TERMINAL_STATES = ["active", "pending", "suspended"];
         let cancelledSubs = 0;
         try {
           const { data: subs, error: subErr } = await admin
             .from("billing_subscriptions")
             .update({ status: "cancelled", updated_at: nowIso })
             .eq("customer_id", client_user_id)
-            .in("status", ["active", "past_due", "trialing"])
+            .in("status", NON_TERMINAL_STATES)
             .select("id");
           if (subErr) console.error("cancel_account subs update", subErr);
           cancelledSubs = subs?.length ?? 0;
