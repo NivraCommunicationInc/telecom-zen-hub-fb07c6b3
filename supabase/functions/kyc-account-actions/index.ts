@@ -209,12 +209,14 @@ serve(async (req) => {
     // 2) Create (or reattach) the kyc_requests row that carries the wizard token.
     let requestRow: { id: string; token: string; expires_at: string } | null = null;
     if (opts.reuse) {
-      const { data: reusable } = await admin
+      let reusableQuery = admin
         .from("kyc_requests")
         .select("id, token, expires_at, status")
         .eq("client_id", client_user_id)
         .in("status", ["pending", "sent"])
-        .gt("expires_at", new Date().toISOString())
+        .gt("expires_at", new Date().toISOString());
+      if (opts.sessionId) reusableQuery = reusableQuery.eq("session_id", opts.sessionId);
+      const { data: reusable } = await reusableQuery
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -397,6 +399,7 @@ serve(async (req) => {
             rejection_reason: body.review_reason.trim(),
           })
           .eq("client_id", client_user_id)
+          .eq("session_id", body.session_id)
           .eq("status", "pending");
 
         const rejectKyc = await ensureKycRequest({ reuse: false, notes: `Rejet: ${body.review_reason.trim()}` });
@@ -421,7 +424,7 @@ serve(async (req) => {
         const { error } = await admin
           .from("identity_verification_sessions")
           .update({
-            status: "additional_required",
+            status: "pending_docs",
             reviewed_at: new Date().toISOString(),
             reviewed_by: user.id,
             review_reason: body.review_reason.trim(),
@@ -430,7 +433,19 @@ serve(async (req) => {
           .eq("id", body.session_id);
         if (error) return json(500, { error: error.message });
 
-        const addKyc = await ensureKycRequest({ reuse: true, notes: `Docs additionnels: ${body.review_reason.trim()}` });
+        if (required.length > 0) {
+          const rows = required.map((docType) => ({
+            kyc_session_id: body.session_id,
+            doc_type: docType,
+            instructions: body.review_reason.trim(),
+            status: "requested",
+            requested_by_admin_id: user.id,
+            requested_at: new Date().toISOString(),
+          }));
+          await admin.from("kyc_requested_documents").insert(rows);
+        }
+
+        const addKyc = await ensureKycRequest({ reuse: true, notes: `Docs additionnels: ${body.review_reason.trim()}`, sessionId: body.session_id });
         await ivsEvent(body.session_id, "staff_additional_required", {
           reason: body.review_reason, required_docs: required,
         });
@@ -454,13 +469,31 @@ serve(async (req) => {
           .select("id, doc_type, storage_bucket, object_path, mime_type")
           .eq("kyc_session_id", body.session_id);
 
-        const out: Array<{ id: string; doc_type: string; mime_type: string | null; url: string | null }> = [];
+        const { data: requestedDocs } = await admin
+          .from("kyc_requested_documents")
+          .select("id, doc_type, uploaded_file_url")
+          .eq("kyc_session_id", body.session_id)
+          .not("uploaded_file_url", "is", null);
+
+        const out: Array<{ id: string; doc_type: string; mime_type: string | null; url: string | null; source?: string }> = [];
         for (const d of (docs || [])) {
           const { data: signed } = await admin
             .storage.from(d.storage_bucket).createSignedUrl(d.object_path, 300);
           out.push({
             id: d.id, doc_type: d.doc_type, mime_type: d.mime_type,
             url: signed?.signedUrl || null,
+          });
+        }
+        for (const d of (requestedDocs || [])) {
+          if (!d.uploaded_file_url) continue;
+          const { data: signed } = await admin
+            .storage.from("id-documents").createSignedUrl(d.uploaded_file_url, 300);
+          out.push({
+            id: d.id,
+            doc_type: d.doc_type,
+            mime_type: null,
+            url: signed?.signedUrl || null,
+            source: "kyc_requested_documents",
           });
         }
 
