@@ -141,7 +141,7 @@ serve(async (req) => {
       const { data: acc } = await admin
         .from("accounts")
         .select("id")
-        .eq("customer_id", targetId)
+        .eq("client_id", targetId)
         .maybeSingle();
       accountId = (acc as any)?.id ?? null;
     }
