@@ -51,6 +51,7 @@ import { ClientNotesDrawer } from "@/core-app/components/notes/ClientNotesDrawer
 import { PlanChangeModule } from "@/core-app/components/account-360/modules/PlanChangeModule";
 import { KycModule } from "@/core-app/components/account-360/modules/KycModule";
 import { RecordPaymentModule } from "@/core-app/components/account-360/modules/RecordPaymentModule";
+import { RefundModule } from "@/core-app/components/account-360/modules/RefundModule";
 
 
 
