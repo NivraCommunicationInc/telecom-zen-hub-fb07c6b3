@@ -111,6 +111,14 @@ serve(async (req) => {
   const clientEmail = profile?.email || null;
   const firstName = profile?.first_name || "Client";
 
+  const { data: callerProfile } = await admin
+    .from("profiles")
+    .select("first_name,last_name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const callerName = [callerProfile?.first_name, callerProfile?.last_name]
+    .filter(Boolean).join(" ") || "Personnel Nivra";
+
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("cf-connecting-ip") || "unknown";
