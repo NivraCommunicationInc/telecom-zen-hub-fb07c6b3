@@ -1,0 +1,2 @@
+ALTER TABLE public.payment_disputes DROP CONSTRAINT IF EXISTS payment_disputes_payment_id_fkey;
+ALTER TABLE public.payment_disputes ADD CONSTRAINT payment_disputes_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.billing_payments(id) ON DELETE RESTRICT;
