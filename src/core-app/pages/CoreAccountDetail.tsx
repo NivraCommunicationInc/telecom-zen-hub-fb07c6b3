@@ -14,6 +14,7 @@ import { Account360QuickActions } from "@/core-app/components/account-360/Accoun
 import { AccountAdjustmentsList } from "@/core-app/components/account-actions/AccountAdjustmentsList";
 import { Account360RightPanel } from "@/core-app/components/account-360/Account360RightPanel";
 import { Account360ProfileEditDialog } from "@/core-app/components/account-360/Account360ProfileEditDialog";
+import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
 import { ClientPaymentsHistory } from "@/shared-ops/components/ClientPaymentsHistory";
 import {
   ProfileSection, BillingSection, SubscriptionsSection, OrdersSection,
@@ -49,6 +50,7 @@ const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
 const CoreAccountDetail = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const data = useAccountProfile(accountId);
+  const { isAdmin: isAdminCore } = useIsCoreAdmin();
   const [activeSection, setActiveSection] = useState<SectionId>("profile");
   const [editProfileOpen, setEditProfileOpen] = useState(false);
 
@@ -279,6 +281,7 @@ const CoreAccountDetail = () => {
         account={acct}
         profile={prof}
         clientId={data.clientId}
+        isAdminCore={isAdminCore}
         onSaved={data.refetch}
       />
     </div>
