@@ -56,6 +56,7 @@ const STATUS_BADGE: Record<string, { label: string; variant: any }> = {
   submitted: { label: "Soumis", variant: "default" },
   in_review: { label: "En révision", variant: "default" },
   additional_required: { label: "Docs additionnels", variant: "outline" },
+  pending_docs: { label: "Docs additionnels", variant: "outline" },
   approved: { label: "Approuvé", variant: "default" },
   rejected: { label: "Rejeté", variant: "destructive" },
   expired: { label: "Expiré", variant: "outline" },
@@ -75,6 +76,7 @@ type ActionMode = "idle" | "request" | "resend" | "approve" | "reject" | "additi
 
 export function KycModule({ open, onClose, accountId, clientId, clientName, clientEmail }: Props) {
   const qc = useQueryClient();
+  const [selectedSessionIdOverride, setSelectedSessionIdOverride] = useState<string | null>(null);
 
   useModuleRealtime({
     tables: ["kyc_verifications", "kyc_requests", "identity_verification_sessions", "identity_verification_events", "identity_documents", "kyc_requested_documents"],
@@ -107,7 +109,7 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
     queryFn: async () => {
       const { data, error } = await supabase
         .from("kyc_requests")
-        .select("id, token, status, expires_at, created_at, notes")
+        .select("id, token, status, expires_at, created_at, notes, session_id")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false })
         .limit(10);
@@ -116,10 +118,12 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
     },
   });
 
-  const latestVerification = verificationsQ.data?.[0];
-  const latestSession = sessionsQ.data?.[0];
+  const latestSession = (sessionsQ.data ?? []).find((s: any) => s.id === selectedSessionIdOverride) ?? sessionsQ.data?.[0];
+  const latestVerification = (verificationsQ.data ?? []).find((v: any) => v.session_id === latestSession?.id) ?? verificationsQ.data?.[0];
   const selectedSessionId = latestSession?.id ?? null;
   const latestKycRequest = (kycRequestsQ.data ?? []).find(
+    (r: any) => r.session_id === selectedSessionId && ["pending", "sent"].includes(r.status) && new Date(r.expires_at).getTime() > Date.now()
+  ) ?? (kycRequestsQ.data ?? []).find(
     (r: any) => ["pending", "sent"].includes(r.status) && new Date(r.expires_at).getTime() > Date.now()
   ) ?? kycRequestsQ.data?.[0];
 
@@ -158,7 +162,7 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
   const kycState = useMemo(() => {
     if (latestSession?.status === "approved") return { label: "Vérifié", color: "text-emerald-500", icon: ShieldCheck, level: "Niveau 2 — Documents validés" };
     if (latestSession?.status === "rejected") return { label: "Rejeté", color: "text-red-500", icon: ShieldAlert, level: "Aucun" };
-    if (latestSession?.status === "additional_required") return { label: "Docs additionnels", color: "text-amber-500", icon: ShieldQuestion, level: "Niveau 1 — Partiel" };
+    if (latestSession?.status === "additional_required" || latestSession?.status === "pending_docs") return { label: "Docs additionnels", color: "text-amber-500", icon: ShieldQuestion, level: "Niveau 1 — Partiel" };
     if (latestSession?.status === "submitted" || latestSession?.status === "in_review") return { label: "En révision", color: "text-blue-500", icon: Clock, level: "Niveau 1 — Soumis" };
     if (latestVerification?.status === "pending") return { label: "Demande envoyée", color: "text-amber-500", icon: Clock, level: "Aucun" };
     return { label: "Non vérifié", color: "text-muted-foreground", icon: ShieldQuestion, level: "Aucun" };
@@ -178,8 +182,9 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
   const resetActionState = () => { setMode("idle"); setReason(""); setNotes(""); setReviewReason(""); setAdditionalDocs(""); };
 
   // ═══════ BLOC RÉSUMÉ ═══════
-  const receivedCount = docsQ.data?.length ?? 0;
   const requestedList = requestedDocsQ.data ?? [];
+  const uploadedRequestedDocs = requestedList.filter((r: any) => !!r.uploaded_file_url);
+  const receivedCount = (docsQ.data?.length ?? 0) + uploadedRequestedDocs.length;
   const missingCount = requestedList.filter((r: any) => r.status === "requested" || !r.uploaded_at).length;
   const rejectedCount = requestedList.filter((r: any) => r.status === "rejected").length;
   const additionalDocsList: string[] = Array.isArray(latestSession?.additional_docs) ? latestSession.additional_docs : [];
@@ -288,7 +293,7 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
   // ═══════ BLOC DOCUMENTS CATÉGORISÉS ═══════
   const receivedDocs = (docsQ.data ?? []) as any[];
   const rejectedDocs = requestedList.filter((r: any) => r.status === "rejected");
-  const missingDocs = requestedList.filter((r: any) => r.status === "requested" || (!r.uploaded_at && r.status !== "rejected"));
+  const missingDocs = requestedList.filter((r: any) => !r.uploaded_file_url && (r.status === "requested" || (!r.uploaded_at && r.status !== "rejected")));
 
   const findSignedUrl = (docId: string) => signedUrls?.find((s) => s.id === docId)?.url ?? null;
 
@@ -318,6 +323,24 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
                   <span className="font-medium">{d.doc_type}</span>{" "}
                   <span className="text-muted-foreground">({d.mime_type || "?"} · {d.file_size_bytes ? `${Math.round(d.file_size_bytes / 1024)} Ko` : "?"})</span>
                   <div className="text-[10px] text-muted-foreground">Déposé {fmtDate(d.created_at)}</div>
+                </div>
+                {url && (
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" asChild><a href={url} target="_blank" rel="noreferrer"><Eye className="h-3 w-3" /></a></Button>
+                    <Button size="sm" variant="ghost" asChild><a href={url} download><Download className="h-3 w-3" /></a></Button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          {uploadedRequestedDocs.map((d: any) => {
+            const url = findSignedUrl(d.id);
+            return (
+              <li key={d.id} className="text-xs border rounded px-2 py-1.5 flex items-center justify-between bg-emerald-500/5">
+                <div>
+                  <span className="font-medium">{d.doc_type}</span>{" "}
+                  <span className="text-muted-foreground">(document additionnel)</span>
+                  <div className="text-[10px] text-muted-foreground">Déposé {fmtDate(d.uploaded_at)}</div>
                 </div>
                 {url && (
                   <div className="flex gap-1">
@@ -385,15 +408,32 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
       {docsBlock}
 
       <section>
-        <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Toutes les demandes admin ({verificationsQ.data?.length ?? 0})</h4>
+        <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Dossiers KYC ({sessionsQ.data?.length ?? 0})</h4>
+        <div className="space-y-1 mb-3">
+          {sessionsQ.data?.map((s: any) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => { setSelectedSessionIdOverride(s.id); setSignedUrls(null); }}
+              className={cn("w-full text-xs flex justify-between border rounded px-2 py-1.5 text-left", selectedSessionId === s.id ? "border-primary bg-primary/10" : "hover:bg-muted/40")}
+            >
+              <span>{fmtDate(s.created_at)} — dossier {s.case_number || s.reference_code || s.id.slice(0, 8)}</span>
+              <Badge variant={STATUS_BADGE[s.status]?.variant ?? "secondary"}>
+                {STATUS_BADGE[s.status]?.label ?? s.status}
+              </Badge>
+            </button>
+          ))}
+        </div>
+
+        <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Demandes agent ({verificationsQ.data?.length ?? 0})</h4>
         <div className="space-y-1">
           {verificationsQ.data?.map((v: any) => (
-            <div key={v.id} className="text-xs flex justify-between border rounded px-2 py-1">
+            <button key={v.id} type="button" onClick={() => v.session_id && setSelectedSessionIdOverride(v.session_id)} className="w-full text-xs flex justify-between border rounded px-2 py-1 text-left hover:bg-muted/40">
               <span>{fmtDate(v.created_at)} — {v.requested_id_type}</span>
               <Badge variant={STATUS_BADGE[v.status]?.variant ?? "secondary"}>
                 {STATUS_BADGE[v.status]?.label ?? v.status}
               </Badge>
-            </div>
+            </button>
           ))}
         </div>
       </section>
@@ -440,7 +480,7 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
   );
 
   // ═══════ Onglet ACTIONS ═══════
-  const canApprove = !!latestSession && ["submitted", "in_review"].includes(latestSession.status);
+  const canApprove = !!latestSession && ["submitted", "in_review", "pending_docs"].includes(latestSession.status);
   const canReject = canApprove;
   const canAdditional = canApprove;
   const canResend = !!latestVerification && !["approved", "rejected"].includes(latestVerification.status);
@@ -537,7 +577,7 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
 
     switch (mode) {
       case "request":
-        payload = { ...payload, action: "request_verification", requested_id_type: idType, reason: reason || "Vérification d'identité requise", notes: notes || null };
+        payload = { ...payload, action: "request_verification", id_type: idType, review_reason: reason || notes || "Vérification d'identité requise" };
         successMsg = "Demande KYC envoyée au client";
         break;
       case "resend":
@@ -615,6 +655,8 @@ function getActionMeta(mode: ActionMode, ctx: { clientEmail?: string | null; idT
     ],
     tables: [
       { table: "kyc_verifications", rows: 1, note: "insert" },
+      { table: "identity_verification_sessions", rows: 1, note: "session IVS canonique" },
+      { table: "kyc_requests", rows: 1, note: "token public /verification/:token" },
       { table: "admin_audit_log", rows: 1, note: "account_ops.kyc_request_verification" },
       { table: "email_queue", rows: 1 },
     ],
@@ -652,11 +694,13 @@ function getActionMeta(mode: ActionMode, ctx: { clientEmail?: string | null; idT
   };
   if (mode === "additional") return {
     impact: [
-      { label: "Session", before: "submitted", after: "additional_required" },
+      { label: "Session", before: "submitted", after: "pending_docs" },
       { label: "Docs requis", before: "—", after: ctx.additionalDocs || "—" },
     ],
     tables: [
-      { table: "identity_verification_sessions", rows: 1, note: "status=additional_required + additional_docs[]" },
+      { table: "identity_verification_sessions", rows: 1, note: "status=pending_docs + additional_docs[]" },
+      { table: "kyc_requested_documents", rows: undefined, note: "1 row par document demandé" },
+      { table: "kyc_requests", rows: 1, note: "lien public réutilisé/créé" },
       { table: "identity_verification_events", rows: 1, note: "staff_additional_required" },
       { table: "admin_audit_log", rows: 1 },
       { table: "email_queue", rows: 1 },

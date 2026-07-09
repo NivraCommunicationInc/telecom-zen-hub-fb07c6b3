@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
       try {
         const { data: session } = await serviceClient
           .from("identity_verification_sessions")
-          .select("user_id, case_number, id").eq("id", session_id).single();
+          .select("user_id, case_number, id, public_token").eq("id", session_id).single();
         if (session) {
           const { data: profile } = await serviceClient
             .from("profiles").select("email, full_name").eq("id", session.user_id).single();
@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
                     ["Dossier", session.case_number || "—"],
                     ["Liste", docList.replace(/\n/g, " · ")],
                   ],
-                  ctaPrimaryUrl: "https://nivra-telecom.ca/portal/identity-verification",
+                  ctaPrimaryUrl: session.public_token ? `https://nivra-telecom.ca/verification/${session.public_token}` : "https://nivra-telecom.ca/verification/",
                   ctaPrimaryLabel: "Téléverser mes documents",
                   helpVariant: "warning",
                 }),

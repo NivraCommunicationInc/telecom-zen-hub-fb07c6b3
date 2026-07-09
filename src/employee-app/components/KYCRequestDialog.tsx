@@ -15,42 +15,31 @@ interface Props {
   clientEmail?: string | null;
 }
 
-const ID_TYPES = ["Permis de conduire", "Passeport", "Carte d'identité provinciale", "Autre"];
+const ID_TYPES = [
+  { value: "drivers_license", label: "Permis de conduire" },
+  { value: "passport", label: "Passeport" },
+  { value: "provincial_id", label: "Carte d'identité provinciale" },
+  { value: "other", label: "Autre" },
+];
 
 export function KYCRequestDialog({ open, onOpenChange, clientId, accountId, clientName, clientEmail }: Props) {
   const queryClient = useQueryClient();
-  const [idType, setIdType] = useState(ID_TYPES[0]);
+  const [idType, setIdType] = useState(ID_TYPES[0].value);
   const [reason, setReason] = useState("");
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const actorId = sessionData.session?.user.id;
-      if (!actorId) throw new Error("Non authentifié");
-      const { data: row, error } = await supabase.from("kyc_verifications" as any).insert({
-        client_id: clientId,
-        account_id: accountId ?? null,
-        requested_id_type: idType,
-        reason: reason || null,
-        notes: reason || null,
-        status: "pending",
-        requested_by: actorId,
-      }).select("id").single();
+      const { data: row, error } = await supabase.functions.invoke("kyc-account-actions", {
+        body: {
+          action: "request_verification",
+          client_user_id: clientId,
+          account_id: accountId ?? null,
+          id_type: idType,
+          review_reason: reason || "Vérification d'identité requise",
+        },
+      });
       if (error) throw error;
-      if (clientEmail) {
-        await supabase.from("email_queue").insert({
-          event_key: `kyc_request_client_${row.id}`,
-          to_email: clientEmail,
-          template_key: "kyc_request_client",
-          template_vars: {
-            client_name: clientName ?? "Client",
-            requested_id_type: idType,
-            reason,
-            verification_url: "https://nivra-telecom.ca/portail/identite",
-          },
-          status: "queued",
-        } as any);
-      }
+      if (!row?.ok) throw new Error(row?.error || "Échec de création KYC");
       return row;
     },
     onSuccess: () => {
@@ -69,7 +58,7 @@ export function KYCRequestDialog({ open, onOpenChange, clientId, accountId, clie
           <DialogDescription>{clientName ?? "Client"} recevra une demande de pièce d’identité.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div><label className="text-xs text-muted-foreground">Type de pièce</label><select value={idType} onChange={(e) => setIdType(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm">{ID_TYPES.map((t) => <option key={t}>{t}</option>)}</select></div>
+          <div><label className="text-xs text-muted-foreground">Type de pièce</label><select value={idType} onChange={(e) => setIdType(e.target.value)} className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm">{ID_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
           <div><label className="text-xs text-muted-foreground">Notes / raison</label><textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" /></div>
           <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button><Button disabled={mutation.isPending} onClick={() => mutation.mutate()}>{mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Envoyer</Button></div>
         </div>

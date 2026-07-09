@@ -110,14 +110,9 @@ export default function KycVerificationPage() {
       form.append("back", files.back!);
       form.append("selfie", files.selfie!);
 
-      const url = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/kyc-public-upload`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-        body: form,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.success) throw new Error(data?.error || `Échec (${res.status})`);
+      const { data, error } = await supabase.functions.invoke("kyc-public-upload", { body: form });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Échec du téléversement");
       setState("done");
     } catch (e: any) {
       setErr(e?.message || "Une erreur est survenue.");

@@ -3,7 +3,7 @@
 //   - request_verification     : creates a kyc_verifications row + queues client email
 //   - approve_session          : marks an identity_verification_sessions row 'approved'
 //   - reject_session           : marks a session 'rejected' (review_reason required)
-//   - request_additional_docs  : marks 'additional_required' + sends email with note
+//   - request_additional_docs  : marks 'pending_docs' + inserts requested-doc rows + sends email with note
 //   - resend_request           : re-sends the KYC request email for an existing row
 //   - generate_signed_urls     : returns 5-min signed URLs for the session's docs
 // Each transition is audited under account_ops.kyc_*; identity_verification_events
@@ -41,7 +41,7 @@ interface Body {
   // session-targeted
   session_id?: string;
   review_reason?: string;
-  required_docs?: string[];   // for additional_required
+  required_docs?: string[];   // for pending_docs
   // resend_request
   verification_id?: string;
 }
@@ -159,16 +159,18 @@ serve(async (req) => {
   // Account-level KYC requests have no order_id — this is legitimate.
   // The public wizard resolves by kyc_requests.token; kyc-public-upload
   // mirrors uploaded files onto the linked IVS row (see that function).
-  const ensureKycRequest = async (opts: { reuse?: boolean; notes?: string | null }) => {
+  const ensureKycRequest = async (opts: { reuse?: boolean; notes?: string | null; sessionId?: string | null }) => {
     if (!clientEmail) return null as null | { id: string; token: string; kyc_link: string; expires_at: string; session_id: string };
 
     if (opts.reuse) {
-      const { data: existing } = await admin
+      let existingQuery = admin
         .from("kyc_requests")
         .select("id, token, expires_at, status, session_id")
         .eq("client_id", client_user_id)
         .in("status", ["pending", "sent"])
-        .gt("expires_at", new Date().toISOString())
+        .gt("expires_at", new Date().toISOString());
+      if (opts.sessionId) existingQuery = existingQuery.eq("session_id", opts.sessionId);
+      const { data: existing } = await existingQuery
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -184,36 +186,43 @@ serve(async (req) => {
       // Existing request without a session — heal by attaching one below.
     }
 
-    // 1) Create the canonical IVS row first (Client 360 source of truth).
     const expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
-    const { data: ivs, error: ivsErr } = await admin
-      .from("identity_verification_sessions")
-      .insert({
-        user_id: client_user_id,
-        status: "created",
-        expires_at: expiresAt,
-        checkout_type: "account_level",
-        order_context: { source: "client_360", account_id: body.account_id ?? null },
-      })
-      .select("id")
-      .single();
-    if (ivsErr || !ivs) return null;
+    let ivsId = opts.sessionId ?? null;
+
+    if (!ivsId) {
+      // 1) Create the canonical IVS row first (Client 360 source of truth).
+      const { data: ivs, error: ivsErr } = await admin
+        .from("identity_verification_sessions")
+        .insert({
+          user_id: client_user_id,
+          status: "created",
+          expires_at: expiresAt,
+          checkout_type: "account_level",
+          order_context: { source: "client_360", account_id: body.account_id ?? null },
+        })
+        .select("id")
+        .single();
+      if (ivsErr || !ivs) return null;
+      ivsId = ivs.id;
+    }
 
     // 2) Create (or reattach) the kyc_requests row that carries the wizard token.
     let requestRow: { id: string; token: string; expires_at: string } | null = null;
     if (opts.reuse) {
-      const { data: reusable } = await admin
+      let reusableQuery = admin
         .from("kyc_requests")
         .select("id, token, expires_at, status")
         .eq("client_id", client_user_id)
         .in("status", ["pending", "sent"])
-        .gt("expires_at", new Date().toISOString())
+        .gt("expires_at", new Date().toISOString());
+      if (opts.sessionId) reusableQuery = reusableQuery.eq("session_id", opts.sessionId);
+      const { data: reusable } = await reusableQuery
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (reusable) {
-        // Attach the fresh IVS to the existing request.
-        await admin.from("kyc_requests").update({ session_id: ivs.id }).eq("id", reusable.id);
+        // Attach the canonical IVS to the existing request.
+        await admin.from("kyc_requests").update({ session_id: ivsId }).eq("id", reusable.id);
         requestRow = { id: reusable.id, token: reusable.token, expires_at: reusable.expires_at };
       }
     }
@@ -226,7 +235,7 @@ serve(async (req) => {
           client_email: clientEmail,
           requested_by: user.id,
           notes: opts.notes ?? null,
-          session_id: ivs.id,
+          session_id: ivsId,
         })
         .select("id, token, expires_at")
         .single();
@@ -235,13 +244,13 @@ serve(async (req) => {
     }
 
     // 3) Emit an event so Client 360 timeline shows the request immediately.
-    await ivsEvent(ivs.id, "staff_requested", { via: "client_360", notes: opts.notes ?? null });
+    await ivsEvent(ivsId, opts.sessionId ? "staff_request_link_created" : "staff_requested", { via: "client_360", notes: opts.notes ?? null });
 
     return {
       id: requestRow.id,
       token: requestRow.token,
       expires_at: requestRow.expires_at,
-      session_id: ivs.id,
+      session_id: ivsId,
       kyc_link: `${APP_URL}/verification/${requestRow.token}`,
     };
   };
@@ -390,9 +399,10 @@ serve(async (req) => {
             rejection_reason: body.review_reason.trim(),
           })
           .eq("client_id", client_user_id)
+          .eq("session_id", body.session_id)
           .eq("status", "pending");
 
-        const rejectKyc = await ensureKycRequest({ reuse: false, notes: `Rejet: ${body.review_reason.trim()}` });
+        const rejectKyc = await ensureKycRequest({ reuse: false, notes: `Rejet: ${body.review_reason.trim()}`, sessionId: body.session_id });
         await ivsEvent(body.session_id, "staff_rejected", { reason: body.review_reason });
         await audit("reject_session", { session_id: body.session_id, kyc_request_id: rejectKyc?.id ?? null });
         await enqueueEmail("client_kyc_rejected", {
@@ -414,7 +424,7 @@ serve(async (req) => {
         const { error } = await admin
           .from("identity_verification_sessions")
           .update({
-            status: "additional_required",
+            status: "pending_docs",
             reviewed_at: new Date().toISOString(),
             reviewed_by: user.id,
             review_reason: body.review_reason.trim(),
@@ -423,7 +433,19 @@ serve(async (req) => {
           .eq("id", body.session_id);
         if (error) return json(500, { error: error.message });
 
-        const addKyc = await ensureKycRequest({ reuse: true, notes: `Docs additionnels: ${body.review_reason.trim()}` });
+        if (required.length > 0) {
+          const rows = required.map((docType) => ({
+            kyc_session_id: body.session_id,
+            doc_type: docType,
+            instructions: body.review_reason.trim(),
+            status: "requested",
+            requested_by_admin_id: user.id,
+            requested_at: new Date().toISOString(),
+          }));
+          await admin.from("kyc_requested_documents").insert(rows);
+        }
+
+        const addKyc = await ensureKycRequest({ reuse: true, notes: `Docs additionnels: ${body.review_reason.trim()}`, sessionId: body.session_id });
         await ivsEvent(body.session_id, "staff_additional_required", {
           reason: body.review_reason, required_docs: required,
         });
@@ -447,13 +469,31 @@ serve(async (req) => {
           .select("id, doc_type, storage_bucket, object_path, mime_type")
           .eq("kyc_session_id", body.session_id);
 
-        const out: Array<{ id: string; doc_type: string; mime_type: string | null; url: string | null }> = [];
+        const { data: requestedDocs } = await admin
+          .from("kyc_requested_documents")
+          .select("id, doc_type, uploaded_file_url")
+          .eq("kyc_session_id", body.session_id)
+          .not("uploaded_file_url", "is", null);
+
+        const out: Array<{ id: string; doc_type: string; mime_type: string | null; url: string | null; source?: string }> = [];
         for (const d of (docs || [])) {
           const { data: signed } = await admin
             .storage.from(d.storage_bucket).createSignedUrl(d.object_path, 300);
           out.push({
             id: d.id, doc_type: d.doc_type, mime_type: d.mime_type,
             url: signed?.signedUrl || null,
+          });
+        }
+        for (const d of (requestedDocs || [])) {
+          if (!d.uploaded_file_url) continue;
+          const { data: signed } = await admin
+            .storage.from("id-documents").createSignedUrl(d.uploaded_file_url, 300);
+          out.push({
+            id: d.id,
+            doc_type: d.doc_type,
+            mime_type: null,
+            url: signed?.signedUrl || null,
+            source: "kyc_requested_documents",
           });
         }
 
