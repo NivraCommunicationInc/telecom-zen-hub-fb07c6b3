@@ -3593,7 +3593,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Documents demandés", requiredDocsList],
             ["Précisions", instructions],
           ],
-          ctaPrimaryUrl: `${APP_URL}/portail/identite`,
+          ctaPrimaryUrl: String(v.kyc_link || `${APP_URL}/portail/identite`),
           ctaPrimaryLabel: "Soumettre les documents",
           helpVariant: "warning",
           helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
