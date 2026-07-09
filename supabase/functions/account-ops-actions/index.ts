@@ -29,7 +29,8 @@ type Action =
   | "notify_address_change"
   | "pause_account"
   | "unpause_account"
-  | "cancel_account";
+  | "cancel_account"
+  | "reactivate_account";
 
 interface Body {
   action: Action;
