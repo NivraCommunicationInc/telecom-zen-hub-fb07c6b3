@@ -168,11 +168,13 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `billing.${label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
+        admin_email: user.email ?? null,
         target_id: client_user_id,
         target_type: "client",
+        target_email: clientEmail,
         ip_address: ip,
-        metadata: payload,
+        details: payload,
       });
     } catch (_e) { /* swallow */ }
   };
