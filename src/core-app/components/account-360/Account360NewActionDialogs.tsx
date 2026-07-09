@@ -375,35 +375,35 @@ export function AutopayRetryDialog(props: Base & { invoiceId?: string | null; in
 /* -------------------------------------------------------------------------- */
 export function RemoteRebootDialog(props: Base) {
   const [reason, setReason] = useState("");
+  const [target, setTarget] = useState<"modem" | "terminal">("modem");
+  const [serial, setSerial] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const notify = useCoreNotify();
   const invalidate = useInvalidateClient(props.clientUserId);
 
   async function submit() {
     if (!props.clientUserId) return toast.error("Client manquant");
+    if (reason.trim().length < 3) return toast.error("Motif requis (min. 3 caractères)");
+    if (!confirmed) return toast.error("Veuillez confirmer l'action");
     setLoading(true);
     try {
-      const { error } = await supabase.from("internet_modem_actions").insert({
-        user_id: props.clientUserId,
-        account_id: props.accountId ?? null,
+      const fn = target === "modem" ? "internet-account-actions" : "tv-account-actions";
+      const body: Record<string, unknown> = {
+        action: target === "modem" ? "modem_action" : "terminal_action",
         action_type: "reboot",
-        status: "requested",
-        reason: reason || "Reboot demandé par le support",
-      } as any);
+        client_user_id: props.clientUserId,
+        account_id: props.accountId ?? null,
+        reason: reason.trim(),
+        __audit_reason: reason.trim(),
+        idempotency_key: `reboot-${target}-${props.clientUserId}-${Date.now()}`,
+      };
+      if (target === "modem") body.modem_serial = serial.trim() || null;
+      else body.terminal_serial = serial.trim() || null;
+
+      const { data, error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
-      if (props.clientEmail) {
-        await notify({
-          clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: "Redémarrage équipement en cours",
-          heroTitle: "Redémarrage à distance de votre équipement",
-          bodyHtml: "<p>Notre équipe technique a lancé un redémarrage de votre équipement. Le service peut être interrompu quelques minutes.</p>",
-          actionKey: "remote_reboot",
-          accountId: props.accountId ?? undefined,
-          clientUserId: props.clientUserId ?? undefined,
-          reason,
-        });
-      }
-      toast.success("Reboot lancé");
+      if (data && (data as any).error) throw new Error((data as any).error);
+      toast.success("Reboot enregistré (simulation QA — aucune commande opérateur réelle)");
       invalidate(); props.onRefresh?.(); props.onClose();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
     finally { setLoading(false); }
@@ -413,16 +413,40 @@ export function RemoteRebootDialog(props: Base) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>Reboot équipement à distance</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label>Raison</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+          <div>
+            <Label>Type d'équipement</Label>
+            <Select value={target} onValueChange={(v) => setTarget(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="modem">Modem / Internet</SelectItem>
+                <SelectItem value="terminal">Terminal TV</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Numéro de série (optionnel)</Label>
+            <Input value={serial} onChange={(e) => setSerial(e.target.value)} placeholder="S/N équipement" />
+          </div>
+          <div>
+            <Label>Motif <span className="text-red-500">*</span></Label>
+            <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Raison du reboot (min. 3 caractères)" />
+          </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1" />
+            <span>Je confirme vouloir redémarrer l'équipement du client. Le service peut être interrompu quelques minutes.</span>
+          </label>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
-          <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Lancer le reboot</Button>
+          <Button onClick={submit} disabled={loading || !confirmed || reason.trim().length < 3}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Lancer le reboot
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 /* -------------------------------------------------------------------------- */
 /* 6. Diagnostic ligne                                                        */
