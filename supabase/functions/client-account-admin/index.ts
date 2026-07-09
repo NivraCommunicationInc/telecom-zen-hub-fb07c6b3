@@ -319,9 +319,35 @@ serve(async (req) => {
 
       case "force_logout": {
         if (!targetId) return json(404, { error: "Utilisateur introuvable" });
-        const { error } = await admin.auth.admin.signOut(targetId);
-        if (error) throw error;
-        await audit("force_logout", { email: targetEmail }, true);
+        // signOut() expects a session JWT; to revoke ALL sessions for a user_id,
+        // we enumerate active sessions and delete each one.
+        let revoked = 0;
+        try {
+          const anyAdmin = admin.auth.admin as any;
+          if (typeof anyAdmin.listUserSessions === "function") {
+            const { data: sessData, error: lsErr } = await anyAdmin.listUserSessions(targetId);
+            if (lsErr) throw lsErr;
+            const sessions = (sessData?.sessions ?? sessData ?? []) as Array<{ id: string }>;
+            for (const s of sessions) {
+              try {
+                await anyAdmin.deleteSession(s.id);
+                revoked++;
+              } catch (_e) { /* continue */ }
+            }
+          }
+        } catch (e) {
+          // Fallback: attempt REST admin endpoint (best-effort)
+          try {
+            await fetch(`${supabaseUrl}/auth/v1/admin/users/${targetId}/sessions`, {
+              method: "DELETE",
+              headers: {
+                apikey: supabaseServiceKey,
+                Authorization: `Bearer ${supabaseServiceKey}`,
+              },
+            });
+          } catch (_e2) { /* ignore */ }
+        }
+        await audit("force_logout", { email: targetEmail, sessions_revoked: revoked }, true);
         return json(200, { success: true, message: "Sessions du client révoquées" });
       }
 
