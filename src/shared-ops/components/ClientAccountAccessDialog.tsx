@@ -163,22 +163,30 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
           <Row
             icon={AtSign}
             title="Changer le courriel du compte"
-            desc="Remplace l'adresse de connexion. Le client reçoit une confirmation."
+            desc="Remplace l'adresse de connexion. L'ancienne adresse et la nouvelle reçoivent une notification. Motif obligatoire."
           >
-            <div className="flex gap-2">
+            <div className="space-y-2">
               <Input
                 type="email"
                 placeholder="nouveau@courriel.ca"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
               />
-              <Button
-                size="sm"
-                disabled={busy !== null || !newEmail}
-                onClick={() => run("change_email", { new_email: newEmail })}
-              >
-                {busy === "change_email" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Changer"}
-              </Button>
+              <Textarea
+                placeholder="Motif du changement (obligatoire, audité)"
+                value={changeReason}
+                onChange={(e) => setChangeReason(e.target.value)}
+                rows={2}
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  disabled={busy !== null || !newEmail || !changeReason.trim()}
+                  onClick={() => run("change_email", { new_email: newEmail, reason: changeReason.trim() })}
+                >
+                  {busy === "change_email" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Changer"}
+                </Button>
+              </div>
             </div>
           </Row>
 
