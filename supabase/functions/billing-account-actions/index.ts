@@ -629,6 +629,33 @@ serve(async (req) => {
           refund_id: data.id, amount, refund_method,
           external_reference: body.external_reference,
         });
+
+        // ── Client activity log + system note (traçabilité client) ──────
+        try {
+          const amountLabel = fmtMoney(amount);
+          const methodLabel = METHOD_LABELS[refund_method] || refund_method;
+          await admin.from("client_activity_logs").insert({
+            client_id:     client_user_id,
+            actor_user_id: user.id,
+            actor_name:    user.email ?? null,
+            actor_role:    "admin",
+            action_type:   "refund_processed",
+            entity_type:   "billing_refund",
+            entity_id:     data.id,
+            summary:       `Remboursement ${amountLabel} traité (${methodLabel}) — motif: ${body.reason.trim()}`,
+            after_data:    { refund_id: data.id, amount, refund_method, payment_id: body.payment_id ?? null, invoice_id: body.invoice_id ?? null },
+          });
+          await admin.from("client_internal_notes").insert({
+            client_id:          client_user_id,
+            account_id:         body.account_id ?? null,
+            note_type:          "system",
+            body:               `Remboursement ${amountLabel} traité (${methodLabel}) — par ${user.email ?? user.id} — motif: ${body.reason.trim()}${body.external_reference ? ` — ref ${body.external_reference}` : ""}`,
+            created_by_user_id: user.id,
+            created_by_role:    "admin",
+            created_by_name:    user.email ?? null,
+          });
+        } catch (_e) { /* swallow */ }
+
         await enqueueEmail("client_direct_refund_processed", {
           amount: fmtMoney(amount),
           refund_method: METHOD_LABELS[refund_method] || refund_method,
