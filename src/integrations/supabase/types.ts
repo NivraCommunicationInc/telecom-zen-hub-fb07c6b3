@@ -21135,6 +21135,30 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_module21_e2e_log: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          id: string
+          ok: boolean | null
+          step: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ok?: boolean | null
+          step?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ok?: boolean | null
+          step?: string | null
+        }
+        Relationships: []
+      }
       quote_adjustments: {
         Row: {
           adjustment_type: Database["public"]["Enums"]["quote_adjustment_type"]

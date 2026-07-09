@@ -49,3 +49,46 @@ Lors de la reprise de la checklist E2E Module 20 sur le compte QA `test-c360-pla
 - Ce backlog est référencé dans le rapport de chaque module qui a dû provisionner à neuf.
 
 ---
+
+## QA-002 — `apply_plan_change` RPC viole `idx_unique_sub_per_address_category`
+
+**Statut :** OPEN
+**Priorité :** P1 (bloque tout upgrade/downgrade immédiat en production si (customer_id, address_id, service_category) existe déjà pour un abo actif)
+**Ouvert le :** Module 21 — Upgrade / Downgrade (E2E)
+
+### Symptôme
+
+Le RPC `public.apply_plan_change` fait `INSERT` de la nouvelle sub **avant** `UPDATE ... status='cancelled'` de l'ancienne. Or l'index unique partiel `idx_unique_sub_per_address_category` est `IMMEDIATE` (non-DEFERRABLE) et filtre `WHERE status NOT IN ('cancelled','expired')`. À l'instant de l'INSERT, les deux subs sont `active` sur la même clé → violation `23505`.
+
+### Reproduction
+
+E2E Module 21 T1 (Upgrade 500 → Giga, immediate). Reproduit sur compte QA isolé.
+
+### Correction cible
+
+Inverser l'ordre dans `apply_plan_change` : `UPDATE old.status='cancelled'` puis `INSERT new`. Le check `status IN ('active','pending','suspended')` doit être fait avant le UPDATE.
+
+### Workaround E2E
+
+`DROP INDEX ... idx_unique_sub_per_address_category` avant le run, `CREATE UNIQUE INDEX ...` après.
+
+---
+
+## QA-003 — Worker `email_queue` n'exclut pas le domaine `@nivra-test.ca`
+
+**Statut :** OPEN
+**Priorité :** P1 (fuite d'emails de test vers un domaine externe potentiellement livrable)
+**Ouvert le :** Module 21 — Upgrade / Downgrade (E2E)
+
+### Symptôme
+
+Le processeur `email_queue` a livré 2 emails `plan_change_approved` et `plan_change_requested` vers `test-c360-module21-…@nivra-test.ca` malgré la règle QA « aucune communication envoyée ». Vérifié dans `email_queue.status='sent'`.
+
+### Correction cible
+
+Ajouter un guard permanent dans le worker : `WHERE to_email NOT ILIKE '%@nivra-test.ca'` (et idéalement toute la liste de domaines QA). Alternative : trigger `BEFORE UPDATE ON email_queue SET status='suppressed'` si `to_email` matche.
+
+### Workaround appliqué
+
+Domaine `@nivra-test.ca` ajouté à `public.suppressed_emails` (reason=`bounce`) pour bloquer les envois futurs.
+
