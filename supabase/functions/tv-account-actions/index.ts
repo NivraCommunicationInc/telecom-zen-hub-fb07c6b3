@@ -438,6 +438,25 @@ serve(async (req) => {
           return json(400, { error: "action_type invalide" });
         }
         const meta = TERMINAL_LABELS[action_type];
+        const reasonStr = typeof body.reason === "string" ? body.reason.trim() : "";
+        if ((meta.critical || action_type === "reboot") && reasonStr.length < 3) {
+          return json(400, { error: "Motif requis (min. 3 caractères)" });
+        }
+        if (action_type === "reboot") {
+          const since = new Date(Date.now() - 120_000).toISOString();
+          let q = admin
+            .from("tv_terminal_actions")
+            .select("id, created_at")
+            .eq("user_id", client_user_id)
+            .eq("action_type", "reboot")
+            .gte("created_at", since)
+            .limit(1);
+          if (body.terminal_serial) q = q.eq("terminal_serial", body.terminal_serial);
+          const { data: recent } = await q;
+          if (recent && recent.length > 0) {
+            return json(429, { error: "Un reboot vient d'être demandé pour ce terminal. Réessayez dans quelques instants." });
+          }
+        }
 
         const { data, error } = await admin
           .from("tv_terminal_actions")
@@ -447,10 +466,10 @@ serve(async (req) => {
             subscription_id: body.subscription_id ?? null,
             terminal_serial: body.terminal_serial ?? null,
             action_type,
-            reason: body.reason ?? null,
-            status: "completed",
+            reason: reasonStr || null,
+            status: "requested",
             performed_by: user.id,
-            metadata: { idempotency_key: body.idempotency_key },
+            metadata: { idempotency_key: body.idempotency_key, simulated: true },
           })
           .select("id")
           .single();
