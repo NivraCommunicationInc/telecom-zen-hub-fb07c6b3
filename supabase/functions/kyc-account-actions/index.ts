@@ -402,7 +402,7 @@ serve(async (req) => {
           .eq("session_id", body.session_id)
           .eq("status", "pending");
 
-        const rejectKyc = await ensureKycRequest({ reuse: false, notes: `Rejet: ${body.review_reason.trim()}` });
+        const rejectKyc = await ensureKycRequest({ reuse: false, notes: `Rejet: ${body.review_reason.trim()}`, sessionId: body.session_id });
         await ivsEvent(body.session_id, "staff_rejected", { reason: body.review_reason });
         await audit("reject_session", { session_id: body.session_id, kyc_request_id: rejectKyc?.id ?? null });
         await enqueueEmail("client_kyc_rejected", {
