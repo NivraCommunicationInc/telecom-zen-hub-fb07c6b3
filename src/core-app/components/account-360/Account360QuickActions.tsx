@@ -159,10 +159,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
       actions: [
         { icon: CreditCard, label: "Enregistrer paiement", onClick: () => setRecordPaymentOpen(true), color: "emerald" },
         { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices") },
-        { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
-        { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
+        { icon: Gift, label: "Ajustements compte", onClick: () => setAdjustmentsOpen(true), color: "emerald" },
         { icon: Undo2, label: "Remboursement rapide", onClick: () => setQuickRefundOpen(true), color: "warning" },
-        { icon: Banknote, label: "Write-off / Ajustement", onClick: () => setWriteOffOpen(true), color: "danger" },
         { icon: Repeat, label: "Plan de paiement", onClick: () => setPaymentPlanOpen(true), color: "violet" },
         { icon: RotateCcw, label: "Force AutoPay", onClick: () => setAutopayRetryOpen(true), color: "warning" },
         { icon: CreditCard, label: "Méthode de paiement", onClick: () => setBillingOpen(true), color: "violet" },
