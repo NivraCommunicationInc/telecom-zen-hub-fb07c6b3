@@ -444,22 +444,14 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
       )}
 
       {clientId && (
-        <CollectionsDialog
-          open={collectionsOpen}
-          onClose={() => setCollectionsOpen(false)}
-          clientUserId={clientId}
-          clientName={clientName}
+        <CollectionsDisputeModule
+          open={collectionsOpen || disputesOpen}
+          onClose={() => { setCollectionsOpen(false); setDisputesOpen(false); }}
+          clientId={clientId}
           accountId={accountId ?? null}
-        />
-      )}
-
-      {clientId && (
-        <BillingDisputesDialog
-          open={disputesOpen}
-          onClose={() => setDisputesOpen(false)}
-          clientUserId={clientId}
           clientName={clientName}
-          payments={canonicalData?.payments || []}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
         />
       )}
 
