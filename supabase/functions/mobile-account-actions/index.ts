@@ -139,6 +139,15 @@ serve(async (req) => {
     req.headers.get("cf-connecting-ip") ||
     "unknown";
 
+  // Resolve caller identity for audit / activity / notes
+  const { data: callerProfile } = await admin
+    .from("profiles")
+    .select("full_name, email")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const actorEmail = callerProfile?.email || user.email || null;
+  const actorName = callerProfile?.full_name || actorEmail || "Staff";
+
   const audit = async (
     action_label: string,
     payload: Record<string, unknown>,
@@ -146,11 +155,46 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `mobile.${action_label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
+        admin_email: actorEmail,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        metadata: payload,
+        details: payload,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const logActivity = async (
+    action_type: string,
+    summary: string,
+    entity_id: string | null,
+    after_data: Record<string, unknown>,
+  ) => {
+    try {
+      await admin.from("client_activity_logs").insert({
+        client_id: client_user_id,
+        actor_user_id: user.id,
+        actor_name: actorName,
+        actor_role: "staff",
+        action_type,
+        entity_type: "service",
+        entity_id,
+        summary,
+        after_data,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const addNote = async (body_text: string) => {
+    try {
+      await admin.from("client_internal_notes").insert({
+        client_id: client_user_id,
+        note_type: "system",
+        body: body_text,
+        created_by_user_id: user.id,
+        created_by_role: "staff",
+        created_by_name: actorName,
       });
     } catch (_e) { /* swallow */ }
   };
