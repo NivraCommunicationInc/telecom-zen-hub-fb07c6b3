@@ -477,15 +477,20 @@ serve(async (req) => {
         }).eq("id", body.account_id);
         if (upErr) return json(500, { error: upErr.message });
 
-        // Cancel every non-terminal subscription (billing_subscriptions is keyed by customer_id = auth user id).
-        // Terminal states we never re-touch: cancelled, terminated, expired, refunded.
+        // Cascade: cancel every non-terminal subscription. Include pending/paused states so QA-provisioned
+        // or trigger-normalized rows don't slip through. Terminal states (cancelled/terminated/expired/refunded)
+        // are excluded to keep this idempotent.
+        const NON_TERMINAL_STATES = [
+          "active", "past_due", "trialing", "pending", "paused", "suspended",
+          "grace_period", "unpaid", "incomplete", "incomplete_expired",
+        ];
         let cancelledSubs = 0;
         try {
           const { data: subs, error: subErr } = await admin
             .from("billing_subscriptions")
             .update({ status: "cancelled", updated_at: nowIso })
             .eq("customer_id", client_user_id)
-            .not("status", "in", "(cancelled,terminated,expired,refunded)")
+            .in("status", NON_TERMINAL_STATES)
             .select("id");
           if (subErr) console.error("cancel_account subs update", subErr);
           cancelledSubs = subs?.length ?? 0;
