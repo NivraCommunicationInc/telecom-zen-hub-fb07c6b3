@@ -1,0 +1,203 @@
+// ============================================================================
+// core-apply-autopay-action — Client 360 unified AutoPay & Payment Method center
+// ----------------------------------------------------------------------------
+// Actions:
+//   - enable_autopay     → billing_customers.autopay_enabled=true (card required)
+//   - disable_autopay    → billing_customers.autopay_enabled=false (keep card)
+//   - detach_card        → delegates to square-detach-card (disables autopay + removes card)
+//   - retry_now          → resets autopay_next_attempt_at=now() on invoices,
+//                          optionally triggers square-autopay-retry immediately
+//
+// Reuses:
+//   - Table billing_customers (autopay flags + Square card fields)
+//   - Table billing_invoices  (autopay_retry_count, autopay_next_attempt_at, autopay_stopped)
+//   - Edge Function square-detach-card (canonical card detach + email)
+//   - Edge Function square-autopay-retry (canonical retry executor)
+//
+// No parallel logic. Audits every write in admin_audit_log (module_tag='autopay').
+// Never touches PayPal — decommissioned per project memory.
+// ============================================================================
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+type Action = "enable_autopay" | "disable_autopay" | "detach_card" | "retry_now";
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const json = (b: unknown, s = 200) =>
+    new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  try {
+    const authHeader = req.headers.get("authorization") ?? "";
+    if (!authHeader) return json({ ok: false, error: "auth required" }, 401);
+
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const authed = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userRes, error: userErr } = await authed.auth.getUser();
+    if (userErr || !userRes?.user) return json({ ok: false, error: "invalid session" }, 401);
+    const user = userRes.user;
+
+    const [{ data: isAdmin }, { data: isStaff }, { data: isCore }] = await Promise.all([
+      authed.rpc("has_role", { _user_id: user.id, _role: "admin" }),
+      authed.rpc("has_role", { _user_id: user.id, _role: "staff" }),
+      authed.rpc("has_role", { _user_id: user.id, _role: "core" }),
+    ]);
+    if (!isAdmin && !isStaff && !isCore) {
+      return json({ ok: false, error: "insufficient_privilege" }, 403);
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const {
+      action,
+      customer_id,
+      client_id,
+      account_id,
+      invoice_id,
+      __audit_reason: reason,
+    } = body ?? {};
+
+    if (!action || !["enable_autopay", "disable_autopay", "detach_card", "retry_now"].includes(action)) {
+      return json({ ok: false, error: "invalid action" }, 400);
+    }
+    if (!reason || String(reason).trim().length < 3) {
+      return json({ ok: false, error: "audit reason required (min 3 chars)" }, 400);
+    }
+    if (!customer_id) return json({ ok: false, error: "customer_id required" }, 400);
+
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    const { data: bcBefore, error: bcErr } = await admin
+      .from("billing_customers")
+      .select("id, email, first_name, last_name, user_id, autopay_enabled, autopay_discount_active, square_customer_id, square_card_id, square_card_brand, square_card_last4")
+      .eq("id", customer_id)
+      .maybeSingle();
+    if (bcErr || !bcBefore) return json({ ok: false, error: "billing customer not found" }, 404);
+
+    const auditAction = `core_autopay_${action}`;
+    const baseDetails: Record<string, unknown> = {
+      module_tag: "autopay",
+      action,
+      client_id,
+      account_id,
+      customer_id,
+      reason,
+      before_state: bcBefore,
+    };
+
+    // ── enable ──────────────────────────────────────────────────────────
+    if (action === "enable_autopay") {
+      if (!bcBefore.square_card_id || !bcBefore.square_customer_id) {
+        return json({ ok: false, error: "aucune carte Square enregistrée — ajouter une méthode avant d'activer l'AutoPay" }, 400);
+      }
+      if (bcBefore.autopay_enabled) {
+        return json({ ok: true, already_enabled: true });
+      }
+      const { error: upErr } = await admin
+        .from("billing_customers")
+        .update({ autopay_enabled: true, autopay_consent_at: new Date().toISOString() })
+        .eq("id", customer_id);
+      if (upErr) return json({ ok: false, error: `update failed: ${upErr.message}` }, 500);
+
+      await admin.from("admin_audit_log").insert({
+        admin_user_id: user.id, admin_email: user.email,
+        action: auditAction, target_type: "billing_customers", target_id: customer_id,
+        details: { ...baseDetails, after_state: { autopay_enabled: true } },
+      });
+      return json({ ok: true });
+    }
+
+    // ── disable (keep card on file) ─────────────────────────────────────
+    if (action === "disable_autopay") {
+      if (!bcBefore.autopay_enabled) return json({ ok: true, already_disabled: true });
+      const { error: upErr } = await admin
+        .from("billing_customers")
+        .update({ autopay_enabled: false, autopay_discount_active: false })
+        .eq("id", customer_id);
+      if (upErr) return json({ ok: false, error: `update failed: ${upErr.message}` }, 500);
+
+      await admin.from("admin_audit_log").insert({
+        admin_user_id: user.id, admin_email: user.email,
+        action: auditAction, target_type: "billing_customers", target_id: customer_id,
+        details: { ...baseDetails, after_state: { autopay_enabled: false } },
+      });
+      return json({ ok: true });
+    }
+
+    // ── detach card (canonical → square-detach-card) ────────────────────
+    if (action === "detach_card") {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/square-detach-card`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+        body: JSON.stringify({ customer_id, channel: "core", staff_actor_name: user.email }),
+      });
+      const detachJson = await res.json().catch(() => ({}));
+      if (!res.ok || !detachJson?.ok) {
+        return json({ ok: false, error: detachJson?.error ?? "detach failed" }, res.status || 500);
+      }
+      await admin.from("admin_audit_log").insert({
+        admin_user_id: user.id, admin_email: user.email,
+        action: auditAction, target_type: "billing_customers", target_id: customer_id,
+        details: { ...baseDetails, after_state: { square_card_id: null, autopay_enabled: false } },
+      });
+      return json({ ok: true });
+    }
+
+    // ── retry_now ───────────────────────────────────────────────────────
+    if (action === "retry_now") {
+      if (!bcBefore.autopay_enabled) return json({ ok: false, error: "AutoPay désactivé" }, 400);
+      if (!bcBefore.square_card_id) return json({ ok: false, error: "aucune carte enregistrée" }, 400);
+
+      const q = admin
+        .from("billing_invoices")
+        .update({ autopay_next_attempt_at: new Date().toISOString(), autopay_stopped: false })
+        .eq("customer_id", customer_id)
+        .in("status", ["unpaid", "overdue", "failed", "partially_paid"])
+        .gt("balance_due", 0);
+      const scoped = invoice_id ? q.eq("id", invoice_id) : q;
+      const { data: updated, error: upErr } = await scoped.select("id, invoice_number");
+      if (upErr) return json({ ok: false, error: `reschedule failed: ${upErr.message}` }, 500);
+
+      // Kick the canonical retry executor immediately
+      let executor: any = null;
+      try {
+        const execRes = await fetch(`${SUPABASE_URL}/functions/v1/square-autopay-retry`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+        });
+        executor = await execRes.json().catch(() => ({}));
+      } catch (e) {
+        console.warn("[core-apply-autopay-action] retry executor invoke failed:", e);
+      }
+
+      await admin.from("admin_audit_log").insert({
+        admin_user_id: user.id, admin_email: user.email,
+        action: auditAction, target_type: "billing_customers", target_id: customer_id,
+        details: {
+          ...baseDetails,
+          after_state: {
+            invoices_rescheduled: updated ?? [],
+            executor_summary: executor,
+          },
+        },
+      });
+      return json({ ok: true, invoices_rescheduled: updated ?? [], executor });
+    }
+
+    return json({ ok: false, error: "unhandled action" }, 400);
+  } catch (e: any) {
+    console.error("[core-apply-autopay-action] fatal:", e);
+    return new Response(
+      JSON.stringify({ ok: false, error: e?.message ?? String(e) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
