@@ -88,7 +88,7 @@ export function CoreKycPanel({ order, onRefresh }: Props) {
         entity_id: kycRow?.id ?? null,
         variables: {
           order_number: order.order_number ?? order.id?.slice(0, 8),
-          kyc_link: `https://app.nivra-telecom.ca/kyc/${token}`,
+          kyc_link: `https://nivra-telecom.ca/verification/${token}`,
           expires_hours: 48,
           notes: notes.trim() || null,
         },

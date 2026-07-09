@@ -2311,7 +2311,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         entity_type: "kyc_request",
         entity_id: kycRow?.id ?? null,
         variables: {
-          kyc_link: `https://app.nivra-telecom.ca/kyc/${token}`,
+          kyc_link: `https://nivra-telecom.ca/verification/${token}`,
           expires_hours: 48,
           notes: opts?.notes || null,
         },
@@ -2349,7 +2349,7 @@ export function useOrderProcessing(orderId: string | undefined) {
           .from("kyc_requests")
           .upsert({ order_id: orderId, client_email: recipientEmailResub, token, status: "pending", requested_at: new Date().toISOString(), expires_at: expiresAt, notes: opts?.reason || null }, { onConflict: "order_id" })
           .select("id").maybeSingle();
-        await (supabase as any).from("email_queue").insert({ template_key: "kyc_request", to_email: recipientEmailResub, entity_type: "kyc_request", entity_id: kycRow?.id ?? null, variables: { kyc_link: `https://app.nivra-telecom.ca/kyc/${token}`, expires_hours: 48 }, priority: 1 });
+        await (supabase as any).from("email_queue").insert({ template_key: "kyc_request", to_email: recipientEmailResub, entity_type: "kyc_request", entity_id: kycRow?.id ?? null, variables: { kyc_link: `https://nivra-telecom.ca/verification/${token}`, expires_hours: 48 }, priority: 1 });
         await (supabase as any).from("orders").update({ kyc_status: "pending", kyc_request_id: kycRow?.id }).eq("id", orderId);
       }
 
