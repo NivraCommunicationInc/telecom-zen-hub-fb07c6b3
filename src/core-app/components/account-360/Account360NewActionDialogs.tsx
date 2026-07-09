@@ -595,63 +595,59 @@ export function QuickPlanChangeDialog(props: Base) {
 /* -------------------------------------------------------------------------- */
 export function ServiceMoveDialog(props: Base) {
   const [newAddress, setNewAddress] = useState("");
+  const [newCity, setNewCity] = useState("");
+  const [newPostal, setNewPostal] = useState("");
   const [moveDate, setMoveDate] = useState<string>(new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const notify = useCoreNotify();
+  const qc = useQueryClient();
   const invalidate = useInvalidateClient(props.clientUserId);
 
   async function submit() {
-    if (!newAddress.trim()) return toast.error("Nouvelle adresse requise");
-    if (!props.clientUserId) return toast.error("Client manquant");
     if (!props.accountId) return toast.error("Compte manquant");
+    if (!newAddress.trim() || newAddress.trim().length < 5) return toast.error("Adresse invalide");
+    if (!newCity.trim()) return toast.error("Ville requise");
+    if (!/^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/.test(newPostal.trim())) return toast.error("Code postal invalide");
+    if (!reason.trim() || reason.trim().length < 3) return toast.error("Motif requis (min. 3 caractères)");
     setLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const { error } = await supabase.from("service_change_requests").insert({
-        client_id: props.clientUserId,
+      const { callCoreAction } = await import("@/core-app/lib/callCoreAction");
+      const res = await callCoreAction("service-move-actions", {
+        action: "request_move",
         account_id: props.accountId,
-        requested_by: userData?.user?.id ?? props.clientUserId,
-        change_type: "move",
-        status: "pending",
-        effective_date: moveDate,
-        requested_plan_name: "Transfert de service",
-        notes: `Nouvelle adresse: ${newAddress}${reason ? ` — ${reason}` : ""}`,
-      } as any);
-      if (error) throw error;
-      if (props.clientEmail) {
-        await notify({
-          clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: "Transfert de service planifié",
-          heroTitle: "Déménagement — Transfert de service",
-          cardTitle: "Détails",
-          cardRows: [
-            { label: "Nouvelle adresse", value: newAddress },
-            { label: "Date prévue", value: moveDate },
-          ],
-          bodyHtml: "<p>Notre équipe vous contactera pour confirmer les modalités du transfert.</p>",
-          actionKey: "service_move",
-          accountId: props.accountId ?? undefined,
-          clientUserId: props.clientUserId ?? undefined,
-          reason,
-        });
+        new_address: newAddress.trim(),
+        new_city: newCity.trim(),
+        new_postal_code: newPostal.trim().toUpperCase(),
+        move_date: moveDate,
+      }, {
+        reason,
+        successMessage: "Demande de transfert créée",
+        errorMessage: "Échec de la demande de transfert",
+        queryClient: qc,
+      });
+      if (res.ok) {
+        invalidate(); props.onRefresh?.(); props.onClose();
       }
-      toast.success("Demande de transfert créée");
-      invalidate(); props.onRefresh?.(); props.onClose();
-    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
-    finally { setLoading(false); }
+    } finally { setLoading(false); }
   }
   return (
     <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Transfert de service</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Transfert de service</DialogTitle>
+          <DialogDescription>Planifier un déménagement pour ce compte. La demande est créée en attente et l'équipe opérationnelle prend le relais.</DialogDescription>
+        </DialogHeader>
         <div className="space-y-3">
-          <div><Label>Nouvelle adresse complète</Label><Input value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="123 rue, ville, code postal" /></div>
-          <div><Label>Date prévue</Label><Input type="date" value={moveDate} onChange={(e) => setMoveDate(e.target.value)} /></div>
-          <div><Label>Note</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+          <div><Label>Nouvelle adresse (rue et n°)</Label><Input value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="123 rue Principale" /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>Ville</Label><Input value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder="Montréal" /></div>
+            <div><Label>Code postal</Label><Input value={newPostal} onChange={(e) => setNewPostal(e.target.value.toUpperCase())} placeholder="H1A 1A1" maxLength={7} /></div>
+          </div>
+          <div><Label>Date prévue</Label><Input type="date" value={moveDate} onChange={(e) => setMoveDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} /></div>
+          <div><Label>Motif (obligatoire)</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex: déménagement client au 1er du mois" /></div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
+          <Button variant="ghost" onClick={props.onClose} disabled={loading}>Annuler</Button>
           <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Créer la demande</Button>
         </DialogFooter>
       </DialogContent>
