@@ -394,6 +394,8 @@ serve(async (req) => {
 
       // ============================================================
       case "create_payment_plan": {
+        const reason = String(body.reason ?? "").trim();
+        if (reason.length < 3) return json(400, { error: "reason requis (min 3 caractères)" });
         const total = Number(body.total_amount ?? 0);
         const count = Number(body.installment_count ?? 0);
         if (!Number.isFinite(total) || total <= 0) return json(400, { error: "total_amount invalide" });
@@ -402,6 +404,14 @@ serve(async (req) => {
         }
         if (!body.idempotency_key || body.idempotency_key.trim().length < 4) {
           return json(400, { error: "idempotency_key requis pour les plans de paiement (UUID recommandé)" });
+        }
+        const frequency = body.frequency || "monthly";
+        if (!["weekly", "biweekly", "monthly"].includes(frequency)) {
+          return json(400, { error: "frequency invalide (weekly|biweekly|monthly)" });
+        }
+        const first_due_date = body.first_due_date || new Date().toISOString().slice(0, 10);
+        if (isNaN(new Date(first_due_date + "T00:00:00Z").getTime())) {
+          return json(400, { error: "first_due_date invalide (YYYY-MM-DD)" });
         }
         // Dedup: return existing plan if same idempotency_key for this user (E2.1 fix)
         const { data: existingPlan } = await admin
@@ -413,8 +423,19 @@ serve(async (req) => {
         if (existingPlan) {
           return json(200, { ok: true, plan_id: existingPlan.id, idempotent: true });
         }
-        const frequency = body.frequency || "monthly";
-        const first_due_date = body.first_due_date || new Date().toISOString().slice(0, 10);
+        // Cap check when linked to invoice: total_amount cannot exceed the invoice balance_due.
+        if (body.invoice_id) {
+          const { data: inv, error: iErr } = await admin.from("billing_invoices")
+            .select("id, balance_due, status")
+            .eq("id", body.invoice_id).maybeSingle();
+          if (iErr) return json(500, { error: iErr.message });
+          if (!inv) return json(404, { error: "Facture introuvable" });
+          if (total > Number(inv.balance_due ?? 0) + 0.01) {
+            return json(400, {
+              error: `total_amount (${fmtMoney(total)}) dépasse le solde de la facture (${fmtMoney(Number(inv.balance_due ?? 0))})`,
+            });
+          }
+        }
         const installment_amount = Math.round((total / count) * 100) / 100;
 
         const { data, error } = await admin.from("client_payment_plans")
@@ -429,7 +450,7 @@ serve(async (req) => {
             frequency,
             first_due_date,
             status: "active",
-            reason: body.reason ?? null,
+            reason,
             approved_by: user.id,
             metadata: { idempotency_key: body.idempotency_key },
           })
@@ -439,8 +460,39 @@ serve(async (req) => {
 
         await audit("create_payment_plan", {
           plan_id: data.id, total_amount: total, installment_count: count,
-          installment_amount, frequency,
+          installment_amount, frequency, first_due_date,
+          invoice_id: body.invoice_id ?? null, reason,
         });
+
+        // ── Client activity log + system note (parity with Module 8/9) ──
+        try {
+          const summary = `Plan de paiement créé — ${count}× ${fmtMoney(installment_amount)} (${frequency}) · total ${fmtMoney(total)} · début ${first_due_date} — motif: ${reason}`;
+          await admin.from("client_activity_logs").insert({
+            client_id:     client_user_id,
+            actor_user_id: user.id,
+            actor_name:    user.email ?? null,
+            actor_role:    "admin",
+            action_type:   "payment_plan_created",
+            entity_type:   "client_payment_plan",
+            entity_id:     data.id,
+            summary,
+            after_data: {
+              plan_id: data.id, total_amount: total, installment_count: count,
+              installment_amount, frequency, first_due_date,
+              invoice_id: body.invoice_id ?? null,
+            },
+          });
+          await admin.from("client_internal_notes").insert({
+            client_id:          client_user_id,
+            account_id:         body.account_id ?? null,
+            note_type:          "system",
+            body:               `${summary} — par ${user.email ?? user.id}`,
+            created_by_user_id: user.id,
+            created_by_role:    "admin",
+            created_by_name:    user.email ?? null,
+          });
+        } catch (_e) { /* swallow */ }
+
         await enqueueEmail("client_payment_plan_created", {
           total_amount: fmtMoney(total),
           installment_count: String(count),
@@ -453,10 +505,12 @@ serve(async (req) => {
 
       // ============================================================
       case "cancel_payment_plan": {
+        const reason = String(body.reason ?? "").trim();
+        if (reason.length < 3) return json(400, { error: "reason requis (min 3 caractères)" });
         const id = body.plan_id;
         if (!id) return json(400, { error: "plan_id requis" });
         const { data: existing, error: fErr } = await admin.from("client_payment_plans")
-          .select("id,user_id,status,total_amount,installment_count")
+          .select("id,user_id,account_id,status,total_amount,installment_count,installment_amount,frequency")
           .eq("id", id).maybeSingle();
         if (fErr) return json(500, { error: fErr.message });
         if (!existing) return json(404, { error: "Plan introuvable" });
@@ -468,16 +522,42 @@ serve(async (req) => {
             status: "cancelled",
             cancelled_at: new Date().toISOString(),
             cancelled_by: user.id,
-            cancelled_reason: body.reason ?? null,
+            cancelled_reason: reason,
           })
           .eq("id", id);
         if (uErr) return json(500, { error: uErr.message });
 
-        await audit("cancel_payment_plan", { plan_id: id });
+        await audit("cancel_payment_plan", { plan_id: id, reason });
+
+        // ── Client activity log + system note (parity with Module 8/9) ──
+        try {
+          const summary = `Plan de paiement annulé — total ${fmtMoney(Number(existing.total_amount ?? 0))} · ${existing.installment_count}× — motif: ${reason}`;
+          await admin.from("client_activity_logs").insert({
+            client_id:     client_user_id,
+            actor_user_id: user.id,
+            actor_name:    user.email ?? null,
+            actor_role:    "admin",
+            action_type:   "payment_plan_cancelled",
+            entity_type:   "client_payment_plan",
+            entity_id:     id,
+            summary,
+            after_data:    { plan_id: id, status: "cancelled" },
+          });
+          await admin.from("client_internal_notes").insert({
+            client_id:          client_user_id,
+            account_id:         existing.account_id ?? body.account_id ?? null,
+            note_type:          "system",
+            body:               `${summary} — par ${user.email ?? user.id}`,
+            created_by_user_id: user.id,
+            created_by_role:    "admin",
+            created_by_name:    user.email ?? null,
+          });
+        } catch (_e) { /* swallow */ }
+
         await enqueueEmail("client_payment_plan_cancelled", {
           total_amount: fmtMoney(Number(existing.total_amount ?? 0)),
           installment_count: String(existing.installment_count ?? 0),
-          reason: body.reason || "—",
+          reason,
         });
         return json(200, { ok: true });
       }
