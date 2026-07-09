@@ -459,6 +459,10 @@ serve(async (req) => {
         await audit("terminal_action", {
           terminal_action_id: data.id, action_type, terminal_serial: body.terminal_serial,
         });
+        await activity("equipment_change", data.id, "equipment",
+          `${meta.label}${body.terminal_serial ? ` (SN ${body.terminal_serial})` : ""}`,
+          { action_type, terminal_serial: body.terminal_serial, critical: meta.critical });
+        await sysNote(`${meta.label} — SN ${body.terminal_serial || "—"}. Motif: ${body.reason || "—"}${meta.critical ? " [CRITIQUE]" : ""}`);
         await enqueueEmail("client_tv_terminal_action", {
           action_label: meta.label,
           terminal_serial: body.terminal_serial || "—",
