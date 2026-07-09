@@ -30250,6 +30250,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      core_simulate_adjustment: {
+        Args: {
+          p_account_id: string
+          p_amount?: number
+          p_invoice_id?: string
+          p_kind: string
+          p_months?: number
+        }
+        Returns: Json
+      }
       core_simulate_plan_change: {
         Args: {
           p_account_id: string
