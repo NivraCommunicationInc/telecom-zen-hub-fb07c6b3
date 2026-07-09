@@ -339,13 +339,15 @@ serve(async (req) => {
           .eq("client_id", client_user_id)
           .eq("status", "pending");
 
+        const rejectKyc = await ensureKycRequest({ reuse: false, notes: `Rejet: ${body.review_reason.trim()}` });
         await ivsEvent(body.session_id, "staff_rejected", { reason: body.review_reason });
-        await audit("reject_session", { session_id: body.session_id });
+        await audit("reject_session", { session_id: body.session_id, kyc_request_id: rejectKyc?.id ?? null });
         await enqueueEmail("client_kyc_rejected", {
           rejection_reason: body.review_reason.trim(),
+          kyc_link: rejectKyc?.kyc_link ?? null,
         });
 
-        return json(200, { ok: true });
+        return json(200, { ok: true, kyc_request_id: rejectKyc?.id ?? null });
       }
 
       case "request_additional_docs": {
