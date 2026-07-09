@@ -871,12 +871,18 @@ export function FreezeCycleTrialDialog(props: Base) {
     finally { setLoading(false); }
   }
 
+  const scopeText = mode === "freeze_cycle"
+    ? "Portée : cycle de facturation SEULEMENT (renouvellement suspendu, essai inchangé)"
+    : mode === "trial_extension"
+      ? "Portée : période d'essai SEULEMENT (aucun impact sur cycle de facturation actif)"
+      : "Portée : cycle de facturation ET période d'essai (pause complète)";
+
   return (
     <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><PauseCircle className="h-5 w-5 text-amber-500" />Geler cycle / essai</DialogTitle>
-          <DialogDescription>Créer une demande contrôlée avec audit complet.</DialogDescription>
+          <DialogDescription>Demande contrôlée avec audit complet — aucun impact direct sur billing_subscriptions.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
@@ -884,11 +890,12 @@ export function FreezeCycleTrialDialog(props: Base) {
             <Select value={mode} onValueChange={(v) => setMode(v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="freeze_cycle">Geler le cycle</SelectItem>
-                <SelectItem value="trial_extension">Prolonger l'essai</SelectItem>
-                <SelectItem value="billing_hold">Mettre la facturation en pause</SelectItem>
+                <SelectItem value="freeze_cycle">Geler le cycle de facturation</SelectItem>
+                <SelectItem value="trial_extension">Prolonger la période d'essai</SelectItem>
+                <SelectItem value="billing_hold">Pause complète (cycle + essai)</SelectItem>
               </SelectContent>
             </Select>
+            <p className="mt-2 text-xs text-muted-foreground">{scopeText}</p>
           </div>
           <div><Label>Date cible / fin</Label><Input type="date" value={untilDate} onChange={(e) => setUntilDate(e.target.value)} /></div>
           <div><Label>Raison obligatoire</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Motif exact, approbation, contexte client…" /></div>
