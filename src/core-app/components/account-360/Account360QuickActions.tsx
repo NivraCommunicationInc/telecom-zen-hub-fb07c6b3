@@ -25,8 +25,7 @@ import { ClientReferralsDialog } from "@/shared-ops/components/ClientReferralsDi
 import { QuickTicketDialog } from "@/shared-ops/components/QuickTicketDialog";
 import { ScheduleAppointmentDialog } from "@/shared-ops/components/ScheduleAppointmentDialog";
 import { InternalNoteDialog } from "@/shared-ops/components/InternalNoteDialog";
-import { CollectionsDialog } from "@/shared-ops/components/CollectionsDialog";
-import { BillingDisputesDialog } from "@/shared-ops/components/BillingDisputesDialog";
+import { CollectionsDisputeModule } from "@/core-app/components/account-360/modules/CollectionsDisputeModule";
 import { KYCReviewDialog } from "@/shared-ops/components/KYCReviewDialog";
 import { AccountActivityTimelineDialog } from "@/shared-ops/components/AccountActivityTimelineDialog";
 import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
