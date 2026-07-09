@@ -166,7 +166,7 @@ serve(async (req) => {
 
   const audit = async (label: string, payload: Record<string, unknown>) => {
     try {
-      await admin.from("admin_audit_log").insert({
+      const { error: audErr } = await admin.from("admin_audit_log").insert({
         action: `billing.${label}`,
         admin_user_id: user.id,
         admin_email: user.email ?? null,
@@ -176,7 +176,8 @@ serve(async (req) => {
         ip_address: ip,
         details: payload,
       });
-    } catch (_e) { /* swallow */ }
+      if (audErr) console.error("[audit-insert]", audErr);
+    } catch (e) { console.error("[audit-throw]", e); }
   };
 
   const enqueueEmail = async (template: string, vars: Record<string, unknown>, attachments?: Array<{ filename: string; content: string; contentType: string }> | null) => {
