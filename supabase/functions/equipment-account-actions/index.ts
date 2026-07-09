@@ -146,15 +146,26 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
-  const logActivity = async (action_type: string, description: string, metadata: Record<string, unknown>) => {
+  // Resolve actor role (best-effort) for traceability tables
+  const { data: actorRoleRow } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const actorRole = actorRoleRow?.role || "staff";
+
+  const logActivity = async (action_type: string, summary: string, metadata: Record<string, unknown>) => {
     try {
       await admin.from("client_activity_logs").insert({
-        user_id: client_user_id,
-        account_id: body.account_id ?? null,
+        client_id: client_user_id,
+        actor_user_id: user.id,
+        actor_name: actorName,
+        actor_role: actorRole,
         action_type,
-        description,
-        metadata: { ...metadata, actor_user_id: user.id, actor_email: actorEmail },
-        performed_by: user.id,
+        entity_type: "equipment",
+        entity_id: (metadata?.inventory_id as string) ?? null,
+        summary,
+        after_data: { ...metadata, actor_email: actorEmail },
       });
     } catch (_e) { /* swallow */ }
   };
@@ -162,11 +173,13 @@ serve(async (req) => {
   const addSystemNote = async (prefix: string, message: string) => {
     try {
       await admin.from("client_internal_notes").insert({
-        user_id: client_user_id,
+        client_id: client_user_id,
         account_id: body.account_id ?? null,
         note_type: "system",
-        content: `[${prefix}] ${message} — par ${actorName}`,
-        created_by: user.id,
+        body: `[${prefix}] ${message} — par ${actorName}`,
+        created_by_user_id: user.id,
+        created_by_role: actorRole,
+        created_by_name: actorName,
       });
     } catch (_e) { /* swallow */ }
   };
