@@ -665,6 +665,17 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           subscriptions={subscriptions}
         />
       )}
+      {accountId && clientId && (
+        <RecordPaymentModule
+          open={recordPaymentOpen}
+          onClose={() => setRecordPaymentOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
+        />
+      )}
       <ServiceMoveDialog
         open={moveOpen}
         onClose={() => setMoveOpen(false)}
