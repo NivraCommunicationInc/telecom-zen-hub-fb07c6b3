@@ -157,6 +157,15 @@ serve(async (req) => {
     .eq("user_id", client_user_id)
     .maybeSingle();
 
+  const { data: callerProfile } = await admin
+    .from("profiles")
+    .select("email, first_name, last_name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const callerName =
+    [callerProfile?.first_name, callerProfile?.last_name].filter(Boolean).join(" ") ||
+    callerProfile?.email || "Personnel Nivra";
+
   const clientEmail = profile?.email || null;
   const firstName = profile?.first_name || "Client";
   const ip =
@@ -168,11 +177,48 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `tv.${label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
+        admin_email: callerProfile?.email ?? null,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        metadata: payload,
+        details: payload,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const activity = async (
+    action_type: string,
+    entity_id: string | null,
+    entity_type: string,
+    summary: string,
+    after_data: Record<string, unknown> | null = null,
+  ) => {
+    try {
+      await admin.from("client_activity_logs").insert({
+        client_id: client_user_id,
+        actor_user_id: user.id,
+        actor_name: callerName,
+        actor_role: "staff",
+        action_type,
+        entity_type,
+        entity_id,
+        summary,
+        before_data: null,
+        after_data,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const sysNote = async (body_text: string) => {
+    try {
+      await admin.from("client_internal_notes").insert({
+        client_id: client_user_id,
+        note_type: "system",
+        body: body_text,
+        created_by_user_id: user.id,
+        created_by_role: "staff",
+        created_by_name: callerName,
       });
     } catch (_e) { /* swallow */ }
   };
