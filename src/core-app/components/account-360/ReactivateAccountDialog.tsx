@@ -89,11 +89,11 @@ export function ReactivateAccountDialog({
       },
       {
         reason: reason.trim(),
-        successMessage:
-          "Compte réactivé" +
-          (typeof res => "" ? "" : ""),
+        successMessage: "Compte réactivé",
         errorMessage: "Échec de la réactivation",
         queryClient: qc,
+      },
+    );
       },
     );
     setLoading(false);
