@@ -534,8 +534,10 @@ serve(async (req) => {
         if (existingPlan) {
           return json(200, { ok: true, plan_id: existingPlan.id, idempotent: true });
         }
-        // Cap check when linked to invoice: total_amount cannot exceed the invoice balance_due.
+        // A23-3 : ownership + balance check on invoice
         if (body.invoice_id) {
+          const own = await ensureInvoiceOwnership(body.invoice_id);
+          if (!own.ok) return json(own.status!, { error: own.error });
           const { data: inv, error: iErr } = await admin.from("billing_invoices")
             .select("id, balance_due, status")
             .eq("id", body.invoice_id).maybeSingle();
@@ -547,6 +549,7 @@ serve(async (req) => {
             });
           }
         }
+
         const installment_amount = Math.round((total / count) * 100) / 100;
 
         const { data, error } = await admin.from("client_payment_plans")
