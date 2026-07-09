@@ -537,6 +537,103 @@ serve(async (req) => {
       }
 
 
+      // ============================================================
+      case "reactivate_account": {
+        const reason = (body.reason || "").trim();
+        if (!body.account_id) return json(400, { error: "account_id requis" });
+        if (!reason) return json(400, { error: "Motif obligatoire" });
+
+        const { data: acct, error: acctErr } = await admin
+          .from("accounts")
+          .select("id, status")
+          .eq("id", body.account_id)
+          .maybeSingle();
+        if (acctErr) return json(500, { error: acctErr.message });
+        if (!acct) return json(404, { error: "Compte introuvable" });
+        if (acct.status === "active") return json(409, { error: "Ce compte est déjà actif" });
+        const REACTIVATABLE = ["cancelled", "suspended"];
+        if (!REACTIVATABLE.includes(acct.status ?? "")) {
+          return json(409, { error: `Statut '${acct.status}' non réactivable` });
+        }
+
+        const nowIso = new Date().toISOString();
+        const { error: upErr } = await admin.from("accounts").update({
+          status: "active",
+          cancelled_at: null,
+          cancellation_reason: null,
+          paused_at: null,
+          paused_until: null,
+          pause_charge_pct: null,
+          pause_reason: null,
+          updated_at: nowIso,
+        }).eq("id", body.account_id);
+        if (upErr) return json(500, { error: upErr.message });
+
+        // Cascade: resume suspended subs (default true) and/or reactivate cancelled subs (opt-in).
+        // Enum billing_subscription_status: active | pending | suspended | cancelled | expired | not_renewed.
+        const resumeSuspended = body.resume_suspended !== false;
+        const reactivateCancelled = body.reactivate_cancelled === true;
+        const targetStates: string[] = [];
+        if (resumeSuspended) targetStates.push("suspended");
+        if (reactivateCancelled) targetStates.push("cancelled");
+
+        let reactivatedSubs = 0;
+        if (targetStates.length > 0) {
+          try {
+            const { data: subs, error: subErr } = await admin
+              .from("billing_subscriptions")
+              .update({ status: "active", updated_at: nowIso })
+              .eq("customer_id", client_user_id)
+              .in("status", targetStates)
+              .select("id");
+            if (subErr) console.error("reactivate_account subs update", subErr);
+            reactivatedSubs = subs?.length ?? 0;
+          } catch (e) { console.error("reactivate_account subs exception", e); }
+        }
+
+        await audit("reactivate_account", {
+          account_id: body.account_id,
+          reason,
+          previous_status: acct.status,
+          reactivated_subscriptions: reactivatedSubs,
+          resume_suspended: resumeSuspended,
+          reactivate_cancelled: reactivateCancelled,
+        });
+
+        try {
+          await admin.from("client_activity_logs").insert({
+            client_id: client_user_id,
+            actor_user_id: user.id,
+            actor_name: callerName,
+            actor_role: callerRole,
+            action_type: "account_reactivate",
+            entity_type: "account",
+            entity_id: body.account_id,
+            summary: `Compte réactivé (depuis ${acct.status}) — motif: ${reason}${reactivatedSubs ? ` — ${reactivatedSubs} service(s) réactivé(s)` : ""}`,
+            after_data: { reason, reactivated_subscriptions: reactivatedSubs, previous_status: acct.status },
+          });
+        } catch (_e) { /* swallow */ }
+
+        try {
+          await admin.from("client_internal_notes").insert({
+            client_id: client_user_id,
+            account_id: body.account_id,
+            note_type: "system",
+            body: `Compte réactivé — par ${user.email || callerName} — motif: ${reason}${reactivatedSubs ? ` — ${reactivatedSubs} service(s) réactivé(s)` : ""}`,
+            created_by_user_id: user.id,
+            created_by_role: callerRole,
+            created_by_name: callerName,
+          });
+        } catch (_e) { /* swallow */ }
+
+        return json(200, {
+          ok: true,
+          account_id: body.account_id,
+          reactivated_subscriptions: reactivatedSubs,
+          previous_status: acct.status,
+        });
+      }
+
       default:
         return json(400, { error: "Action inconnue" });
     }
