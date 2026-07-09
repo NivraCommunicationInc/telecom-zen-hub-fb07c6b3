@@ -416,6 +416,10 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("purchase_vod", { vod_id: data.id, title, amount, currency });
+        await activity("service_add", data.id, "service",
+          `Achat VOD/PPV: ${title} (${fmtMoney(amount, currency)})`,
+          { title, content_type, amount, currency, payment_method, payment_reference });
+        await sysNote(`Achat VOD/PPV — ${title} (${content_type}) à ${fmtMoney(amount, currency)}. Réf: ${payment_reference}. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_vod_purchase", {
           title,
           content_type,
