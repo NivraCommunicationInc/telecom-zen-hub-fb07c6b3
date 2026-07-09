@@ -525,6 +525,27 @@ serve(async (req) => {
           diagnostic_id: data.id, diagnostic_type, link_status: body.link_status,
           download_mbps: body.download_mbps, upload_mbps: body.upload_mbps,
         });
+        await activity(
+          "internet_diagnostic",
+          data.id,
+          "internet_diagnostic",
+          `Diagnostic Internet (${diagnostic_type}) — lien ${body.link_status ?? "—"}`,
+          {
+            diagnostic_id: data.id,
+            diagnostic_type,
+            link_status: body.link_status ?? null,
+            download_mbps: body.download_mbps ?? null,
+            upload_mbps: body.upload_mbps ?? null,
+            latency_ms: body.latency_ms ?? null,
+            packet_loss_pct: body.packet_loss_pct ?? null,
+          },
+        );
+        await sysNote(
+          `[INTERNET] Diagnostic ${diagnostic_type} — lien: ${body.link_status ?? "—"}` +
+          ` · DL ${body.download_mbps ?? "—"} Mbps · UL ${body.upload_mbps ?? "—"} Mbps` +
+          ` · latence ${body.latency_ms ?? "—"} ms · perte ${body.packet_loss_pct ?? "—"}%` +
+          (body.notes ? ` · ${body.notes}` : ""),
+        );
         await enqueueEmail("client_internet_diagnostic", {
           diagnostic_type,
           link_status: body.link_status || "—",
