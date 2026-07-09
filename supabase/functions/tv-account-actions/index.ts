@@ -329,6 +329,10 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("add_themed_pack", { addon_id: data.id, addon_code, monthly_price });
+        await activity("service_add", data.id, "service",
+          `Bouquet TV activé: ${addon_name} (${fmtMoney(monthly_price)}/mois)`,
+          { addon_code, addon_name, addon_type, monthly_price });
+        await sysNote(`Activation bouquet TV — ${addon_name} (${addon_code}) à ${fmtMoney(monthly_price)}/mois. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_pack_change", {
           addon_name,
           monthly_price: fmtMoney(monthly_price),
