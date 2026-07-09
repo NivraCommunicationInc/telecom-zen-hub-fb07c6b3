@@ -249,6 +249,13 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("topup", { topup_id: data.id, amount, currency, msisdn: body.msisdn });
+        await logActivity(
+          "balance_add",
+          `Recharge mobile ${fmtMoney(amount, currency)}${body.msisdn ? ` — ${body.msisdn}` : ""}`,
+          data.id,
+          { topup_id: data.id, amount, currency, msisdn: body.msisdn, payment_method, payment_reference },
+        );
+        await addNote(`[MOBILE.TOPUP] ${fmtMoney(amount, currency)} — ${payment_method} — réf ${payment_reference}${body.msisdn ? ` — ${body.msisdn}` : ""}`);
         await enqueueEmail("client_mobile_topup_confirmation", {
           amount: fmtMoney(amount, currency),
           msisdn: body.msisdn,
