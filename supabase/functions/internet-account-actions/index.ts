@@ -479,6 +479,14 @@ serve(async (req) => {
           modem_action_id: data.id, action_type,
           modem_serial: body.modem_serial, modem_mac: body.modem_mac,
         });
+        await activity(
+          "internet_modem_action",
+          data.id,
+          "internet_modem_action",
+          `Modem: ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}`,
+          { modem_action_id: data.id, action_type, modem_serial: body.modem_serial ?? null, modem_mac: body.modem_mac ?? null, reason: body.reason ?? null },
+        );
+        await sysNote(`[INTERNET] ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}${body.reason ? ` · Raison: ${body.reason}` : ""}`);
         await enqueueEmail("client_internet_modem_action", {
           action_label: meta.label,
           modem_serial: body.modem_serial || "—",
