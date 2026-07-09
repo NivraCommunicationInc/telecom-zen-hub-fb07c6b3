@@ -212,6 +212,78 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
+  // ── A23-1 : parité activity_log + note interne pour toutes les actions ──
+  const logAndNote = async (
+    action_type: string,
+    entity_type: string,
+    entity_id: string | null,
+    summary: string,
+    before_data: Record<string, unknown> | null,
+    after_data: Record<string, unknown> | null,
+  ) => {
+    try {
+      await admin.from("client_activity_logs").insert({
+        client_id:     client_user_id,
+        actor_user_id: user.id,
+        actor_name:    user.email ?? null,
+        actor_role:    "admin",
+        action_type,
+        entity_type,
+        entity_id,
+        summary,
+        before_data,
+        after_data,
+      });
+      await admin.from("client_internal_notes").insert({
+        client_id:          client_user_id,
+        account_id:         body.account_id ?? null,
+        note_type:          "system",
+        body:               `${summary} — par ${user.email ?? user.id}`,
+        created_by_user_id: user.id,
+        created_by_role:    "admin",
+        created_by_name:    user.email ?? null,
+      });
+    } catch (e) { console.warn("[logAndNote]", String(e)); }
+  };
+
+  // ── A23-3 : contrôle d'appartenance invoice/payment (sécurité cross-client) ──
+  const ensureInvoiceOwnership = async (invoice_id: string) => {
+    const { data: inv, error } = await admin
+      .from("billing_invoices")
+      .select("id, user_id, account_id")
+      .eq("id", invoice_id)
+      .maybeSingle();
+    if (error) return { ok: false, status: 500, error: error.message };
+    if (!inv) return { ok: false, status: 404, error: "Facture introuvable" };
+    const invUser = (inv as any).user_id ?? null;
+    const invAccount = (inv as any).account_id ?? null;
+    const matchesUser = invUser && invUser === client_user_id;
+    const matchesAccount = body.account_id && invAccount && invAccount === body.account_id;
+    if (!matchesUser && !matchesAccount) {
+      return { ok: false, status: 403, error: "Facture n'appartient pas à ce client (ownership check)" };
+    }
+    return { ok: true, invoice: inv };
+  };
+
+  const ensurePaymentOwnership = async (payment_id: string) => {
+    const { data: pay, error } = await admin
+      .from("billing_payments")
+      .select("id, user_id, account_id, invoice_id, amount, status, provider, provider_payment_id")
+      .eq("id", payment_id)
+      .maybeSingle();
+    if (error) return { ok: false, status: 500, error: error.message };
+    if (!pay) return { ok: false, status: 404, error: "Paiement introuvable" };
+    const payUser = (pay as any).user_id ?? null;
+    const payAccount = (pay as any).account_id ?? null;
+    const matchesUser = payUser && payUser === client_user_id;
+    const matchesAccount = body.account_id && payAccount && payAccount === body.account_id;
+    if (!matchesUser && !matchesAccount) {
+      return { ok: false, status: 403, error: "Paiement n'appartient pas à ce client (ownership check)" };
+    }
+    return { ok: true, payment: pay };
+  };
+
+
   try {
     switch (action) {
       // ============================================================
@@ -273,8 +345,17 @@ serve(async (req) => {
         await audit("add_payment_method", {
           method_id: data.id, method_type, last4: body.last4, is_default: !!body.is_default,
         });
+        await logAndNote(
+          "payment_method_added",
+          "client_payment_method",
+          data.id,
+          `Méthode de paiement ajoutée — ${METHOD_LABELS[method_type] || method_type}${body.last4 ? ` ••${String(body.last4).slice(-4)}` : ""}${body.is_default ? " (par défaut)" : ""}`,
+          null,
+          { method_id: data.id, method_type, last4: body.last4 ?? null, is_default: !!body.is_default },
+        );
         await enqueuePaymentMethodEmail("added", METHOD_LABELS[method_type] || method_type, body.last4);
         return json(200, { ok: true, method_id: data.id });
+
       }
 
       // ============================================================
@@ -316,8 +397,17 @@ serve(async (req) => {
           .eq("payment_method_id", id);
 
         await audit("remove_payment_method", { method_id: id });
+        await logAndNote(
+          "payment_method_removed",
+          "client_payment_method",
+          id,
+          `Méthode de paiement retirée — ${METHOD_LABELS[existing.method_type] || existing.method_type}${existing.last4 ? ` ••${existing.last4}` : ""}${body.reason ? ` — motif: ${body.reason}` : ""}`,
+          { status: existing.status, method_type: existing.method_type, last4: existing.last4 },
+          { status: "removed", removed_reason: body.reason ?? null },
+        );
         await enqueuePaymentMethodEmail("removed", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
+
       }
 
       // ============================================================
@@ -341,8 +431,17 @@ serve(async (req) => {
         if (uErr) return json(500, { error: uErr.message });
 
         await audit("set_default_method", { method_id: id });
+        await logAndNote(
+          "payment_method_default_set",
+          "client_payment_method",
+          id,
+          `Méthode par défaut définie — ${METHOD_LABELS[existing.method_type] || existing.method_type}${existing.last4 ? ` ••${existing.last4}` : ""}`,
+          { is_default: false },
+          { is_default: true },
+        );
         await enqueuePaymentMethodEmail("default_set", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
+
       }
 
       // ============================================================
@@ -387,12 +486,21 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("toggle_autopay", { enabled, payment_method_id, charge_day_offset });
+        await logAndNote(
+          enabled ? "autopay_enabled" : "autopay_disabled",
+          "client_autopay_settings",
+          null,
+          `Paiement automatique ${enabled ? "activé" : "désactivé"} — décalage ${charge_day_offset}j${body.reason ? ` — motif: ${body.reason}` : ""}`,
+          null,
+          { enabled, payment_method_id, charge_day_offset, reason: body.reason ?? null },
+        );
         await enqueueEmail("client_autopay_change", {
           enabled: enabled ? "true" : "false",
           charge_day_offset: String(charge_day_offset),
           reason: body.reason || "—",
         });
         return json(200, { ok: true });
+
       }
 
       // ============================================================
@@ -426,8 +534,10 @@ serve(async (req) => {
         if (existingPlan) {
           return json(200, { ok: true, plan_id: existingPlan.id, idempotent: true });
         }
-        // Cap check when linked to invoice: total_amount cannot exceed the invoice balance_due.
+        // A23-3 : ownership + balance check on invoice
         if (body.invoice_id) {
+          const own = await ensureInvoiceOwnership(body.invoice_id);
+          if (!own.ok) return json(own.status!, { error: own.error });
           const { data: inv, error: iErr } = await admin.from("billing_invoices")
             .select("id, balance_due, status")
             .eq("id", body.invoice_id).maybeSingle();
@@ -439,6 +549,7 @@ serve(async (req) => {
             });
           }
         }
+
         const installment_amount = Math.round((total / count) * 100) / 100;
 
         const { data, error } = await admin.from("client_payment_plans")
@@ -584,6 +695,11 @@ serve(async (req) => {
           }
         }
 
+        // Capture before-state for audit parity
+        const { data: prevSettings } = await admin.from("client_billing_settings")
+          .select("billing_day_of_month, delivery_format, language, email_for_billing, paper_mailing_address")
+          .eq("user_id", client_user_id).maybeSingle();
+
         const { error } = await admin.from("client_billing_settings")
           .upsert({
             user_id: client_user_id,
@@ -600,6 +716,14 @@ serve(async (req) => {
         await audit("update_billing_settings", {
           billing_day_of_month: day, delivery_format, language,
         });
+        await logAndNote(
+          "billing_settings_updated",
+          "client_billing_settings",
+          null,
+          `Préférences facturation mises à jour — jour ${day}, ${delivery_format}, ${language}${body.email_for_billing ? `, courriel ${body.email_for_billing}` : ""}`,
+          prevSettings ?? null,
+          { billing_day_of_month: day, delivery_format, language, email_for_billing: body.email_for_billing ?? null, paper_mailing_address: body.paper_mailing_address ?? null },
+        );
         await enqueueEmail("client_billing_settings_change", {
           billing_day_of_month: String(day),
           delivery_format,
@@ -607,6 +731,7 @@ serve(async (req) => {
           email_for_billing: body.email_for_billing || "—",
         });
         return json(200, { ok: true });
+
       }
 
       // ============================================================
@@ -635,6 +760,17 @@ serve(async (req) => {
         if (existingRef) {
           return json(200, { ok: true, refund_id: existingRef.id, idempotent: true });
         }
+
+        // A23-3 : ownership checks — invoice + payment must belong to targeted client
+        if (body.invoice_id) {
+          const own = await ensureInvoiceOwnership(body.invoice_id);
+          if (!own.ok) return json(own.status!, { error: own.error });
+        }
+        if (body.payment_id) {
+          const own = await ensurePaymentOwnership(body.payment_id);
+          if (!own.ok) return json(own.status!, { error: own.error });
+        }
+
 
         // ────────────────────────────────────────────────────────────────
         // Chemin Square / original : passage obligatoire par la RPC
