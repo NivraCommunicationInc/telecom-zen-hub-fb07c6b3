@@ -117,9 +117,32 @@ export function ShippingTechnicianStep({ proc }: Props) {
 
   const isContractGateError = (err: any) => String(err?.message || "").startsWith("CONTRACT_NOT_SIGNED");
 
+  const registerTracker = async () => {
+    const carrier = shippingFields.carrier || order.carrier;
+    const tracking_number = shippingFields.tracking_number || order.tracking_number;
+    if (!carrier || !tracking_number) return;
+    try {
+      const { error } = await supabase.functions.invoke("shipping-register-tracker", {
+        body: {
+          order_id: order.id,
+          carrier,
+          tracking_number,
+          tracking_url: shippingFields.tracking_url || order.tracking_url || null,
+        },
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("[shipping-register-tracker] failed:", e);
+      toast.error("Suivi non enregistré auprès du transporteur (les mises à jour automatiques peuvent ne pas fonctionner)");
+    }
+  };
+
   const handleSaveShipping = async () => {
     setLoading("save");
-    try { await proc.updateShipping({ ...shippingFields, shipped_at: new Date().toISOString() }); }
+    try {
+      await proc.updateShipping({ ...shippingFields, shipped_at: new Date().toISOString() });
+      await registerTracker();
+    }
     finally { setLoading(null); }
   };
 
@@ -128,6 +151,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
     try {
       await proc.updateShipping({ ...shippingFields, shipped_at: new Date().toISOString() });
       await proc.changeStatus("shipped");
+      await registerTracker();
     } catch (err: any) {
       if (isContractGateError(err)) {
         setContractGate({ open: true, targetStatus: "shipped", reason: "", forcing: false });
