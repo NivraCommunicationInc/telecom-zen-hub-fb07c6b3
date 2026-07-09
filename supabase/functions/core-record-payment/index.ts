@@ -149,7 +149,7 @@ serve(async (req) => {
         p_provider_payment_id: extRef,
         p_provider_order_id:   null,
         p_customer_id:         invBefore.customer_id,
-        p_source:              "admin_core",
+        p_source:              "admin",
         p_created_by_name:     user.email ?? null,
         p_created_by_role:     "admin",
       });
