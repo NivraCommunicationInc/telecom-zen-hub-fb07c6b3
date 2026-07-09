@@ -151,6 +151,16 @@ serve(async (req) => {
 
   const clientEmail = profile?.email || null;
   const firstName = profile?.first_name || "Client";
+
+  const { data: callerProfile } = await admin
+    .from("profiles")
+    .select("first_name,last_name,email")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const callerName =
+    [callerProfile?.first_name, callerProfile?.last_name].filter(Boolean).join(" ") ||
+    callerProfile?.email || "Personnel Nivra";
+
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("cf-connecting-ip") ||
@@ -160,11 +170,48 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `internet.${label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
+        admin_email: callerProfile?.email ?? null,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        metadata: payload,
+        details: payload,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const activity = async (
+    action_type: string,
+    entity_id: string | null,
+    entity_type: string,
+    summary: string,
+    after_data: Record<string, unknown> | null = null,
+  ) => {
+    try {
+      await admin.from("client_activity_logs").insert({
+        client_id: client_user_id,
+        actor_user_id: user.id,
+        actor_name: callerName,
+        actor_role: "staff",
+        action_type,
+        entity_type,
+        entity_id,
+        summary,
+        before_data: null,
+        after_data,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const sysNote = async (body_text: string) => {
+    try {
+      await admin.from("client_internal_notes").insert({
+        client_id: client_user_id,
+        note_type: "system",
+        body: body_text,
+        created_by_user_id: user.id,
+        created_by_role: "staff",
+        created_by_name: callerName,
       });
     } catch (_e) { /* swallow */ }
   };
@@ -257,6 +304,25 @@ serve(async (req) => {
           subscription_update_ok: subscriptionUpdateOk,
           subscription_update_error: subscriptionUpdateError,
         });
+        await activity(
+          "internet_plan_change",
+          data.id,
+          "internet_plan_change",
+          `Forfait Internet: ${body.previous_plan_name ?? "—"} → ${new_plan_name} (${fmtMoney(new_monthly_price)}/mois, ${change_type})`,
+          {
+            plan_change_id: data.id,
+            previous_plan_name: body.previous_plan_name ?? null,
+            new_plan_name,
+            new_monthly_price,
+            new_speed_mbps: body.new_speed_mbps ?? null,
+            change_type,
+            effective_date,
+          },
+        );
+        await sysNote(
+          `[INTERNET] Forfait changé — ${body.previous_plan_name ?? "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}` +
+          (subscriptionUpdateOk ? "" : ` · ⚠️ abonnement non synchronisé (${subscriptionUpdateError})`),
+        );
         await enqueueEmail("client_internet_plan_change", {
           previous_plan_name: body.previous_plan_name || "—",
           new_plan_name,
@@ -413,6 +479,14 @@ serve(async (req) => {
           modem_action_id: data.id, action_type,
           modem_serial: body.modem_serial, modem_mac: body.modem_mac,
         });
+        await activity(
+          "internet_modem_action",
+          data.id,
+          "internet_modem_action",
+          `Modem: ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}`,
+          { modem_action_id: data.id, action_type, modem_serial: body.modem_serial ?? null, modem_mac: body.modem_mac ?? null, reason: body.reason ?? null },
+        );
+        await sysNote(`[INTERNET] ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}${body.reason ? ` · Raison: ${body.reason}` : ""}`);
         await enqueueEmail("client_internet_modem_action", {
           action_label: meta.label,
           modem_serial: body.modem_serial || "—",
@@ -451,6 +525,27 @@ serve(async (req) => {
           diagnostic_id: data.id, diagnostic_type, link_status: body.link_status,
           download_mbps: body.download_mbps, upload_mbps: body.upload_mbps,
         });
+        await activity(
+          "internet_diagnostic",
+          data.id,
+          "internet_diagnostic",
+          `Diagnostic Internet (${diagnostic_type}) — lien ${body.link_status ?? "—"}`,
+          {
+            diagnostic_id: data.id,
+            diagnostic_type,
+            link_status: body.link_status ?? null,
+            download_mbps: body.download_mbps ?? null,
+            upload_mbps: body.upload_mbps ?? null,
+            latency_ms: body.latency_ms ?? null,
+            packet_loss_pct: body.packet_loss_pct ?? null,
+          },
+        );
+        await sysNote(
+          `[INTERNET] Diagnostic ${diagnostic_type} — lien: ${body.link_status ?? "—"}` +
+          ` · DL ${body.download_mbps ?? "—"} Mbps · UL ${body.upload_mbps ?? "—"} Mbps` +
+          ` · latence ${body.latency_ms ?? "—"} ms · perte ${body.packet_loss_pct ?? "—"}%` +
+          (body.notes ? ` · ${body.notes}` : ""),
+        );
         await enqueueEmail("client_internet_diagnostic", {
           diagnostic_type,
           link_status: body.link_status || "—",
@@ -494,6 +589,18 @@ serve(async (req) => {
           band_mode, guest_enabled: !!body.guest_enabled,
           ssid_24: body.ssid_24, ssid_5: body.ssid_5,
         });
+        await activity(
+          "internet_wifi_change",
+          null,
+          "internet_wifi_settings",
+          `WiFi mis à jour — bande ${band_mode}${body.guest_enabled ? ` · invité activé (${body.guest_ssid || "—"})` : " · invité désactivé"}`,
+          { band_mode, ssid_24: body.ssid_24 ?? null, ssid_5: body.ssid_5 ?? null, guest_enabled: !!body.guest_enabled, guest_ssid: body.guest_ssid ?? null },
+        );
+        await sysNote(
+          `[INTERNET] WiFi mis à jour — bande ${band_mode}` +
+          ` · SSID 2.4: ${body.ssid_24 ?? "—"} · SSID 5: ${body.ssid_5 ?? "—"}` +
+          ` · Invité: ${body.guest_enabled ? `oui (${body.guest_ssid ?? "—"})` : "non"}`,
+        );
         await enqueueEmail("client_internet_wifi_change", {
           ssid_24: body.ssid_24 || "—",
           ssid_5: body.ssid_5 || "—",
@@ -532,7 +639,16 @@ serve(async (req) => {
             .eq("id", id);
           if (uErr) return json(500, { error: uErr.message });
 
+
           await audit("static_ip_release", { assignment_id: id, ip_address: existing.ip_address });
+          await activity(
+            "internet_static_ip_release",
+            id,
+            "internet_static_ip",
+            `IP statique libérée — ${existing.ip_address ?? "—"}`,
+            { assignment_id: id, ip_address: existing.ip_address ?? null, reason: body.reason ?? null },
+          );
+          await sysNote(`[INTERNET] IP statique libérée — ${existing.ip_address ?? "—"}${body.reason ? ` · Raison: ${body.reason}` : ""}`);
           await enqueueEmail("client_internet_static_ip", {
             mode: "released",
             ip_address: existing.ip_address || "—",
@@ -573,6 +689,14 @@ serve(async (req) => {
         await audit("static_ip_assign", {
           assignment_id: data.id, ip_address, monthly_price,
         });
+        await activity(
+          "internet_static_ip_assign",
+          data.id,
+          "internet_static_ip",
+          `IP statique attribuée — ${ip_address} (${fmtMoney(monthly_price)}/mois)`,
+          { assignment_id: data.id, ip_address, monthly_price, reason: body.reason ?? null },
+        );
+        await sysNote(`[INTERNET] IP statique attribuée — ${ip_address} · ${fmtMoney(monthly_price)}/mois${body.reason ? ` · Raison: ${body.reason}` : ""}`);
         await enqueueEmail("client_internet_static_ip", {
           mode: "assigned",
           ip_address,
