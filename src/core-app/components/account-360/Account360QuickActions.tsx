@@ -51,6 +51,7 @@ import { KycModule } from "@/core-app/components/account-360/modules/KycModule";
 import { RecordPaymentModule } from "@/core-app/components/account-360/modules/RecordPaymentModule";
 import { RefundModule } from "@/core-app/components/account-360/modules/RefundModule";
 import { AutopayModule } from "@/core-app/components/account-360/modules/AutopayModule";
+import { PaymentPlanModule } from "@/core-app/components/account-360/modules/PaymentPlanModule";
 
 
 
