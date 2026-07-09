@@ -21072,6 +21072,69 @@ export type Database = {
           },
         ]
       }
+      qa_module20_e2e_log: {
+        Row: {
+          anchor_after: string | null
+          anchor_before: string | null
+          count_activity: number | null
+          count_audit: number | null
+          count_email: number | null
+          count_notes: number | null
+          count_scr: number | null
+          count_tags: number | null
+          cycle_end_after: string | null
+          cycle_end_before: string | null
+          details: Json | null
+          email: string | null
+          id: string
+          outcome: string | null
+          ran_at: string
+          scr1: string | null
+          scr2: string | null
+          scr3: string | null
+        }
+        Insert: {
+          anchor_after?: string | null
+          anchor_before?: string | null
+          count_activity?: number | null
+          count_audit?: number | null
+          count_email?: number | null
+          count_notes?: number | null
+          count_scr?: number | null
+          count_tags?: number | null
+          cycle_end_after?: string | null
+          cycle_end_before?: string | null
+          details?: Json | null
+          email?: string | null
+          id?: string
+          outcome?: string | null
+          ran_at?: string
+          scr1?: string | null
+          scr2?: string | null
+          scr3?: string | null
+        }
+        Update: {
+          anchor_after?: string | null
+          anchor_before?: string | null
+          count_activity?: number | null
+          count_audit?: number | null
+          count_email?: number | null
+          count_notes?: number | null
+          count_scr?: number | null
+          count_tags?: number | null
+          cycle_end_after?: string | null
+          cycle_end_before?: string | null
+          details?: Json | null
+          email?: string | null
+          id?: string
+          outcome?: string | null
+          ran_at?: string
+          scr1?: string | null
+          scr2?: string | null
+          scr3?: string | null
+        }
+        Relationships: []
+      }
       quote_adjustments: {
         Row: {
           adjustment_type: Database["public"]["Enums"]["quote_adjustment_type"]
