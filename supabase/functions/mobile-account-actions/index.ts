@@ -342,6 +342,13 @@ serve(async (req) => {
         if (updErr) return json(500, { error: updErr.message });
 
         await audit("remove_addon", { addon_id, addon_name: existing.addon_name });
+        await logActivity(
+          "service_remove",
+          `Option mobile retirée: ${existing.addon_name}`,
+          addon_id,
+          { addon_id, addon_name: existing.addon_name, reason: body.reason ?? null },
+        );
+        await addNote(`[MOBILE.REMOVE_ADDON] ${existing.addon_name}${body.reason ? ` — Motif: ${body.reason}` : ""}`);
         await enqueueEmail("client_mobile_addon_change", {
           addon_name: existing.addon_name,
           monthly_price: fmtMoney(Number(existing.monthly_price ?? 0)),
