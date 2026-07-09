@@ -102,7 +102,7 @@ function ctaForState(state: AccountState, isFr: boolean): CTA | null {
     case "pending_kyc":
       return {
         label: isFr ? "Vérifier mon identité" : "Verify my identity",
-        to: "/portal/kyc",
+        to: "/portal/identity-verification",
       };
     case "pending_activation":
       return {

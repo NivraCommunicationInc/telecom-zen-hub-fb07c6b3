@@ -14,7 +14,7 @@ interface Body {
   note: string;
 }
 
-function buildEmail(firstName: string, orderNumber: string, doc: string, note: string) {
+function buildEmail(firstName: string, orderNumber: string, doc: string, note: string, verificationUrl: string) {
   return violetShell({
     preheader: "Document supplémentaire requis pour finaliser votre vérification.",
     badge: "DOCUMENT REQUIS",
@@ -32,7 +32,7 @@ function buildEmail(firstName: string, orderNumber: string, doc: string, note: s
       ["Document demandé", violetEsc(doc)],
       ["Date", new Date().toLocaleDateString("fr-CA", { dateStyle: "long" })],
     ],
-    ctaPrimaryUrl: "https://nivra-telecom.ca/portal/identity-verification",
+    ctaPrimaryUrl: verificationUrl,
     ctaPrimaryLabel: "Soumettre le document",
     helpVariant: "warning",
   });
@@ -111,6 +111,7 @@ Deno.serve(async (req) => {
     let clientEmail: string | null = null;
     let firstName = "";
     let orderNumber = rec.order_id?.slice(0, 8) ?? "";
+    let verificationUrl = "https://nivra-telecom.ca/verification/";
     if (rec.order_id) {
       const { data: order } = await supabase
         .from("orders")
@@ -130,12 +131,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (rec.order_id) {
+      const { data: kycReq } = await supabase
+        .from("kyc_requests")
+        .select("token")
+        .eq("order_id", rec.order_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (kycReq?.token) verificationUrl = `https://nivra-telecom.ca/verification/${kycReq.token}`;
+    }
+
     if (clientEmail) {
       try {
         await enqueueEmail({
           to: clientEmail,
           subject: "Document supplémentaire requis â€” Nivra Telecom",
-          html: buildEmail(firstName, orderNumber, body.document_requested, body.note || ""),
+          html: buildEmail(firstName, orderNumber, body.document_requested, body.note || "", verificationUrl),
           messageType: "kyc_additional_docs_request",
           entityType: "order_identity_data",
           entityId: rec.id,

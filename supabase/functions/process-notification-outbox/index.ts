@@ -107,6 +107,7 @@ function buildEmailHtml(notif: {
   const payload = notif.payload_json || {};
   const name = (notif.to_name || (payload.client_name as string) || "") as string;
   const greeting = name ? `Bonjour ${name},` : undefined;
+  const verificationUrl = String(payload.kyc_link || payload.verification_url || (payload.token ? `https://nivra-telecom.ca/verification/${payload.token}` : "https://nivra-telecom.ca/verification/"));
 
   const get = (k: string) => (payload[k] as string) || "—";
 
@@ -137,7 +138,7 @@ function buildEmailHtml(notif: {
         bodyHtml: `Notre équipe a besoin de documents supplémentaires pour compléter votre vérification d'identité.${payload.reason ? `<br><br><strong>Note :</strong> ${violetEsc(payload.reason)}` : ""}`,
         cardTitle: "Dossier",
         cardRows: [["Dossier", get("case_number")]],
-        ctaPrimaryUrl: "https://nivra-telecom.ca/portal/identity-verification",
+        ctaPrimaryUrl: verificationUrl,
         ctaPrimaryLabel: "Téléverser mes documents",
         helpVariant: "warning",
       });
