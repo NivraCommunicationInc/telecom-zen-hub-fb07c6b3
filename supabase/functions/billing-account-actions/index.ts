@@ -212,6 +212,78 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
+  // ── A23-1 : parité activity_log + note interne pour toutes les actions ──
+  const logAndNote = async (
+    action_type: string,
+    entity_type: string,
+    entity_id: string | null,
+    summary: string,
+    before_data: Record<string, unknown> | null,
+    after_data: Record<string, unknown> | null,
+  ) => {
+    try {
+      await admin.from("client_activity_logs").insert({
+        client_id:     client_user_id,
+        actor_user_id: user.id,
+        actor_name:    user.email ?? null,
+        actor_role:    "admin",
+        action_type,
+        entity_type,
+        entity_id,
+        summary,
+        before_data,
+        after_data,
+      });
+      await admin.from("client_internal_notes").insert({
+        client_id:          client_user_id,
+        account_id:         body.account_id ?? null,
+        note_type:          "system",
+        body:               `${summary} — par ${user.email ?? user.id}`,
+        created_by_user_id: user.id,
+        created_by_role:    "admin",
+        created_by_name:    user.email ?? null,
+      });
+    } catch (e) { console.warn("[logAndNote]", String(e)); }
+  };
+
+  // ── A23-3 : contrôle d'appartenance invoice/payment (sécurité cross-client) ──
+  const ensureInvoiceOwnership = async (invoice_id: string) => {
+    const { data: inv, error } = await admin
+      .from("billing_invoices")
+      .select("id, user_id, account_id")
+      .eq("id", invoice_id)
+      .maybeSingle();
+    if (error) return { ok: false, status: 500, error: error.message };
+    if (!inv) return { ok: false, status: 404, error: "Facture introuvable" };
+    const invUser = (inv as any).user_id ?? null;
+    const invAccount = (inv as any).account_id ?? null;
+    const matchesUser = invUser && invUser === client_user_id;
+    const matchesAccount = body.account_id && invAccount && invAccount === body.account_id;
+    if (!matchesUser && !matchesAccount) {
+      return { ok: false, status: 403, error: "Facture n'appartient pas à ce client (ownership check)" };
+    }
+    return { ok: true, invoice: inv };
+  };
+
+  const ensurePaymentOwnership = async (payment_id: string) => {
+    const { data: pay, error } = await admin
+      .from("billing_payments")
+      .select("id, user_id, account_id, invoice_id, amount, status, provider, provider_payment_id")
+      .eq("id", payment_id)
+      .maybeSingle();
+    if (error) return { ok: false, status: 500, error: error.message };
+    if (!pay) return { ok: false, status: 404, error: "Paiement introuvable" };
+    const payUser = (pay as any).user_id ?? null;
+    const payAccount = (pay as any).account_id ?? null;
+    const matchesUser = payUser && payUser === client_user_id;
+    const matchesAccount = body.account_id && payAccount && payAccount === body.account_id;
+    if (!matchesUser && !matchesAccount) {
+      return { ok: false, status: 403, error: "Paiement n'appartient pas à ce client (ownership check)" };
+    }
+    return { ok: true, payment: pay };
+  };
+
+
   try {
     switch (action) {
       // ============================================================
