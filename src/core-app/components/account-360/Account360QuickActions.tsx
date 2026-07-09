@@ -604,6 +604,18 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           canonicalData={canonicalData}
         />
       )}
+      {accountId && clientId && (
+        <AutopayModule
+          open={autopayOpen}
+          onClose={() => setAutopayOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          customerId={customerId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
+        />
+      )}
       <PaymentPlanDialog
         open={paymentPlanOpen}
         onClose={() => setPaymentPlanOpen(false)}
