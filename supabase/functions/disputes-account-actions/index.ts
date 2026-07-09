@@ -294,6 +294,9 @@ serve(async (req) => {
         });
         if (err) return json(400, { error: err });
         await audit("set_under_review", { dispute_id: row.id, dispute_number: row.dispute_number });
+        await activity("dispute_status_changed", "payment_dispute", row.id,
+          `Litige ${row.dispute_number} → En analyse`, null, { status: "under_review" });
+        await internalNote(`Litige ${row.dispute_number} passé "En analyse" par ${callerName}.`);
         await enqueueStatusEmail(row.dispute_number, "under_review", row.reason_code, null);
         return json(200, { ok: true });
       }
@@ -308,6 +311,9 @@ serve(async (req) => {
         });
         if (err) return json(400, { error: err });
         await audit("request_client_info", { dispute_id: row.id, dispute_number: row.dispute_number });
+        await activity("dispute_status_changed", "payment_dispute", row.id,
+          `Litige ${row.dispute_number} → Attend le client`, null, { status: "awaiting_client" });
+        await internalNote(`Litige ${row.dispute_number} — demande d'info au client: ${body.public_message.trim().slice(0, 200)}`);
         await enqueueStatusEmail(row.dispute_number, "awaiting_client", row.reason_code, body.public_message);
         return json(200, { ok: true });
       }
@@ -323,6 +329,9 @@ serve(async (req) => {
         });
         if (err) return json(400, { error: err });
         await audit("resolve_approved", { dispute_id: row.id, dispute_number: row.dispute_number });
+        await activity("dispute_resolved_approved", "payment_dispute", row.id,
+          `Litige ${row.dispute_number} approuvé`, null, { status: "resolved_approved" });
+        await internalNote(`Litige ${row.dispute_number} APPROUVÉ par ${callerName}. Résolution: ${body.resolution_notes.trim().slice(0, 200)}`);
         await enqueueStatusEmail(row.dispute_number, "resolved_approved", row.reason_code, body.public_message ?? body.resolution_notes);
         return json(200, { ok: true });
       }
@@ -338,6 +347,9 @@ serve(async (req) => {
         });
         if (err) return json(400, { error: err });
         await audit("resolve_rejected", { dispute_id: row.id, dispute_number: row.dispute_number });
+        await activity("dispute_resolved_rejected", "payment_dispute", row.id,
+          `Litige ${row.dispute_number} refusé`, null, { status: "resolved_rejected" });
+        await internalNote(`Litige ${row.dispute_number} REFUSÉ par ${callerName}. Motif: ${body.rejection_reason.trim().slice(0, 200)}`);
         await enqueueStatusEmail(row.dispute_number, "resolved_rejected", row.reason_code, body.public_message ?? body.rejection_reason);
         return json(200, { ok: true });
       }
@@ -347,7 +359,7 @@ serve(async (req) => {
         if (!body.staff_note?.trim()) return json(400, { error: "Note requise" });
         const { data: cur } = await admin
           .from("payment_disputes")
-          .select("staff_notes, user_id")
+          .select("staff_notes, user_id, dispute_number")
           .eq("id", body.dispute_id)
           .maybeSingle();
         if (!cur) return json(404, { error: "Litige introuvable" });
@@ -360,6 +372,9 @@ serve(async (req) => {
           .eq("id", body.dispute_id);
         if (error) return json(500, { error: error.message });
         await audit("add_staff_note", { dispute_id: body.dispute_id });
+        await activity("dispute_staff_note_added", "payment_dispute", body.dispute_id,
+          `Note staff ajoutée au litige ${cur.dispute_number}`, null, null);
+        await internalNote(`Note staff — Litige ${cur.dispute_number}: ${body.staff_note.trim().slice(0, 200)}`);
         return json(200, { ok: true });
       }
 
