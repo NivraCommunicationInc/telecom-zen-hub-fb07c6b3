@@ -158,7 +158,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     {
       title: "Facturation",
       actions: [
-        { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments") },
+        { icon: CreditCard, label: "Enregistrer paiement", onClick: () => setRecordPaymentOpen(true), color: "emerald" },
         { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices") },
         { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
         { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
