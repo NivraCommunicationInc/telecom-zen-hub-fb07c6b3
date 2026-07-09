@@ -453,8 +453,25 @@ serve(async (req) => {
           return json(400, { error: "action_type invalide" });
         }
         const meta = MODEM_LABELS[action_type];
-        if (meta.critical && !body.reason) {
-          return json(400, { error: "Raison obligatoire pour cette action" });
+        const reasonStr = typeof body.reason === "string" ? body.reason.trim() : "";
+        if ((meta.critical || action_type === "reboot") && reasonStr.length < 3) {
+          return json(400, { error: "Motif requis (min. 3 caractères)" });
+        }
+        // Cooldown / idempotence — block a second reboot of the same target within 120s
+        if (action_type === "reboot") {
+          const since = new Date(Date.now() - 120_000).toISOString();
+          let q = admin
+            .from("internet_modem_actions")
+            .select("id, created_at")
+            .eq("user_id", client_user_id)
+            .eq("action_type", "reboot")
+            .gte("created_at", since)
+            .limit(1);
+          if (body.modem_serial) q = q.eq("modem_serial", body.modem_serial);
+          const { data: recent } = await q;
+          if (recent && recent.length > 0) {
+            return json(429, { error: "Un reboot vient d'être demandé pour cet équipement. Réessayez dans quelques instants." });
+          }
         }
 
         const { data, error } = await admin
@@ -466,10 +483,10 @@ serve(async (req) => {
             modem_serial: body.modem_serial ?? null,
             modem_mac: body.modem_mac ?? null,
             action_type,
-            reason: body.reason ?? null,
-            status: "completed",
+            reason: reasonStr || null,
+            status: "requested",
             performed_by: user.id,
-            metadata: { idempotency_key: body.idempotency_key },
+            metadata: { idempotency_key: body.idempotency_key, simulated: true },
           })
           .select("id")
           .single();
