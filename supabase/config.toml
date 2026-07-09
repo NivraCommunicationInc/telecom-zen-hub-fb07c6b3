@@ -302,3 +302,9 @@ verify_jwt = true
 
 [functions.marketing-resend-webhook]
 verify_jwt = false
+
+[functions.shipping-tracking-webhook]
+verify_jwt = false
+
+[functions.shipping-register-tracker]
+verify_jwt = false
