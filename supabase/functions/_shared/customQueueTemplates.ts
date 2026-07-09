@@ -1004,7 +1004,8 @@ export function renderQueueTemplate(
     // ===================================================================
     case "kyc_document_required":
     case "identity_verification_requested": {
-      const verificationUrl = String(v.verification_url || `${portalUrl}/kyc`);
+      const token = String(v.token || v.kyc_token || v.verification_token || "").trim();
+      const verificationUrl = String(v.kyc_link || v.verification_url || `${APP_URL}/verification/${token}`);
       const expires = fmtDate(v.expires_at || v.EXPIRES_AT);
       return {
         subject: `Vérification d'identité requise — Commande ${orderNum}`,
@@ -1051,7 +1052,8 @@ export function renderQueueTemplate(
 
     case "kyc_rejected":
     case "identity_rejected": {
-      const verificationUrl = String(v.verification_url || `${portalUrl}/kyc`);
+      const token = String(v.token || v.kyc_token || v.verification_token || "").trim();
+      const verificationUrl = String(v.kyc_link || v.verification_url || `${APP_URL}/verification/${token}`);
       const reason = esc(v.reason || v.rejection_reason || "Document non valide");
       return {
         subject: `Action requise — Document d'identité refusé`,
@@ -3507,7 +3509,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Motif", reason],
             ["Échéance", expiresAt],
           ],
-          ctaPrimaryUrl: String(v.kyc_link || v.verification_url || `${APP_URL}/portal/identity-verification`),
+          ctaPrimaryUrl: String(v.kyc_link || v.verification_url || `${APP_URL}/verification/${String(v.token || v.kyc_token || v.verification_token || "").trim()}`),
           ctaPrimaryLabel: "Soumettre mes documents",
           helpVariant: "warning",
           helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
@@ -3563,7 +3565,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           cardRows: [
             ["Détails", rejectionReason],
           ],
-          ctaPrimaryUrl: String(v.kyc_link || v.verification_url || `${APP_URL}/portal/identity-verification`),
+          ctaPrimaryUrl: String(v.kyc_link || v.verification_url || `${APP_URL}/verification/${String(v.token || v.kyc_token || v.verification_token || "").trim()}`),
           ctaPrimaryLabel: "Soumettre à nouveau",
           helpVariant: "warning",
           helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
@@ -3593,7 +3595,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Documents demandés", requiredDocsList],
             ["Précisions", instructions],
           ],
-          ctaPrimaryUrl: String(v.kyc_link || v.verification_url || `${APP_URL}/portal/identity-verification`),
+          ctaPrimaryUrl: String(v.kyc_link || v.verification_url || `${APP_URL}/verification/${String(v.token || v.kyc_token || v.verification_token || "").trim()}`),
           ctaPrimaryLabel: "Soumettre les documents",
           helpVariant: "warning",
           helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,

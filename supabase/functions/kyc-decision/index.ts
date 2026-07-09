@@ -30,7 +30,7 @@ function approvalEmail(firstName: string, orderNumber: string) {
   });
 }
 
-function rejectionEmail(firstName: string, orderNumber: string, reason: string) {
+function rejectionEmail(firstName: string, orderNumber: string, reason: string, kycLink: string) {
   return violetShell({
     preheader: "Votre document d'identité n'a pas été accepté.",
     badge: "ACTION REQUISE",
@@ -42,7 +42,7 @@ function rejectionEmail(firstName: string, orderNumber: string, reason: string) 
       ["Commande", `#${orderNumber}`],
       ["Raison", reason || "Document non valide"],
     ],
-    ctaPrimaryUrl: "https://nivra-telecom.ca/portal/identity-verification",
+    ctaPrimaryUrl: kycLink,
     ctaPrimaryLabel: "Resoumettre",
     helpVariant: "warning",
   });
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
 
     const { data: kycReq, error: kycErr } = await supabase
       .from("kyc_requests")
-      .select("id, order_id, client_email, client_id, status")
+      .select("id, order_id, client_email, client_id, status, token")
       .eq("id", body.kyc_request_id)
       .maybeSingle();
     if (kycErr || !kycReq) return new Response(JSON.stringify({ error: "KYC request not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
           : "Document d'identité refusé â€” Nivra Telecom",
         html: body.decision === "approve"
           ? approvalEmail(firstName, orderNumber)
-          : rejectionEmail(firstName, orderNumber, body.rejection_reason || ""),
+          : rejectionEmail(firstName, orderNumber, body.rejection_reason || "", `https://nivra-telecom.ca/verification/${kycReq.token}`),
         messageType: `kyc_${newStatus}`,
         entityType: "kyc_request",
         entityId: kycReq.id,

@@ -1714,7 +1714,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
         Documents acceptés : permis de conduire, passeport, carte d'assurance maladie.<br>
         <em>Accepted documents: driver's license, passport, health card.</em>
       </p>
-    `, vars.kyc_link || vars.verification_url || joinUrl(config.baseUrl, "/portal/identity-verification"), "Soumettre mes documents / Submit documents", config.supportEmail),
+    `, vars.kyc_link || vars.verification_url || joinUrl(config.baseUrl, `/verification/${vars.token || vars.kyc_token || vars.verification_token || ''}`), "Soumettre mes documents / Submit documents", config.supportEmail),
   },
 
   // IDENTITY DOCUMENT RECEIVED
@@ -1730,7 +1730,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
         Notre équipe examinera vos documents dans un délai de 24-48 heures ouvrables.<br>
         <em style="color:${emailStyles.textMuted};">Our team will review your documents within 24-48 business hours.</em>
       </p>
-    `, vars.kyc_link || vars.verification_url || joinUrl(config.baseUrl, "/portal/identity-verification"), "Suivre ma vérification / Track verification", config.supportEmail),
+    `, vars.kyc_link || vars.verification_url || joinUrl(config.baseUrl, `/verification/${vars.token || vars.kyc_token || vars.verification_token || ''}`), "Suivre ma vérification / Track verification", config.supportEmail),
   },
 
   // IDENTITY VERIFIED
@@ -1765,7 +1765,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
         Veuillez soumettre de nouveaux documents conformes aux exigences.<br>
         <em style="color:${emailStyles.textMuted};">Please submit new documents that meet the requirements.</em>
       </p>
-    `, vars.kyc_link || vars.verification_url || joinUrl(config.baseUrl, "/portal/identity-verification"), "Resoumettre / Resubmit", config.supportEmail),
+    `, vars.kyc_link || vars.verification_url || joinUrl(config.baseUrl, `/verification/${vars.token || vars.kyc_token || vars.verification_token || ''}`), "Resoumettre / Resubmit", config.supportEmail),
   },
 
   // =============================================
