@@ -127,6 +127,38 @@ serve(async (req) => {
         },
       });
 
+      // Traceability parity (Modules 5-8): activity + system note
+      if (client_id) {
+        try {
+          await admin.from("client_activity_logs").insert({
+            client_id,
+            actor_user_id: user.id,
+            actor_name: user.email ?? "Admin Core",
+            actor_role: "admin_core",
+            action_type: "adjustment_writeoff",
+            entity_type: "billing_invoice",
+            entity_id: invoice_id,
+            summary: `Radiation de facture ${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$`,
+            before_data: { invoice: invBefore ?? null },
+            after_data: {
+              module_tag: "adjustments",
+              collections_action_id: collJson?.id ?? null,
+              reason,
+            },
+          });
+          await admin.from("client_internal_notes").insert({
+            client_id,
+            note_type: "system",
+            body: `Radiation de facture — Facture #${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$ — motif: ${reason}`,
+            created_by_user_id: user.id,
+            created_by_role: "admin_core",
+            created_by_name: user.email ?? "Admin Core",
+          });
+        } catch (e) {
+          console.warn("[core-apply-adjustment] writeoff traceability failed:", (e as any)?.message);
+        }
+      }
+
       return json({ ok: true, collections_action_id: collJson?.id ?? null });
     }
 
@@ -210,6 +242,54 @@ serve(async (req) => {
         },
       },
     });
+
+    // Traceability parity (Modules 5-8): client_activity_logs always; system note
+    // for credit/fee only (account_promotions has trg_note_account_promotion).
+    if (client_id) {
+      try {
+        const summaryLabel = kind === "credit" ? "Crédit récurrent"
+          : kind === "fee" ? "Frais récurrent"
+          : "Promotion durée";
+        await admin.from("client_activity_logs").insert({
+          client_id,
+          actor_user_id: user.id,
+          actor_name: user.email ?? "Admin Core",
+          actor_role: "admin_core",
+          action_type: `adjustment_${kind}`,
+          entity_type: target_table,
+          entity_id: inserted_id,
+          summary: `${summaryLabel} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} »`,
+          before_data: {
+            adjustments: adjBefore ?? [],
+            promotions: promoBefore ?? [],
+          },
+          after_data: {
+            module_tag: "adjustments",
+            kind,
+            account_id,
+            amount: amt,
+            months: m,
+            description: desc,
+            promotion_type: kind === "promotion" ? (promotion_type ?? "monthly_discount") : null,
+            target_id: inserted_id,
+            reason,
+          },
+        });
+        if (kind !== "promotion") {
+          const label = kind === "credit" ? "Crédit récurrent" : "Frais récurrent";
+          await admin.from("client_internal_notes").insert({
+            client_id,
+            note_type: "system",
+            body: `${label} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} » — motif: ${reason}`,
+            created_by_user_id: user.id,
+            created_by_role: "admin_core",
+            created_by_name: user.email ?? "Admin Core",
+          });
+        }
+      } catch (e) {
+        console.warn("[core-apply-adjustment] traceability failed:", (e as any)?.message);
+      }
+    }
 
     return json({ ok: true, id: inserted_id, target_table });
   } catch (e: any) {
