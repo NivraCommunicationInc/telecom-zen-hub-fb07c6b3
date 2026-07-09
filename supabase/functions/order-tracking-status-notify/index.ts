@@ -283,23 +283,16 @@ Deno.serve(async (req: Request) => {
     // Log for idempotency + audit
     try {
       await admin.from("client_notification_logs").insert({
-        client_id: order.user_id,
-        account_id: order.account_id,
         event_key: idempKey,
-        channel: "email",
-        template: "order_tracking_status",
-        subject: email.subject,
-        recipient,
-        message_id: emailId,
-        metadata: {
-          order_id: order.id,
-          order_number: order.order_number,
-          tracking_status: statusKind,
-          carrier,
-          tracking_number: trackingNumber,
-          tracking_url: trackingUrl,
-          language: lang,
-        },
+        event_type: `order_tracking_${statusKind}`,
+        entity_type: "order",
+        entity_id: order.id,
+        entity_number: order.order_number,
+        client_email: recipient,
+        client_name: clientName,
+        portal_path: "/portal/activation",
+        email_sent: true,
+        email_id: emailId,
       });
     } catch (e) {
       console.warn("[order-tracking-status-notify] log insert failed", e);
