@@ -639,16 +639,6 @@ serve(async (req) => {
             .eq("id", id);
           if (uErr) return json(500, { error: uErr.message });
 
-          await audit("static_ip_release", { assignment_id: id, ip_address: existing.ip_address });
-          await enqueueEmail("client_internet_static_ip", {
-            mode: "released",
-            ip_address: existing.ip_address || "—",
-            monthly_price: fmtMoney(0),
-            reason: body.reason || "—",
-          });
-
-          return json(200, { ok: true });
-        }
 
           await audit("static_ip_release", { assignment_id: id, ip_address: existing.ip_address });
           await activity(
