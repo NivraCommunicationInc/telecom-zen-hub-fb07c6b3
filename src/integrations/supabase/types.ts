@@ -30262,6 +30262,10 @@ export type Database = {
         }
         Returns: Json
       }
+      core_simulate_record_payment: {
+        Args: { p_amount: number; p_invoice_id: string; p_method?: string }
+        Returns: Json
+      }
       count_claimable_records: { Args: { _email: string }; Returns: Json }
       create_activity_log: {
         Args: {

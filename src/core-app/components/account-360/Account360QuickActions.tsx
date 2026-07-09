@@ -50,6 +50,7 @@ import {
 import { ClientNotesDrawer } from "@/core-app/components/notes/ClientNotesDrawer";
 import { PlanChangeModule } from "@/core-app/components/account-360/modules/PlanChangeModule";
 import { KycModule } from "@/core-app/components/account-360/modules/KycModule";
+import { RecordPaymentModule } from "@/core-app/components/account-360/modules/RecordPaymentModule";
 
 
 
@@ -121,6 +122,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [fraudLockOpen, setFraudLockOpen] = useState(false);
   const [consentOpen, setConsentOpen] = useState(false);
   const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -156,7 +158,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     {
       title: "Facturation",
       actions: [
-        { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments") },
+        { icon: CreditCard, label: "Enregistrer paiement", onClick: () => setRecordPaymentOpen(true), color: "emerald" },
         { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices") },
         { icon: Gift, label: "Crédit / Promotion", onClick: () => setCreditOpen(true), color: "emerald" },
         { icon: DollarSign, label: "Crédit / Frais facture", onClick: () => setAdjustmentOpen(true), color: "emerald" },
@@ -661,6 +663,17 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientId={clientId}
           clientName={clientName}
           subscriptions={subscriptions}
+        />
+      )}
+      {accountId && clientId && (
+        <RecordPaymentModule
+          open={recordPaymentOpen}
+          onClose={() => setRecordPaymentOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
         />
       )}
       <ServiceMoveDialog
