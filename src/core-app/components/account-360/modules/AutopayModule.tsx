@@ -363,14 +363,14 @@ export function AutopayModule({
       state={stateContent}
       history={historyContent}
       actions={actionsContent}
-      impact={action !== "replace_card" ? impact : undefined}
-      impactedTables={action !== "replace_card" ? impactedTables : undefined}
-      plannedEmails={action === "detach_card" ? [{ template: "autopay_cancelled", recipient: clientEmail ?? undefined }] : undefined}
+      impact={(action as string) !== "replace_card" ? impact : undefined}
+      impactedTables={(action as string) !== "replace_card" ? impactedTables : undefined}
+      plannedEmails={(action as string) === "detach_card" ? [{ template: "autopay_cancelled", recipient: clientEmail ?? undefined }] : undefined}
       requireReason
-      confirmLabel={action === "replace_card" ? "Utiliser le widget ci-dessus" : "Appliquer"}
-      disabled={!canConfirm || action === "replace_card"}
+      confirmLabel={(action as string) === "replace_card" ? "Utiliser le widget ci-dessus" : "Appliquer"}
+      disabled={!canConfirm || (action as string) === "replace_card"}
       loading={loading}
-      onConfirm={action === "replace_card" ? undefined : runAction}
+      onConfirm={(action as string) === "replace_card" ? undefined : runAction}
     />
   );
 }
