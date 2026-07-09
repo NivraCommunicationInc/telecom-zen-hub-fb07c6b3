@@ -156,6 +156,8 @@ serve(async (req) => {
 
   const logActivity = async (action_type: string, summary: string, metadata: Record<string, unknown>) => {
     try {
+      const before = (metadata as any)?.before ?? null;
+      const after = (metadata as any)?.after ?? null;
       await admin.from("client_activity_logs").insert({
         client_id: client_user_id,
         actor_user_id: user.id,
@@ -165,7 +167,8 @@ serve(async (req) => {
         entity_type: "equipment",
         entity_id: (metadata?.inventory_id as string) ?? null,
         summary,
-        after_data: { ...metadata, actor_email: actorEmail },
+        before_data: before,
+        after_data: after ?? { ...metadata, actor_email: actorEmail },
       });
     } catch (_e) { /* swallow */ }
   };
