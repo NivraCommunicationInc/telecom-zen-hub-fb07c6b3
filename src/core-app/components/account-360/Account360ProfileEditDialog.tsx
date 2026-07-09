@@ -203,6 +203,9 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
       }
 
       const changedFields = Object.keys(changed);
+      const beforeData = Object.fromEntries(changedFields.map((f) => [f, changed[f].before]));
+      const afterData = Object.fromEntries(changedFields.map((f) => [f, changed[f].after]));
+
       const { error: auditError } = await supabase.from("client_activity_logs").insert({
         client_id: clientId,
         actor_user_id: authData.user.id,
@@ -212,10 +215,26 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
         summary: `Mise à jour profil client (${changedFields.join(", ")})`,
         entity_type: "account_profile",
         entity_id: account.id,
-        before_data: Object.fromEntries(changedFields.map((f) => [f, changed[f].before])),
-        after_data: Object.fromEntries(changedFields.map((f) => [f, changed[f].after])),
+        before_data: beforeData,
+        after_data: afterData,
       });
       if (auditError) throw auditError;
+
+      // Admin audit log (required by Client 360 DoD)
+      await supabase.from("admin_audit_log").insert({
+        admin_user_id: authData.user.id,
+        admin_email: authData.user.email || null,
+        action: "client_profile_update",
+        target_type: "profile",
+        target_id: clientId,
+        target_email: cleaned.email || null,
+        details: {
+          account_id: account.id,
+          changed_fields: changedFields,
+          before: beforeData,
+          after: afterData,
+        },
+      });
 
       addClientAutoNote({
         clientId,
@@ -226,7 +245,16 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
       onOpenChange(false);
       onSaved();
     } catch (e: any) {
-      toast.error(e?.message || "Erreur pendant la sauvegarde");
+      const msg = e?.message || "Erreur pendant la sauvegarde";
+      if (msg.includes("IDENTITY_FIELD_LOCKED")) {
+        toast.error("Champ identité verrouillé — un admin peut le débloquer via la page KYC.");
+      } else if (msg.includes("not allowed:")) {
+        toast.error(`Modification refusée: ${msg.replace(/^.*not allowed:\s*/, "")}`);
+      } else if (msg.toLowerCase().includes("duplicate") || msg.includes("unique")) {
+        toast.error("Cette adresse courriel est déjà utilisée par un autre compte.");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSaving(false);
     }
