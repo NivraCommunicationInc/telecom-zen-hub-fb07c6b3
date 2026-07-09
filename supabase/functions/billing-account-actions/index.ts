@@ -486,12 +486,21 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("toggle_autopay", { enabled, payment_method_id, charge_day_offset });
+        await logAndNote(
+          enabled ? "autopay_enabled" : "autopay_disabled",
+          "client_autopay_settings",
+          null,
+          `Paiement automatique ${enabled ? "activé" : "désactivé"} — décalage ${charge_day_offset}j${body.reason ? ` — motif: ${body.reason}` : ""}`,
+          null,
+          { enabled, payment_method_id, charge_day_offset, reason: body.reason ?? null },
+        );
         await enqueueEmail("client_autopay_change", {
           enabled: enabled ? "true" : "false",
           charge_day_offset: String(charge_day_offset),
           reason: body.reason || "—",
         });
         return json(200, { ok: true });
+
       }
 
       // ============================================================
