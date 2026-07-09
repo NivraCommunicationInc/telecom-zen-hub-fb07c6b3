@@ -397,8 +397,17 @@ serve(async (req) => {
           .eq("payment_method_id", id);
 
         await audit("remove_payment_method", { method_id: id });
+        await logAndNote(
+          "payment_method_removed",
+          "client_payment_method",
+          id,
+          `Méthode de paiement retirée — ${METHOD_LABELS[existing.method_type] || existing.method_type}${existing.last4 ? ` ••${existing.last4}` : ""}${body.reason ? ` — motif: ${body.reason}` : ""}`,
+          { status: existing.status, method_type: existing.method_type, last4: existing.last4 },
+          { status: "removed", removed_reason: body.reason ?? null },
+        );
         await enqueuePaymentMethodEmail("removed", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
+
       }
 
       // ============================================================
