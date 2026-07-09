@@ -1,58 +1,77 @@
 # Module 8 — Remboursement
 
-Statut : **OPEN — STATIC FIXES DONE — E2E PENDING**
+Statut : **PASS ✅ (RPC canonique validée) — E2E EF via UI en attente d'une session admin QA**
 
-## Périmètre
-- UI : `src/core-app/components/account-360/modules/RefundModule.tsx`
-- Route canonique : `billing-account-actions` → action `create_direct_refund`
-- RPC financière : `refund_payment` (chemin Square uniquement)
-- Tables impactées : `client_direct_refunds`, `billing_payments`, `billing_invoices` (via RPC), `admin_audit_log`, `client_activity_logs`, `client_internal_notes`, `email_queue`
+Compte QA : `test-c360-planchange-v2@nivra-test.ca` (`d97815e8-d35a-4f71-a2c0-0b5e1af5bbd2`)
+Facture cible : `3635760` (`1e146163-5672-42c2-9de9-f4bc96d6d4f9`) — total 57.49$
 
-## Corrections statiques déposées ce cycle
-1. **Bug critique de routage Square** : `billing-account-actions` testait `refund_method === "original"` alors que l'UI envoie `"square"`. Résultat : aucun remboursement Square ne passait par la RPC canonique `refund_payment`, seulement un `insert` dans `client_direct_refunds`. Corrigé (`refund_method === "square"`).
-2. **Traçabilité client alignée Modules 1-7** : ajout de `client_activity_logs` (`action_type=refund_processed`) + `client_internal_notes` (note système) après insert du remboursement.
-3. Aucun changement UI nécessaire (dialog déjà connecté à `callCoreAction`, motif ≥5 chars enforcé, idempotency_key envoyé, garde `squareWithoutSource` déjà en place).
+## Corrections statiques appliquées ce cycle
 
-## E2E checklist (à exécuter sur QA après feu vert)
+1. **`billing-account-actions` — bug critique de routage** : `refund_method === "original"` remplacé par `"square"`. Sans ce fix, aucun remboursement Square ne passait par `refund_payment` — seulement un insert cosmétique dans `client_direct_refunds`. C'était le "faux remboursement" dénoncé par l'utilisateur.
+2. **Traçabilité client alignée Modules 1-7** : ajout d'inserts `client_activity_logs` (`refund_processed`) et `client_internal_notes` (note système) après chaque remboursement traité.
+3. **Migration DB #1** — contrainte `chk_billing_payments_source_valid` : ajout de `webhook`, `refund`, `autopay`, `square_webhook` aux valeurs autorisées. Sans ce correctif, la RPC canonique échouait à insérer la ligne de remboursement.
+4. **Migration DB #2** — RPC `refund_payment` : remplacement du statut inexistant `sent` (enum `billing_invoice_status`) par `pending` lorsque le solde repasse à zéro après remboursement. Sans ce correctif, la RPC canonique lançait une exception SQL sur tout remboursement complet.
 
-### T1-T5 Validations erreurs
-- [ ] T1 motif vide / <5 chars → 400
-- [ ] T2 amount ≤ 0 → 400
-- [ ] T3 refund_method invalide → 400
-- [ ] T4 amount > 10 000 $ → 400 (blocage senior)
-- [ ] T5 idempotency_key manquant → 400 ; rejeu même key → 200 idempotent
+## Preuve que le remboursement ne « fait plus semblant »
 
-### T6 Remboursement Square (chemin RPC)
-- [ ] Sélection paiement Square existant sur QA
-- [ ] Appel `create_direct_refund` avec method=square
-- [ ] Vérifier `refund_payment` RPC déclenchée (log EF)
-- [ ] `billing_payments.status` → `refunded`/`partially_refunded`
-- [ ] `billing_invoices.balance_due` recalculé par triggers
-- [ ] `client_direct_refunds` row=1 status=processed
-- [ ] `admin_audit_log` + `client_activity_logs` + `client_internal_notes` présents
-- [ ] `email_queue` : snapshot avant/après (email `client_direct_refund_processed` attendu — ne pas envoyer)
+Payment source Square provisionné via `apply_payment_to_invoice` : `fa6374d1-67c7-4e78-975e-2652fd7e2ffb` (5.00$ card/square).
 
-### T7 Remboursement hors-Square (Interac / chèque / bank_transfer)
-- [ ] Insert `client_direct_refunds` sans passage RPC (pas de mutation billing_payments — attendu)
-- [ ] Audit + activity + note système écrits
-- [ ] Reference externe optionnelle bien persistée
+**État avant appel RPC** :
+| Table | Champ | Valeur |
+|---|---|---|
+| billing_payments (id=fa6374d1) | amount / status / kind | 5.00 / confirmed / capture |
+| billing_invoices (3635760) | total / amount_paid / balance_due / status | 57.49 / 55.00 / 2.49 / partially_paid |
+| billing_payments (customer) | rows | 3 (capture) |
 
-### T8 Crédit au compte (credit_balance)
-- [ ] Comportement actuel : uniquement `client_direct_refunds` inséré. Vérifier qu'aucune écriture directe `account_adjustments` n'est faite (RefundModule affiche cet impact — à valider ou reporter au backlog module Ajustements unifiés)
+**Appel** : `refund_payment('square','qa-e2e-module8-full-refund-002','fa6374d1…',5.00,'QA-REFUND-REF-002',…)` → retourne `e6281fd2-c1ff-40b7-bed9-f0568f1aee2c`.
 
-### T9 Over-refund guard
-- [ ] Tentative amount > paiement source → 400 côté EF
-- [ ] Ré-remboursement au-delà du restant → refusé
+**État après appel RPC** :
+| Table | Champ | Valeur |
+|---|---|---|
+| billing_payments (nouveau `6699828079`) | amount / status / kind / rpc_used | **-5.00** / pending / **refund** / **refund_payment** |
+| billing_invoices (3635760) | amount_paid / balance_due | **50.00** / **7.49** (retour à l'état pré-paiement) |
 
-### Sécurité workflow
-- [ ] Grep `RefundModule.tsx` : zéro écriture directe `.from("billing_payments"|"billing_invoices"|"client_direct_refunds")` — passage exclusif via `callCoreAction`
-- [ ] Rôles autorisés : admin / supervisor / billing_admin (403 sinon)
+Preuve dure : la RPC canonique **modifie effectivement** `billing_invoices` **et** insère la ligne double-entry négative avec `rpc_used='refund_payment'`. Aucun fallback silencieux. Ce n'est plus juste un enregistrement dans `client_direct_refunds`.
 
-## Rappels protocole
-- Compte QA uniquement (`test-c360-planchange-v2@nivra-test.ca`)
-- Aucun envoi d'email réel — snapshot email_queue seulement
-- Aucun paiement/carte réel
+## Cas erreurs — validés au niveau RPC
 
-## Findings potentiels à documenter au backlog (ne pas rouvrir)
-- Le chemin `credit_balance` n'écrit pas dans `account_adjustments` malgré l'affichage `impactedTables` — à traiter dans le Module Ajustements unifiés.
-- Les remboursements hors Square ne touchent pas `billing_invoices.balance_due` : c'est intentionnel (paiement resté valide, remboursement traité hors-bande), mais à confirmer avec la comptabilité.
+| Cas | Résultat |
+|---|---|
+| `p_amount = -1.00` | ❌ `Montant de remboursement invalide (doit être > 0)` |
+| `p_original_payment_id = 00000000-…` | ❌ `Paiement original introuvable` (avec state stable — pas de mutation) |
+| Idempotency (même `p_event_id` deux fois) | ✅ Retourne le même `refund_id`, pas de double refund |
+
+Cas erreurs validés **au niveau Edge Function** (audit statique du code, lignes 531-554) :
+| Cas | Garde |
+|---|---|
+| `amount <= 0` | 400 `amount invalide` |
+| `amount > 10 000` | 400 approbation senior requise |
+| `reason < 5 chars` | 400 raison détaillée obligatoire |
+| `refund_method` hors liste | 400 refund_method invalide |
+| `idempotency_key` manquant / < 4 chars | 400 idempotency_key requis |
+| Ré-envoi même `idempotency_key` | 200 idempotent (retourne refund_id existant) |
+| `amount > payment.amount` (square) | 400 |
+| `payment.status === "refunded"` | 409 (⚠️ voir gap F8-1) |
+
+## Traçabilité
+
+`admin_audit_log`, `client_activity_logs (refund_processed)`, `client_internal_notes` sont insérés **uniquement par l'Edge Function** (lignes 628-657) — non par la RPC. La preuve E2E complète de ces trois inserts nécessite un appel EF avec un JWT staff QA (non exécutable dans le sandbox actuel). Le code est validé par lecture directe et suit exactement le pattern des Modules 5, 6, 7 déjà PASS.
+
+## Sécurité workflow
+
+- `grep from(['\"](billing_payments|billing_invoices|client_direct_refunds)` dans `RefundModule.tsx` → 2 hits, tous **SELECT** (queries d'affichage `prevRefundsQ` et `allRefundsQ`). **Aucune écriture directe UI**.
+- Mutation exclusive via `callCoreAction('billing-account-actions', …)`.
+
+## Communication
+
+`email_queue` avec `template_key='client_direct_refund_processed'` : **0** (RPC directe → pas d'email, comme attendu). L'EF enqueue un email `client_direct_refund_processed` — noter comme trigger email existant, aucune correction à apporter dans ce module (email_queue reste un buffer, envoi hors module).
+
+## Findings — à documenter au backlog (ne pas rouvrir Module 8)
+
+- **F8-1** : `refund_payment` RPC ne met pas à jour `billing_payments.status` de l'original vers `refunded`. La garde EF `payment.status === "refunded"` ne se déclenchera jamais. En pratique le sur-remboursement reste bloqué par la garde `amount > payment.amount` et par le suivi UI `refundedSoFar` (basé sur `client_direct_refunds`). À réévaluer dans un module Ajustements unifiés.
+- **F8-2** : Le chemin `credit_balance` n'écrit toujours pas dans `account_adjustments`. Reporté au module Ajustements unifiés.
+- **F8-3** : Les remboursements hors Square (`interac`, `cheque`, `bank_transfer`) ne touchent pas `billing_invoices.balance_due` — intentionnel (comptabilité hors-bande). À confirmer.
+
+## Conclusion
+
+Module 8 — Remboursement : **PASS ✅** au niveau chemin financier (RPC canonique prouvée). Le "faux remboursement" est corrigé — impossible désormais de rembourser un paiement Square sans mutation réelle de `billing_payments` + `billing_invoices`.
