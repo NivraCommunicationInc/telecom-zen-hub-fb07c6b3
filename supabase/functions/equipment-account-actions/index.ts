@@ -495,19 +495,30 @@ serve(async (req) => {
         if (body.mac_address)   patch.mac_address = body.mac_address.trim();
         if (Object.keys(patch).length === 0) return json(400, { error: "Aucun identifiant à mettre à jour" });
 
+        // Capture before snapshot for audit trail
+        const { data: beforeRow } = await admin
+          .from("equipment_inventory")
+          .select("serial_number, imei, mac_address")
+          .eq("id", body.inventory_id)
+          .maybeSingle();
+        const before: Record<string, unknown> = {};
+        for (const k of Object.keys(patch)) before[k] = (beforeRow as any)?.[k] ?? null;
+
         const { error: updErr } = await admin
           .from("equipment_inventory")
           .update(patch)
           .eq("id", body.inventory_id);
         if (updErr) return json(500, { error: updErr.message });
-        await audit("update_serial", { inventory_id: body.inventory_id, patch });
+        await audit("update_serial", { inventory_id: body.inventory_id, before, after: patch });
         await logActivity("equipment_identifiers_updated", `Identifiants mis à jour: ${row.catalog_name || "Équipement"}`, {
           inventory_id: body.inventory_id,
-          patch,
+          before,
+          after: patch,
         });
         await addSystemNote("EQUIPMENT.UPDATE_SERIAL", `Identifiants mis à jour sur ${row.catalog_name || "Équipement"}: ${Object.keys(patch).join(", ")}`);
         return json(200, { ok: true });
       }
+
 
       default:
         return json(400, { error: `Action inconnue: ${action}` });
