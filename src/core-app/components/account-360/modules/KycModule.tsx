@@ -77,7 +77,7 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
   const qc = useQueryClient();
 
   useModuleRealtime({
-    tables: ["kyc_verifications", "identity_verification_sessions", "identity_verification_events", "identity_documents", "kyc_requested_documents"],
+    tables: ["kyc_verifications", "kyc_requests", "identity_verification_sessions", "identity_verification_events", "identity_documents", "kyc_requested_documents"],
     clientId,
   });
 
