@@ -329,36 +329,45 @@ export function PauseAccountDialog({ accountId, clientUserId, accountStatus, mon
   );
 }
 
-/* ────────── Cancel account ────────── */
-export function CancelAccountDialog({ accountId, open, onClose, onRefresh }: any) {
+/* ────────── Cancel account — Module 5 (canonical via account-ops-actions) ────────── */
+export function CancelAccountDialog({ accountId, clientId, accountStatus, open, onClose, onRefresh }: any) {
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (!open) { setReason(""); setConfirm(""); setSaving(false); }
+  }, [open]);
+
+  const alreadyCancelled = accountStatus === "cancelled";
+
   async function submit() {
-    if (!accountId) return;
+    if (!accountId) { toast.error("Compte introuvable"); return; }
+    if (!clientId) { toast.error("Identifiant client requis"); return; }
+    if (!reason.trim()) { toast.error("Motif obligatoire"); return; }
     if (confirm.trim().toUpperCase() !== "ANNULER") {
       toast.error('Tapez "ANNULER" pour confirmer');
       return;
     }
     setSaving(true);
-    const nowIso = new Date().toISOString();
-    const { error } = await supabase.from("accounts").update({
-      status: "cancelled",
-      cancelled_at: nowIso,
-      cancellation_reason: reason || null,
-      updated_at: nowIso,
-    }).eq("id", accountId);
-    if (!error) {
-      await supabase.from("billing_subscriptions")
-        .update({ status: "cancelled", cancelled_at: nowIso })
-        .eq("account_id", accountId)
-        .in("status", ["active", "past_due", "trialing"]);
-    }
+    const { data, error } = await supabase.functions.invoke("account-ops-actions", {
+      body: {
+        action: "cancel_account",
+        client_user_id: clientId,
+        account_id: accountId,
+        reason: reason.trim(),
+      },
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Compte annulé");
-    onRefresh(); onClose();
+    if (error || (data && (data as any).error)) {
+      const msg = (data as any)?.error || error?.message || "Erreur lors de l'annulation";
+      toast.error(msg);
+      return;
+    }
+    const nb = (data as any)?.cancelled_subscriptions ?? 0;
+    toast.success(nb > 0 ? `Compte annulé — ${nb} service(s) résilié(s)` : "Compte annulé");
+    onRefresh?.();
+    onClose();
   }
 
   return (
@@ -371,8 +380,13 @@ export function CancelAccountDialog({ accountId, open, onClose, onRefresh }: any
           <div className="rounded-md border border-red-500/40 bg-red-500/10 p-2 text-red-400">
             ⚠ Cette action annule définitivement le compte et arrête toute facturation récurrente. Les soldes impayés restent dus.
           </div>
+          {alreadyCancelled && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-amber-400">
+              Ce compte est déjà résilié.
+            </div>
+          )}
           <label className="block space-y-1">
-            <span className="text-muted-foreground">Raison de l'annulation</span>
+            <span className="text-muted-foreground">Motif de l'annulation <span className="text-red-400">*</span></span>
             <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex: déménagement hors zone" />
           </label>
           <label className="block space-y-1">
@@ -382,7 +396,11 @@ export function CancelAccountDialog({ accountId, open, onClose, onRefresh }: any
         </div>
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Fermer</button>
-          <button onClick={submit} disabled={saving} className={btnDanger}>
+          <button
+            onClick={submit}
+            disabled={saving || alreadyCancelled || !reason.trim() || confirm.trim().toUpperCase() !== "ANNULER"}
+            className={btnDanger}
+          >
             {saving ? "Annulation…" : "Annuler le compte"}
           </button>
         </DialogFooter>

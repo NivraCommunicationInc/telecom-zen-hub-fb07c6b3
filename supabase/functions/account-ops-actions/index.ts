@@ -28,7 +28,8 @@ type Action =
   | "add_internal_note"
   | "notify_address_change"
   | "pause_account"
-  | "unpause_account";
+  | "unpause_account"
+  | "cancel_account";
 
 interface Body {
   action: Action;
@@ -451,6 +452,79 @@ serve(async (req) => {
 
         return json(200, { ok: true, account_id: body.account_id });
       }
+
+      // ============================================================
+      case "cancel_account": {
+        const reason = (body.reason || "").trim();
+        if (!body.account_id) return json(400, { error: "account_id requis" });
+        if (!reason) return json(400, { error: "Motif obligatoire" });
+
+        const { data: acct, error: acctErr } = await admin
+          .from("accounts")
+          .select("id, status")
+          .eq("id", body.account_id)
+          .maybeSingle();
+        if (acctErr) return json(500, { error: acctErr.message });
+        if (!acct) return json(404, { error: "Compte introuvable" });
+        if (acct.status === "cancelled") return json(409, { error: "Ce compte est déjà résilié" });
+
+        const nowIso = new Date().toISOString();
+        const { error: upErr } = await admin.from("accounts").update({
+          status: "cancelled",
+          cancelled_at: nowIso,
+          cancellation_reason: reason,
+          updated_at: nowIso,
+        }).eq("id", body.account_id);
+        if (upErr) return json(500, { error: upErr.message });
+
+        // Cancel any active/past_due/trialing subscriptions
+        let cancelledSubs = 0;
+        try {
+          const { data: subs } = await admin
+            .from("billing_subscriptions")
+            .update({ status: "cancelled", cancelled_at: nowIso })
+            .eq("account_id", body.account_id)
+            .in("status", ["active", "past_due", "trialing"])
+            .select("id");
+          cancelledSubs = subs?.length ?? 0;
+        } catch (_e) { /* swallow */ }
+
+        await audit("cancel_account", {
+          account_id: body.account_id,
+          reason,
+          previous_status: acct.status,
+          cancelled_subscriptions: cancelledSubs,
+        });
+
+        try {
+          await admin.from("client_activity_logs").insert({
+            client_id: client_user_id,
+            actor_user_id: user.id,
+            actor_name: callerName,
+            actor_role: callerRole,
+            action_type: "account_cancel",
+            entity_type: "account",
+            entity_id: body.account_id,
+            summary: `Compte annulé — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}`,
+            after_data: { reason, cancelled_subscriptions: cancelledSubs },
+          });
+        } catch (_e) { /* swallow */ }
+
+        try {
+          await admin.from("client_internal_notes").insert({
+            client_id: client_user_id,
+            account_id: body.account_id,
+            note_type: "system",
+            body: `Compte annulé — par ${user.email || callerName} — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}`,
+            created_by_user_id: user.id,
+            created_by_role: callerRole,
+            created_by_name: callerName,
+          });
+        } catch (_e) { /* swallow */ }
+
+        return json(200, { ok: true, account_id: body.account_id, cancelled_subscriptions: cancelledSubs });
+      }
+
 
       default:
         return json(400, { error: "Action inconnue" });

@@ -320,6 +320,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
 
       <CancelAccountDialog
         accountId={accountId}
+        clientId={clientId}
+        accountStatus={accountStatus}
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
         onRefresh={onRefresh}
