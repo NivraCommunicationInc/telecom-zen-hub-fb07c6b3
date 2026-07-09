@@ -263,5 +263,31 @@ serve(async (req) => {
     console.error("[core-apply-plan-change] admin_audit_log insert failed:", auditErr.message);
   }
 
+  // ── 7. client_activity_logs (traçabilité client) ───────────
+  await admin.from("client_activity_logs").insert({
+    client_user_id: clientId,
+    account_id,
+    activity_type: "plan_change",
+    description: `Changement de forfait ${change_type}: ${bSub?.frozen_name || bSub?.plan_name || "—"} → ${new_plan_name} (${new_plan_price}$)`,
+    metadata: {
+      module_tag: "core.plan_change",
+      change_type,
+      timing: isImmediate ? "immediate" : "next_cycle",
+      subscription_id,
+      scr_id: scr.id,
+      admin_user_id: user.id,
+    },
+    performed_by: user.id,
+  }).catch((e) => console.warn("[core-apply-plan-change] client_activity_logs failed:", e));
+
+  // ── 8. client_internal_notes (note admin visible Core) ─────
+  await admin.from("client_internal_notes").insert({
+    client_user_id: clientId,
+    account_id,
+    note_type: "Suivi",
+    content: `[Upgrade/Downgrade — ${change_type}] ${bSub?.frozen_name || bSub?.plan_name || "—"} → ${new_plan_name} (${new_plan_price}$). Motif: ${reason}. Par: ${user.email || user.id}.`,
+    created_by: user.id,
+  }).catch((e) => console.warn("[core-apply-plan-change] client_internal_notes failed:", e));
+
   return json(200, { ok: true, ...results });
 });
