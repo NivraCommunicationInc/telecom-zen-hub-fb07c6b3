@@ -94,8 +94,6 @@ export function ReactivateAccountDialog({
         queryClient: qc,
       },
     );
-      },
-    );
     setLoading(false);
     if (res.ok) {
       const n = res.data?.reactivated_subscriptions ?? 0;
