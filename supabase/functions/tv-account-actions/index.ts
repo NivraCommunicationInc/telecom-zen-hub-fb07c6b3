@@ -157,6 +157,15 @@ serve(async (req) => {
     .eq("user_id", client_user_id)
     .maybeSingle();
 
+  const { data: callerProfile } = await admin
+    .from("profiles")
+    .select("email, first_name, last_name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const callerName =
+    [callerProfile?.first_name, callerProfile?.last_name].filter(Boolean).join(" ") ||
+    callerProfile?.email || "Personnel Nivra";
+
   const clientEmail = profile?.email || null;
   const firstName = profile?.first_name || "Client";
   const ip =
@@ -168,11 +177,48 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `tv.${label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
+        admin_email: callerProfile?.email ?? null,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        metadata: payload,
+        details: payload,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const activity = async (
+    action_type: string,
+    entity_id: string | null,
+    entity_type: string,
+    summary: string,
+    after_data: Record<string, unknown> | null = null,
+  ) => {
+    try {
+      await admin.from("client_activity_logs").insert({
+        client_id: client_user_id,
+        actor_user_id: user.id,
+        actor_name: callerName,
+        actor_role: "staff",
+        action_type,
+        entity_type,
+        entity_id,
+        summary,
+        before_data: null,
+        after_data,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const sysNote = async (body_text: string) => {
+    try {
+      await admin.from("client_internal_notes").insert({
+        client_id: client_user_id,
+        note_type: "system",
+        body: body_text,
+        created_by_user_id: user.id,
+        created_by_role: "staff",
+        created_by_name: callerName,
       });
     } catch (_e) { /* swallow */ }
   };
@@ -239,6 +285,10 @@ serve(async (req) => {
         await audit("change_plan", {
           plan_change_id: data.id, new_plan_name, new_monthly_price, change_type,
         });
+        await activity("plan_change", data.id, "subscription",
+          `Forfait TV: ${body.previous_plan_name || "—"} → ${new_plan_name} (${fmtMoney(new_monthly_price)})`,
+          { new_plan_name, new_monthly_price, change_type, effective_date });
+        await sysNote(`Changement de forfait TV — ${body.previous_plan_name || "—"} → ${new_plan_name} (${fmtMoney(new_monthly_price)}). Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_plan_change", {
           previous_plan_name: body.previous_plan_name || "—",
           new_plan_name,
@@ -279,6 +329,10 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("add_themed_pack", { addon_id: data.id, addon_code, monthly_price });
+        await activity("service_add", data.id, "service",
+          `Bouquet TV activé: ${addon_name} (${fmtMoney(monthly_price)}/mois)`,
+          { addon_code, addon_name, addon_type, monthly_price });
+        await sysNote(`Activation bouquet TV — ${addon_name} (${addon_code}) à ${fmtMoney(monthly_price)}/mois. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_pack_change", {
           addon_name,
           monthly_price: fmtMoney(monthly_price),
@@ -315,6 +369,10 @@ serve(async (req) => {
         if (updErr) return json(500, { error: updErr.message });
 
         await audit("remove_themed_pack", { addon_id, addon_name: existing.addon_name });
+        await activity("service_remove", addon_id, "service",
+          `Bouquet TV annulé: ${existing.addon_name}`,
+          { addon_id, addon_name: existing.addon_name });
+        await sysNote(`Annulation bouquet TV — ${existing.addon_name}. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_pack_change", {
           addon_name: existing.addon_name,
           monthly_price: fmtMoney(Number(existing.monthly_price ?? 0)),
@@ -358,6 +416,10 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("purchase_vod", { vod_id: data.id, title, amount, currency });
+        await activity("service_add", data.id, "service",
+          `Achat VOD/PPV: ${title} (${fmtMoney(amount, currency)})`,
+          { title, content_type, amount, currency, payment_method, payment_reference });
+        await sysNote(`Achat VOD/PPV — ${title} (${content_type}) à ${fmtMoney(amount, currency)}. Réf: ${payment_reference}. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_vod_purchase", {
           title,
           content_type,
@@ -397,6 +459,10 @@ serve(async (req) => {
         await audit("terminal_action", {
           terminal_action_id: data.id, action_type, terminal_serial: body.terminal_serial,
         });
+        await activity("equipment_change", data.id, "equipment",
+          `${meta.label}${body.terminal_serial ? ` (SN ${body.terminal_serial})` : ""}`,
+          { action_type, terminal_serial: body.terminal_serial, critical: meta.critical });
+        await sysNote(`${meta.label} — SN ${body.terminal_serial || "—"}. Motif: ${body.reason || "—"}${meta.critical ? " [CRITIQUE]" : ""}`);
         await enqueueEmail("client_tv_terminal_action", {
           action_label: meta.label,
           terminal_serial: body.terminal_serial || "—",
@@ -446,6 +512,10 @@ serve(async (req) => {
         await audit("set_parental", {
           enabled, max_rating, blocked_count: blocked_channels.length, pin_changed: !!body.pin,
         });
+        await activity("service_change", null, "service",
+          `Contrôles parentaux TV — ${enabled ? "activés" : "désactivés"} (rating ${max_rating}, ${blocked_channels.length} chaîne(s) bloquée(s))`,
+          { enabled, max_rating, blocked_count: blocked_channels.length, pin_changed: !!body.pin });
+        await sysNote(`Contrôles parentaux TV — ${enabled ? "activés" : "désactivés"}, rating=${max_rating}, chaînes bloquées=${blocked_channels.length}${body.pin ? ", NIP mis à jour" : ""}. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_parental_controls", {
           enabled: enabled ? "true" : "false",
           max_rating,
@@ -492,6 +562,10 @@ serve(async (req) => {
         await audit("set_channels", {
           selection_id: data.id, count: channelsJson.length, total_price,
         });
+        await activity("channels_change", data.id, "service",
+          `Chaînes TV mises à jour — ${channelsJson.length} chaîne(s) (${fmtMoney(total_price)})`,
+          { count: channelsJson.length, total_price, channels: channelsJson.map((c) => c.name) });
+        await sysNote(`Sélection de chaînes TV — ${channelsJson.length} chaîne(s), total ${fmtMoney(total_price)}. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_channels_updated", {
           channel_count: String(channelsJson.length),
           total_price: fmtMoney(total_price),
