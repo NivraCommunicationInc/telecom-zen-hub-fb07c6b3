@@ -247,10 +247,23 @@ serve(async (req) => {
     // for credit/fee only (account_promotions has trg_note_account_promotion).
     if (client_id) {
       try {
+        const summaryLabel = kind === "credit" ? "Crédit récurrent"
+          : kind === "fee" ? "Frais récurrent"
+          : "Promotion durée";
         await admin.from("client_activity_logs").insert({
           client_id,
+          actor_user_id: user.id,
+          actor_name: user.email ?? "Admin Core",
+          actor_role: "admin_core",
           action_type: `adjustment_${kind}`,
-          action_data: {
+          entity_type: target_table,
+          entity_id: inserted_id,
+          summary: `${summaryLabel} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} »`,
+          before_data: {
+            adjustments: adjBefore ?? [],
+            promotions: promoBefore ?? [],
+          },
+          after_data: {
             module_tag: "adjustments",
             kind,
             account_id,
@@ -258,12 +271,9 @@ serve(async (req) => {
             months: m,
             description: desc,
             promotion_type: kind === "promotion" ? (promotion_type ?? "monthly_discount") : null,
-            target_table,
             target_id: inserted_id,
             reason,
           },
-          performed_by: user.id,
-          performed_by_role: "admin_core",
         });
         if (kind !== "promotion") {
           const label = kind === "credit" ? "Crédit récurrent" : "Frais récurrent";
