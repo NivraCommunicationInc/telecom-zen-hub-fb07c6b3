@@ -598,16 +598,17 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
       )}
 
       {/* Advanced 360 actions */}
-      <QuickRefundDialog
-        open={quickRefundOpen}
-        onClose={() => setQuickRefundOpen(false)}
-        accountId={accountId ?? null}
-        clientUserId={clientId ?? null}
-        clientName={clientName}
-        clientEmail={clientEmail}
-        latestPaymentId={latestPayment?.id ?? null}
-        onRefresh={onRefresh}
-      />
+      {accountId && clientId && (
+        <RefundModule
+          open={quickRefundOpen}
+          onClose={() => setQuickRefundOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
+        />
+      )}
       <AccountWriteOffDialog
         open={writeOffOpen}
         onClose={() => setWriteOffOpen(false)}
