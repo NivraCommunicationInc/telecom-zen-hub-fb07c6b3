@@ -1582,7 +1582,7 @@ export function renderQueueTemplate(
     case "kyc_request_client": {
       const idType = esc(v.requested_id_type || v.id_type || "Pièce d'identité");
       const reason = esc(v.reason || v.notes || "Vérification requise");
-      const verificationUrl = String(v.verification_url || `${portalUrl}/identite`);
+      const verificationUrl = String(v.kyc_link || v.verification_url || `${portalUrl}/identite`);
       return {
         subject: "Vérification d'identité requise — Nivra",
         html: shell({
@@ -3507,7 +3507,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Motif", reason],
             ["Échéance", expiresAt],
           ],
-          ctaPrimaryUrl: `${APP_URL}/portail/identite`,
+          ctaPrimaryUrl: String(v.kyc_link || `${APP_URL}/portail/identite`),
           ctaPrimaryLabel: "Soumettre mes documents",
           helpVariant: "warning",
           helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
@@ -3563,7 +3563,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           cardRows: [
             ["Détails", rejectionReason],
           ],
-          ctaPrimaryUrl: `${APP_URL}/portail/identite`,
+          ctaPrimaryUrl: String(v.kyc_link || `${APP_URL}/portail/identite`),
           ctaPrimaryLabel: "Soumettre à nouveau",
           helpVariant: "warning",
           helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
@@ -3593,7 +3593,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             ["Documents demandés", requiredDocsList],
             ["Précisions", instructions],
           ],
-          ctaPrimaryUrl: `${APP_URL}/portail/identite`,
+          ctaPrimaryUrl: String(v.kyc_link || `${APP_URL}/portail/identite`),
           ctaPrimaryLabel: "Soumettre les documents",
           helpVariant: "warning",
           helpHtml: `Une question? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,

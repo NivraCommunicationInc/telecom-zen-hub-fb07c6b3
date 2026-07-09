@@ -152,6 +152,50 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
+  // Create (or reuse the latest pending) a kyc_requests row so the client
+  // gets a canonical https://nivra-telecom.ca/verification/:token link.
+  // order_id is nullable — account-level KYC requests do not require an order.
+  const ensureKycRequest = async (opts: { reuse?: boolean; notes?: string | null }) => {
+    if (!clientEmail) return null as null | { id: string; token: string; kyc_link: string; expires_at: string };
+    if (opts.reuse) {
+      const { data: existing } = await admin
+        .from("kyc_requests")
+        .select("id, token, expires_at, status")
+        .eq("client_id", client_user_id)
+        .in("status", ["pending", "sent"])
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        return {
+          id: existing.id,
+          token: existing.token,
+          expires_at: existing.expires_at,
+          kyc_link: `${APP_URL}/verification/${existing.token}`,
+        };
+      }
+    }
+    const { data: created, error } = await admin
+      .from("kyc_requests")
+      .insert({
+        order_id: null,
+        client_id: client_user_id,
+        client_email: clientEmail,
+        requested_by: user.id,
+        notes: opts.notes ?? null,
+      })
+      .select("id, token, expires_at")
+      .single();
+    if (error || !created) return null;
+    return {
+      id: created.id,
+      token: created.token,
+      expires_at: created.expires_at,
+      kyc_link: `${APP_URL}/verification/${created.token}`,
+    };
+  };
+
   const verifyClientSession = async (session_id: string) => {
     const { data: s } = await admin
       .from("identity_verification_sessions")
@@ -184,14 +228,16 @@ serve(async (req) => {
           .single();
         if (error) return json(500, { error: error.message });
 
-        await audit("request_verification", { verification_id: data.id, id_type: idType });
+        const kycReq = await ensureKycRequest({ reuse: false, notes: body.notes ?? body.reason ?? null });
+        await audit("request_verification", { verification_id: data.id, id_type: idType, kyc_request_id: kycReq?.id ?? null });
         await enqueueEmail("client_kyc_requested", {
           id_type_label: idType,
           reason: body.reason || "Vérification d'identité requise",
-          expires_at: new Date(data.expires_at).toLocaleDateString("fr-CA"),
+          expires_at: new Date(kycReq?.expires_at || data.expires_at).toLocaleDateString("fr-CA"),
+          kyc_link: kycReq?.kyc_link ?? null,
         });
 
-        return json(200, { ok: true, verification_id: data.id });
+        return json(200, { ok: true, verification_id: data.id, kyc_request_id: kycReq?.id ?? null });
       }
 
       case "resend_request": {
@@ -206,13 +252,15 @@ serve(async (req) => {
         if (v.status === "approved" || v.status === "rejected") {
           return json(400, { error: "Demande déjà finalisée" });
         }
-        await audit("resend_request", { verification_id: v.id });
+        const kycReq = await ensureKycRequest({ reuse: true, notes: v.reason ?? null });
+        await audit("resend_request", { verification_id: v.id, kyc_request_id: kycReq?.id ?? null });
         await enqueueEmail("client_kyc_requested", {
           id_type_label: v.requested_id_type,
           reason: v.reason || "Rappel — vérification d'identité requise",
-          expires_at: new Date(v.expires_at).toLocaleDateString("fr-CA"),
+          expires_at: new Date(kycReq?.expires_at || v.expires_at).toLocaleDateString("fr-CA"),
+          kyc_link: kycReq?.kyc_link ?? null,
         });
-        return json(200, { ok: true });
+        return json(200, { ok: true, kyc_request_id: kycReq?.id ?? null });
       }
 
       case "approve_session": {
@@ -291,13 +339,15 @@ serve(async (req) => {
           .eq("client_id", client_user_id)
           .eq("status", "pending");
 
+        const rejectKyc = await ensureKycRequest({ reuse: false, notes: `Rejet: ${body.review_reason.trim()}` });
         await ivsEvent(body.session_id, "staff_rejected", { reason: body.review_reason });
-        await audit("reject_session", { session_id: body.session_id });
+        await audit("reject_session", { session_id: body.session_id, kyc_request_id: rejectKyc?.id ?? null });
         await enqueueEmail("client_kyc_rejected", {
           rejection_reason: body.review_reason.trim(),
+          kyc_link: rejectKyc?.kyc_link ?? null,
         });
 
-        return json(200, { ok: true });
+        return json(200, { ok: true, kyc_request_id: rejectKyc?.id ?? null });
       }
 
       case "request_additional_docs": {
@@ -320,16 +370,18 @@ serve(async (req) => {
           .eq("id", body.session_id);
         if (error) return json(500, { error: error.message });
 
+        const addKyc = await ensureKycRequest({ reuse: true, notes: `Docs additionnels: ${body.review_reason.trim()}` });
         await ivsEvent(body.session_id, "staff_additional_required", {
           reason: body.review_reason, required_docs: required,
         });
-        await audit("request_additional_docs", { session_id: body.session_id, required });
+        await audit("request_additional_docs", { session_id: body.session_id, required, kyc_request_id: addKyc?.id ?? null });
         await enqueueEmail("client_kyc_additional_docs", {
           instructions: body.review_reason.trim(),
           required_docs_list: required.join(", ") || "—",
+          kyc_link: addKyc?.kyc_link ?? null,
         });
 
-        return json(200, { ok: true });
+        return json(200, { ok: true, kyc_request_id: addKyc?.id ?? null });
       }
 
       case "generate_signed_urls": {
