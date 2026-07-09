@@ -19,7 +19,7 @@ Source vérifiée : `Account360QuickActions.tsx`, `Account360NewActionDialogs.ts
 | VIP / Churn risk | `VipChurnToggleDialog` | *(aucune — écrit direct sur `accounts`/`account_tags`)* | 🟠 | pas de workflow canonique |
 | Pause temporaire | `PauseAccountDialog` | `account-ops-actions` (`pause_account`/`unpause_account`) | ✅ | validé E2E backend — voir `module4-pause-temporaire.md`. ⚠️ UI Playwright non exécutée (blocage 2FA), workflow UI validé par inspection statique + confirmation qu'aucune écriture directe DB ne subsiste. |
 | Annuler le compte | `CancelAccountDialog` | `account-ops-actions` (`cancel_account`) | ✅ | validé E2E backend — voir `module5-annuler-compte.md`. Side-effect trigger email `trg_review_request` accepté (backlog). |
-| Réactiver | `ReactivateAccountDialog` | `account-ops-actions` (`reactivate_account`) | 🟡 | corrections statiques déposées — voir `module6-reactiver.md`. Statut : OPEN — STATIC FIXES DONE — E2E PENDING |
+| Réactiver | `ReactivateAccountDialog` | `account-ops-actions` (`reactivate_account`) | ✅ | validé E2E backend — voir `module6-reactiver.md`. Findings backlog : F6-1 subscription cancelled→pending (comportement billing/provisioning), F6-2 review_request_activation (module communication). Tests non exécutés (suspended, statut invalide, cascade partielle) : couverture code par inspection, hors périmètre. |
 
 ## Facturation
 
