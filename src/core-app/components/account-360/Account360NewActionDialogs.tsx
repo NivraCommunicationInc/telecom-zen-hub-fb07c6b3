@@ -847,61 +847,42 @@ export function FreezeCycleTrialDialog(props: Base) {
   async function submit() {
     if (!props.clientUserId) return toast.error("Client manquant");
     if (!props.accountId) return toast.error("Compte manquant");
-    if (!reason.trim()) return toast.error("Raison obligatoire");
+    if (reason.trim().length < 3) return toast.error("Motif requis (min. 3 caractères)");
+    if (!untilDate) return toast.error("Date de fin requise");
+    const d = new Date(untilDate + "T00:00:00Z").getTime();
+    if (isNaN(d) || d <= Date.now()) return toast.error("Date de fin doit être dans le futur");
+    if (d > Date.now() + 90 * 86400000) return toast.error("Durée maximale: 90 jours");
     setLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const label = mode === "freeze_cycle" ? "Gel de cycle" : mode === "trial_extension" ? "Extension d'essai" : "Pause de facturation";
-      const { error } = await supabase.from("service_change_requests").insert({
-        client_id: props.clientUserId,
-        account_id: props.accountId,
-        requested_by: userData?.user?.id ?? props.clientUserId,
-        change_type: mode,
-        status: "pending",
-        effective_date: untilDate,
-        requested_plan_name: label,
-        notes: reason,
-      } as any);
+      const { data, error } = await supabase.functions.invoke("service-freeze-actions", {
+        body: {
+          action: "request_freeze",
+          account_id: props.accountId,
+          mode,
+          until_date: untilDate,
+          __audit_reason: reason.trim(),
+        },
+      });
       if (error) throw error;
-      await supabase.from("account_tags").upsert({
-        client_user_id: props.clientUserId,
-        account_id: props.accountId,
-        tag_key: mode,
-        tag_label: label,
-        severity: "warning",
-        note: `${reason} — jusqu'au ${untilDate}`,
-        created_by: userData?.user?.id ?? null,
-        created_by_email: userData?.user?.email ?? null,
-      } as any, { onConflict: "client_user_id,tag_key" });
-      await writeCoreActivity({ clientUserId: props.clientUserId, accountId: props.accountId, action: "billing_cycle_hold_requested", reason, details: { mode, untilDate } });
-      if (notifyClient && props.clientEmail) {
-        await notify({
-          clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: `${label} enregistré`,
-          heroTitle: label,
-          cardTitle: "Détails",
-          cardRows: [
-            { label: "Statut", value: "Demande enregistrée" },
-            { label: "Date cible", value: untilDate },
-          ],
-          actionKey: "billing_cycle_hold",
-          accountId: props.accountId,
-          clientUserId: props.clientUserId,
-          reason,
-        });
-      }
-      toast.success("Demande enregistrée");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Demande de gel enregistrée");
       invalidate(); props.onRefresh?.(); props.onClose();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
     finally { setLoading(false); }
   }
+
+  const scopeText = mode === "freeze_cycle"
+    ? "Portée : cycle de facturation SEULEMENT (renouvellement suspendu, essai inchangé)"
+    : mode === "trial_extension"
+      ? "Portée : période d'essai SEULEMENT (aucun impact sur cycle de facturation actif)"
+      : "Portée : cycle de facturation ET période d'essai (pause complète)";
 
   return (
     <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><PauseCircle className="h-5 w-5 text-amber-500" />Geler cycle / essai</DialogTitle>
-          <DialogDescription>Créer une demande contrôlée avec audit complet.</DialogDescription>
+          <DialogDescription>Demande contrôlée avec audit complet — aucun impact direct sur billing_subscriptions.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
@@ -909,11 +890,12 @@ export function FreezeCycleTrialDialog(props: Base) {
             <Select value={mode} onValueChange={(v) => setMode(v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="freeze_cycle">Geler le cycle</SelectItem>
-                <SelectItem value="trial_extension">Prolonger l'essai</SelectItem>
-                <SelectItem value="billing_hold">Mettre la facturation en pause</SelectItem>
+                <SelectItem value="freeze_cycle">Geler le cycle de facturation</SelectItem>
+                <SelectItem value="trial_extension">Prolonger la période d'essai</SelectItem>
+                <SelectItem value="billing_hold">Pause complète (cycle + essai)</SelectItem>
               </SelectContent>
             </Select>
+            <p className="mt-2 text-xs text-muted-foreground">{scopeText}</p>
           </div>
           <div><Label>Date cible / fin</Label><Input type="date" value={untilDate} onChange={(e) => setUntilDate(e.target.value)} /></div>
           <div><Label>Raison obligatoire</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Motif exact, approbation, contexte client…" /></div>
