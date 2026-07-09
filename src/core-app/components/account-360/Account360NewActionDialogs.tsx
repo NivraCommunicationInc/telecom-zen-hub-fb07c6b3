@@ -847,50 +847,25 @@ export function FreezeCycleTrialDialog(props: Base) {
   async function submit() {
     if (!props.clientUserId) return toast.error("Client manquant");
     if (!props.accountId) return toast.error("Compte manquant");
-    if (!reason.trim()) return toast.error("Raison obligatoire");
+    if (reason.trim().length < 3) return toast.error("Motif requis (min. 3 caractères)");
+    if (!untilDate) return toast.error("Date de fin requise");
+    const d = new Date(untilDate + "T00:00:00Z").getTime();
+    if (isNaN(d) || d <= Date.now()) return toast.error("Date de fin doit être dans le futur");
+    if (d > Date.now() + 90 * 86400000) return toast.error("Durée maximale: 90 jours");
     setLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const label = mode === "freeze_cycle" ? "Gel de cycle" : mode === "trial_extension" ? "Extension d'essai" : "Pause de facturation";
-      const { error } = await supabase.from("service_change_requests").insert({
-        client_id: props.clientUserId,
-        account_id: props.accountId,
-        requested_by: userData?.user?.id ?? props.clientUserId,
-        change_type: mode,
-        status: "pending",
-        effective_date: untilDate,
-        requested_plan_name: label,
-        notes: reason,
-      } as any);
+      const { data, error } = await supabase.functions.invoke("service-freeze-actions", {
+        body: {
+          action: "request_freeze",
+          account_id: props.accountId,
+          mode,
+          until_date: untilDate,
+          __audit_reason: reason.trim(),
+        },
+      });
       if (error) throw error;
-      await supabase.from("account_tags").upsert({
-        client_user_id: props.clientUserId,
-        account_id: props.accountId,
-        tag_key: mode,
-        tag_label: label,
-        severity: "warning",
-        note: `${reason} — jusqu'au ${untilDate}`,
-        created_by: userData?.user?.id ?? null,
-        created_by_email: userData?.user?.email ?? null,
-      } as any, { onConflict: "client_user_id,tag_key" });
-      await writeCoreActivity({ clientUserId: props.clientUserId, accountId: props.accountId, action: "billing_cycle_hold_requested", reason, details: { mode, untilDate } });
-      if (notifyClient && props.clientEmail) {
-        await notify({
-          clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: `${label} enregistré`,
-          heroTitle: label,
-          cardTitle: "Détails",
-          cardRows: [
-            { label: "Statut", value: "Demande enregistrée" },
-            { label: "Date cible", value: untilDate },
-          ],
-          actionKey: "billing_cycle_hold",
-          accountId: props.accountId,
-          clientUserId: props.clientUserId,
-          reason,
-        });
-      }
-      toast.success("Demande enregistrée");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Demande de gel enregistrée");
       invalidate(); props.onRefresh?.(); props.onClose();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
     finally { setLoading(false); }
