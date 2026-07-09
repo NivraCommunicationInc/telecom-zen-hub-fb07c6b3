@@ -134,7 +134,31 @@ serve(async (req) => {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     || req.headers.get("cf-connecting-ip") || "unknown";
 
+  // Resolve account_id (best-effort) for client_internal_notes
+  let accountId: string | null = null;
+  try {
+    if (targetId) {
+      const { data: acc } = await admin
+        .from("accounts")
+        .select("id")
+        .eq("customer_id", targetId)
+        .maybeSingle();
+      accountId = (acc as any)?.id ?? null;
+    }
+  } catch (_e) { /* ignore */ }
+
+  const ACTION_LABELS: Record<string, string> = {
+    send_invite: "Invitation compte en ligne envoyée",
+    send_password_reset: "Réinitialisation de mot de passe envoyée",
+    force_confirm_email: "Courriel confirmé manuellement",
+    change_email: "Courriel de connexion modifié",
+    force_logout: "Sessions client révoquées",
+    set_temporary_password: "Mot de passe temporaire défini",
+    resend_welcome: "Courriel de bienvenue renvoyé",
+  };
+
   const audit = async (action: string, details: any, ok: boolean) => {
+    // 1) admin_audit_log (staff accountability)
     try {
       await admin.from("admin_audit_log").insert({
         admin_user_id: user.id,
@@ -147,6 +171,38 @@ serve(async (req) => {
         target_email: targetEmail,
       });
     } catch (_e) { /* audit best-effort */ }
+
+    if (!ok || !targetId) return;
+
+    // 2) client_activity_logs (client timeline / portal projection)
+    try {
+      await admin.from("client_activity_logs").insert({
+        client_id: targetId,
+        actor_user_id: user.id,
+        actor_role: "admin",
+        actor_name: user.email || "admin",
+        action_type: "account_access",
+        summary: ACTION_LABELS[action] || `Action accès en ligne: ${action}`,
+        entity_type: "client_user",
+        entity_id: targetId,
+        after_data: details,
+      });
+    } catch (_e) { /* best-effort */ }
+
+    // 3) client_internal_notes (staff timeline)
+    try {
+      if (accountId) {
+        await admin.from("client_internal_notes").insert({
+          account_id: accountId,
+          client_id: targetId,
+          note_type: "system",
+          body: `${ACTION_LABELS[action] || action} — par ${user.email || user.id}`,
+          created_by_user_id: user.id,
+          created_by_name: user.email || "admin",
+          created_by_role: "admin",
+        });
+      }
+    } catch (_e) { /* best-effort */ }
   };
 
   const origin = resolveOrigin(body.redirect_origin);
