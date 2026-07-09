@@ -310,6 +310,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
 
       <PauseAccountDialog
         accountId={accountId}
+        clientUserId={clientId}
+        accountStatus={accountStatus}
         monthlyRevenue={monthlyRevenue}
         open={pauseOpen}
         onClose={() => setPauseOpen(false)}
