@@ -477,14 +477,15 @@ serve(async (req) => {
         }).eq("id", body.account_id);
         if (upErr) return json(500, { error: upErr.message });
 
-        // Cancel any active/past_due/trialing subscriptions (billing_subscriptions is keyed by customer_id = auth user id)
+        // Cancel every non-terminal subscription (billing_subscriptions is keyed by customer_id = auth user id).
+        // Terminal states we never re-touch: cancelled, terminated, expired, refunded.
         let cancelledSubs = 0;
         try {
           const { data: subs, error: subErr } = await admin
             .from("billing_subscriptions")
             .update({ status: "cancelled", updated_at: nowIso })
             .eq("customer_id", client_user_id)
-            .in("status", ["active", "past_due", "trialing"])
+            .not("status", "in", "(cancelled,terminated,expired,refunded)")
             .select("id");
           if (subErr) console.error("cancel_account subs update", subErr);
           cancelledSubs = subs?.length ?? 0;
