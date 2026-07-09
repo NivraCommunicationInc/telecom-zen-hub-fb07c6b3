@@ -170,6 +170,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
         forceOverride: true,
         overrideReason: contractGate.reason.trim(),
       });
+      await registerTracker();
       setContractGate({ open: false, targetStatus: null, reason: "", forcing: false });
     } catch (err: any) {
       console.error("[ShippingTechnicianStep] Force ship failed:", err);
