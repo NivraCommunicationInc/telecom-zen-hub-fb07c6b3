@@ -5994,7 +5994,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
             "Bonne ou perfectible, votre honnêteté est ce qui nous rend meilleurs. On a hâte de vous lire.",
           ctaPrimaryUrl: googleReviewUrl,
           ctaPrimaryLabel: "⭐ Laisser mon avis Google (2 min)",
-          footerNote: "Après avoir publié votre avis, répondez simplement à ce courriel avec une capture d'écran et nous appliquerons votre rabais de 5 $ sur votre prochaine facture. Merci du fond du cœur — l'équipe Nivra 💙",
+          helpHtml: "<strong>Comment récupérer votre rabais de 5 $ :</strong> après avoir publié votre avis, répondez à ce courriel avec une capture d'écran. Nous appliquerons le crédit directement sur votre prochaine facture. Merci du fond du cœur — l'équipe Nivra 💙",
         }),
       };
     }
