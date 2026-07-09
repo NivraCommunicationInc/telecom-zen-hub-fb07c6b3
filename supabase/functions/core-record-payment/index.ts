@@ -141,17 +141,25 @@ serve(async (req) => {
       line_id = lineIdRes as string;
     } else {
       const extRef = reference ?? `CORE-${Date.now().toString(36).toUpperCase()}`;
-      const { data: payIdRes, error: rpcErr } = await admin.rpc("apply_payment_to_invoice", {
-        p_invoice_id:         invoice_id,
-        p_amount:             amt,
-        p_method:             map.rpc_method,
-        p_provider:           map.provider,
-        p_external_reference: extRef,
-        p_source:             "admin_core",
-        p_context:            context,
+      const { data: payRes, error: rpcErr } = await admin.rpc("apply_payment_to_invoice", {
+        p_invoice_id:          invoice_id,
+        p_amount:              amt,
+        p_method:              map.rpc_method,
+        p_provider:            map.provider,
+        p_provider_payment_id: extRef,
+        p_provider_order_id:   null,
+        p_customer_id:         invBefore.customer_id,
+        p_source:              "admin_core",
+        p_created_by_name:     user.email ?? null,
+        p_created_by_role:     "admin",
       });
       if (rpcErr) return json({ ok: false, error: `apply_payment_to_invoice: ${rpcErr.message}` }, 500);
-      payment_id = payIdRes as string;
+      // RPC returns jsonb { success, payment_id, ... } — extract id
+      const payJson: any = payRes;
+      if (payJson && payJson.success === false) {
+        return json({ ok: false, error: `apply_payment_to_invoice: ${payJson.error ?? "unknown"}` }, 409);
+      }
+      payment_id = (payJson?.payment_id as string) ?? null;
     }
 
     // ── After-state ──────────────────────────────────────────────────────
