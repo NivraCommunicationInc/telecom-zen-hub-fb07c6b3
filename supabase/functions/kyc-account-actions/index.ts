@@ -152,6 +152,50 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
+  // Create (or reuse the latest pending) a kyc_requests row so the client
+  // gets a canonical https://nivra-telecom.ca/verification/:token link.
+  // order_id is nullable — account-level KYC requests do not require an order.
+  const ensureKycRequest = async (opts: { reuse?: boolean; notes?: string | null }) => {
+    if (!clientEmail) return null as null | { id: string; token: string; kyc_link: string; expires_at: string };
+    if (opts.reuse) {
+      const { data: existing } = await admin
+        .from("kyc_requests")
+        .select("id, token, expires_at, status")
+        .eq("client_id", client_user_id)
+        .in("status", ["pending", "sent"])
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        return {
+          id: existing.id,
+          token: existing.token,
+          expires_at: existing.expires_at,
+          kyc_link: `${APP_URL}/verification/${existing.token}`,
+        };
+      }
+    }
+    const { data: created, error } = await admin
+      .from("kyc_requests")
+      .insert({
+        order_id: null,
+        client_id: client_user_id,
+        client_email: clientEmail,
+        requested_by: user.id,
+        notes: opts.notes ?? null,
+      })
+      .select("id, token, expires_at")
+      .single();
+    if (error || !created) return null;
+    return {
+      id: created.id,
+      token: created.token,
+      expires_at: created.expires_at,
+      kyc_link: `${APP_URL}/verification/${created.token}`,
+    };
+  };
+
   const verifyClientSession = async (session_id: string) => {
     const { data: s } = await admin
       .from("identity_verification_sessions")
