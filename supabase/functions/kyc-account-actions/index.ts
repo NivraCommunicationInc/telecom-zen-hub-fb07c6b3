@@ -152,13 +152,57 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
-  // Create (or reuse the latest pending) a kyc_requests row so the client
-  // gets a canonical https://nivra-telecom.ca/verification/:token link.
-  // order_id is nullable — account-level KYC requests do not require an order.
+  // Ensure a canonical identity_verification_sessions (IVS) row + a linked
+  // kyc_requests row so the client gets https://nivra-telecom.ca/verification/:token
+  // AND Client 360 reads/shows everything from the IVS canonical model.
+  //
+  // Account-level KYC requests have no order_id — this is legitimate.
+  // The public wizard resolves by kyc_requests.token; kyc-public-upload
+  // mirrors uploaded files onto the linked IVS row (see that function).
   const ensureKycRequest = async (opts: { reuse?: boolean; notes?: string | null }) => {
-    if (!clientEmail) return null as null | { id: string; token: string; kyc_link: string; expires_at: string };
+    if (!clientEmail) return null as null | { id: string; token: string; kyc_link: string; expires_at: string; session_id: string };
+
     if (opts.reuse) {
       const { data: existing } = await admin
+        .from("kyc_requests")
+        .select("id, token, expires_at, status, session_id")
+        .eq("client_id", client_user_id)
+        .in("status", ["pending", "sent"])
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing?.session_id) {
+        return {
+          id: existing.id,
+          token: existing.token,
+          expires_at: existing.expires_at,
+          session_id: existing.session_id,
+          kyc_link: `${APP_URL}/verification/${existing.token}`,
+        };
+      }
+      // Existing request without a session — heal by attaching one below.
+    }
+
+    // 1) Create the canonical IVS row first (Client 360 source of truth).
+    const expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+    const { data: ivs, error: ivsErr } = await admin
+      .from("identity_verification_sessions")
+      .insert({
+        user_id: client_user_id,
+        status: "created",
+        expires_at: expiresAt,
+        checkout_type: "account_level",
+        order_context: { source: "client_360", account_id: body.account_id ?? null },
+      })
+      .select("id")
+      .single();
+    if (ivsErr || !ivs) return null;
+
+    // 2) Create (or reattach) the kyc_requests row that carries the wizard token.
+    let requestRow: { id: string; token: string; expires_at: string } | null = null;
+    if (opts.reuse) {
+      const { data: reusable } = await admin
         .from("kyc_requests")
         .select("id, token, expires_at, status")
         .eq("client_id", client_user_id)
@@ -167,32 +211,38 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (existing) {
-        return {
-          id: existing.id,
-          token: existing.token,
-          expires_at: existing.expires_at,
-          kyc_link: `${APP_URL}/verification/${existing.token}`,
-        };
+      if (reusable) {
+        // Attach the fresh IVS to the existing request.
+        await admin.from("kyc_requests").update({ session_id: ivs.id }).eq("id", reusable.id);
+        requestRow = { id: reusable.id, token: reusable.token, expires_at: reusable.expires_at };
       }
     }
-    const { data: created, error } = await admin
-      .from("kyc_requests")
-      .insert({
-        order_id: null,
-        client_id: client_user_id,
-        client_email: clientEmail,
-        requested_by: user.id,
-        notes: opts.notes ?? null,
-      })
-      .select("id, token, expires_at")
-      .single();
-    if (error || !created) return null;
+    if (!requestRow) {
+      const { data: created, error } = await admin
+        .from("kyc_requests")
+        .insert({
+          order_id: null,
+          client_id: client_user_id,
+          client_email: clientEmail,
+          requested_by: user.id,
+          notes: opts.notes ?? null,
+          session_id: ivs.id,
+        })
+        .select("id, token, expires_at")
+        .single();
+      if (error || !created) return null;
+      requestRow = created;
+    }
+
+    // 3) Emit an event so Client 360 timeline shows the request immediately.
+    await ivsEvent(ivs.id, "staff_requested", { via: "client_360", notes: opts.notes ?? null });
+
     return {
-      id: created.id,
-      token: created.token,
-      expires_at: created.expires_at,
-      kyc_link: `${APP_URL}/verification/${created.token}`,
+      id: requestRow.id,
+      token: requestRow.token,
+      expires_at: requestRow.expires_at,
+      session_id: ivs.id,
+      kyc_link: `${APP_URL}/verification/${requestRow.token}`,
     };
   };
 
@@ -213,6 +263,9 @@ serve(async (req) => {
         const idType = (body.requested_id_type || "drivers_license").trim();
         if (!ALLOWED_ID_TYPES.has(idType)) return json(400, { error: "Type d'identité invalide" });
 
+        // Create the IVS session + linked kyc_requests row first so we have session_id for kyc_verifications.
+        const kycReq = await ensureKycRequest({ reuse: false, notes: body.notes ?? body.reason ?? null });
+
         const { data, error } = await admin
           .from("kyc_verifications")
           .insert({
@@ -223,13 +276,13 @@ serve(async (req) => {
             notes: body.notes ?? null,
             requested_by: user.id,
             status: "pending",
+            session_id: kycReq?.session_id ?? null,
           })
           .select("id, expires_at")
           .single();
         if (error) return json(500, { error: error.message });
 
-        const kycReq = await ensureKycRequest({ reuse: false, notes: body.notes ?? body.reason ?? null });
-        await audit("request_verification", { verification_id: data.id, id_type: idType, kyc_request_id: kycReq?.id ?? null });
+        await audit("request_verification", { verification_id: data.id, id_type: idType, kyc_request_id: kycReq?.id ?? null, session_id: kycReq?.session_id ?? null });
         await enqueueEmail("client_kyc_requested", {
           id_type_label: idType,
           reason: body.reason || "Vérification d'identité requise",
@@ -237,7 +290,7 @@ serve(async (req) => {
           kyc_link: kycReq?.kyc_link ?? null,
         });
 
-        return json(200, { ok: true, verification_id: data.id, kyc_request_id: kycReq?.id ?? null });
+        return json(200, { ok: true, verification_id: data.id, kyc_request_id: kycReq?.id ?? null, session_id: kycReq?.session_id ?? null });
       }
 
       case "resend_request": {

@@ -15061,6 +15061,7 @@ export type Database = {
           rejection_reason: string | null
           requested_at: string
           requested_by: string | null
+          session_id: string | null
           status: string
           token: string
           updated_at: string
@@ -15082,6 +15083,7 @@ export type Database = {
           rejection_reason?: string | null
           requested_at?: string
           requested_by?: string | null
+          session_id?: string | null
           status?: string
           token?: string
           updated_at?: string
@@ -15103,6 +15105,7 @@ export type Database = {
           rejection_reason?: string | null
           requested_at?: string
           requested_by?: string | null
+          session_id?: string | null
           status?: string
           token?: string
           updated_at?: string
@@ -15127,6 +15130,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_requests_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "identity_verification_sessions"
             referencedColumns: ["id"]
           },
         ]
