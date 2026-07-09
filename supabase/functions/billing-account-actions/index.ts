@@ -761,6 +761,17 @@ serve(async (req) => {
           return json(200, { ok: true, refund_id: existingRef.id, idempotent: true });
         }
 
+        // A23-3 : ownership checks — invoice + payment must belong to targeted client
+        if (body.invoice_id) {
+          const own = await ensureInvoiceOwnership(body.invoice_id);
+          if (!own.ok) return json(own.status!, { error: own.error });
+        }
+        if (body.payment_id) {
+          const own = await ensurePaymentOwnership(body.payment_id);
+          if (!own.ok) return json(own.status!, { error: own.error });
+        }
+
+
         // ────────────────────────────────────────────────────────────────
         // Chemin Square / original : passage obligatoire par la RPC
         // canonique `refund_payment` — aucune mutation directe des tables
