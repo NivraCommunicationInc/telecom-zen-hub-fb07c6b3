@@ -26,7 +26,9 @@ type Action =
   | "send_reminder"
   | "schedule_appointment"
   | "add_internal_note"
-  | "notify_address_change";
+  | "notify_address_change"
+  | "pause_account"
+  | "unpause_account";
 
 interface Body {
   action: Action;
