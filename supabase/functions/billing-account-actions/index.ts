@@ -247,15 +247,17 @@ serve(async (req) => {
   };
 
   // ── A23-3 : contrôle d'appartenance invoice/payment (sécurité cross-client) ──
+  // NB: schéma canonique — billing_invoices.customer_id / account_id
+  //                       billing_payments.customer_id (+ invoice_id)
   const ensureInvoiceOwnership = async (invoice_id: string) => {
     const { data: inv, error } = await admin
       .from("billing_invoices")
-      .select("id, user_id, account_id")
+      .select("id, customer_id, account_id")
       .eq("id", invoice_id)
       .maybeSingle();
     if (error) return { ok: false, status: 500, error: error.message };
     if (!inv) return { ok: false, status: 404, error: "Facture introuvable" };
-    const invUser = (inv as any).user_id ?? null;
+    const invUser = (inv as any).customer_id ?? null;
     const invAccount = (inv as any).account_id ?? null;
     const matchesUser = invUser && invUser === client_user_id;
     const matchesAccount = body.account_id && invAccount && invAccount === body.account_id;
@@ -268,16 +270,18 @@ serve(async (req) => {
   const ensurePaymentOwnership = async (payment_id: string) => {
     const { data: pay, error } = await admin
       .from("billing_payments")
-      .select("id, user_id, account_id, invoice_id, amount, status, provider, provider_payment_id")
+      .select("id, customer_id, invoice_id, amount, status, provider, provider_payment_id")
       .eq("id", payment_id)
       .maybeSingle();
     if (error) return { ok: false, status: 500, error: error.message };
     if (!pay) return { ok: false, status: 404, error: "Paiement introuvable" };
-    const payUser = (pay as any).user_id ?? null;
-    const payAccount = (pay as any).account_id ?? null;
-    const matchesUser = payUser && payUser === client_user_id;
-    const matchesAccount = body.account_id && payAccount && payAccount === body.account_id;
-    if (!matchesUser && !matchesAccount) {
+    const payUser = (pay as any).customer_id ?? null;
+    if (!payUser || payUser !== client_user_id) {
+      // Fallback : accepter si la facture liée appartient au client/compte
+      if ((pay as any).invoice_id) {
+        const own = await ensureInvoiceOwnership((pay as any).invoice_id);
+        if (own.ok) return { ok: true, payment: pay };
+      }
       return { ok: false, status: 403, error: "Paiement n'appartient pas à ce client (ownership check)" };
     }
     return { ok: true, payment: pay };
