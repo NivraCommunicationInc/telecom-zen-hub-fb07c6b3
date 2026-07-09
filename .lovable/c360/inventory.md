@@ -17,8 +17,8 @@ Source vérifiée : `Account360QuickActions.tsx`, `Account360NewActionDialogs.ts
 | Modifier le profil | `Account360ProfileEditDialog` | `client-account-admin` | ✅ | validé E2E — voir `module1-modifier-profil.md` |
 | Accès en ligne | `ClientAccountAccessDialog` | `client-account-admin` | ✅ | validé E2E sans-email — voir `module2-access-en-ligne.md` |
 | VIP / Churn risk | `VipChurnToggleDialog` | *(aucune — écrit direct sur `accounts`/`account_tags`)* | 🟠 | pas de workflow canonique |
-| Pause temporaire | `PauseAccountDialog` | `account-ops-actions` (à confirmer) | 🟡 | — |
-| Annuler le compte | `CancelAccountDialog` | `account-ops-actions` | 🟡 | — |
+| Pause temporaire | `PauseAccountDialog` | `account-ops-actions` (`pause_account`/`unpause_account`) | ✅ | validé E2E backend — voir `module4-pause-temporaire.md`. ⚠️ UI Playwright non exécutée (blocage 2FA), workflow UI validé par inspection statique + confirmation qu'aucune écriture directe DB ne subsiste. |
+| Annuler le compte | `CancelAccountDialog` | `account-ops-actions` (`cancel_account`) | 🟡 | corrections statiques déposées — voir `module5-annuler-compte.md`. Statut : OPEN — STATIC FIXES DONE — E2E PENDING |
 | Réactiver | `ReactivateAccountDialog` | idem | 🟡 | — |
 
 ## Facturation
