@@ -480,10 +480,9 @@ serve(async (req) => {
         // Cascade: cancel every non-terminal subscription. Include pending/paused states so QA-provisioned
         // or trigger-normalized rows don't slip through. Terminal states (cancelled/terminated/expired/refunded)
         // are excluded to keep this idempotent.
-        const NON_TERMINAL_STATES = [
-          "active", "past_due", "trialing", "pending", "paused", "suspended",
-          "grace_period", "unpaid", "incomplete", "incomplete_expired",
-        ];
+        // Enum billing_subscription_status: active | pending | suspended | cancelled | expired | not_renewed.
+        // Cascade all non-terminal states; leave cancelled/expired/not_renewed alone.
+        const NON_TERMINAL_STATES = ["active", "pending", "suspended"];
         let cancelledSubs = 0;
         try {
           const { data: subs, error: subErr } = await admin
