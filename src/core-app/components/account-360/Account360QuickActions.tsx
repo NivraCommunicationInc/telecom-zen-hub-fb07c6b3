@@ -41,7 +41,7 @@ import { AccountPrivacyRequestsDialog } from "@/shared-ops/components/AccountPri
 import { AccountFraudRiskDialog } from "@/shared-ops/components/AccountFraudRiskDialog";
 import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch, RotateCcw, Undo2, Banknote, Repeat, Activity, TrendingUp, Home, ArrowUpCircle, TicketCheck, Sparkles, Star, ChevronDown, ChevronRight } from "lucide-react";
 import {
-  AccountWriteOffDialog, PaymentPlanDialog, AutopayRetryDialog,
+  PaymentPlanDialog, AutopayRetryDialog,
   RemoteRebootDialog, LineDiagnosticDialog, QuickPlanChangeDialog, ServiceMoveDialog,
   SupervisorEscalationDialog, CompensationVoucherDialog, VipChurnToggleDialog,
   FreezeCycleTrialDialog, NpsSatisfactionDialog, FraudLockDialog, ConsentJournalDialog,
