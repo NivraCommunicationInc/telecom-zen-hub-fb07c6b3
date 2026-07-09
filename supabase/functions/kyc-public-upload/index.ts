@@ -169,6 +169,20 @@ Deno.serve(async (req) => {
           } as any)
           .eq("id", ivsId);
 
+        const identityDocs = [
+          { doc_type: "id_front", object_path: upFront.path!, file: front! },
+          ...(backPath && back ? [{ doc_type: "id_back", object_path: backPath, file: back }] : []),
+          ...(selfiePath && selfie ? [{ doc_type: "selfie", object_path: selfiePath, file: selfie }] : []),
+        ];
+        await supabase.from("identity_documents").insert(identityDocs.map((d) => ({
+          kyc_session_id: ivsId,
+          doc_type: d.doc_type,
+          storage_bucket: "id-documents",
+          object_path: d.object_path,
+          file_size_bytes: d.file.size,
+          mime_type: d.file.type,
+        })));
+
         await supabase.from("identity_verification_events").insert({
           session_id: ivsId,
           event_type: "client_submitted",
