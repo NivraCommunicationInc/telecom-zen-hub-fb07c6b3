@@ -3,7 +3,7 @@
 //   - request_verification     : creates a kyc_verifications row + queues client email
 //   - approve_session          : marks an identity_verification_sessions row 'approved'
 //   - reject_session           : marks a session 'rejected' (review_reason required)
-//   - request_additional_docs  : marks 'additional_required' + sends email with note
+//   - request_additional_docs  : marks 'pending_docs' + inserts requested-doc rows + sends email with note
 //   - resend_request           : re-sends the KYC request email for an existing row
 //   - generate_signed_urls     : returns 5-min signed URLs for the session's docs
 // Each transition is audited under account_ops.kyc_*; identity_verification_events
@@ -41,7 +41,7 @@ interface Body {
   // session-targeted
   session_id?: string;
   review_reason?: string;
-  required_docs?: string[];   // for additional_required
+  required_docs?: string[];   // for pending_docs
   // resend_request
   verification_id?: string;
 }

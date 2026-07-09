@@ -56,6 +56,7 @@ const STATUS_BADGE: Record<string, { label: string; variant: any }> = {
   submitted: { label: "Soumis", variant: "default" },
   in_review: { label: "En révision", variant: "default" },
   additional_required: { label: "Docs additionnels", variant: "outline" },
+  pending_docs: { label: "Docs additionnels", variant: "outline" },
   approved: { label: "Approuvé", variant: "default" },
   rejected: { label: "Rejeté", variant: "destructive" },
   expired: { label: "Expiré", variant: "outline" },
@@ -654,6 +655,8 @@ function getActionMeta(mode: ActionMode, ctx: { clientEmail?: string | null; idT
     ],
     tables: [
       { table: "kyc_verifications", rows: 1, note: "insert" },
+      { table: "identity_verification_sessions", rows: 1, note: "session IVS canonique" },
+      { table: "kyc_requests", rows: 1, note: "token public /verification/:token" },
       { table: "admin_audit_log", rows: 1, note: "account_ops.kyc_request_verification" },
       { table: "email_queue", rows: 1 },
     ],
@@ -691,11 +694,13 @@ function getActionMeta(mode: ActionMode, ctx: { clientEmail?: string | null; idT
   };
   if (mode === "additional") return {
     impact: [
-      { label: "Session", before: "submitted", after: "additional_required" },
+      { label: "Session", before: "submitted", after: "pending_docs" },
       { label: "Docs requis", before: "—", after: ctx.additionalDocs || "—" },
     ],
     tables: [
-      { table: "identity_verification_sessions", rows: 1, note: "status=additional_required + additional_docs[]" },
+      { table: "identity_verification_sessions", rows: 1, note: "status=pending_docs + additional_docs[]" },
+      { table: "kyc_requested_documents", rows: undefined, note: "1 row par document demandé" },
+      { table: "kyc_requests", rows: 1, note: "lien public réutilisé/créé" },
       { table: "identity_verification_events", rows: 1, note: "staff_additional_required" },
       { table: "admin_audit_log", rows: 1 },
       { table: "email_queue", rows: 1 },
