@@ -431,8 +431,17 @@ serve(async (req) => {
         if (uErr) return json(500, { error: uErr.message });
 
         await audit("set_default_method", { method_id: id });
+        await logAndNote(
+          "payment_method_default_set",
+          "client_payment_method",
+          id,
+          `Méthode par défaut définie — ${METHOD_LABELS[existing.method_type] || existing.method_type}${existing.last4 ? ` ••${existing.last4}` : ""}`,
+          { is_default: false },
+          { is_default: true },
+        );
         await enqueuePaymentMethodEmail("default_set", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
+
       }
 
       // ============================================================
