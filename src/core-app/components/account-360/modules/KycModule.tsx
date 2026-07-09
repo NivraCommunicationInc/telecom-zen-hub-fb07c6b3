@@ -577,7 +577,7 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
 
     switch (mode) {
       case "request":
-        payload = { ...payload, action: "request_verification", requested_id_type: idType, reason: reason || "Vérification d'identité requise", notes: notes || null };
+        payload = { ...payload, action: "request_verification", id_type: idType, review_reason: reason || notes || "Vérification d'identité requise" };
         successMsg = "Demande KYC envoyée au client";
         break;
       case "resend":
