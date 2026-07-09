@@ -695,6 +695,11 @@ serve(async (req) => {
           }
         }
 
+        // Capture before-state for audit parity
+        const { data: prevSettings } = await admin.from("client_billing_settings")
+          .select("billing_day_of_month, delivery_format, language, email_for_billing, paper_mailing_address")
+          .eq("user_id", client_user_id).maybeSingle();
+
         const { error } = await admin.from("client_billing_settings")
           .upsert({
             user_id: client_user_id,
@@ -711,6 +716,14 @@ serve(async (req) => {
         await audit("update_billing_settings", {
           billing_day_of_month: day, delivery_format, language,
         });
+        await logAndNote(
+          "billing_settings_updated",
+          "client_billing_settings",
+          null,
+          `Préférences facturation mises à jour — jour ${day}, ${delivery_format}, ${language}${body.email_for_billing ? `, courriel ${body.email_for_billing}` : ""}`,
+          prevSettings ?? null,
+          { billing_day_of_month: day, delivery_format, language, email_for_billing: body.email_for_billing ?? null, paper_mailing_address: body.paper_mailing_address ?? null },
+        );
         await enqueueEmail("client_billing_settings_change", {
           billing_day_of_month: String(day),
           delivery_format,
@@ -718,6 +731,7 @@ serve(async (req) => {
           email_for_billing: body.email_for_billing || "—",
         });
         return json(200, { ok: true });
+
       }
 
       // ============================================================
