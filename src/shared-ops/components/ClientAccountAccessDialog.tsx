@@ -36,6 +36,7 @@ type ActionKey =
 export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientEmail, clientName }: Props) {
   const [busy, setBusy] = useState<ActionKey | null>(null);
   const [newEmail, setNewEmail] = useState("");
+  const [changeReason, setChangeReason] = useState("");
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const run = async (action: ActionKey, extra: Record<string, any> = {}) => {
