@@ -64,6 +64,11 @@ interface Body {
   new_province?: string;
   new_postal?: string;
   old_address?: string;
+
+  // pause_account / unpause_account
+  paused_until?: string;         // ISO date
+  pause_charge_pct?: number;     // 0..100
+  reason?: string;
 }
 
 const json = (status: number, payload: unknown) =>
