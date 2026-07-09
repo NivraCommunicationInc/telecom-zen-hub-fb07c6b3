@@ -1314,7 +1314,7 @@ export function VipChurnToggleDialog(props: Base) {
         <div className="space-y-3">
           <div>
             <Label>Étiquette</Label>
-            <Select value={tagKey} onValueChange={(v) => setTagKey(v as VipChurnKey)}>
+            <Select value={tagKey} onValueChange={(v) => { setTagKey(v as VipChurnKey); setReason(""); setNote(""); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="vip">VIP</SelectItem>
