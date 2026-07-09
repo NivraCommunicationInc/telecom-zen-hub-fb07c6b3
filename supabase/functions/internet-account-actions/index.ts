@@ -304,6 +304,25 @@ serve(async (req) => {
           subscription_update_ok: subscriptionUpdateOk,
           subscription_update_error: subscriptionUpdateError,
         });
+        await activity(
+          "internet_plan_change",
+          data.id,
+          "internet_plan_change",
+          `Forfait Internet: ${body.previous_plan_name ?? "—"} → ${new_plan_name} (${fmtMoney(new_monthly_price)}/mois, ${change_type})`,
+          {
+            plan_change_id: data.id,
+            previous_plan_name: body.previous_plan_name ?? null,
+            new_plan_name,
+            new_monthly_price,
+            new_speed_mbps: body.new_speed_mbps ?? null,
+            change_type,
+            effective_date,
+          },
+        );
+        await sysNote(
+          `[INTERNET] Forfait changé — ${body.previous_plan_name ?? "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}` +
+          (subscriptionUpdateOk ? "" : ` · ⚠️ abonnement non synchronisé (${subscriptionUpdateError})`),
+        );
         await enqueueEmail("client_internet_plan_change", {
           previous_plan_name: body.previous_plan_name || "—",
           new_plan_name,
