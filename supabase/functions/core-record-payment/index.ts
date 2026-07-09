@@ -89,7 +89,7 @@ serve(async (req) => {
     // ── Load invoice (before-state) ──────────────────────────────────────
     const { data: invBefore, error: invErr } = await admin
       .from("billing_invoices")
-      .select("id, invoice_number, customer_id, total, amount_paid, balance_due, status, order_id, currency")
+      .select("id, invoice_number, customer_id, account_id, total, amount_paid, balance_due, status, order_id, currency")
       .eq("id", invoice_id)
       .maybeSingle();
     if (invErr || !invBefore) return json({ ok: false, error: "invoice not found" }, 404);
@@ -97,12 +97,13 @@ serve(async (req) => {
       return json({ ok: false, error: `invoice status=${invBefore.status} — cannot record payment` }, 409);
     }
 
-    // Resolve account_id for audit scoping
+    // Resolve customer identity (billing_customers has no account_id — use invoice.account_id)
     const { data: cust } = await admin
       .from("billing_customers")
-      .select("account_id, user_id, email")
+      .select("user_id, email")
       .eq("id", invBefore.customer_id)
       .maybeSingle();
+    const account_id = (invBefore as any).account_id ?? null;
 
     const map = METHOD_MAP[method as Method];
     const context = {
