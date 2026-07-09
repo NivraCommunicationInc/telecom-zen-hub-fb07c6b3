@@ -139,6 +139,15 @@ serve(async (req) => {
     req.headers.get("cf-connecting-ip") ||
     "unknown";
 
+  // Resolve caller identity for audit / activity / notes
+  const { data: callerProfile } = await admin
+    .from("profiles")
+    .select("full_name, email")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const actorEmail = callerProfile?.email || user.email || null;
+  const actorName = callerProfile?.full_name || actorEmail || "Staff";
+
   const audit = async (
     action_label: string,
     payload: Record<string, unknown>,
@@ -146,11 +155,46 @@ serve(async (req) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `mobile.${action_label}`,
-        admin_id: user.id,
+        admin_user_id: user.id,
+        admin_email: actorEmail,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        metadata: payload,
+        details: payload,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const logActivity = async (
+    action_type: string,
+    summary: string,
+    entity_id: string | null,
+    after_data: Record<string, unknown>,
+  ) => {
+    try {
+      await admin.from("client_activity_logs").insert({
+        client_id: client_user_id,
+        actor_user_id: user.id,
+        actor_name: actorName,
+        actor_role: "staff",
+        action_type,
+        entity_type: "service",
+        entity_id,
+        summary,
+        after_data,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const addNote = async (body_text: string) => {
+    try {
+      await admin.from("client_internal_notes").insert({
+        client_id: client_user_id,
+        note_type: "system",
+        body: body_text,
+        created_by_user_id: user.id,
+        created_by_role: "staff",
+        created_by_name: actorName,
       });
     } catch (_e) { /* swallow */ }
   };
@@ -205,6 +249,13 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("topup", { topup_id: data.id, amount, currency, msisdn: body.msisdn });
+        await logActivity(
+          "balance_add",
+          `Recharge mobile ${fmtMoney(amount, currency)}${body.msisdn ? ` — ${body.msisdn}` : ""}`,
+          data.id,
+          { topup_id: data.id, amount, currency, msisdn: body.msisdn, payment_method, payment_reference },
+        );
+        await addNote(`[MOBILE.TOPUP] ${fmtMoney(amount, currency)} — ${payment_method} — réf ${payment_reference}${body.msisdn ? ` — ${body.msisdn}` : ""}`);
         await enqueueEmail("client_mobile_topup_confirmation", {
           amount: fmtMoney(amount, currency),
           msisdn: body.msisdn,
@@ -246,6 +297,13 @@ serve(async (req) => {
         if (error) return json(500, { error: error.message });
 
         await audit("add_addon", { addon_id: data.id, addon_code, monthly_price });
+        await logActivity(
+          "service_add",
+          `Option mobile ajoutée: ${addon_name} (${fmtMoney(monthly_price)}/mois)`,
+          data.id,
+          { addon_id: data.id, addon_code, addon_name, addon_type, monthly_price, one_time_price },
+        );
+        await addNote(`[MOBILE.ADD_ADDON] ${addon_name} — ${addon_code} — ${fmtMoney(monthly_price)}/mois`);
         await enqueueEmail("client_mobile_addon_change", {
           addon_name,
           monthly_price: fmtMoney(monthly_price),
@@ -284,6 +342,13 @@ serve(async (req) => {
         if (updErr) return json(500, { error: updErr.message });
 
         await audit("remove_addon", { addon_id, addon_name: existing.addon_name });
+        await logActivity(
+          "service_remove",
+          `Option mobile retirée: ${existing.addon_name}`,
+          addon_id,
+          { addon_id, addon_name: existing.addon_name, reason: body.reason ?? null },
+        );
+        await addNote(`[MOBILE.REMOVE_ADDON] ${existing.addon_name}${body.reason ? ` — Motif: ${body.reason}` : ""}`);
         await enqueueEmail("client_mobile_addon_change", {
           addon_name: existing.addon_name,
           monthly_price: fmtMoney(Number(existing.monthly_price ?? 0)),
@@ -363,6 +428,20 @@ serve(async (req) => {
           sim_action_type,
           msisdn: body.msisdn,
         });
+        await logActivity(
+          "service_change",
+          `${meta.label}${body.msisdn ? ` — ${body.msisdn}` : ""}`,
+          data.id,
+          {
+            sim_action_id: data.id,
+            sim_action_type,
+            msisdn: body.msisdn,
+            old_iccid,
+            new_iccid: body.new_iccid ?? null,
+            critical: meta.critical,
+          },
+        );
+        await addNote(`[MOBILE.SIM_ACTION] ${meta.label}${body.msisdn ? ` — ${body.msisdn}` : ""}${body.reason ? ` — Motif: ${body.reason}` : ""}${body.new_iccid ? ` — Nouvelle ICCID: ${body.new_iccid}` : ""}`);
         await enqueueEmail("client_mobile_sim_action", {
           action_label: meta.label,
           reason: body.reason || "Demande de l'utilisateur",
