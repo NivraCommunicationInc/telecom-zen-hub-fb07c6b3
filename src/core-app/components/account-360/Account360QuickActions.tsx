@@ -74,8 +74,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [loading, setLoading] = useState(false);
   const [restrictionsOpen, setRestrictionsOpen] = useState(false);
   const [pinResetOpen, setPinResetOpen] = useState(false);
-  const [creditOpen, setCreditOpen] = useState(false);
-  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
+  const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
   const [pauseOpen, setPauseOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reactivateOpen, setReactivateOpen] = useState(false);
