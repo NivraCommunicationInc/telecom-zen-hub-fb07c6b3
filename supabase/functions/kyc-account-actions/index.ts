@@ -159,16 +159,18 @@ serve(async (req) => {
   // Account-level KYC requests have no order_id — this is legitimate.
   // The public wizard resolves by kyc_requests.token; kyc-public-upload
   // mirrors uploaded files onto the linked IVS row (see that function).
-  const ensureKycRequest = async (opts: { reuse?: boolean; notes?: string | null }) => {
+  const ensureKycRequest = async (opts: { reuse?: boolean; notes?: string | null; sessionId?: string | null }) => {
     if (!clientEmail) return null as null | { id: string; token: string; kyc_link: string; expires_at: string; session_id: string };
 
     if (opts.reuse) {
-      const { data: existing } = await admin
+      let existingQuery = admin
         .from("kyc_requests")
         .select("id, token, expires_at, status, session_id")
         .eq("client_id", client_user_id)
         .in("status", ["pending", "sent"])
-        .gt("expires_at", new Date().toISOString())
+        .gt("expires_at", new Date().toISOString());
+      if (opts.sessionId) existingQuery = existingQuery.eq("session_id", opts.sessionId);
+      const { data: existing } = await existingQuery
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -184,20 +186,25 @@ serve(async (req) => {
       // Existing request without a session — heal by attaching one below.
     }
 
-    // 1) Create the canonical IVS row first (Client 360 source of truth).
     const expiresAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
-    const { data: ivs, error: ivsErr } = await admin
-      .from("identity_verification_sessions")
-      .insert({
-        user_id: client_user_id,
-        status: "created",
-        expires_at: expiresAt,
-        checkout_type: "account_level",
-        order_context: { source: "client_360", account_id: body.account_id ?? null },
-      })
-      .select("id")
-      .single();
-    if (ivsErr || !ivs) return null;
+    let ivsId = opts.sessionId ?? null;
+
+    if (!ivsId) {
+      // 1) Create the canonical IVS row first (Client 360 source of truth).
+      const { data: ivs, error: ivsErr } = await admin
+        .from("identity_verification_sessions")
+        .insert({
+          user_id: client_user_id,
+          status: "created",
+          expires_at: expiresAt,
+          checkout_type: "account_level",
+          order_context: { source: "client_360", account_id: body.account_id ?? null },
+        })
+        .select("id")
+        .single();
+      if (ivsErr || !ivs) return null;
+      ivsId = ivs.id;
+    }
 
     // 2) Create (or reattach) the kyc_requests row that carries the wizard token.
     let requestRow: { id: string; token: string; expires_at: string } | null = null;
@@ -212,8 +219,8 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (reusable) {
-        // Attach the fresh IVS to the existing request.
-        await admin.from("kyc_requests").update({ session_id: ivs.id }).eq("id", reusable.id);
+        // Attach the canonical IVS to the existing request.
+        await admin.from("kyc_requests").update({ session_id: ivsId }).eq("id", reusable.id);
         requestRow = { id: reusable.id, token: reusable.token, expires_at: reusable.expires_at };
       }
     }
@@ -226,7 +233,7 @@ serve(async (req) => {
           client_email: clientEmail,
           requested_by: user.id,
           notes: opts.notes ?? null,
-          session_id: ivs.id,
+          session_id: ivsId,
         })
         .select("id, token, expires_at")
         .single();
@@ -235,13 +242,13 @@ serve(async (req) => {
     }
 
     // 3) Emit an event so Client 360 timeline shows the request immediately.
-    await ivsEvent(ivs.id, "staff_requested", { via: "client_360", notes: opts.notes ?? null });
+    await ivsEvent(ivsId, opts.sessionId ? "staff_request_link_created" : "staff_requested", { via: "client_360", notes: opts.notes ?? null });
 
     return {
       id: requestRow.id,
       token: requestRow.token,
       expires_at: requestRow.expires_at,
-      session_id: ivs.id,
+      session_id: ivsId,
       kyc_link: `${APP_URL}/verification/${requestRow.token}`,
     };
   };
