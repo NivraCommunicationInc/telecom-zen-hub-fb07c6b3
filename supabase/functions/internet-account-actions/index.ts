@@ -484,7 +484,7 @@ serve(async (req) => {
             modem_mac: body.modem_mac ?? null,
             action_type,
             reason: reasonStr || null,
-            status: "requested",
+            status: "completed",
             performed_by: user.id,
             metadata: { idempotency_key: body.idempotency_key, simulated: true },
           })
