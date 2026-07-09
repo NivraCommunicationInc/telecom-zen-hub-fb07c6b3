@@ -71,6 +71,10 @@ interface Body {
   paused_until?: string;         // ISO date
   pause_charge_pct?: number;     // 0..100
   reason?: string;
+
+  // reactivate_account
+  resume_suspended?: boolean;    // default true
+  reactivate_cancelled?: boolean; // default false
 }
 
 const json = (status: number, payload: unknown) =>
