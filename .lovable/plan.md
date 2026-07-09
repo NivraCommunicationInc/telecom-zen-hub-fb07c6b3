@@ -1,86 +1,148 @@
+# Passe complète Client 360 — plan d'exécution
 
-# Client 360 — Standard "Centre de Contrôle" appliqué à tous les modules
+## Principe directeur
 
-Compris. Upgrade/Downgrade devient le **modèle de référence obligatoire**. Aucun module n'est considéré terminé sans les 10 critères ci-dessous. Voici la feuille de route, ordonnée par risque métier et fréquence d'utilisation par les agents.
+Un seul standard, appliqué à tous les modules, identique à Upgrade/Downgrade et KYC :
 
-## Definition of Done (obligatoire pour chaque module)
+1. **Contexte complet** dans `ClientModuleShell` (état, historique, entités liées, impacts).
+2. **Workflow réel** : consultation → simulation (si applicable) → confirmation → exécution → audit → realtime.
+3. **Réutilisation stricte** des tables, RPC, Edge Functions, triggers, templates existants. Zéro système parallèle.
+4. **Preuve technique** livrée à chaque fermeture de module (fichiers, tables, RPC, EF, triggers, emails, audit, realtime, tests).
+5. **UI unifiée** : dialog `max-w-6xl`, onglets Etat/Historique/Actions, contraste AA, aucun élément caché.
 
-Un module Client 360 est livré uniquement quand il présente :
+Un module reste ouvert tant qu'un agent ne peut pas terminer une opération réelle de bout en bout.
 
-1. **Contexte client complet** en tête (compte, statut, services actifs, dettes, alertes)
-2. **Onglet État** — situation actuelle réelle (lue des tables canoniques)
-3. **Onglet Historique** — historique métier propre au module
-4. **Onglet Audit** — `admin_audit_log` filtré (`module_tag`), avec acteur, motif, before/after
-5. **Onglet Actions** — formulaires branchés sur workflows canoniques existants
-6. **Simulation avant confirmation** — impact chiffré (prix, prorata, tables touchées, emails prévus)
-7. **Motif obligatoire** journalisé, exécution via `callCoreAction` → RPC/Edge Function existante
-8. **Synchronisation temps réel** — `useModuleRealtime` sur les tables touchées, portail client rafraîchi
-9. **Emails via templates officiels Nivra** (bleu corporatif, jamais de template ad-hoc)
-10. **Preuve documentée** — tables/RPC/Edge Functions/triggers listés dans le PR + audit visible
+## Phase 0 — Audit + fondations (préalable, non skippable)
 
-Interdictions absolues : nouveau workflow parallèle, formulaire "simplifié" qui contourne les règles existantes, note interne à la place d'une vraie action, calcul de prix en frontend.
+Avant de toucher un module, produire deux livrables :
 
-## Ordre d'exécution (par lot, un module = un lot fermé)
+**0.1 Inventaire technique** (`.lovable/c360/inventory.md`)
+Pour chaque bouton listé, mapper :
+- État actuel : "stub UI" / "partiel" / "connecté" / "conforme standard"
+- Tables canoniques
+- RPC / Edge Function officielle
+- Template email associé
+- Trigger / audit table
+- Gaps identifiés
 
-Chaque lot suit : audit du workflow existant → refonte UI en `ClientModuleShell` → branchement RPC/Edge → simulation → audit → realtime → validation QA sur `test-c360-planchange@nivra-test.ca` → capture Playwright → fermeture.
+**0.2 Renforcement `ClientModuleShell`**
+- Bannière contexte compte (nom, #, statut, MRR, cycle, tags)
+- Slot `impactedTables` + `plannedEmails` toujours visible en mode Actions
+- Slot `auditTrail` unifié via `useModuleAudit`
+- Slot `realtimeChannels` via `useModuleRealtime`
+- Boutons d'action collants en bas (jamais coupés)
+- États : idle / loading / simulating / confirming / executing / success / error / warning-critical
 
-### Lot 2 — Sécurité & Conformité (priorité haute, risque légal)
-- **KYC** — orchestrer `identity_verification_sessions` + `kyc_requests` + `kyc_requested_documents`. Réutiliser le flux d'upload existant (pas de nouveau formulaire). Afficher statut, documents, historique, événements. Actions : demander pièce, relancer, approuver, rejeter.
-- **Verrouillage fraude** — vrai verrou : `accounts.status` + `account_fraud_incidents` + révocation sessions + blocage services + email + audit + durée. Sync Core/portail client/accès services.
-- **Restrictions** — appliquer réellement via `account_tags` + triggers services concernés (suspension facturation, blocage support, blocage checkout). Simulation d'impact avant activation.
-- **Risque & Fraude** — score `account_risk_scores`, alertes, événements, workflow de résolution avec assignation.
-- **Sessions & Sécurité** — sessions actives, révocation, reset MFA, historique connexion via `auth_login_attempts`, `admin_audit_sessions`.
+Sortie Phase 0 : inventaire + shell durci + confirmation du prochain lot avec toi.
 
-### Lot 3 — Facturation & Paiements (priorité haute, impact financier)
-- **Facturation** — vue consolidée `billing_invoices` + lignes, actions : régénérer facture, ajuster ligne, annuler, rembourser. Simulation impact solde.
-- **Paiements** — `billing_payments` + `card_payment_intents`. Actions : rembourser (via Square), enregistrer paiement manuel, contester. Refuser toute action PayPal.
-- **Plans de paiement** — `client_payment_plans` orchestré, échéancier réel avec simulation.
-- **Ajustements** — `account_adjustments` (crédit/débit) avec motif obligatoire et impact solde simulé.
-- **Autopay** — `client_autopay_settings` + `paypal_autopay_attempts` (lecture historique seulement), gestion Square uniquement.
+## Phase 1 — Lots par ordre de risque métier
 
-### Lot 4 — Services & Équipements
-- **Services actifs** — vue `billing_subscriptions` par adresse, actions : suspendre, réactiver, transférer adresse.
-- **Équipements** — `equipment_inventory` par abonnement, actions : commander remplacement (`replacement_orders`), demander retour (`equipment_return_requests`), reboot, marquer défectueux.
-- **Commandes** — `orders` + `order_status_history`, actions : réactiver, annuler, modifier statut via workflow canonique.
-- **Rendez-vous** — `appointments` + `technician_assignments`, replanifier, annuler, réassigner.
+Chaque lot = 2 à 4 modules maximum, fermé avec preuve avant le suivant.
 
-### Lot 5 — Relation Client
-- **Fidélité** — orchestrer le système `loyalty_points/transactions/redemptions` déjà en place (déjà partiellement fait, à mettre au standard shell).
-- **Parrainages** — `client_referrals` + `referral_attributions`, actions admin complètes.
-- **Communications** — `telephony_logs` + `email_queue` + `sms_queue`, timeline unifiée, envoi manuel via templates.
-- **Documents** — `client_documents` + `client_auto_documents` + `document_requests`, actions demander/générer/envoyer.
-- **Notes internes** — `client_internal_notes` (existant, à mettre au standard drawer).
+**Lot A — Facturation critique** (impact $ direct)
+1. Enregistrer paiement
+2. Crédit / Promotion + Crédit / Frais facture (fusionnés en un centre "Ajustements")
+3. Remboursement rapide
+4. Write-off / Ajustement
+5. Plan de paiement
+6. Force AutoPay + Méthode de paiement (fusionnés)
 
-### Lot 6 — Vue transverse
-- **Timeline complet** — utiliser `v_customer_timeline` (déjà en place) comme onglet global du 360, filtres par type d'événement.
-- **Historique agents** — actions effectuées par agents sur ce compte, `admin_audit_log` non filtré par module.
+**Lot B — Services & équipements** (opérationnel)
+7. Service Internet (état ligne, actions modem)
+8. Service TV (packs, terminaux)
+9. Ligne mobile (SIM, addons, topup)
+10. Reboot équipement
+11. Diagnostic ligne
+12. Gestion équipement (RMA, remplacements)
+13. Geler cycle / essai
+14. Transfert déménagement
 
-## Fondations à durcir avant Lot 2
+**Lot C — Conformité & sécurité** (risque légal)
+15. Restrictions
+16. Verrouiller compte fraude
+17. Réinitialiser NIP
+18. Étiquettes & alertes
+19. Journal consentements
+20. Sécurité & sessions
+21. Demandes Loi 25
+22. Risque & fraude
 
-Petites améliorations à `ClientModuleShell` / hooks partagés, faites une seule fois :
+**Lot D — Compte & lifecycle**
+23. Modifier le profil
+24. Accès en ligne
+25. VIP / Churn risk
+26. Pause temporaire
+27. Annuler le compte
+28. Cas recouvrement
+29. Litige facturation
 
-- Ajouter un slot **"Contexte client"** persistant en haut du shell (bandeau : nom, #compte, statut, MRR, dette, alertes actives) — évite de répéter dans chaque module.
-- Ajouter un slot **"Impact simulé — tables touchées"** structuré (liste des tables + nombre de rows + emails prévus) séparé de `impact` chiffré.
-- Standardiser `callCoreAction` pour toujours écrire `admin_audit_log` avec `module_tag`, `before_state`, `after_state`, `reason`.
-- Hook `useModuleRealtime` : accepter un tableau de tables et rafraîchir automatiquement le shell.
+**Lot E — Commandes & fidélité**
+30. Nouvelle commande (deep-link vers workflow commande existant + pré-remplissage)
+31. Récompenses (déjà partiellement fait — mise au standard shell)
+32. Parrainages (idem)
+33. Bon de compensation
 
-## Livraison
+**Lot F — Communication & suivi**
+34. Ticket support
+35. Escalade superviseur
+36. Envoyer un message / SMS / rappel (fusionnés en centre "Communications")
+37. Appels & téléphonie
+38. Planifier RDV
+39. NPS / Satisfaction
+40. Note interne
+41. Préférences communication
+42. Tâches & suivis
+43. Documents
+44. Historique & activité
 
-- Un lot à la fois. Chaque lot ouvert = feu vert explicite de ta part.
-- À la fin de chaque module : capture Playwright sur le compte QA + résumé (tables, RPC, Edge Functions, triggers, emails, audit) collé dans le fil.
-- Aucun module ne passe en "fait" sans cette preuve.
+Modules déjà conformes (ne pas retoucher) : **Voir comme client**, **Upgrade/Downgrade**, **Vérification KYC**.
 
-## Détails techniques (référence)
+## Definition of Done par module
 
-- Shell : `src/core-app/components/account-360/modules/ClientModuleShell.tsx`
-- Wrapper d'action auditée : `src/core-app/lib/callCoreAction.ts`
-- Hook audit : `src/core-app/hooks/useModuleAudit.ts`
-- Hook realtime : `src/core-app/hooks/useModuleRealtime.ts`
-- Timeline unifié : vue SQL `public.v_customer_timeline`
-- Environnement QA : compte `test-c360-planchange@nivra-test.ca`, script reset `scripts/qa-c360-reset.sql`, provisioning `supabase/functions/qa-provision-test-account`.
+Un module est fermé uniquement quand tous les critères sont vrais :
 
----
+```text
+[ ] Contexte affiché : état actuel + entités liées + historique
+[ ] Simulation dispo si l'action a un impact $ / service / légal
+[ ] Exécution passe par une RPC ou Edge Function officielle existante
+[ ] admin_audit_log écrit (avant/après)
+[ ] Email officiel envoyé si applicable (via templates registry)
+[ ] Realtime : le portail client + Core reflètent le changement < 3s
+[ ] UI : dialog max-w-6xl, aucun bouton caché, contraste AA
+[ ] Preuve technique livrée dans le chat
+[ ] Test QA validé (compte test-c360-planchange@nivra-test.ca)
+```
 
-**Prochaine action proposée** : durcir les fondations du shell (bandeau contexte + slot "tables touchées" + `callCoreAction` standardisé) puis attaquer **Lot 2 – KYC** comme second module de référence après Upgrade/Downgrade.
+## Livrable par module (format standard)
 
-Donne-moi le go et je démarre par les fondations + KYC.
+```text
+Module: <nom>
+Fichiers: <liste>
+Tables: <liste canonique>
+RPC: <liste>
+Edge Functions: <liste>
+Triggers: <liste>
+Emails: <template_name → destinataire>
+Audit: admin_audit_log entry avec action_type=<x>
+Realtime: <channels>
+Test QA: <résultat + IDs>
+```
+
+## Cadence de validation
+
+- Je livre lot par lot, module par module à l'intérieur du lot.
+- Après chaque module : preuve + attente de ton feu vert.
+- Après chaque lot : rétrospective courte (ce qui a changé au shell, patterns réutilisables).
+- Aucun saut de lot sans validation explicite.
+
+## Prérequis à débloquer une seule fois
+
+- **Compte QA** : `qa-provision-test-account` doit être invoqué une fois avec ta session admin (blocage actuel). Sans ça, la validation E2E ne peut pas tourner et aucun module ne peut être fermé formellement.
+
+## Ce que je démarre dès que tu approuves
+
+1. Phase 0.1 — inventaire technique complet des 44 modules (lecture code + DB, aucune écriture).
+2. Phase 0.2 — durcissement `ClientModuleShell` + hooks partagés.
+3. Retour vers toi avec l'inventaire + proposition d'ordre définitif pour Lot A.
+
+Aucun module métier n'est modifié avant que tu aies validé l'inventaire et l'ordre du Lot A.
