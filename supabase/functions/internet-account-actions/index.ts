@@ -501,6 +501,18 @@ serve(async (req) => {
       // ============================================================
       case "run_diagnostic": {
         const diagnostic_type = body.diagnostic_type || "full";
+        if (!["full", "link", "speedtest", "latency"].includes(diagnostic_type)) {
+          return json(400, { error: "diagnostic_type invalide" });
+        }
+        const inRange = (v: unknown, min: number, max: number) =>
+          v == null || (typeof v === "number" && Number.isFinite(v) && v >= min && v <= max);
+        if (!inRange(body.download_mbps, 0, 100000)) return json(400, { error: "download_mbps hors bornes" });
+        if (!inRange(body.upload_mbps, 0, 100000)) return json(400, { error: "upload_mbps hors bornes" });
+        if (!inRange(body.latency_ms, 0, 60000)) return json(400, { error: "latency_ms hors bornes" });
+        if (!inRange(body.packet_loss_pct, 0, 100)) return json(400, { error: "packet_loss_pct hors bornes" });
+        if (body.link_status && !["ok", "degraded", "down"].includes(body.link_status)) {
+          return json(400, { error: "link_status invalide" });
+        }
         const { data, error } = await admin
           .from("internet_diagnostics")
           .insert({
