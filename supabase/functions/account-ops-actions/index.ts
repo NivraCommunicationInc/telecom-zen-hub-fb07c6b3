@@ -26,7 +26,9 @@ type Action =
   | "send_reminder"
   | "schedule_appointment"
   | "add_internal_note"
-  | "notify_address_change";
+  | "notify_address_change"
+  | "pause_account"
+  | "unpause_account";
 
 interface Body {
   action: Action;
@@ -62,6 +64,11 @@ interface Body {
   new_province?: string;
   new_postal?: string;
   old_address?: string;
+
+  // pause_account / unpause_account
+  paused_until?: string;         // ISO date
+  pause_charge_pct?: number;     // 0..100
+  reason?: string;
 }
 
 const json = (status: number, payload: unknown) =>
@@ -317,6 +324,132 @@ serve(async (req) => {
         } catch (_e) { /* swallow */ }
 
         return json(200, { ok: true });
+      }
+
+      // ============================================================
+      case "pause_account": {
+        const reason = (body.reason || "").trim();
+        const untilRaw = body.paused_until;
+        const pct = Number.isFinite(body.pause_charge_pct as number) ? Math.max(0, Math.min(100, Number(body.pause_charge_pct))) : 35;
+        if (!body.account_id) return json(400, { error: "account_id requis" });
+        if (!untilRaw) return json(400, { error: "Date de fin requise" });
+        if (!reason) return json(400, { error: "Motif obligatoire" });
+        const until = new Date(untilRaw);
+        if (Number.isNaN(until.getTime())) return json(400, { error: "Date invalide" });
+        if (until.getTime() <= Date.now()) return json(400, { error: "La date doit être dans le futur" });
+
+        const { data: acct, error: acctErr } = await admin
+          .from("accounts")
+          .select("id, status, paused_until")
+          .eq("id", body.account_id)
+          .maybeSingle();
+        if (acctErr) return json(500, { error: acctErr.message });
+        if (!acct) return json(404, { error: "Compte introuvable" });
+        if (acct.status === "suspended") return json(409, { error: "Ce compte est déjà en pause temporaire" });
+        if (acct.status === "cancelled") return json(409, { error: "Ce compte est résilié — pause impossible" });
+
+        const nowIso = new Date().toISOString();
+        const { error: upErr } = await admin.from("accounts").update({
+          status: "suspended",
+          paused_at: nowIso,
+          paused_until: until.toISOString(),
+          pause_charge_pct: pct,
+          pause_reason: reason,
+          updated_at: nowIso,
+        }).eq("id", body.account_id);
+        if (upErr) return json(500, { error: upErr.message });
+
+        await audit("pause_account", {
+          account_id: body.account_id,
+          paused_until: until.toISOString(),
+          pause_charge_pct: pct,
+          reason,
+        });
+
+        try {
+          await admin.from("client_activity_logs").insert({
+            client_id: client_user_id,
+            actor_user_id: user.id,
+            actor_name: callerName,
+            actor_role: callerRole,
+            action_type: "account_pause",
+            entity_type: "account",
+            entity_id: body.account_id,
+            summary: `Pause temporaire appliquée jusqu'au ${until.toISOString().split("T")[0]} (${pct}%)`,
+            after_data: { paused_until: until.toISOString(), pause_charge_pct: pct, reason },
+          });
+        } catch (_e) { /* swallow */ }
+
+        try {
+          await admin.from("client_internal_notes").insert({
+            client_id: client_user_id,
+            account_id: body.account_id,
+            note_type: "system",
+            body: `Pause temporaire — par ${user.email || callerName} — jusqu'au ${until.toISOString().split("T")[0]} (${pct}% du forfait) — motif: ${reason}`,
+            created_by_user_id: user.id,
+            created_by_role: callerRole,
+            created_by_name: callerName,
+          });
+        } catch (_e) { /* swallow */ }
+
+        return json(200, { ok: true, account_id: body.account_id });
+      }
+
+      // ============================================================
+      case "unpause_account": {
+        const reason = (body.reason || "").trim();
+        if (!body.account_id) return json(400, { error: "account_id requis" });
+        if (!reason) return json(400, { error: "Motif obligatoire" });
+
+        const { data: acct, error: acctErr } = await admin
+          .from("accounts")
+          .select("id, status")
+          .eq("id", body.account_id)
+          .maybeSingle();
+        if (acctErr) return json(500, { error: acctErr.message });
+        if (!acct) return json(404, { error: "Compte introuvable" });
+        if (acct.status !== "suspended") return json(409, { error: "Le compte n'est pas en pause" });
+
+        const nowIso = new Date().toISOString();
+        const { error: upErr } = await admin.from("accounts").update({
+          status: "active",
+          paused_at: null,
+          paused_until: null,
+          pause_charge_pct: null,
+          pause_reason: null,
+          updated_at: nowIso,
+        }).eq("id", body.account_id);
+        if (upErr) return json(500, { error: upErr.message });
+
+        await audit("unpause_account", { account_id: body.account_id, reason });
+
+        try {
+          await admin.from("client_activity_logs").insert({
+            client_id: client_user_id,
+            actor_user_id: user.id,
+            actor_name: callerName,
+            actor_role: callerRole,
+            action_type: "account_pause",
+            entity_type: "account",
+            entity_id: body.account_id,
+            summary: "Pause temporaire levée — compte réactivé",
+            after_data: { reason },
+          });
+        } catch (_e) { /* swallow */ }
+
+        try {
+          await admin.from("client_internal_notes").insert({
+            client_id: client_user_id,
+            account_id: body.account_id,
+            note_type: "system",
+            body: `Pause temporaire levée — par ${user.email || callerName} — motif: ${reason}`,
+            created_by_user_id: user.id,
+            created_by_role: callerRole,
+            created_by_name: callerName,
+          });
+        } catch (_e) { /* swallow */ }
+
+        return json(200, { ok: true, account_id: body.account_id });
       }
 
       default:

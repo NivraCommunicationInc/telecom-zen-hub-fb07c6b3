@@ -187,65 +187,142 @@ export function ContractDetailDialog({ doc, open, onClose }: any) {
 }
 
 /* ────────── Pause (suspension temporaire) ────────── */
-export function PauseAccountDialog({ accountId, monthlyRevenue, open, onClose, onRefresh }: any) {
+function mapPauseError(msg?: string): string {
+  const m = (msg || "").toLowerCase();
+  if (m.includes("motif")) return "Motif obligatoire.";
+  if (m.includes("date")) return "Date de fin invalide.";
+  if (m.includes("déjà en pause") || m.includes("already")) return "Ce compte est déjà en pause.";
+  if (m.includes("résilié") || m.includes("cancelled")) return "Ce compte est résilié — pause impossible.";
+  if (m.includes("pas en pause")) return "Le compte n'est pas en pause.";
+  if (m.includes("réservée") || m.includes("unauthorized") || m.includes("forbidden")) {
+    return "Action réservée au personnel autorisé.";
+  }
+  return msg || "Échec de l'opération.";
+}
+
+export function PauseAccountDialog({ accountId, clientUserId, accountStatus, monthlyRevenue, open, onClose, onRefresh }: any) {
   const [until, setUntil] = useState<string>("");
   const [pct, setPct] = useState<number>(35);
   const [reason, setReason] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
+  const isPaused = accountStatus === "suspended";
   const monthlyCharge = Number(monthlyRevenue || 0) * (pct / 100);
 
-  async function submit() {
-    if (!accountId || !until) {
-      toast.error("Date de fin requise");
-      return;
+  useEffect(() => {
+    if (open) {
+      setUntil("");
+      setPct(35);
+      setReason("");
     }
+  }, [open]);
+
+  async function submitPause() {
+    if (!accountId || !clientUserId) return toast.error("Compte manquant");
+    if (!until) return toast.error("Date de fin requise");
+    if (!reason.trim()) return toast.error("Motif obligatoire.");
+    if (!window.confirm(`Mettre le compte en pause jusqu'au ${until} avec ${pct}% de facturation ?`)) return;
     setSaving(true);
-    const { error } = await supabase.from("accounts").update({
-      status: "suspended",
-      paused_at: new Date().toISOString(),
-      paused_until: new Date(until).toISOString(),
-      pause_charge_pct: pct,
-      pause_reason: reason || null,
-      updated_at: new Date().toISOString(),
-    }).eq("id", accountId);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Compte mis en pause temporaire");
-    onRefresh(); onClose();
+    try {
+      const { data, error } = await supabase.functions.invoke("account-ops-actions", {
+        body: {
+          action: "pause_account",
+          client_user_id: clientUserId,
+          account_id: accountId,
+          paused_until: new Date(until).toISOString(),
+          pause_charge_pct: pct,
+          reason: reason.trim(),
+        },
+      });
+      const errMsg = (error as any)?.message || (data as any)?.error;
+      if (error || (data as any)?.error) throw new Error(errMsg);
+      toast.success("Compte mis en pause temporaire");
+      onRefresh?.();
+      onClose();
+    } catch (e: any) {
+      toast.error(mapPauseError(e?.message));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function submitUnpause() {
+    if (!accountId || !clientUserId) return toast.error("Compte manquant");
+    if (!reason.trim()) return toast.error("Motif obligatoire.");
+    if (!window.confirm("Lever la pause temporaire et réactiver le compte ?")) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("account-ops-actions", {
+        body: {
+          action: "unpause_account",
+          client_user_id: clientUserId,
+          account_id: accountId,
+          reason: reason.trim(),
+        },
+      });
+      const errMsg = (error as any)?.message || (data as any)?.error;
+      if (error || (data as any)?.error) throw new Error(errMsg);
+      toast.success("Pause levée — compte réactivé");
+      onRefresh?.();
+      onClose();
+    } catch (e: any) {
+      toast.error(mapPauseError(e?.message));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-sm">Suspension temporaire</DialogTitle>
+          <DialogTitle className="text-sm">
+            {isPaused ? "Pause temporaire — compte actuellement en pause" : "Suspension temporaire"}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-[11px]">
-          <p className="text-muted-foreground">
-            Le compte sera suspendu jusqu'à la date choisie. Une charge réduite continuera d'être facturée pendant la pause.
-          </p>
+          {isPaused ? (
+            <p className="text-muted-foreground">
+              Ce compte est actuellement en pause. Vous pouvez la lever pour réactiver le compte. Un motif est requis.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              Le compte sera suspendu jusqu'à la date choisie. Une charge réduite continuera d'être facturée pendant la pause. Un motif est requis.
+            </p>
+          )}
+
+          {!isPaused && (
+            <>
+              <label className="block space-y-1">
+                <span className="text-muted-foreground">Suspendre jusqu'au</span>
+                <input type="date" className={inputCls} value={until} onChange={(e) => setUntil(e.target.value)} />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-muted-foreground">Charge mensuelle pendant la pause (% du forfait)</span>
+                <input type="number" min={0} max={100} step={5} className={inputCls} value={pct} onChange={(e) => setPct(Number(e.target.value))} />
+                <span className="block text-emerald-400 mt-1">
+                  ≈ {fmtCAD(monthlyCharge)} / mois (forfait actuel: {fmtCAD(monthlyRevenue)})
+                </span>
+              </label>
+            </>
+          )}
+
           <label className="block space-y-1">
-            <span className="text-muted-foreground">Suspendre jusqu'au</span>
-            <input type="date" className={inputCls} value={until} onChange={(e) => setUntil(e.target.value)} />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-muted-foreground">Charge mensuelle pendant la pause (% du forfait)</span>
-            <input type="number" min={0} max={100} step={5} className={inputCls} value={pct} onChange={(e) => setPct(Number(e.target.value))} />
-            <span className="block text-emerald-400 mt-1">
-              ≈ {fmtCAD(monthlyCharge)} / mois (forfait actuel: {fmtCAD(monthlyRevenue)})
-            </span>
-          </label>
-          <label className="block space-y-1">
-            <span className="text-muted-foreground">Raison (optionnel)</span>
-            <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex: client absent 2 mois en voyage" />
+            <span className="text-muted-foreground">Motif <span className="text-destructive">*</span></span>
+            <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={isPaused ? "Ex: retour du client, situation résolue" : "Ex: client absent 2 mois en voyage"} />
           </label>
         </div>
         <DialogFooter className="gap-2">
-          <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          <button onClick={submit} disabled={saving} className={btnWarning}>
-            {saving ? "Enregistrement…" : "Mettre en pause"}
-          </button>
+          <button onClick={onClose} className={btnSecondary} disabled={saving}>Annuler</button>
+          {isPaused ? (
+            <button onClick={submitUnpause} disabled={saving || !reason.trim()} className={btnWarning}>
+              {saving ? "Enregistrement…" : "Lever la pause"}
+            </button>
+          ) : (
+            <button onClick={submitPause} disabled={saving || !reason.trim() || !until} className={btnWarning}>
+              {saving ? "Enregistrement…" : "Mettre en pause"}
+            </button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
