@@ -428,6 +428,20 @@ serve(async (req) => {
           sim_action_type,
           msisdn: body.msisdn,
         });
+        await logActivity(
+          "service_change",
+          `${meta.label}${body.msisdn ? ` — ${body.msisdn}` : ""}`,
+          data.id,
+          {
+            sim_action_id: data.id,
+            sim_action_type,
+            msisdn: body.msisdn,
+            old_iccid,
+            new_iccid: body.new_iccid ?? null,
+            critical: meta.critical,
+          },
+        );
+        await addNote(`[MOBILE.SIM_ACTION] ${meta.label}${body.msisdn ? ` — ${body.msisdn}` : ""}${body.reason ? ` — Motif: ${body.reason}` : ""}${body.new_iccid ? ` — Nouvelle ICCID: ${body.new_iccid}` : ""}`);
         await enqueueEmail("client_mobile_sim_action", {
           action_label: meta.label,
           reason: body.reason || "Demande de l'utilisateur",
