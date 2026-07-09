@@ -184,7 +184,7 @@ export function KycModule({ open, onClose, accountId, clientId, clientName, clie
   const rejectedCount = requestedList.filter((r: any) => r.status === "rejected").length;
   const additionalDocsList: string[] = Array.isArray(latestSession?.additional_docs) ? latestSession.additional_docs : [];
 
-  const publicToken = latestSession?.public_token;
+  const publicToken = latestKycRequest?.token || null;
   const kycLink = publicToken ? `${APP_URL}/verification/${publicToken}` : null;
 
   const summaryBlock = (
