@@ -25,8 +25,7 @@ import { ClientReferralsDialog } from "@/shared-ops/components/ClientReferralsDi
 import { QuickTicketDialog } from "@/shared-ops/components/QuickTicketDialog";
 import { ScheduleAppointmentDialog } from "@/shared-ops/components/ScheduleAppointmentDialog";
 import { InternalNoteDialog } from "@/shared-ops/components/InternalNoteDialog";
-import { CollectionsDialog } from "@/shared-ops/components/CollectionsDialog";
-import { BillingDisputesDialog } from "@/shared-ops/components/BillingDisputesDialog";
+import { CollectionsDisputeModule } from "@/core-app/components/account-360/modules/CollectionsDisputeModule";
 import { KYCReviewDialog } from "@/shared-ops/components/KYCReviewDialog";
 import { AccountActivityTimelineDialog } from "@/shared-ops/components/AccountActivityTimelineDialog";
 import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
@@ -445,22 +444,14 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
       )}
 
       {clientId && (
-        <CollectionsDialog
-          open={collectionsOpen}
-          onClose={() => setCollectionsOpen(false)}
-          clientUserId={clientId}
-          clientName={clientName}
+        <CollectionsDisputeModule
+          open={collectionsOpen || disputesOpen}
+          onClose={() => { setCollectionsOpen(false); setDisputesOpen(false); }}
+          clientId={clientId}
           accountId={accountId ?? null}
-        />
-      )}
-
-      {clientId && (
-        <BillingDisputesDialog
-          open={disputesOpen}
-          onClose={() => setDisputesOpen(false)}
-          clientUserId={clientId}
           clientName={clientName}
-          payments={canonicalData?.payments || []}
+          clientEmail={clientEmail}
+          canonicalData={canonicalData}
         />
       )}
 
