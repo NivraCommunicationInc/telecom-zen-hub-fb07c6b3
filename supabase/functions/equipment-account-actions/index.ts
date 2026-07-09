@@ -398,6 +398,12 @@ serve(async (req) => {
           catalog_name: canonicalName,
           price_client: canonicalPrice,
         });
+        await logActivity("equipment_assigned", `Équipement assigné: ${canonicalName}`, {
+          inventory_id: inventoryId,
+          catalog_item_id: body.catalog_item_id,
+          price_client: canonicalPrice,
+        });
+        await addSystemNote("EQUIPMENT.ASSIGN", `${canonicalName} (${fmtMoney(canonicalPrice)}) assigné`);
         await enqueueEmail("client_equipment_assigned", {
           equipment_name: canonicalName,
           equipment_price: fmtMoney(canonicalPrice),
@@ -408,14 +414,16 @@ serve(async (req) => {
 
       case "mark_returned": {
         if (!body.inventory_id) return json(400, { error: "inventory_id requis" });
-        const { data: row, error: rowErr } = await admin
-          .from("equipment_inventory")
-          .select("id, catalog_name, account_id")
-          .eq("id", body.inventory_id)
-          .maybeSingle();
-        if (rowErr) return json(500, { error: rowErr.message });
-        if (!row) return json(404, { error: "Équipement introuvable" });
+        const own = await assertOwnership(body.inventory_id);
+        if (!own.ok) return json(own.status, { error: own.error });
+        const row = own.row;
 
+        // F16-3: idempotence — only assigned/deployed/reserved can be returned
+        if (!["assigned", "deployed", "reserved"].includes(row.status)) {
+          return json(409, { error: `Retour impossible: statut courant ${row.status}` });
+        }
+
+        const hasReason = !!(body.reason && body.reason.trim());
         const { error: updErr } = await admin
           .from("equipment_inventory")
           .update({
@@ -424,12 +432,18 @@ serve(async (req) => {
             subscription_id: null,
             retired_at: new Date().toISOString(),
             condition: body.condition || "good",
-            notes: body.reason || row.account_id ? `Retour — ${body.reason || "sans note"}` : null,
+            notes: hasReason ? `Retour — ${body.reason!.trim()}` : "Retour — sans note",
           })
           .eq("id", body.inventory_id);
         if (updErr) return json(500, { error: updErr.message });
 
         await audit("return", { inventory_id: body.inventory_id, condition: body.condition, reason: body.reason });
+        await logActivity("equipment_returned", `Équipement retourné: ${row.catalog_name || "Équipement"}`, {
+          inventory_id: body.inventory_id,
+          condition: body.condition || "good",
+          reason: body.reason || null,
+        });
+        await addSystemNote("EQUIPMENT.RETURN", `${row.catalog_name || "Équipement"} retourné (état: ${body.condition || "good"})`);
         await enqueueEmail("client_equipment_returned", {
           equipment_name: row.catalog_name || "Équipement",
           condition: body.condition || "good",
@@ -440,6 +454,16 @@ serve(async (req) => {
 
       case "mark_defective": {
         if (!body.inventory_id) return json(400, { error: "inventory_id requis" });
+        const own = await assertOwnership(body.inventory_id);
+        if (!own.ok) return json(own.status, { error: own.error });
+        const row = own.row;
+
+        // F16-4: idempotence — do not overwrite already defective/retired
+        if (row.status === "defective") return json(409, { error: "Équipement déjà marqué défectueux" });
+        if (["retired", "in_stock"].includes(row.status)) {
+          return json(409, { error: `Marquage défectueux impossible: statut courant ${row.status}` });
+        }
+
         const { error: updErr } = await admin
           .from("equipment_inventory")
           .update({
@@ -450,11 +474,20 @@ serve(async (req) => {
           .eq("id", body.inventory_id);
         if (updErr) return json(500, { error: updErr.message });
         await audit("defective", { inventory_id: body.inventory_id, reason: body.reason });
+        await logActivity("equipment_defective", `Équipement défectueux: ${row.catalog_name || "Équipement"}`, {
+          inventory_id: body.inventory_id,
+          reason: body.reason || null,
+        });
+        await addSystemNote("EQUIPMENT.DEFECTIVE", `${row.catalog_name || "Équipement"} marqué défectueux${body.reason ? ` — ${body.reason}` : ""}`);
         return json(200, { ok: true });
       }
 
       case "update_serial": {
         if (!body.inventory_id) return json(400, { error: "inventory_id requis" });
+        const own = await assertOwnership(body.inventory_id);
+        if (!own.ok) return json(own.status, { error: own.error });
+        const row = own.row;
+
         const patch: Record<string, unknown> = {};
         if (body.serial_number) patch.serial_number = body.serial_number.trim();
         if (body.iccid)         patch.serial_number = body.iccid.trim();
@@ -468,6 +501,11 @@ serve(async (req) => {
           .eq("id", body.inventory_id);
         if (updErr) return json(500, { error: updErr.message });
         await audit("update_serial", { inventory_id: body.inventory_id, patch });
+        await logActivity("equipment_identifiers_updated", `Identifiants mis à jour: ${row.catalog_name || "Équipement"}`, {
+          inventory_id: body.inventory_id,
+          patch,
+        });
+        await addSystemNote("EQUIPMENT.UPDATE_SERIAL", `Identifiants mis à jour sur ${row.catalog_name || "Équipement"}: ${Object.keys(patch).join(", ")}`);
         return json(200, { ok: true });
       }
 
