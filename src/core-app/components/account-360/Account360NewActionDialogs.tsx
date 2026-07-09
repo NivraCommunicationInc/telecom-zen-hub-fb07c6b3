@@ -1261,6 +1261,8 @@ export function VipChurnToggleDialog(props: Base) {
       const errMsg = (error as any)?.message || (data as any)?.error;
       if (error || (data as any)?.error) throw new Error(errMsg);
       toast.success(tagKey === "vip" ? "Étiquette VIP appliquée" : "Étiquette Risque de churn appliquée");
+      setReason("");
+      setNote("");
       await refreshList();
       invalidate();
       props.onRefresh?.();
@@ -1312,7 +1314,7 @@ export function VipChurnToggleDialog(props: Base) {
         <div className="space-y-3">
           <div>
             <Label>Étiquette</Label>
-            <Select value={tagKey} onValueChange={(v) => setTagKey(v as VipChurnKey)}>
+            <Select value={tagKey} onValueChange={(v) => { setTagKey(v as VipChurnKey); setReason(""); setNote(""); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="vip">VIP</SelectItem>
