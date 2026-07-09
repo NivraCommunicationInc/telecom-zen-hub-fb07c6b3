@@ -69,9 +69,10 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
       let serverError: string | null = null;
       if (error) {
         try {
-          const resp = (error as any)?.context?.response;
-          if (resp && typeof resp.json === "function") {
-            const parsed = await resp.clone().json();
+          // supabase-js v2: FunctionsHttpError.context is a Response
+          const resp: any = (error as any)?.context?.response ?? (error as any)?.context;
+          if (resp && typeof resp.clone === "function") {
+            const parsed = await resp.clone().json().catch(() => null);
             serverError = parsed?.error || parsed?.message || null;
           }
         } catch (_e) { /* ignore */ }
