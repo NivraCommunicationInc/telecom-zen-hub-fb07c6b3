@@ -369,6 +369,10 @@ serve(async (req) => {
         if (updErr) return json(500, { error: updErr.message });
 
         await audit("remove_themed_pack", { addon_id, addon_name: existing.addon_name });
+        await activity("service_remove", addon_id, "service",
+          `Bouquet TV annulé: ${existing.addon_name}`,
+          { addon_id, addon_name: existing.addon_name });
+        await sysNote(`Annulation bouquet TV — ${existing.addon_name}. Motif: ${body.reason || "—"}`);
         await enqueueEmail("client_tv_pack_change", {
           addon_name: existing.addon_name,
           monthly_price: fmtMoney(Number(existing.monthly_price ?? 0)),
