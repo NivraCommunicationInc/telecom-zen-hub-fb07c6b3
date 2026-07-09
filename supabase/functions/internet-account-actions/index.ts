@@ -650,6 +650,25 @@ serve(async (req) => {
           return json(200, { ok: true });
         }
 
+          await audit("static_ip_release", { assignment_id: id, ip_address: existing.ip_address });
+          await activity(
+            "internet_static_ip_release",
+            id,
+            "internet_static_ip",
+            `IP statique libérée — ${existing.ip_address ?? "—"}`,
+            { assignment_id: id, ip_address: existing.ip_address ?? null, reason: body.reason ?? null },
+          );
+          await sysNote(`[INTERNET] IP statique libérée — ${existing.ip_address ?? "—"}${body.reason ? ` · Raison: ${body.reason}` : ""}`);
+          await enqueueEmail("client_internet_static_ip", {
+            mode: "released",
+            ip_address: existing.ip_address || "—",
+            monthly_price: fmtMoney(0),
+            reason: body.reason || "—",
+          });
+
+          return json(200, { ok: true });
+        }
+
         // assign
         const ip_address = (body.ip_address || "").trim();
         if (!ip_address || !isValidIp(ip_address)) {
@@ -680,6 +699,14 @@ serve(async (req) => {
         await audit("static_ip_assign", {
           assignment_id: data.id, ip_address, monthly_price,
         });
+        await activity(
+          "internet_static_ip_assign",
+          data.id,
+          "internet_static_ip",
+          `IP statique attribuée — ${ip_address} (${fmtMoney(monthly_price)}/mois)`,
+          { assignment_id: data.id, ip_address, monthly_price, reason: body.reason ?? null },
+        );
+        await sysNote(`[INTERNET] IP statique attribuée — ${ip_address} · ${fmtMoney(monthly_price)}/mois${body.reason ? ` · Raison: ${body.reason}` : ""}`);
         await enqueueEmail("client_internet_static_ip", {
           mode: "assigned",
           ip_address,
