@@ -114,11 +114,20 @@ serve(async (req) => {
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("user_id, email, first_name, account_number")
+    .select("user_id, email, first_name, last_name, account_number")
     .eq("user_id", client_user_id)
     .maybeSingle();
   const clientEmail = profile?.email || null;
   const firstName = profile?.first_name || "Client";
+
+  const { data: actorProfile } = await admin
+    .from("profiles")
+    .select("email, first_name, last_name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const actorEmail = actorProfile?.email || user.email || null;
+  const actorName = [actorProfile?.first_name, actorProfile?.last_name].filter(Boolean).join(" ").trim() || actorEmail || "staff";
+
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("cf-connecting-ip") || "unknown";
@@ -128,10 +137,36 @@ serve(async (req) => {
       await admin.from("admin_audit_log").insert({
         action: `equipment.${label}`,
         admin_user_id: user.id,
+        admin_email: actorEmail,
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
         details: payload,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const logActivity = async (action_type: string, description: string, metadata: Record<string, unknown>) => {
+    try {
+      await admin.from("client_activity_logs").insert({
+        user_id: client_user_id,
+        account_id: body.account_id ?? null,
+        action_type,
+        description,
+        metadata: { ...metadata, actor_user_id: user.id, actor_email: actorEmail },
+        performed_by: user.id,
+      });
+    } catch (_e) { /* swallow */ }
+  };
+
+  const addSystemNote = async (prefix: string, message: string) => {
+    try {
+      await admin.from("client_internal_notes").insert({
+        user_id: client_user_id,
+        account_id: body.account_id ?? null,
+        note_type: "system",
+        content: `[${prefix}] ${message} — par ${actorName}`,
+        created_by: user.id,
       });
     } catch (_e) { /* swallow */ }
   };
@@ -147,6 +182,34 @@ serve(async (req) => {
         priority: 0,
       });
     } catch (_e) { /* swallow */ }
+  };
+
+  // Cross-client isolation guard for mutations targeting an existing inventory row.
+  const assertOwnership = async (inventoryId: string): Promise<
+    | { ok: true; row: { id: string; catalog_name: string | null; status: string; account_id: string | null; order_id: string | null; subscription_id: string | null } }
+    | { ok: false; status: number; error: string }
+  > => {
+    const { data: row, error } = await admin
+      .from("equipment_inventory")
+      .select("id, catalog_name, status, account_id, order_id, subscription_id")
+      .eq("id", inventoryId)
+      .maybeSingle();
+    if (error) return { ok: false, status: 500, error: error.message };
+    if (!row) return { ok: false, status: 404, error: "Équipement introuvable" };
+
+    if (body.account_id && row.account_id && row.account_id === body.account_id) return { ok: true, row };
+    if (row.order_id) {
+      const { data: ord } = await admin.from("orders").select("user_id, account_id").eq("id", row.order_id).maybeSingle();
+      if (ord && (ord.user_id === client_user_id || (body.account_id && ord.account_id === body.account_id))) return { ok: true, row };
+    }
+    if (row.subscription_id) {
+      const { data: sub } = await admin.from("billing_subscriptions").select("customer_id").eq("id", row.subscription_id).maybeSingle();
+      if (sub?.customer_id) {
+        const customerIds = await resolveCustomerIds(admin, client_user_id);
+        if (customerIds.includes(sub.customer_id)) return { ok: true, row };
+      }
+    }
+    return { ok: false, status: 403, error: "Équipement n'appartient pas à ce client" };
   };
 
   try {
