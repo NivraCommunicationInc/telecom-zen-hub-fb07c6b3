@@ -370,16 +370,18 @@ serve(async (req) => {
           .eq("id", body.session_id);
         if (error) return json(500, { error: error.message });
 
+        const addKyc = await ensureKycRequest({ reuse: true, notes: `Docs additionnels: ${body.review_reason.trim()}` });
         await ivsEvent(body.session_id, "staff_additional_required", {
           reason: body.review_reason, required_docs: required,
         });
-        await audit("request_additional_docs", { session_id: body.session_id, required });
+        await audit("request_additional_docs", { session_id: body.session_id, required, kyc_request_id: addKyc?.id ?? null });
         await enqueueEmail("client_kyc_additional_docs", {
           instructions: body.review_reason.trim(),
           required_docs_list: required.join(", ") || "—",
+          kyc_link: addKyc?.kyc_link ?? null,
         });
 
-        return json(200, { ok: true });
+        return json(200, { ok: true, kyc_request_id: addKyc?.id ?? null });
       }
 
       case "generate_signed_urls": {
