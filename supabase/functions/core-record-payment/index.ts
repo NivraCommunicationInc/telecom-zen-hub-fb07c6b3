@@ -89,7 +89,7 @@ serve(async (req) => {
     // ── Load invoice (before-state) ──────────────────────────────────────
     const { data: invBefore, error: invErr } = await admin
       .from("billing_invoices")
-      .select("id, invoice_number, customer_id, total, amount_paid, balance_due, status, order_id, currency")
+      .select("id, invoice_number, customer_id, account_id, total, amount_paid, balance_due, status, order_id, currency")
       .eq("id", invoice_id)
       .maybeSingle();
     if (invErr || !invBefore) return json({ ok: false, error: "invoice not found" }, 404);
@@ -97,12 +97,13 @@ serve(async (req) => {
       return json({ ok: false, error: `invoice status=${invBefore.status} — cannot record payment` }, 409);
     }
 
-    // Resolve account_id for audit scoping
+    // Resolve customer identity (billing_customers has no account_id — use invoice.account_id)
     const { data: cust } = await admin
       .from("billing_customers")
-      .select("account_id, user_id, email")
+      .select("user_id, email")
       .eq("id", invBefore.customer_id)
       .maybeSingle();
+    const account_id = (invBefore as any).account_id ?? null;
 
     const map = METHOD_MAP[method as Method];
     const context = {
@@ -128,7 +129,7 @@ serve(async (req) => {
       if (!cred) return json({ ok: false, error: "credit not found" }, 404);
       if (cred.type !== "credit") return json({ ok: false, error: "adjustment is not a credit" }, 400);
       if (cred.status !== "active") return json({ ok: false, error: `credit status=${cred.status}` }, 409);
-      if (cust?.account_id && cred.account_id !== cust.account_id) {
+      if (account_id && cred.account_id !== account_id) {
         return json({ ok: false, error: "credit does not belong to invoice account" }, 409);
       }
       const { data: lineIdRes, error: rpcErr } = await admin.rpc("apply_credit_to_invoice", {
@@ -141,17 +142,25 @@ serve(async (req) => {
       line_id = lineIdRes as string;
     } else {
       const extRef = reference ?? `CORE-${Date.now().toString(36).toUpperCase()}`;
-      const { data: payIdRes, error: rpcErr } = await admin.rpc("apply_payment_to_invoice", {
-        p_invoice_id:         invoice_id,
-        p_amount:             amt,
-        p_method:             map.rpc_method,
-        p_provider:           map.provider,
-        p_external_reference: extRef,
-        p_source:             "admin_core",
-        p_context:            context,
+      const { data: payRes, error: rpcErr } = await admin.rpc("apply_payment_to_invoice", {
+        p_invoice_id:          invoice_id,
+        p_amount:              amt,
+        p_method:              map.rpc_method,
+        p_provider:            map.provider,
+        p_provider_payment_id: extRef,
+        p_provider_order_id:   null,
+        p_customer_id:         invBefore.customer_id,
+        p_source:              "admin",
+        p_created_by_name:     user.email ?? null,
+        p_created_by_role:     "admin",
       });
       if (rpcErr) return json({ ok: false, error: `apply_payment_to_invoice: ${rpcErr.message}` }, 500);
-      payment_id = payIdRes as string;
+      // RPC returns jsonb { success, payment_id, ... } — extract id
+      const payJson: any = payRes;
+      if (payJson && payJson.success === false) {
+        return json({ ok: false, error: `apply_payment_to_invoice: ${payJson.error ?? "unknown"}` }, 409);
+      }
+      payment_id = (payJson?.payment_id as string) ?? null;
     }
 
     // ── After-state ──────────────────────────────────────────────────────
@@ -172,7 +181,7 @@ serve(async (req) => {
       details: {
         module_tag:  "record_payment",
         client_id:   cust?.user_id ?? null,
-        account_id:  cust?.account_id ?? null,
+        account_id:  account_id ?? null,
         method,
         provider:    map.provider,
         amount:      amt,
@@ -214,7 +223,7 @@ serve(async (req) => {
 
       await admin.from("client_internal_notes").insert({
         client_id:          cust.user_id,
-        account_id:         cust.account_id ?? null,
+        account_id:         account_id ?? null,
         note_type:          "system",
         body:               `Paiement ${amountLabel} enregistré (${methodLabel}) sur facture ${invNum} — par ${user.email ?? user.id} — motif: ${reason}${reference ? ` — ref ${reference}` : ""}`,
         created_by_user_id: user.id,
