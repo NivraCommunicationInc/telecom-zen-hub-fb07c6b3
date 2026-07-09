@@ -482,7 +482,7 @@ serve(async (req) => {
         try {
           const { data: subs, error: subErr } = await admin
             .from("billing_subscriptions")
-            .update({ status: "cancelled", cancelled_at: nowIso, updated_at: nowIso })
+            .update({ status: "cancelled", updated_at: nowIso })
             .eq("customer_id", client_user_id)
             .in("status", ["active", "past_due", "trialing"])
             .select("id");
