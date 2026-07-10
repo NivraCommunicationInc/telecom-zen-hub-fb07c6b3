@@ -246,6 +246,14 @@ Deno.serve(async (req) => {
               .eq("order_id", existingOrder.id);
 
             if (!invoiceCheckError && (existingInvoiceCount ?? 0) > 0) {
+              // F31-6 — even when the order+invoice already exist, we must still
+              // guarantee the field_commissions row is created once Square captured.
+              // Handles the resync path from square-charge-invoice / square-webhook.
+              const ensured = await ensureFieldCommissionAfterCapture(supabaseAdmin, {
+                sale_id: sale.id,
+                reason: "field-sales-sync:resync",
+              });
+              console.log(`[field-sales-sync] F31-6 resync ensureFieldCommission → ${ensured.status}`);
               console.log(`[field-sales-sync] Sale ${sale.id} already fully synced (order + invoice): ${existingOrder.id}`);
               return { success: true, orderId: existingOrder.id, order_number: existingOrder.order_number || undefined };
             }
