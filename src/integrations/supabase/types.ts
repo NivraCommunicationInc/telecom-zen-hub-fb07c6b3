@@ -31876,6 +31876,26 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_create_supervisor_escalation: {
+        Args: {
+          p_account_id: string
+          p_client_user_id: string
+          p_created_by_email: string
+          p_created_by_id: string
+          p_created_by_name: string
+          p_created_by_role: string
+          p_description: string
+          p_escalation_type: string
+          p_idempotency_key: string
+          p_related_support_ticket_id: string
+          p_subject: string
+        }
+        Returns: {
+          id: string
+          idempotent: boolean
+          ticket_number: string
+        }[]
+      }
       rpc_referral_apply_action: {
         Args: {
           p_action: string
