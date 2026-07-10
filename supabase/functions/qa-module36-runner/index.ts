@@ -326,12 +326,12 @@ serve(async (req) => {
   // ============================================================================
   if (ticketIdA) {
     const { data: audit } = await admin.from("admin_audit_log")
-      .select("action, user_id, target_type, target_id, details")
+      .select("action, admin_user_id, target_type, target_id, details")
       .eq("target_id", ticketIdA)
       .eq("action", "supervisor_escalation")
       .maybeSingle();
     push("audit", "A1_audit_entry_present", !!audit, audit ? "ok" : "missing");
-    push("audit", "A2_audit_actor_matches", audit?.user_id === adminId, String(audit?.user_id));
+    push("audit", "A2_audit_actor_matches", audit?.admin_user_id === adminId, String(audit?.user_id));
     push("audit", "A3_audit_target_type", audit?.target_type === "internal_ticket", String(audit?.target_type));
     push("audit", "A4_audit_details_has_client",
       !!(audit?.details as any)?.client_user_id, JSON.stringify(audit?.details ?? {}).slice(0, 200));
@@ -399,9 +399,9 @@ serve(async (req) => {
   await safeDel("email_queue", (b) => b.delete().like("idempotency_key", `qa-m36-%-${runId}`));
 
   for (const uid of [clientId, adminId, supId, supportId, unauthId].filter(Boolean)) {
-    await safeDel("admin_audit_log", (b) => b.delete().eq("user_id", uid));
-    await safeDel("activity_logs", (b) => b.delete().eq("user_id", uid));
-    await safeDel("user_roles", (b) => b.delete().eq("user_id", uid));
+    await safeDel("admin_audit_log", (b) => b.delete().eq("admin_user_id", uid));
+    await safeDel("activity_logs", (b) => b.delete().eq("admin_user_id", uid));
+    await safeDel("user_roles", (b) => b.delete().eq("admin_user_id", uid));
   }
 
   if (accountId) await safeDel("accounts", (b) => b.delete().eq("id", accountId));
