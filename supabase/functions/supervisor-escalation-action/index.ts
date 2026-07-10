@@ -196,19 +196,20 @@ Deno.serve(async (req) => {
       event_key: eventKey,
       idempotency_key: b.idempotency_key,
       to_email: b.client_email,
-      to_name: b.client_name ?? null,
       subject: "Votre demande a été escaladée",
-      template: "supervisor_escalation",
-      payload: {
+      template_key: "supervisor_escalation",
+      template_vars: {
         client_name: b.client_name ?? null,
         subject: b.subject,
         description: b.description,
         ticket_number: ticketNumber,
         escalation_type: b.escalation_type,
       },
-      account_id: b.account_id,
-      client_user_id: b.client_user_id,
+      entity_type: "internal_ticket",
+      entity_id: ticketId,
       status: "pending",
+      priority: 5,
+      language: "fr",
     } as any);
     if (mailErr && (mailErr as any).code !== "23505") {
       console.error("[supervisor-escalation-action] email_queue failed:", mailErr.message);
