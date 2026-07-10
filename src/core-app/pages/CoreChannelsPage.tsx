@@ -281,20 +281,50 @@ export default function CoreChannelsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // F29-3 — Route through tv-account-actions (no direct writes)
+  const invokeSelectionAction = async (
+    action: "approve_channel_selection" | "reject_channel_selection",
+    row: any,
+  ) => {
+    const min = action === "approve_channel_selection" ? 5 : 10;
+    const reason = window.prompt(
+      `Motif (min. ${min} caractères) pour ${action === "approve_channel_selection" ? "confirmer" : "refuser"} cette sélection :`,
+      "",
+    );
+    if (!reason || reason.trim().length < min) {
+      toast.error(`Motif requis (min. ${min} caractères)`);
+      return;
+    }
+    const sessionId =
+      globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const { data, error } = await supabase.functions.invoke("tv-account-actions", {
+      body: {
+        action,
+        client_user_id: row.user_id,
+        account_id: row.account_id ?? null,
+        selection_id: row.id,
+        reason: reason.trim(),
+        idempotency_key: `tv-${action}-${row.id}-${sessionId}`,
+      },
+    });
+    if (error) throw new Error((error as any)?.message || "Échec appel");
+    if ((data as any)?.error) throw new Error((data as any).error);
+  };
+
   const confirmSelectionMutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const { error } = await supabase.from("channel_selections").update({ status: "confirmed", confirmed_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ row }: { row: any }) => {
+      await invokeSelectionAction("approve_channel_selection", row);
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-channel-selections"] }); toast.success("Sélection confirmée"); },
+    onError: (e: any) => toast.error(e?.message ?? "Échec"),
   });
 
   const cancelSelectionMutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const { error } = await supabase.from("channel_selections").update({ status: "cancelled" }).eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ row }: { row: any }) => {
+      await invokeSelectionAction("reject_channel_selection", row);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-channel-selections"] }); toast.success("Sélection annulée"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-channel-selections"] }); toast.success("Sélection refusée"); },
+    onError: (e: any) => toast.error(e?.message ?? "Échec"),
   });
 
   // ═══ DERIVED DATA ═══
