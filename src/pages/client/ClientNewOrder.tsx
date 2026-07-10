@@ -18,6 +18,7 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
 import { useCanonicalFees } from "@/hooks/useCanonicalFees";
 import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
@@ -2642,22 +2643,21 @@ ${paidChannelsList}
 Veuillez confirmer les chaînes et procéder à l'activation du service.
           `.trim();
 
-          const { error: ticketError } = await supabase.from("support_tickets").insert({
-            user_id: user.id,
-            owner_user_id: user.id, // REQUIRED: Must match auth.uid() for RLS
-            client_email: profile?.email || user.email,
-            subject: `Configuration TV - Commande ${data.order_number}`,
-            description: ticketDescription,
-            priority: "high",
-            status: "open",
-            category: "tv_setup",
-            issue_type: "TV_CONFIGURATION",
-            related_order_id: data.id,
-            related_order_reference: data.order_number,
-            id_verification_status: "not_received",
-          });
-          if (ticketError) {
-            console.error("TV ticket creation failed (non-blocking):", ticketError);
+          try {
+            await callSupportAction("create_ticket", {
+              owner_user_id: user.id,
+              client_email: profile?.email || user.email,
+              subject: `Configuration TV - Commande ${data.order_number}`,
+              description: ticketDescription,
+              priority: "high",
+              category: "tv_setup",
+              source: "portal",
+              related_order_id: data.id,
+              metadata: { issue_type: "TV_CONFIGURATION", related_order_reference: data.order_number },
+              idempotency_key: `tv-setup-${data.id}`,
+            }, supabase);
+          } catch (ticketErr) {
+            console.error("TV ticket creation failed (non-blocking):", ticketErr);
             postStepErrors.push("ticket");
           }
         } catch (ticketErr) {
