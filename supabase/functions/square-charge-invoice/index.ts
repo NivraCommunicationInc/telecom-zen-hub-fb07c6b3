@@ -13,6 +13,7 @@
 // ============================================================================
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { ensureFieldCommissionAfterCapture } from "../_shared/ensureFieldCommission.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -338,6 +339,16 @@ serve(async (req) => {
             await supabase.functions.invoke("field-sales-sync", {
               body: { action: "sync_single", sale_id: intentShell.converted_field_order_id },
             }).catch((e) => console.warn("[square-charge-invoice] F31-6 post-capture sync failed:", e));
+
+            // F31-6 safety net — call the canonical helper directly so the
+            // commission is guaranteed even if field-sales-sync short-circuits
+            // (e.g. already fully synced) or fails transiently.
+            const ensured = await ensureFieldCommissionAfterCapture(supabase, {
+              sale_id: intentShell.converted_field_order_id,
+              reason: "square-charge-invoice:post-capture",
+              square_payment_id: paymentId ?? null,
+            });
+            console.log(`[square-charge-invoice] F31-6 ensureFieldCommission → ${ensured.status}`);
           }
 
           await supabase.functions.invoke("send-order-confirmation", {
