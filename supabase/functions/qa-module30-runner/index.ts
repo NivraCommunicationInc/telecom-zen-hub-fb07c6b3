@@ -23,6 +23,7 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const keep = !!body?.keep;
   const skipFlood = !!body?.skipFlood;
+  const phase: "all" | "part1" | "part2" = (body?.phase as any) ?? "all";
   const checks: Check[] = [];
   const push = (c: Check) => checks.push(c);
 
