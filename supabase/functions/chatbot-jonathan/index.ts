@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { createTicket, type TicketActor } from "../_shared/ticketService.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -717,13 +718,22 @@ async function handleToolCall(
         if (!effectiveUserId) return { result: fr ? "Connectez-vous pour créer un ticket." : "Log in to create a ticket." };
         const { data: profile } = await supabase.from("profiles").select("email, full_name").eq("id", effectiveUserId).single();
         const pd = profile as any;
-        const { data: ticket, error } = await supabase.from("support_tickets").insert({
-          user_id: effectiveUserId, owner_user_id: effectiveUserId, client_email: pd?.email,
-          subject: args.subject, description: args.description, category: args.category,
-          priority: args.priority || "normal", status: "open"
-        } as any).select("ticket_number").single();
-        if (error) throw error;
-        return { result: fr ? `✅ Ticket créé: ${(ticket as any).ticket_number}. Réponse sous 24-48h.` : `✅ Ticket created: ${(ticket as any).ticket_number}. Response within 24-48h.` };
+        const actor: TicketActor = { user_id: effectiveUserId, role: "client", name: pd?.full_name ?? null, email: pd?.email ?? null };
+        try {
+          const ticket = await createTicket(supabase as any, actor, {
+            owner_user_id: effectiveUserId,
+            subject: args.subject,
+            description: args.description,
+            category: args.category ?? "general",
+            priority: args.priority ?? "normal",
+            source: "chatbot",
+            client_email: pd?.email ?? null,
+            client_name: pd?.full_name ?? null,
+          });
+          return { result: fr ? `✅ Ticket créé: ${ticket.ticket_number}. Réponse sous 24-48h.` : `✅ Ticket created: ${ticket.ticket_number}. Response within 24-48h.` };
+        } catch (e) {
+          throw e;
+        }
       }
 
       case "get_service_info": {
@@ -773,17 +783,22 @@ async function handleToolCall(
       }
 
       case "report_outage": {
-        const { data: ticket, error } = await supabase.from("support_tickets").insert({
-          client_email: args.client_email,
+        const outageActor: TicketActor = {
+          user_id: effectiveUserId ?? null,
+          role: effectiveUserId ? "client" : "system",
+          email: args.client_email ?? null,
+          name: null,
+        };
+        const ticket = await createTicket(supabase as any, outageActor, {
+          owner_user_id: effectiveUserId ?? null,
           subject: fr ? `Panne de service — ${args.service_type}` : `Service outage — ${args.service_type}`,
           description: args.description,
           category: "technical",
           priority: "urgent",
-          status: "open",
           source: "chatbot",
-        } as any).select("ticket_number").single();
-        if (error) throw error;
-        return { result: fr ? `✅ Panne signalée. Ticket: ${(ticket as any).ticket_number}. Notre équipe enquête en priorité.` : `✅ Outage reported. Ticket: ${(ticket as any).ticket_number}. Our team is investigating with priority.` };
+          client_email: args.client_email ?? null,
+        });
+        return { result: fr ? `✅ Panne signalée. Ticket: ${ticket.ticket_number}. Notre équipe enquête en priorité.` : `✅ Outage reported. Ticket: ${ticket.ticket_number}. Our team is investigating with priority.` };
       }
 
       default:

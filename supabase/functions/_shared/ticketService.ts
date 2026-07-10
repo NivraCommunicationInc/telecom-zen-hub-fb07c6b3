@@ -225,3 +225,36 @@ export async function addParticipant(admin: SupabaseClient, actor: TicketActor, 
   await auditTicket(admin, "participant_added", input.ticket_id, actor, { participant_user_id: input.user_id });
   return Array.isArray(data) ? data[0] : data;
 }
+
+// ---------- AI SCHEDULE (support-email-inbound) ----------
+export async function setTicketAiSchedule(admin: SupabaseClient, ticketId: string, scheduledAt: Date) {
+  const { data, error } = await admin.rpc("rpc_ticket_set_ai_schedule", {
+    p_ticket_id: ticketId,
+    p_ai_scheduled_at: scheduledAt.toISOString(),
+  });
+  if (error) throw new Error(`rpc_ticket_set_ai_schedule: ${error.message}`);
+  return Array.isArray(data) ? data[0] : data;
+}
+
+// ---------- AI RESULT (support-ai-responder) ----------
+export async function applyAiResult(admin: SupabaseClient, input: {
+  ticket_id: string;
+  outcome: "ai_replied" | "escalated";
+  ai_response: string;
+  ai_confidence: number; // 0..1
+  category: string;
+  escalated_reason?: string | null;
+  internal_notes?: string | null;
+}) {
+  const { data, error } = await admin.rpc("rpc_ticket_apply_ai_result", {
+    p_ticket_id: input.ticket_id,
+    p_outcome: input.outcome,
+    p_ai_response: input.ai_response,
+    p_ai_confidence: input.ai_confidence,
+    p_category: input.category,
+    p_escalated_reason: input.escalated_reason ?? null,
+    p_internal_notes: input.internal_notes ?? null,
+  });
+  if (error) throw new Error(`rpc_ticket_apply_ai_result: ${error.message}`);
+  return Array.isArray(data) ? data[0] : data;
+}
