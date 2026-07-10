@@ -735,28 +735,36 @@ Deno.serve(async (req) => {
 
     // ============ CLEANUP + ORPHAN CHECK =============================
     if (!keep) {
-      await cleanupClient(cA.userId);
-      await cleanupClient(cB.userId);
-      await cleanupAudit([adminCaller.userId, salesCaller.userId, fieldCaller.userId, supportCaller.userId]);
+      await cleanupAllQa(callerIds, clientIds);
 
       const { count: qLeft } = await admin.from("field_quotes")
         .select("id", { count: "exact", head: true }).ilike("client_info->>email", "qa-m31-%");
-      const { count: fsoLeft } = await admin.from("field_sales_orders")
-        .select("id", { count: "exact", head: true })
-        .in("salesperson_id", [fieldCaller.userId, adminCaller.userId]);
-      const { count: intentLeft } = await admin.from("field_payment_intents")
-        .select("id", { count: "exact", head: true })
-        .in("user_id", [cA.userId, cB.userId]);
+      const { count: fsoByEmailLeft } = await admin.from("field_sales_orders")
+        .select("id", { count: "exact", head: true }).ilike("customer_email", "qa-m31-%");
+      const { count: fsoBySalesLeft } = await admin.from("field_sales_orders")
+        .select("id", { count: "exact", head: true }).in("salesperson_id", callerIds);
+      const fsoLeft = (fsoByEmailLeft ?? 0) + (fsoBySalesLeft ?? 0);
+      const { count: intentByAgentLeft } = await admin.from("field_payment_intents")
+        .select("id", { count: "exact", head: true }).in("agent_id", callerIds);
+      const { count: intentByEmailLeft } = await admin.from("field_payment_intents")
+        .select("id", { count: "exact", head: true }).ilike("customer_email", "qa-m31-%");
+      const intentLeft = (intentByAgentLeft ?? 0) + (intentByEmailLeft ?? 0);
       const { count: auditLeft } = await admin.from("admin_audit_log")
         .select("id", { count: "exact", head: true })
-        .in("admin_user_id", [adminCaller.userId, fieldCaller.userId, supportCaller.userId, salesCaller.userId])
-        .like("action", "order_new.%");
-      const { count: ordersLeft } = await admin.from("orders")
-        .select("id", { count: "exact", head: true }).in("user_id", [cA.userId, cB.userId]);
-      const total = (qLeft ?? 0) + (fsoLeft ?? 0) + (intentLeft ?? 0) + (auditLeft ?? 0) + (ordersLeft ?? 0);
-      push({ id: "C36", name: "Cleanup — 0 orphelin (quotes/fso/intents/audits/orders)",
-        ok: total === 0, details: { qLeft, fsoLeft, intentLeft, auditLeft, ordersLeft } });
+        .in("admin_user_id", callerIds).like("action", "order_new.%");
+      const { count: ordersByClientLeft } = await admin.from("orders")
+        .select("id", { count: "exact", head: true }).in("user_id", clientIds);
+      const { count: ordersByPatternLeft } = await admin.from("orders")
+        .select("id", { count: "exact", head: true }).ilike("order_number", "QA31-%");
+      const ordersLeft = (ordersByClientLeft ?? 0) + (ordersByPatternLeft ?? 0);
+      const { count: emailQaLeft } = await admin.from("email_queue")
+        .select("id", { count: "exact", head: true }).ilike("to_email", "qa-m31-%");
+      const total = (qLeft ?? 0) + fsoLeft + intentLeft + (auditLeft ?? 0) + ordersLeft + (emailQaLeft ?? 0);
+      push({ id: "C36", name: "Cleanup — 0 orphelin (quotes/fso/intents/audits/orders/email)",
+        ok: total === 0,
+        details: { qLeft, fsoLeft, intentLeft, auditLeft, ordersLeft, emailQaLeft } });
     }
+
     } // end phase !== part1
 
     const pass = checks.filter((c) => c.ok).length;
