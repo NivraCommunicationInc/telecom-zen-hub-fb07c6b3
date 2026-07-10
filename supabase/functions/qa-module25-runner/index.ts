@@ -476,10 +476,10 @@ Deno.serve(async (req) => {
       .eq("target_id", clientA).order("created_at", { ascending: false }).limit(1);
     const auditDetails = (audit?.[0] as any)?.details || {};
     const { data: act } = await admin.from("client_activity_logs")
-      .select("id, activity_type").eq("client_id", clientA)
+      .select("id, action_type").eq("client_id", clientA).eq("action_type", "account_unpause")
       .order("created_at", { ascending: false }).limit(3);
     const { data: mail } = await admin.from("email_queue")
-      .select("id, template_slug").eq("template_slug", "client_account_resumed")
+      .select("id, template_key").eq("template_key", "client_account_resumed")
       .eq("to_email", CLIENT_A_EMAIL).order("created_at", { ascending: false }).limit(1);
 
     push({
