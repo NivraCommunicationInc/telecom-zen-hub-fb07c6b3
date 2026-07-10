@@ -52,6 +52,7 @@ import { RecordPaymentModule } from "@/core-app/components/account-360/modules/R
 import { RefundModule } from "@/core-app/components/account-360/modules/RefundModule";
 import { AutopayModule } from "@/core-app/components/account-360/modules/AutopayModule";
 import { PaymentPlanModule } from "@/core-app/components/account-360/modules/PaymentPlanModule";
+import { ReviewDiscountModule } from "@/core-app/components/account-360/modules/ReviewDiscountModule";
 
 
 
