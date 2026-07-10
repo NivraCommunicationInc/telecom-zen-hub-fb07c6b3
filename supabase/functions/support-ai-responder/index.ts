@@ -15,6 +15,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk";
+import { replyTicket, applyAiResult, type TicketActor } from "../_shared/ticketService.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
