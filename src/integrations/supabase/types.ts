@@ -32852,7 +32852,19 @@ export type Database = {
         | "in_person"
         | "api"
         | "sms"
-      consent_status_enum: "granted" | "revoked" | "verified"
+        | "core"
+        | "field"
+        | "chatbot"
+        | "public_form"
+        | "other"
+      consent_status_enum:
+        | "granted"
+        | "revoked"
+        | "verified"
+        | "denied"
+        | "withdrawn"
+        | "expired"
+        | "pending"
       consent_type_enum:
         | "marketing_email"
         | "marketing_sms"
@@ -32861,6 +32873,16 @@ export type Database = {
         | "privacy_request"
         | "terms_of_use"
         | "loi25_general"
+        | "marketing_phone"
+        | "data_processing"
+        | "data_sharing_partners"
+        | "cookies_analytics"
+        | "cookies_marketing"
+        | "credit_check"
+        | "identity_verification"
+        | "recording_calls"
+        | "biometrics"
+        | "other"
       dispute_reason_code:
         | "duplicate_charge"
         | "incorrect_amount"
@@ -33368,8 +33390,21 @@ export const Constants = {
         "in_person",
         "api",
         "sms",
+        "core",
+        "field",
+        "chatbot",
+        "public_form",
+        "other",
       ],
-      consent_status_enum: ["granted", "revoked", "verified"],
+      consent_status_enum: [
+        "granted",
+        "revoked",
+        "verified",
+        "denied",
+        "withdrawn",
+        "expired",
+        "pending",
+      ],
       consent_type_enum: [
         "marketing_email",
         "marketing_sms",
@@ -33378,6 +33413,16 @@ export const Constants = {
         "privacy_request",
         "terms_of_use",
         "loi25_general",
+        "marketing_phone",
+        "data_processing",
+        "data_sharing_partners",
+        "cookies_analytics",
+        "cookies_marketing",
+        "credit_check",
+        "identity_verification",
+        "recording_calls",
+        "biometrics",
+        "other",
       ],
       dispute_reason_code: [
         "duplicate_charge",
