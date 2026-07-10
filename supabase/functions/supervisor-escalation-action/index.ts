@@ -222,12 +222,11 @@ Deno.serve(async (req) => {
         description: b.description,
         ticket_number: ticketNumber,
         escalation_type: b.escalation_type,
+        language: "fr",
       },
       entity_type: "internal_ticket",
       entity_id: ticketId,
-      status: "pending",
-      priority: 5,
-      language: "fr",
+      status: "queued",
     } as any);
     if (mailErr && (mailErr as any).code !== "23505") {
       console.error("[supervisor-escalation-action] email_queue failed:", mailErr.message);
