@@ -852,22 +852,30 @@ serve(async (req) => {
     // ─────────────────────────────────────────────────────────
     if (action === "link_service_address") {
       if (!hasRole(ROLES_CORE_MANAGE)) return err(403, "FORBIDDEN_ROLE", "Action non permise");
-      if (!body.sale_id || !body.service_address_id) {
-        return err(400, "INVALID_INPUT", "sale_id + service_address_id requis");
+      if (!body.sale_id && !body.order_id) {
+        return err(400, "INVALID_INPUT", "sale_id ou order_id requis");
       }
-      const { data: fs } = await admin.from("field_sales_orders")
-        .select("converted_order_id, salesperson_id").eq("id", body.sale_id).maybeSingle();
-      const coreOrderId = (fs as any)?.converted_order_id;
+      let coreOrderId = body.order_id as string | null;
+      if (!coreOrderId && body.sale_id) {
+        const { data: fs } = await admin.from("field_sales_orders")
+          .select("converted_order_id, salesperson_id").eq("id", body.sale_id).maybeSingle();
+        coreOrderId = (fs as any)?.converted_order_id ?? null;
+        if (isFieldOnly && (fs as any)?.salesperson_id !== user.id) {
+          return err(403, "FORBIDDEN_TARGET", "Vente hors périmètre");
+        }
+      }
       if (!coreOrderId) return err(404, "NOT_FOUND", "Commande Core non convertie");
-      // Field agents can only patch their own sales
-      if (isFieldOnly && (fs as any)?.salesperson_id !== user.id) {
-        return err(403, "FORBIDDEN_TARGET", "Vente hors périmètre");
+
+      const patch: Record<string, unknown> = {};
+      if (body.service_address_id) patch.service_address_id = body.service_address_id;
+      if (body.customer?.coaxial_survey !== undefined) patch.coaxial_survey = body.customer.coaxial_survey;
+      if (Object.keys(patch).length === 0) {
+        return err(400, "INVALID_INPUT", "Rien à patcher");
       }
-      const { error: uErr } = await admin.from("orders")
-        .update({ service_address_id: body.service_address_id } as any).eq("id", coreOrderId);
+      const { error: uErr } = await admin.from("orders").update(patch as any).eq("id", coreOrderId);
       if (uErr) return err(500, "DB_UPDATE_FAILED", uErr.message);
       await audit("link_service_address",
-        { sale_id: body.sale_id, order_id: coreOrderId, service_address_id: body.service_address_id });
+        { sale_id: body.sale_id, order_id: coreOrderId, patch });
       return json(200, { ok: true, linked: true });
     }
 
