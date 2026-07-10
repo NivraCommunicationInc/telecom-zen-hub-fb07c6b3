@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "En attente", color: "bg-[#64748B]/20 text-[#94A3B8]" },
@@ -161,30 +162,58 @@ export default function CoreSupportPage() {
   // ═══ MUTATIONS ═══
   const updateTicketMutation = useMutation({
     mutationFn: async (updates: { ticketId: string; [key: string]: any }) => {
-      const { ticketId, ...updateData } = updates;
-      updateData.updated_at = new Date().toISOString();
-      const { error } = await supabase.from("support_tickets").update(updateData).eq("id", ticketId);
-      if (error) throw error;
-      return { ticketId, ...updateData };
+      const { ticketId, status, assigned_to, assigned_to_user_id, priority, category, ...rest } = updates as any;
+
+      if (status) {
+        await callSupportAction("transition_status", {
+          ticket_id: ticketId,
+          to_status: status,
+          reason: `core_status_change_${status}`,
+          source: "core_support_page",
+        });
+      }
+      if (assigned_to !== undefined || assigned_to_user_id !== undefined) {
+        await callSupportAction("assign_ticket", {
+          ticket_id: ticketId,
+          assigned_to: assigned_to ?? null,
+          assigned_to_user_id: assigned_to_user_id ?? null,
+          reason: "core_reassign",
+        });
+      }
+      if (priority !== undefined || category !== undefined || Object.keys(rest).length > 0) {
+        await callSupportAction("update_ticket_meta", {
+          ticket_id: ticketId,
+          priority,
+          category,
+          ...rest,
+        });
+      }
+      return { ticketId, ...updates };
     },
     onSuccess: (data) => {
       if (selectedTicket?.id === data.ticketId) setSelectedTicket((prev: any) => ({ ...prev, ...data }));
       queryClient.invalidateQueries({ queryKey: ["core-support-tickets"] });
       toast.success("Ticket mis à jour");
     },
-    onError: () => toast.error("Erreur lors de la mise à jour"),
+    onError: (e: any) => toast.error(e?.message || "Erreur lors de la mise à jour"),
   });
 
   const addReplyMutation = useMutation({
     mutationFn: async (content: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
-      const { error } = await supabase.from("ticket_replies").insert({
-        ticket_id: selectedTicket?.id, user_id: user.id, content, is_admin: true, sender_role: "admin",
+      await callSupportAction("reply_ticket", {
+        ticket_id: selectedTicket?.id,
+        content,
+        idempotency_key: `core-reply-${user.id}-${selectedTicket?.id}-${Date.now()}`,
       });
-      if (error) throw error;
       if (["open", "pending"].includes(selectedTicket?.status)) {
-        await supabase.from("support_tickets").update({ status: "in_progress", updated_at: new Date().toISOString() }).eq("id", selectedTicket.id);
+        await callSupportAction("transition_status", {
+          ticket_id: selectedTicket.id,
+          to_status: "in_progress",
+          reason: "core_reply_auto_progress",
+          source: "core_support_page",
+        });
       }
     },
     onSuccess: () => {
@@ -193,7 +222,7 @@ export default function CoreSupportPage() {
       toast.success("Réponse envoyée");
       setReplyContent("");
     },
-    onError: () => toast.error("Erreur lors de l'envoi"),
+    onError: (e: any) => toast.error(e?.message || "Erreur lors de l'envoi"),
   });
 
   const createTicketMutation = useMutation({
@@ -201,43 +230,28 @@ export default function CoreSupportPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
-      let userId = user.id;
       let ownerUserId = user.id;
 
       if (!ticket.is_internal) {
-        // Client ticket: look up client
         const { data: profile } = await supabase.from("profiles").select("user_id, email, full_name").eq("email", ticket.client_email.toLowerCase()).maybeSingle();
         if (!profile) throw new Error("Client non trouvé avec cet email");
-        userId = profile.user_id;
         ownerUserId = profile.user_id;
       }
 
-      const insertData: any = {
-        user_id: userId,
+      const res = await callSupportAction("create_ticket", {
         owner_user_id: ownerUserId,
         subject: ticket.subject,
         description: ticket.description,
         priority: ticket.priority,
         category: ticket.category,
-        created_by_user_id: user.id,
-        created_by_role: "admin",
         source: ticket.is_internal ? "core_internal" : "core_support_page",
-        status: "open",
-      };
-
-      if (!ticket.is_internal) {
-        insertData.client_email = ticket.client_email;
-      }
-
-      // Store internal flag in internal_notes metadata
-      if (ticket.is_internal) {
-        insertData.internal_notes = `[TICKET INTERNE] Créé par l'équipe.\n${ticket.assigned_to ? `Assigné à: ${ticket.assigned_to}` : ""}`;
-        insertData.client_email = null;
-      }
-
-      const { data, error } = await supabase.from("support_tickets").insert(insertData).select().single();
-      if (error) throw error;
-      return data;
+        client_email: ticket.is_internal ? null : ticket.client_email,
+        internal_notes: ticket.is_internal
+          ? `[TICKET INTERNE] Créé par l'équipe.\n${ticket.assigned_to ? `Assigné à: ${ticket.assigned_to}` : ""}`
+          : null,
+        idempotency_key: `core-create-${user.id}-${Date.now()}`,
+      });
+      return { id: res.ticket_id };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["core-support-tickets"] });

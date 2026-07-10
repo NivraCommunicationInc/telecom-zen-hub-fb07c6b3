@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { toast } from "sonner";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { X, Send, Loader2 } from "lucide-react";
 
 interface Props {
@@ -47,34 +48,26 @@ export function CreateTicketDialog({ clientId, clientName, clientEmail, onClose 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
-      const { data, error } = await supabase
-        .from("support_tickets")
-        .insert({
-          user_id: clientId,
-          owner_user_id: clientId,
-          subject: subject.trim(),
-          description: description.trim(),
-          category,
-          priority,
-          status: "open",
-          client_email: clientEmail ?? null,
-          created_by_user_id: user.id,
-          created_by_role: "employee",
-        })
-        .select("id")
-        .single();
-
-      if (error) throw error;
+      const res = await callSupportAction("create_ticket", {
+        owner_user_id: clientId,
+        subject: subject.trim(),
+        description: description.trim(),
+        category,
+        priority,
+        source: "employee_portal",
+        client_email: clientEmail ?? null,
+        idempotency_key: `emp-create-${user.id}-${clientId}-${Date.now()}`,
+      });
 
       await logInternalAudit({
         action: "ticket_created_for_client",
         category: "operations",
         portal: "employee",
         targetType: "support_ticket",
-        targetId: data.id,
+        targetId: res.ticket_id!,
       });
 
-      return data.id;
+      return res.ticket_id!;
     },
     onSuccess: (ticketId) => {
       toast.success("Ticket créé avec succès");

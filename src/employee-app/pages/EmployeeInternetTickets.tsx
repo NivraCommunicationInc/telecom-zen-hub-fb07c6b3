@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 
 const INTERNET_CATEGORIES = ["technical", "internet", "internet_technical"];
 
@@ -83,11 +84,12 @@ export default function EmployeeInternetTickets() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ ticketId, newStatus }: { ticketId: string; newStatus: string }) => {
-      const { error } = await supabase
-        .from("support_tickets")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", ticketId);
-      if (error) throw error;
+      await callSupportAction("transition_status", {
+        ticket_id: ticketId,
+        to_status: newStatus,
+        reason: `internal_status_change_${newStatus}`,
+        source: "employee_internet_tickets",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-internet-tickets"] });
@@ -174,13 +176,13 @@ export default function EmployeeInternetTickets() {
       }
 
       const ccIds = ccList.map((c) => c.user_id);
-      const { data: ticket, error } = await supabase.from("support_tickets").insert({
+      const res = await callSupportAction("create_ticket", {
+        owner_user_id: actorId,
         subject,
         description,
         priority,
         category: "internet_technical",
         issue_type: CATEGORY_OPTIONS.find((c) => c.value === category)?.label ?? category,
-        status: "open",
         assigned_department: department,
         route_to: department,
         assigned_to: selectedAssignee?.full_name ?? department,
@@ -188,10 +190,11 @@ export default function EmployeeInternetTickets() {
         cc_user_ids: ccIds,
         attachments: uploaded,
         is_internal: true,
-        created_by_user_id: actorId,
-        created_by_role: "employee",
-      } as any).select("id, ticket_number").single();
-      if (error) throw error;
+        source: "employee_internet_tickets",
+        idempotency_key: `emp-internal-${actorId}-${Date.now()}`,
+      });
+      const ticketId = res.ticket_id!;
+      const ticketNumber = res.ticket_number ?? ticketId;
 
       // Notify assignee + CC
       const recipients: { email: string; name: string }[] = [];
@@ -203,21 +206,22 @@ export default function EmployeeInternetTickets() {
       }
 
       if (recipients.length > 0) {
-        const rows = recipients.map((r) => ({
-          event_key: `ticket_assigned_notification_${ticket.id}_${r.email}`,
-          to_email: r.email,
-          template_key: "ticket_assigned_notification",
-          template_vars: {
-            ticket_number: ticket.ticket_number ?? ticket.id,
-            subject,
-            priority,
-            assignee_name: r.name,
-            department,
-            description,
-          },
-          status: "queued",
-        }));
-        await supabase.from("email_queue").insert(rows as any);
+        for (const r of recipients) {
+          await callSupportAction("enqueue_ticket_notification", {
+            ticket_id: ticketId,
+            event_key: `ticket_assigned_notification_${ticketId}_${r.email}`,
+            to_email: r.email,
+            template_key: "ticket_assigned_notification",
+            template_vars: {
+              ticket_number: ticketNumber,
+              subject,
+              priority,
+              assignee_name: r.name,
+              department,
+              description,
+            },
+          });
+        }
       }
     },
     onSuccess: () => {

@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import {
   Wrench, Calendar, FileText, Wifi, Headphones, Ban,
   Loader2, CreditCard, Package, Send, CheckCircle2,
@@ -94,17 +95,17 @@ export function CoreQuickActions({ proc, layout = "bar" }: Props) {
         if (!order?.user_id) {
           toast.error("Impossible de créer un ticket : aucun client lié à cette commande"); return;
         }
-        const { error } = await supabase.from("support_tickets").insert({
-          user_id: order.user_id, owner_user_id: order.user_id,
+        await callSupportAction("create_ticket", {
+          owner_user_id: order.user_id,
           subject: `Support — Commande ${order?.order_number || order?.id?.slice(0, 8)}`,
           description: `Ticket créé depuis la console de traitement pour la commande ${order?.order_number || order?.id || ""}`,
-          category: "order_issue", priority: "medium", status: "open",
+          category: "order_issue",
+          priority: "medium",
+          source: "core_order_detail",
           related_order_id: order?.id || null,
-          related_order_reference: order?.order_number || null,
           client_email: order?.client_email || null,
-          created_by_user_id: user?.id || null, created_by_role: "admin",
+          idempotency_key: `core-order-ticket-${order.id}-${user?.id ?? "anon"}-${Date.now()}`,
         });
-        if (error) throw error;
         toast.success("Ticket de support créé");
       } },
     { id: "suspend", label: "Suspendre", icon: Ban, variant: "danger",
