@@ -582,7 +582,10 @@ Deno.serve(async (req) => {
         action: "sync_single", sale_id: capFso!.id }),
       }).catch(() => null);
       await new Promise((r) => setTimeout(r, 1200));
-      const orderId = (globalThis as any).__capOrderId as string | undefined;
+      const { data: fso2 } = await admin.from("field_sales_orders")
+        .select("converted_order_id").eq("id", capFso!.id).maybeSingle();
+      const orderId = fso2?.converted_order_id;
+      (globalThis as any).__capOrderId = orderId;
       let commCount = 0;
       if (orderId) {
         const { count } = await admin.from("field_commissions")
