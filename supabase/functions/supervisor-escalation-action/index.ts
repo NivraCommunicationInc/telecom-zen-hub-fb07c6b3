@@ -190,16 +190,34 @@ Deno.serve(async (req) => {
   if (auditErr) console.error("[supervisor-escalation-action] audit failed:", auditErr.message);
 
   // --- Email queue (idempotent via event_key) ---
-  if (b.client_email) {
+  // Server-source client email/name from profiles when not supplied by caller.
+  let clientEmail = b.client_email ?? null;
+  let clientName = b.client_name ?? null;
+  if (!clientEmail || !clientName) {
+    const { data: clientProfile } = await admin
+      .from("profiles")
+      .select("email, first_name, last_name")
+      .eq("id", b.client_user_id)
+      .maybeSingle();
+    if (!clientEmail) clientEmail = clientProfile?.email ?? null;
+    if (!clientName) {
+      clientName =
+        [clientProfile?.first_name, clientProfile?.last_name].filter(Boolean).join(" ").trim() ||
+        clientProfile?.email ||
+        null;
+    }
+  }
+
+  if (clientEmail) {
     const eventKey = `supervisor_escalation:${b.idempotency_key}`;
     const { error: mailErr } = await admin.from("email_queue").insert({
       event_key: eventKey,
       idempotency_key: b.idempotency_key,
-      to_email: b.client_email,
+      to_email: clientEmail,
       subject: "Votre demande a été escaladée",
       template_key: "supervisor_escalation",
       template_vars: {
-        client_name: b.client_name ?? null,
+        client_name: clientName,
         subject: b.subject,
         description: b.description,
         ticket_number: ticketNumber,
@@ -215,6 +233,7 @@ Deno.serve(async (req) => {
       console.error("[supervisor-escalation-action] email_queue failed:", mailErr.message);
     }
   }
+
 
   return json(200, {
     ok: true,
