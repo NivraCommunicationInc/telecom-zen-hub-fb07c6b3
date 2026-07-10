@@ -29,8 +29,12 @@ type Action =
   | "notify_address_change"
   | "pause_account"
   | "unpause_account"
+  | "update_pause"
   | "cancel_account"
   | "reactivate_account";
+
+// Module 25 — durée max de pause temporaire (jours)
+const PAUSE_MAX_DAYS = 180;
 
 interface Body {
   action: Action;
