@@ -171,6 +171,30 @@ Deno.serve(async (req) => {
     if (orderIds.length) {
       await admin.from("field_commissions").delete().in("order_id", orderIds);
       await admin.from("order_items").delete().in("order_id", orderIds);
+      await admin.from("order_status_history").delete().in("order_id", orderIds);
+      await admin.from("order_internal_notes").delete().in("order_id", orderIds);
+      await admin.from("order_snapshots").delete().in("order_id", orderIds);
+      await admin.from("order_identity_data").delete().in("order_id", orderIds);
+      await admin.from("order_documents").delete().in("order_id", orderIds);
+      await admin.from("billing_invoice_lines").delete().in("invoice_id",
+        ((await admin.from("billing_invoices").select("id").in("order_id", orderIds)).data ?? []).map((r: any) => r.id));
+      await admin.from("billing_invoices").delete().in("order_id", orderIds);
+      await admin.from("billing").delete().in("order_id", orderIds);
+      await admin.from("contracts").delete().in("order_id", orderIds);
+      await admin.from("identity_verification_sessions").delete().in("order_id", orderIds);
+      await admin.from("appointments").delete().in("order_id", orderIds);
+      await admin.from("payments").delete().in("order_id", orderIds);
+      await admin.from("provisioning_jobs").delete().in("order_id", orderIds);
+      await admin.from("subscriptions").delete().in("order_id", orderIds);
+      await admin.from("billing_subscriptions").delete().in("order_id", orderIds);
+      await admin.from("service_instances").delete().in("order_id", orderIds);
+      await admin.from("installations").delete().in("order_id", orderIds);
+      await admin.from("installation_jobs").delete().in("order_id", orderIds);
+      await admin.from("kyc_requests").delete().in("order_id", orderIds);
+      await admin.from("shipments").delete().in("order_id", orderIds);
+      await admin.from("equipment_order_lines").delete().in("order_id", orderIds);
+      await admin.from("equipment_inventory").update({ order_id: null }).in("order_id", orderIds);
+      await admin.from("fulfillment_snapshots").delete().in("order_id", orderIds);
     }
     if (fsoIds.length) {
       await admin.from("sales_commissions").delete().in("field_order_id", fsoIds);
@@ -182,6 +206,7 @@ Deno.serve(async (req) => {
     if (quoteIds.length) {
       await admin.from("field_quotes").delete().in("id", quoteIds);
     }
+
 
     // 5) Field payment intents — by agent OR customer_email pattern
     await admin.from("field_payment_intents").delete().in("agent_id", callerIds);
