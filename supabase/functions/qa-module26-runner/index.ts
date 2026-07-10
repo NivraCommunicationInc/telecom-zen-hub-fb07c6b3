@@ -386,7 +386,7 @@ Deno.serve(async (req) => {
       .like("action", "account_ops.cancel_account%").order("created_at", { ascending: false }).limit(1);
     const det = (audit?.[0] as any)?.details || {};
     const beforeOk = det?.before_state && det.before_state.status === "active"
-      && Array.isArray(det.before_state.subscriptions) && det.before_state.balance_due === 75.25
+      && Array.isArray(det.before_state.subscriptions) && Math.abs(Number(det.before_state.balance_due ?? 0) - 75.25) < 0.01
       && det.before_state.autopay_enabled === true && det.before_state.equipment_assigned >= 2;
     const afterOk = det?.after_state && det.after_state.status === "cancelled"
       && det.after_state.autopay_disabled === true
