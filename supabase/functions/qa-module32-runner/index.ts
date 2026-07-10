@@ -165,7 +165,7 @@ async function provision(db: SupabaseClient): Promise<TestCtx> {
 async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // C1: adjust +500
   {
-    const { data, error } = await db.rpc("admin_loyalty_adjust", {
+    const { data, error } = await rpc.rpc("admin_loyalty_adjust", {
       p_account_id: ctx.account_a, p_delta_points: 500,
       p_reason: "QA adjust +500", p_expires_at: null,
     });
@@ -178,19 +178,19 @@ async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, che
   }
   // C3: adjust +1000 -> gold @1500
   {
-    await db.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_a, p_delta_points: 1000, p_reason: "QA to gold", p_expires_at: null });
+    await rpc.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_a, p_delta_points: 1000, p_reason: "QA to gold", p_expires_at: null });
     const { data } = await db.from("loyalty_points").select("tier,lifetime_points").eq("account_id", ctx.account_a).single();
     checks.push({ id: "C3", label: "Tier auto gold@1500", pass: data?.tier === "gold", detail: data });
   }
   // C4: adjust to platinum
   {
-    await db.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_a, p_delta_points: 3500, p_reason: "QA to platinum", p_expires_at: null });
+    await rpc.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_a, p_delta_points: 3500, p_reason: "QA to platinum", p_expires_at: null });
     const { data } = await db.from("loyalty_points").select("tier,lifetime_points").eq("account_id", ctx.account_a).single();
     checks.push({ id: "C4", label: "Tier auto platinum@5000", pass: data?.tier === "platinum", detail: data });
   }
   // C5: transfer 200 A->B
   {
-    const { data, error } = await db.rpc("admin_loyalty_transfer", {
+    const { data, error } = await rpc.rpc("admin_loyalty_transfer", {
       p_from_account: ctx.account_a, p_to_account: ctx.account_b, p_points: 200, p_reason: "QA transfer",
     });
     checks.push({ id: "C5", label: "Transfer 200 A→B", pass: !error && (data as any)?.ok === true, detail: { data, error } });
@@ -198,7 +198,7 @@ async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, che
   // C6: reject transfer if dest suspended
   {
     await db.from("accounts").update({ status: "suspended" }).eq("id", ctx.account_b);
-    const { error } = await db.rpc("admin_loyalty_transfer", {
+    const { error } = await rpc.rpc("admin_loyalty_transfer", {
       p_from_account: ctx.account_a, p_to_account: ctx.account_b, p_points: 10, p_reason: "QA blocked",
     });
     await db.from("accounts").update({ status: "active" }).eq("id", ctx.account_b);
@@ -206,7 +206,7 @@ async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, che
   }
   // C7: convert to credit
   {
-    const { data, error } = await db.rpc("admin_loyalty_convert_to_credit", {
+    const { data, error } = await rpc.rpc("admin_loyalty_convert_to_credit", {
       p_account_id: ctx.account_a, p_points: 100, p_credit_amount: 5, p_reason: "QA convert",
     });
     checks.push({ id: "C7", label: "Convert to credit crée account_adjustment", pass: !error && !!(data as any)?.adjustment_id, detail: { data, error } });
@@ -218,7 +218,7 @@ async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, che
       balance_after: 0, expires_at: new Date(Date.now() + 86400000).toISOString(), status: "posted",
     }).select("id,expires_at").single();
     const newExp = new Date(Date.now() + 30 * 86400000).toISOString();
-    const { data, error } = await db.rpc("admin_loyalty_extend_expiration", {
+    const { data, error } = await rpc.rpc("admin_loyalty_extend_expiration", {
       p_transaction_id: tx!.id, p_new_expires_at: newExp, p_reason: "QA extend",
     });
     checks.push({ id: "C8", label: "Extend expiration", pass: !error && (data as any)?.ok === true, detail: { data, error } });
@@ -231,7 +231,7 @@ async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, che
     }).select("id").single();
     if (eIns || !tx) { checks.push({ id: "C9", label: "Approve pending tx", pass: false, detail: eIns }); }
     else {
-      const { data, error } = await db.rpc("admin_loyalty_approve_pending", {
+      const { data, error } = await rpc.rpc("admin_loyalty_approve_pending", {
         p_transaction_id: tx.id, p_decision: "approve", p_reason: "QA approve",
       });
       checks.push({ id: "C9", label: "Approve pending tx", pass: !error && (data as any)?.ok === true, detail: { data, error } });
@@ -258,7 +258,7 @@ async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, che
       balance_after: 0, expires_at: new Date(Date.now() - 3600_000).toISOString(), status: "posted",
     }).select("id").single();
     const before = (await db.from("loyalty_points").select("available_points").eq("account_id", ctx.account_a).single()).data?.available_points ?? 0;
-    const { data } = await db.rpc("expire_loyalty_points");
+    const { data } = await rpc.rpc("expire_loyalty_points");
     const after = (await db.from("loyalty_points").select("available_points").eq("account_id", ctx.account_a).single()).data?.available_points ?? 0;
     checks.push({ id: "C11", label: "Expiration automatique appliquée", pass: (data as any)?.expired_count >= 1 && after < before, detail: { data, before, after, tx: tx?.id } });
   }
@@ -267,36 +267,36 @@ async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, che
 
 async function phase2(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // Ensure enough points for redeem
-  await db.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_a, p_delta_points: 500, p_reason: "QA phase2 seed", p_expires_at: null });
+  await rpc.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_a, p_delta_points: 500, p_reason: "QA phase2 seed", p_expires_at: null });
 
   // C20: redeem success
   const key1 = `${QA_PREFIX}${crypto.randomUUID()}`;
   {
-    const { data, error } = await db.rpc("redeem_loyalty_reward", {
+    const { data, error } = await rpc.rpc("redeem_loyalty_reward", {
       p_account_id: ctx.account_a, p_reward_id: ctx.reward_id, p_idempotency_key: key1,
     });
     checks.push({ id: "C20", label: "Redeem ok", pass: !error && (data as any)?.success === true, detail: { data, error } });
   }
   // C21: replay same idempotency_key returns idempotent
   {
-    const { data, error } = await db.rpc("redeem_loyalty_reward", {
+    const { data, error } = await rpc.rpc("redeem_loyalty_reward", {
       p_account_id: ctx.account_a, p_reward_id: ctx.reward_id, p_idempotency_key: key1,
     });
     checks.push({ id: "C21", label: "Idempotence redeem (replay)", pass: !error && (data as any)?.idempotent === true, detail: { data, error } });
   }
   // C22: idempotency_key required
   {
-    const { data } = await db.rpc("redeem_loyalty_reward", {
+    const { data } = await rpc.rpc("redeem_loyalty_reward", {
       p_account_id: ctx.account_a, p_reward_id: ctx.reward_id, p_idempotency_key: null,
     });
     checks.push({ id: "C22", label: "idempotency_key obligatoire", pass: (data as any)?.error === "idempotency_key_required", detail: data });
   }
   // C23: stock race — 2 concurrent redeems on limited reward, only 1 wins
   {
-    await db.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_b, p_delta_points: 500, p_reason: "QA B seed", p_expires_at: null });
+    await rpc.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_b, p_delta_points: 500, p_reason: "QA B seed", p_expires_at: null });
     const [r1, r2] = await Promise.all([
-      db.rpc("redeem_loyalty_reward", { p_account_id: ctx.account_a, p_reward_id: ctx.reward_limited_id, p_idempotency_key: `${QA_PREFIX}race-a-${crypto.randomUUID()}` }),
-      db.rpc("redeem_loyalty_reward", { p_account_id: ctx.account_b, p_reward_id: ctx.reward_limited_id, p_idempotency_key: `${QA_PREFIX}race-b-${crypto.randomUUID()}` }),
+      rpc.rpc("redeem_loyalty_reward", { p_account_id: ctx.account_a, p_reward_id: ctx.reward_limited_id, p_idempotency_key: `${QA_PREFIX}race-a-${crypto.randomUUID()}` }),
+      rpc.rpc("redeem_loyalty_reward", { p_account_id: ctx.account_b, p_reward_id: ctx.reward_limited_id, p_idempotency_key: `${QA_PREFIX}race-b-${crypto.randomUUID()}` }),
     ]);
     const s1 = (r1.data as any)?.success === true;
     const s2 = (r2.data as any)?.success === true;
@@ -305,12 +305,12 @@ async function phase2(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // C24: reject redemption -> refund
   {
     const key = `${QA_PREFIX}reject-${crypto.randomUUID()}`;
-    const r = await db.rpc("redeem_loyalty_reward", {
+    const r = await rpc.rpc("redeem_loyalty_reward", {
       p_account_id: ctx.account_a, p_reward_id: ctx.reward_id, p_idempotency_key: key,
     });
     const redId = (r.data as any)?.redemption_id;
     const balBefore = (await db.from("loyalty_points").select("available_points").eq("account_id", ctx.account_a).single()).data?.available_points ?? 0;
-    const dec = await db.rpc("admin_loyalty_redemption_decide", {
+    const dec = await rpc.rpc("admin_loyalty_redemption_decide", {
       p_redemption_id: redId, p_decision: "reject", p_reason: "QA reject refund",
     });
     const balAfter = (await db.from("loyalty_points").select("available_points").eq("account_id", ctx.account_a).single()).data?.available_points ?? 0;
@@ -325,11 +325,11 @@ async function phase2(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // C25: approve redemption
   {
     const key = `${QA_PREFIX}approve-${crypto.randomUUID()}`;
-    const r = await db.rpc("redeem_loyalty_reward", {
+    const r = await rpc.rpc("redeem_loyalty_reward", {
       p_account_id: ctx.account_a, p_reward_id: ctx.reward_id, p_idempotency_key: key,
     });
     const redId = (r.data as any)?.redemption_id;
-    const dec = await db.rpc("admin_loyalty_redemption_decide", {
+    const dec = await rpc.rpc("admin_loyalty_redemption_decide", {
       p_redemption_id: redId, p_decision: "approve", p_reason: "QA approve",
     });
     const { data: red } = await db.from("loyalty_redemptions").select("status,applied_at").eq("id", redId).single();
@@ -338,7 +338,7 @@ async function phase2(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // C26: account_not_eligible when suspended
   {
     await db.from("accounts").update({ status: "suspended" }).eq("id", ctx.account_a);
-    const { data } = await db.rpc("redeem_loyalty_reward", {
+    const { data } = await rpc.rpc("redeem_loyalty_reward", {
       p_account_id: ctx.account_a, p_reward_id: ctx.reward_id, p_idempotency_key: `${QA_PREFIX}${crypto.randomUUID()}`,
     });
     await db.from("accounts").update({ status: "active" }).eq("id", ctx.account_a);
