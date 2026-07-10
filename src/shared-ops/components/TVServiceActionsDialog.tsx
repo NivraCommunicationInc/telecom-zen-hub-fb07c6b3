@@ -2,18 +2,13 @@
  * TVServiceActionsDialog — Manage TV service for a client.
  * Used in Nivra Core (Account 360) and Nivra OneView CS (Client 360).
  *
- * Tabs:
- *   - Forfait    (change TV plan)
- *   - Bouquets   (add/remove themed bouquets: Sports, Cinéma, International, …)
- *   - VOD/PPV    (record a pay-per-view / video-on-demand purchase)
- *   - Terminal   (reboot / identify / factory reset / firmware push / deactivate)
- *   - Parental   (parental controls: rating / blocked channels / PIN)
- *
- * Every action goes through the `tv-account-actions` edge function which
- * enforces staff role, writes the domain row, logs to admin_audit_log, and
- * queues a branded client email through email_queue (Violet Bold).
+ * Module 29 hardening (F29-1 → F29-19):
+ *  - Motifs obligatoires (≥ 5 chars, ≥ 10 pour actions terminal critiques)
+ *  - Idempotency key stable par ouverture du dialog (UUID)
+ *  - `pack_id` envoyé au serveur pour validation catalogue
+ *  - Toutes les mutations transitent par `tv-account-actions` (aucune écriture directe)
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -54,12 +49,12 @@ interface TvAddon {
   created_at: string;
 }
 
-const TERMINAL_ACTIONS: Array<{ value: string; label: string; danger?: boolean }> = [
+const TERMINAL_ACTIONS: Array<{ value: string; label: string; critical?: boolean }> = [
   { value: "reboot",         label: "Redémarrer à distance" },
   { value: "identify",       label: "Identifier (clignoter LED)" },
   { value: "firmware_push",  label: "Forcer mise à jour micrologiciel" },
-  { value: "factory_reset",  label: "Réinitialisation usine", danger: true },
-  { value: "deactivate",     label: "Désactiver le terminal",  danger: true },
+  { value: "factory_reset",  label: "Réinitialisation usine", critical: true },
+  { value: "deactivate",     label: "Désactiver le terminal",  critical: true },
   { value: "reactivate",     label: "Réactiver le terminal" },
 ];
 
@@ -67,6 +62,10 @@ const RATINGS = ["G", "PG", "PG-13", "R", "NC-17", "adult_blocked"] as const;
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
+
+// F29-11 — stable idempotency key per dialog open
+const makeSessionKey = () =>
+  (globalThis.crypto?.randomUUID?.() ?? `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
 
 export function TVServiceActionsDialog({
   open, onClose, clientUserId, clientName, accountId, subscriptionId,
@@ -77,6 +76,9 @@ export function TVServiceActionsDialog({
   const { plans: tvPlans, loading: loadingPlans } = useServicePlans("TV", open);
   const { packs: bouquetCatalog, loading: loadingBouquets } = useChannelPackages(open);
 
+  // Session id (stable while dialog stays open) — feeds idempotency keys
+  const sessionId = useMemo(() => makeSessionKey(), [open]);
+
   // Channels (à la carte)
   type Ch = { id: string; name: string; category: string; price: number; is_hd: boolean | null };
   const [catalogChannels, setCatalogChannels] = useState<Ch[]>([]);
@@ -84,21 +86,25 @@ export function TVServiceActionsDialog({
   const [selectedChannelIds, setSelectedChannelIds] = useState<Set<string>>(new Set());
   const [channelFilter, setChannelFilter] = useState("");
   const [channelNotes, setChannelNotes] = useState("");
+  const [channelReason, setChannelReason] = useState("");
 
   // Plan change
   const [planName, setPlanName] = useState("");
   const [planPrice, setPlanPrice] = useState("");
   const [planChangeType, setPlanChangeType] = useState<"upgrade" | "downgrade" | "lateral">("upgrade");
+  const [planReason, setPlanReason] = useState("");
 
   // Packs
   const [activePacks, setActivePacks] = useState<TvAddon[]>([]);
   const [loadingPacks, setLoadingPacks] = useState(false);
   const [pickedPack, setPickedPack] = useState("");
+  const [packReason, setPackReason] = useState("");
 
   // VOD
   const [vodTitle, setVodTitle] = useState("");
   const [vodType, setVodType] = useState<"movie" | "event" | "ppv" | "series" | "rental">("movie");
   const [vodAmount, setVodAmount] = useState("");
+  const [vodReason, setVodReason] = useState("");
 
   // Terminal
   const [terminalAction, setTerminalAction] = useState("");
@@ -110,45 +116,46 @@ export function TVServiceActionsDialog({
   const [maxRating, setMaxRating] = useState<typeof RATINGS[number]>("PG-13");
   const [parentalPin, setParentalPin] = useState("");
   const [blockedRaw, setBlockedRaw] = useState("");
+  const [parentalReason, setParentalReason] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setTab("plan");
-    setPlanName("");
-    setPlanPrice("");
-    setPlanChangeType("upgrade");
-    setPickedPack("");
-    setVodTitle("");
-    setVodType("movie");
-    setVodAmount("");
-    setTerminalAction("");
-    setTerminalSerial("");
-    setTerminalReason("");
-    setParentalPin("");
-    setBlockedRaw("");
+    setPlanName(""); setPlanPrice(""); setPlanChangeType("upgrade"); setPlanReason("");
+    setPickedPack(""); setPackReason("");
+    setVodTitle(""); setVodType("movie"); setVodAmount(""); setVodReason("");
+    setTerminalAction(""); setTerminalSerial(""); setTerminalReason("");
+    setParentalPin(""); setBlockedRaw(""); setParentalReason("");
+    setChannelNotes(""); setChannelReason("");
   }, [open]);
 
   useEffect(() => {
     if (!open || tab !== "packs" || !clientUserId) return;
     setLoadingPacks(true);
-    supabase
+    // F29-15 — scope reads by account when provided
+    let q = supabase
       .from("tv_addon_subscriptions")
       .select("id,addon_code,addon_name,addon_type,monthly_price,status,created_at")
       .eq("user_id", clientUserId)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
+      .eq("status", "active");
+    if (accountId) q = q.eq("account_id", accountId);
+    q.order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) toast.error("Erreur chargement bouquets");
         setActivePacks((data as TvAddon[]) || []);
         setLoadingPacks(false);
       });
-  }, [open, tab, clientUserId, busy]);
+  }, [open, tab, clientUserId, accountId, busy]);
 
-  // Load TV channels catalog + current selection
   useEffect(() => {
     if (!open || tab !== "channels" || !clientUserId) return;
     setLoadingChannels(true);
     (async () => {
+      let selQ = supabase
+        .from("channel_selections")
+        .select("channels,status,created_at,account_id")
+        .eq("user_id", clientUserId);
+      if (accountId) selQ = selQ.eq("account_id", accountId);
       const [{ data: chans }, { data: sel }] = await Promise.all([
         supabase
           .from("tv_channels")
@@ -156,13 +163,7 @@ export function TVServiceActionsDialog({
           .eq("is_active", true)
           .order("category", { ascending: true })
           .order("name", { ascending: true }),
-        supabase
-          .from("channel_selections")
-          .select("channels,status,created_at")
-          .eq("user_id", clientUserId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+        selQ.order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       setCatalogChannels((chans as Ch[]) || []);
       const currentIds = new Set<string>();
@@ -171,36 +172,44 @@ export function TVServiceActionsDialog({
       setSelectedChannelIds(currentIds);
       setLoadingChannels(false);
     })();
-  }, [open, tab, clientUserId, busy]);
+  }, [open, tab, clientUserId, accountId, busy]);
 
   useEffect(() => {
     if (!open || tab !== "parental" || !clientUserId) return;
-    supabase
+    let q = supabase
       .from("tv_parental_controls")
-      .select("enabled,max_rating,blocked_channels")
-      .eq("user_id", clientUserId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) return;
-        setParentalEnabled(!!data.enabled);
-        setMaxRating((data.max_rating as typeof RATINGS[number]) || "PG-13");
-        const list = Array.isArray(data.blocked_channels) ? data.blocked_channels : [];
-        setBlockedRaw(list.join(", "));
-      });
-  }, [open, tab, clientUserId]);
+      .select("enabled,max_rating,blocked_channels,account_id")
+      .eq("user_id", clientUserId);
+    if (accountId) q = q.eq("account_id", accountId);
+    else q = q.is("account_id", null);
+    q.maybeSingle().then(({ data }) => {
+      if (!data) return;
+      setParentalEnabled(!!data.enabled);
+      setMaxRating((data.max_rating as typeof RATINGS[number]) || "PG-13");
+      const list = Array.isArray(data.blocked_channels) ? data.blocked_channels : [];
+      setBlockedRaw(list.join(", "));
+    });
+  }, [open, tab, clientUserId, accountId]);
 
-  const invoke = async (body: Record<string, unknown>) => {
+  const invoke = async (action: string, body: Record<string, unknown>) => {
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("tv-account-actions", {
         body: {
+          action,
           client_user_id: clientUserId,
           account_id: accountId ?? null,
           subscription_id: subscriptionId ?? null,
+          idempotency_key: `tv-${action}-${clientUserId}-${sessionId}`,
           ...body,
         },
       });
-      if (error) throw error;
+      if (error) {
+        const ctx = (error as any)?.context;
+        let detail: string | undefined;
+        try { detail = ctx ? await ctx.text() : undefined; } catch { /* */ }
+        throw new Error(detail || error.message);
+      }
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       return data;
     } finally {
@@ -212,15 +221,15 @@ export function TVServiceActionsDialog({
     if (!planName) { toast.error("Choisissez un forfait"); return; }
     const price = parseFloat(planPrice);
     if (!Number.isFinite(price) || price < 0) { toast.error("Prix invalide"); return; }
+    if (planReason.trim().length < 5) { toast.error("Motif requis (min. 5 caractères)"); return; }
     try {
-      await invoke({
-        action: "change_plan",
+      await invoke("change_plan", {
         previous_plan_name: currentPlanName ?? undefined,
         previous_monthly_price: currentMonthlyPrice ?? undefined,
         new_plan_name: planName,
         new_monthly_price: price,
         change_type: planChangeType,
-        idempotency_key: `tvplan-${clientUserId}-${Date.now()}`,
+        reason: planReason.trim(),
       });
       toast.success("Forfait TV mis à jour — courriel envoyé");
       onClose();
@@ -230,24 +239,25 @@ export function TVServiceActionsDialog({
   const doAddPack = async () => {
     const p = bouquetCatalog.find((x) => x.id === pickedPack);
     if (!p) { toast.error("Choisissez un bouquet"); return; }
+    if (packReason.trim().length < 5) { toast.error("Motif requis (min. 5 caractères)"); return; }
     try {
-      await invoke({
-        action: "add_themed_pack",
-        addon_code: `PACK_${p.category.toUpperCase()}_${p.id.slice(0, 8)}`,
-        addon_name: p.name,
+      await invoke("add_themed_pack", {
+        pack_id: p.id,           // F29-9 canonical
+        addon_name: p.name,      // fallback identification
         addon_type: p.category,
         monthly_price: p.price,
-        idempotency_key: `tvpack-${clientUserId}-${p.id}-${Date.now()}`,
+        reason: packReason.trim(),
       });
       toast.success(`Bouquet « ${p.name} » ajouté`);
-      setPickedPack("");
+      setPickedPack(""); setPackReason("");
     } catch (e) { toast.error((e as Error).message); }
   };
 
   const doRemovePack = async (a: TvAddon) => {
-    if (!confirm(`Retirer le bouquet « ${a.addon_name} » ?`)) return;
+    const reason = prompt(`Motif pour retirer « ${a.addon_name} » (min. 5 caractères) :`, "");
+    if (!reason || reason.trim().length < 5) { toast.error("Motif requis (min. 5 caractères)"); return; }
     try {
-      await invoke({ action: "remove_themed_pack", addon_id: a.id });
+      await invoke("remove_themed_pack", { addon_id: a.id, reason: reason.trim() });
       toast.success("Bouquet retiré");
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -256,15 +266,15 @@ export function TVServiceActionsDialog({
     if (!vodTitle.trim()) { toast.error("Titre requis"); return; }
     const amt = parseFloat(vodAmount);
     if (!Number.isFinite(amt) || amt <= 0) { toast.error("Montant invalide"); return; }
+    if (vodReason.trim().length < 5) { toast.error("Motif requis (min. 5 caractères)"); return; }
     try {
-      await invoke({
-        action: "purchase_vod",
+      await invoke("purchase_vod", {
         title: vodTitle.trim(),
         content_type: vodType,
         amount: amt,
         currency: "CAD",
         payment_method: "on_invoice",
-        idempotency_key: `vod-${clientUserId}-${Date.now()}`,
+        reason: vodReason.trim(),
       });
       toast.success(`Achat « ${vodTitle} » enregistré — courriel envoyé`);
       onClose();
@@ -274,17 +284,15 @@ export function TVServiceActionsDialog({
   const doTerminal = async () => {
     if (!terminalAction) { toast.error("Choisissez une action"); return; }
     const meta = TERMINAL_ACTIONS.find((t) => t.value === terminalAction);
-    if (meta?.danger && !terminalReason) {
-      toast.error("Raison obligatoire pour les actions sensibles");
-      return;
+    const min = meta?.critical ? 10 : 5;
+    if (terminalReason.trim().length < min) {
+      toast.error(`Motif requis (min. ${min} caractères)`); return;
     }
     try {
-      await invoke({
-        action: "terminal_action",
+      await invoke("terminal_action", {
         action_type: terminalAction,
         terminal_serial: terminalSerial || undefined,
-        reason: terminalReason || undefined,
-        idempotency_key: `tvterm-${clientUserId}-${terminalAction}-${Date.now()}`,
+        reason: terminalReason.trim(),
       });
       toast.success("Action terminal appliquée — courriel envoyé");
       onClose();
@@ -294,12 +302,12 @@ export function TVServiceActionsDialog({
   const doSetChannels = async () => {
     const ids = Array.from(selectedChannelIds);
     if (ids.length === 0) { toast.error("Sélectionnez au moins une chaîne"); return; }
+    if (channelReason.trim().length < 5) { toast.error("Motif requis (min. 5 caractères)"); return; }
     try {
-      await invoke({
-        action: "set_channels",
+      await invoke("set_channels", {
         channel_ids: ids,
         notes: channelNotes || undefined,
-        idempotency_key: `tvchans-${clientUserId}-${Date.now()}`,
+        reason: channelReason.trim(),
       });
       toast.success("Sélection de chaînes enregistrée — courriel envoyé");
       onClose();
@@ -312,14 +320,14 @@ export function TVServiceActionsDialog({
     if (parentalPin && !/^\d{4,8}$/.test(parentalPin)) {
       toast.error("NIP : 4 à 8 chiffres"); return;
     }
+    if (parentalReason.trim().length < 5) { toast.error("Motif requis (min. 5 caractères)"); return; }
     try {
-      await invoke({
-        action: "set_parental",
+      await invoke("set_parental", {
         enabled: parentalEnabled,
         max_rating: maxRating,
         pin: parentalPin || undefined,
         blocked_channels: blocked,
-        idempotency_key: `tvparental-${clientUserId}-${Date.now()}`,
+        reason: parentalReason.trim(),
       });
       toast.success("Contrôle parental mis à jour — courriel envoyé");
       onClose();
@@ -399,6 +407,11 @@ export function TVServiceActionsDialog({
                 </Select>
               </div>
             </div>
+            <div>
+              <Label htmlFor="plan-reason">Motif <span className="text-destructive">*</span></Label>
+              <Textarea id="plan-reason" rows={2} value={planReason} onChange={(e) => setPlanReason(e.target.value)}
+                placeholder="Min. 5 caractères" disabled={busy} />
+            </div>
             <Button onClick={doChangePlan} disabled={busy} className="w-full">
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Tv className="h-4 w-4 mr-2" />}
               Appliquer le changement
@@ -427,6 +440,11 @@ export function TVServiceActionsDialog({
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 </Button>
               </div>
+            </div>
+            <div>
+              <Label htmlFor="pack-reason">Motif <span className="text-destructive">*</span></Label>
+              <Textarea id="pack-reason" rows={2} value={packReason} onChange={(e) => setPackReason(e.target.value)}
+                placeholder="Min. 5 caractères" disabled={busy} />
             </div>
             <Separator />
             <div>
@@ -460,7 +478,7 @@ export function TVServiceActionsDialog({
             </div>
           </TabsContent>
 
-          {/* ============ CHANNELS (à la carte, catalogue tv_channels) ============ */}
+          {/* ============ CHANNELS ============ */}
           <TabsContent value="channels" className="space-y-3 pt-4">
             <div className="flex items-center justify-between gap-2">
               <Input
@@ -538,6 +556,11 @@ export function TVServiceActionsDialog({
                 disabled={busy}
               />
             </div>
+            <div>
+              <Label htmlFor="ch-reason">Motif <span className="text-destructive">*</span></Label>
+              <Textarea id="ch-reason" rows={2} value={channelReason} onChange={(e) => setChannelReason(e.target.value)}
+                placeholder="Min. 5 caractères" disabled={busy} />
+            </div>
             <Button onClick={doSetChannels} disabled={busy || selectedChannelIds.size === 0} className="w-full">
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ListChecks className="h-4 w-4 mr-2" />}
               Enregistrer la sélection
@@ -579,8 +602,13 @@ export function TVServiceActionsDialog({
                 />
               </div>
             </div>
+            <div>
+              <Label htmlFor="vod-reason">Motif <span className="text-destructive">*</span></Label>
+              <Textarea id="vod-reason" rows={2} value={vodReason} onChange={(e) => setVodReason(e.target.value)}
+                placeholder="Min. 5 caractères" disabled={busy} />
+            </div>
             <p className="text-xs text-muted-foreground">
-              Facturé sur la prochaine facture du client.
+              Facturé sur la prochaine facture du client. Référence de paiement générée par le serveur.
             </p>
             <Button onClick={doVod} disabled={busy} className="w-full">
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Film className="h-4 w-4 mr-2" />}
@@ -597,7 +625,7 @@ export function TVServiceActionsDialog({
                 <SelectContent>
                   {TERMINAL_ACTIONS.map((a) => (
                     <SelectItem key={a.value} value={a.value}>
-                      {a.danger ? "⚠ " : ""}{a.label}
+                      {a.critical ? "⚠ " : ""}{a.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -614,16 +642,17 @@ export function TVServiceActionsDialog({
             </div>
             <div>
               <Label htmlFor="term-reason">
-                Raison{" "}
-                {TERMINAL_ACTIONS.find((a) => a.value === terminalAction)?.danger && (
-                  <span className="text-destructive">*</span>
-                )}
+                Motif <span className="text-destructive">*</span>
+                {" "}
+                <span className="text-xs text-muted-foreground">
+                  ({TERMINAL_ACTIONS.find((a) => a.value === terminalAction)?.critical ? "min. 10" : "min. 5"} caractères)
+                </span>
               </Label>
               <Textarea
                 id="term-reason" rows={2}
                 value={terminalReason}
                 onChange={(e) => setTerminalReason(e.target.value)}
-                placeholder="Obligatoire pour les actions sensibles"
+                placeholder="Motif obligatoire"
                 disabled={busy}
               />
             </div>
@@ -678,6 +707,11 @@ export function TVServiceActionsDialog({
                 placeholder="ex: 301, 410, 555"
                 disabled={busy}
               />
+            </div>
+            <div>
+              <Label htmlFor="parental-reason">Motif <span className="text-destructive">*</span></Label>
+              <Textarea id="parental-reason" rows={2} value={parentalReason} onChange={(e) => setParentalReason(e.target.value)}
+                placeholder="Min. 5 caractères" disabled={busy} />
             </div>
             <Button onClick={doParental} disabled={busy} className="w-full">
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
