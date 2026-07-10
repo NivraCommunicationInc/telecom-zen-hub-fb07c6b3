@@ -319,8 +319,9 @@ async function phase2(rpc: SupabaseClient, db: SupabaseClient, clientA: Supabase
       id: "C24",
       label: "Rejet redemption → refund automatique",
       pass: !dec.error && red?.status === "rejected" && !!red?.refund_tx_id && balAfter === balBefore + 100,
-      detail: { dec: dec.data, red, balBefore, balAfter },
+      detail: { dec_data: dec.data, dec_error: dec.error, red, balBefore, balAfter, redId },
     });
+
   }
   // C25: approve redemption
   {
