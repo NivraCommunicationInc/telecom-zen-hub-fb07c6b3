@@ -130,6 +130,7 @@ serve(async (req) => {
     proof_ref: `qa-ref-${idem}`,
     notes: "QA note",
     __audit_reason: "qa-module37-runner",
+    ...over,
   });
 
   // ============================================================================
