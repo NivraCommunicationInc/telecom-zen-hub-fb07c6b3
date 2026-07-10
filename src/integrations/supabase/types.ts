@@ -5669,6 +5669,47 @@ export type Database = {
           },
         ]
       }
+      commission_ledger_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          entry_id: string
+          event_key: string | null
+          id: string
+          new_status: string
+          old_status: string | null
+          reason: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          entry_id: string
+          event_key?: string | null
+          id?: string
+          new_status: string
+          old_status?: string | null
+          reason?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          entry_id?: string
+          event_key?: string | null
+          id?: string
+          new_status?: string
+          old_status?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_ledger_events_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "commission_ledger_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commission_plans: {
         Row: {
           created_at: string
@@ -31683,6 +31724,16 @@ export type Database = {
         Returns: string
       }
       reveal_supplier_password: { Args: { p_id: string }; Returns: string }
+      rpc_commission_ledger_transition: {
+        Args: {
+          p_actor_id: string
+          p_entry_id: string
+          p_event_key: string
+          p_reason: string
+          p_target_status: string
+        }
+        Returns: Json
+      }
       rpc_referral_apply_action: {
         Args: {
           p_action: string
