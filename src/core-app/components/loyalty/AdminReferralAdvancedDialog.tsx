@@ -120,19 +120,20 @@ export function AdminReferralAdvancedDialog({ referral, onClose, onSuccess }: Pr
           </TabsContent>
 
           <TabsContent value="manual" className="space-y-3 mt-3">
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" variant={rewardKind === "points" ? "default" : "outline"}
-                onClick={() => setRewardKind("points")}>Points</Button>
-              <Button size="sm" variant={rewardKind === "cash" ? "default" : "outline"}
-                onClick={() => setRewardKind("cash")}>Cash ($)</Button>
+            <p className="text-xs text-muted-foreground">
+              Bonus manuel appliqué au ledger de commissions d'un influenceur
+              (hors flux parrainage classique).
+            </p>
+            <div>
+              <label className="text-xs font-medium">influencer_id cible</label>
+              <Input value={targetInfluencerId} onChange={(e) => setTargetInfluencerId(e.target.value)}
+                placeholder="uuid" className="font-mono text-xs" />
             </div>
             <div>
-              <label className="text-xs font-medium">
-                {rewardKind === "points" ? "Points à créditer" : "Montant ($)"}
-              </label>
-              <Input type="number" step={rewardKind === "cash" ? "0.01" : "1"}
-                value={rewardValue}
-                onChange={(e) => setRewardValue(Number(e.target.value))} />
+              <label className="text-xs font-medium">Montant du bonus ($)</label>
+              <Input type="number" step="0.01"
+                value={bonusAmount}
+                onChange={(e) => setBonusAmount(Number(e.target.value))} />
             </div>
           </TabsContent>
 
