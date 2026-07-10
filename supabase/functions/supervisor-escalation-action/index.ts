@@ -172,7 +172,8 @@ Deno.serve(async (req) => {
 
   // --- Audit (best-effort but logged) ---
   const { error: auditErr } = await admin.from("admin_audit_log").insert({
-    user_id: userId,
+    admin_user_id: userId,
+    admin_email: userEmail,
     action: "supervisor_escalation",
     target_type: "internal_ticket",
     target_id: ticketId,
@@ -184,7 +185,6 @@ Deno.serve(async (req) => {
       idempotency_key: b.idempotency_key,
       reason: b.__audit_reason ?? null,
       actor_role: authorRole,
-      actor_email: userEmail,
     },
   } as any);
   if (auditErr) console.error("[supervisor-escalation-action] audit failed:", auditErr.message);
@@ -222,12 +222,11 @@ Deno.serve(async (req) => {
         description: b.description,
         ticket_number: ticketNumber,
         escalation_type: b.escalation_type,
+        language: "fr",
       },
       entity_type: "internal_ticket",
       entity_id: ticketId,
-      status: "pending",
-      priority: 5,
-      language: "fr",
+      status: "queued",
     } as any);
     if (mailErr && (mailErr as any).code !== "23505") {
       console.error("[supervisor-escalation-action] email_queue failed:", mailErr.message);
