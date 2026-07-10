@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
   // ------------------------------------------------------------------
   {
     // Seed unpaid invoice (75.25) on client A via billing_invoices
-    await admin.from("billing_invoices").insert({
+    const { error: invSeedErr } = await admin.from("billing_invoices").insert({
       customer_id: billingCustA, account_id: accountA,
       invoice_number: `QA26-INV-${Date.now().toString().slice(-6)}`,
       type: "renewal",
@@ -288,6 +288,7 @@ Deno.serve(async (req) => {
       due_date: new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10),
       environment: "test",
     });
+    if (invSeedErr) push({ id: "2.0", name: "seed_invoice", ok: false, details: invSeedErr.message });
     const r = await callEF(jwt, {
       action: "cancel_account", client_user_id: clientA, account_id: accountA,
       reason: `${runTag} solde sans ack`, acknowledge_equipment: true,
