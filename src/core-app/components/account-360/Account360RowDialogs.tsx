@@ -339,29 +339,72 @@ export function PauseAccountDialog({ accountId, clientUserId, accountStatus, ope
 export function CancelAccountDialog({ accountId, clientId, accountStatus, open, onClose, onRefresh }: any) {
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [ackUnpaid, setAckUnpaid] = useState(false);
+  const [ackEquipment, setAckEquipment] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [impact, setImpact] = useState<{
+    accountNumber: string | null;
+    balanceDue: number;
+    activeSubs: number;
+    equipmentCount: number;
+    autopayOn: boolean;
+    loading: boolean;
+  }>({ accountNumber: null, balanceDue: 0, activeSubs: 0, equipmentCount: 0, autopayOn: false, loading: true });
 
   useEffect(() => {
-    if (!open) { setReason(""); setConfirm(""); setSaving(false); }
-  }, [open]);
+    if (!open) {
+      setReason(""); setConfirm(""); setAckUnpaid(false); setAckEquipment(false); setSaving(false);
+      setImpact({ accountNumber: null, balanceDue: 0, activeSubs: 0, equipmentCount: 0, autopayOn: false, loading: true });
+      return;
+    }
+    if (!accountId || !clientId) return;
+    (async () => {
+      const [acctRes, bcRes, equipRes] = await Promise.all([
+        supabase.from("accounts").select("account_number, balance_due").eq("id", accountId).maybeSingle(),
+        supabase.from("billing_customers").select("id, autopay_enabled").eq("user_id", clientId).maybeSingle(),
+        supabase.from("equipment_inventory").select("id", { count: "exact", head: true })
+          .eq("account_id", accountId).in("status", ["assigned", "deployed", "active"]),
+      ]);
+      let activeSubs = 0;
+      if (bcRes.data?.id) {
+        const { count } = await supabase.from("billing_subscriptions").select("id", { count: "exact", head: true })
+          .eq("customer_id", bcRes.data.id).in("status", ["active", "pending", "suspended"]);
+        activeSubs = count ?? 0;
+      }
+      setImpact({
+        accountNumber: (acctRes.data as any)?.account_number ?? null,
+        balanceDue: Number((acctRes.data as any)?.balance_due ?? 0),
+        activeSubs,
+        equipmentCount: equipRes.count ?? 0,
+        autopayOn: !!(bcRes.data as any)?.autopay_enabled,
+        loading: false,
+      });
+    })();
+  }, [open, accountId, clientId]);
 
   const alreadyCancelled = accountStatus === "cancelled";
+  const reasonOk = reason.trim().length >= 5;
+  const confirmOk = confirm.trim().toUpperCase() === "ANNULER";
+  const unpaidOk = impact.balanceDue > 0 ? ackUnpaid : true;
+  const equipOk = impact.equipmentCount > 0 ? ackEquipment : true;
+  const canSubmit = !saving && !alreadyCancelled && reasonOk && confirmOk && unpaidOk && equipOk;
 
   async function submit() {
     if (!accountId) { toast.error("Compte introuvable"); return; }
     if (!clientId) { toast.error("Identifiant client requis"); return; }
-    if (!reason.trim()) { toast.error("Motif obligatoire"); return; }
-    if (confirm.trim().toUpperCase() !== "ANNULER") {
-      toast.error('Tapez "ANNULER" pour confirmer');
-      return;
-    }
+    if (!reasonOk) { toast.error("Motif obligatoire (min 5 caractères)"); return; }
+    if (!confirmOk) { toast.error('Tapez "ANNULER" pour confirmer'); return; }
     setSaving(true);
+    const idempotencyKey = `cancel-${accountId}-${Date.now()}`;
     const { data, error } = await supabase.functions.invoke("account-ops-actions", {
       body: {
         action: "cancel_account",
         client_user_id: clientId,
         account_id: accountId,
         reason: reason.trim(),
+        idempotency_key: idempotencyKey,
+        acknowledge_unpaid: ackUnpaid,
+        acknowledge_equipment: ackEquipment,
       },
     });
     setSaving(false);
@@ -371,16 +414,24 @@ export function CancelAccountDialog({ accountId, clientId, accountStatus, open, 
       return;
     }
     const nb = (data as any)?.cancelled_subscriptions ?? 0;
-    toast.success(nb > 0 ? `Compte annulé — ${nb} service(s) résilié(s)` : "Compte annulé");
+    const eq = (data as any)?.equipment_return_requests ?? 0;
+    const bits = [
+      nb > 0 ? `${nb} service(s) résilié(s)` : null,
+      (data as any)?.autopay_disabled ? "AutoPay désactivé" : null,
+      eq > 0 ? `${eq} retour(s) équipement` : null,
+    ].filter(Boolean);
+    toast.success(bits.length ? `Compte annulé — ${bits.join(" · ")}` : "Compte annulé");
     onRefresh?.();
     onClose();
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-sm text-red-400">Annulation du compte</DialogTitle>
+          <DialogTitle className="text-sm text-red-400">
+            Annulation du compte {impact.accountNumber ? `#${impact.accountNumber}` : ""}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-[11px]">
           <div className="rounded-md border border-red-500/40 bg-red-500/10 p-2 text-red-400">
@@ -391,10 +442,42 @@ export function CancelAccountDialog({ accountId, clientId, accountStatus, open, 
               Ce compte est déjà résilié.
             </div>
           )}
+
+          {/* F26-10 — Résumé impact */}
+          <div className="rounded-md border border-border bg-muted/20 p-2 space-y-1">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Impact estimé</div>
+            {impact.loading ? (
+              <div className="text-muted-foreground">Analyse en cours…</div>
+            ) : (
+              <>
+                <div className="flex justify-between"><span className="text-muted-foreground">Services actifs à résilier</span><span className="font-medium">{impact.activeSubs}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">AutoPay</span><span className="font-medium">{impact.autopayOn ? "sera désactivé" : "déjà OFF"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Équipement à retourner</span><span className="font-medium">{impact.equipmentCount}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Solde impayé</span><span className={`font-medium ${impact.balanceDue > 0 ? "text-red-400" : ""}`}>{impact.balanceDue.toFixed(2)} $</span></div>
+                <div className="text-[10px] text-muted-foreground pt-1">Email bilingue envoyé au client · audit + note interne + activity log</div>
+              </>
+            )}
+          </div>
+
           <label className="block space-y-1">
-            <span className="text-muted-foreground">Motif de l'annulation <span className="text-red-400">*</span></span>
+            <span className="text-muted-foreground">Motif de l'annulation <span className="text-red-400">*</span> <span className="text-[10px]">(min 5 caractères)</span></span>
             <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex: déménagement hors zone" />
           </label>
+
+          {impact.balanceDue > 0 && (
+            <label className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-amber-300">
+              <input type="checkbox" checked={ackUnpaid} onChange={(e) => setAckUnpaid(e.target.checked)} className="mt-0.5" />
+              <span>Je confirme que le solde impayé de <strong>{impact.balanceDue.toFixed(2)} $</strong> reste dû après annulation (routage recouvrement si besoin).</span>
+            </label>
+          )}
+
+          {impact.equipmentCount > 0 && (
+            <label className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-amber-300">
+              <input type="checkbox" checked={ackEquipment} onChange={(e) => setAckEquipment(e.target.checked)} className="mt-0.5" />
+              <span>Je confirme la création automatique de <strong>{impact.equipmentCount}</strong> demande(s) de retour d'équipement.</span>
+            </label>
+          )}
+
           <label className="block space-y-1">
             <span className="text-muted-foreground">Tapez <strong>ANNULER</strong> pour confirmer</span>
             <input className={inputCls} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
@@ -402,11 +485,7 @@ export function CancelAccountDialog({ accountId, clientId, accountStatus, open, 
         </div>
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Fermer</button>
-          <button
-            onClick={submit}
-            disabled={saving || alreadyCancelled || !reason.trim() || confirm.trim().toUpperCase() !== "ANNULER"}
-            className={btnDanger}
-          >
+          <button onClick={submit} disabled={!canSubmit} className={btnDanger}>
             {saving ? "Annulation…" : "Annuler le compte"}
           </button>
         </DialogFooter>

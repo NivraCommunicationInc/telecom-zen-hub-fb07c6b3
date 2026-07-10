@@ -640,21 +640,119 @@ serve(async (req) => {
       }
 
       // ============================================================
+      // MODULE 26 — Annuler le compte
+      // Fixes appliqués : F26-1 ownership · F26-2 cascade via billing_customers ·
+      // F26-3 email bilingue · F26-4 motif min 5 · F26-5 AutoPay OFF · F26-6 idempotency ·
+      // F26-7 snapshot before/after · F26-8 garde solde impayé · F26-9 équipement à retourner ·
+      // F26-11 rôle restreint (admin/supervisor/billing_admin)
       case "cancel_account": {
+        // F26-11 — rôle restreint pour cette action destructrice
+        const CANCEL_ALLOWED = new Set(["admin", "supervisor", "billing_admin"]);
+        if (!isServiceRoleCaller && !roles.some((r) => CANCEL_ALLOWED.has(r))) {
+          await audit("cancel_account_denied", {
+            reason_code: "ROLE_NOT_ALLOWED",
+            account_id: body.account_id,
+            caller_roles: roles,
+          });
+          return json(403, { error: "Action réservée à admin / superviseur / billing_admin", code: "ROLE_NOT_ALLOWED" });
+        }
+
         const reason = (body.reason || "").trim();
+        const idempotencyKey = (body.idempotency_key || "").trim() || null;
+        const acknowledgeUnpaid = body.acknowledge_unpaid === true;
+        const acknowledgeEquipment = body.acknowledge_equipment === true;
+
         if (!body.account_id) return json(400, { error: "account_id requis" });
-        if (!reason) return json(400, { error: "Motif obligatoire" });
+        // F26-4 — motif min 5 caractères (parité Modules 20/24/25)
+        if (reason.length < 5) return json(400, { error: "Motif obligatoire (min 5 caractères)", code: "REASON_REQUIRED" });
+
+        // F26-6 — Idempotency : rejouer la même clé retourne le résultat original.
+        if (idempotencyKey) {
+          const { data: prior } = await admin
+            .from("admin_audit_log")
+            .select("id, details")
+            .eq("action", "account_ops.cancel_account")
+            .eq("target_id", client_user_id)
+            .contains("details", { idempotency_key: idempotencyKey })
+            .limit(1)
+            .maybeSingle();
+          if (prior) {
+            return json(200, {
+              ok: true,
+              idempotent: true,
+              account_id: body.account_id,
+              cancelled_subscriptions: (prior as any).details?.cancelled_subscriptions ?? 0,
+            });
+          }
+        }
 
         const { data: acct, error: acctErr } = await admin
           .from("accounts")
-          .select("id, status")
+          .select("id, status, client_id, account_number, balance_due, mrr, monthly_total")
           .eq("id", body.account_id)
           .maybeSingle();
         if (acctErr) return json(500, { error: acctErr.message });
         if (!acct) return json(404, { error: "Compte introuvable" });
-        if (acct.status === "cancelled") return json(409, { error: "Ce compte est déjà résilié" });
+
+        // F26-1 — Ownership cross-client
+        if ((acct as any).client_id !== client_user_id) {
+          await audit("cancel_account_denied", {
+            reason_code: "CROSS_CLIENT_TARGET",
+            account_id: body.account_id,
+            claimed_client_user_id: client_user_id,
+          });
+          return json(403, { error: "Compte non associé à ce client", code: "CROSS_CLIENT_TARGET" });
+        }
+
+        if (acct.status === "cancelled") return json(409, { error: "Ce compte est déjà résilié", code: "ALREADY_CANCELLED" });
+
+        // F26-8 — garde solde impayé : force acknowledgment explicite si balance_due > 0
+        const balanceDue = Number((acct as any).balance_due ?? 0);
+        if (balanceDue > 0 && !acknowledgeUnpaid) {
+          return json(400, {
+            error: `Solde impayé de ${balanceDue.toFixed(2)} $ — confirmez que la dette reste due (acknowledge_unpaid=true) ou routez vers Recouvrement.`,
+            code: "UNPAID_BALANCE_ACK_REQUIRED",
+            balance_due: balanceDue,
+          });
+        }
+
+        // F26-2 — résoudre billing_customers.id (customer_id canonique) à partir du user_id.
+        const { data: billingCust } = await admin
+          .from("billing_customers")
+          .select("id, autopay_enabled, autopay_discount_active")
+          .eq("user_id", client_user_id)
+          .maybeSingle();
+        const customerId = billingCust?.id ?? null;
+
+        // Snapshot BEFORE (F26-7)
+        let subsBefore: any[] = [];
+        if (customerId) {
+          const { data } = await admin
+            .from("billing_subscriptions")
+            .select("id, status, plan_name")
+            .eq("customer_id", customerId);
+          subsBefore = data ?? [];
+        }
+
+        // F26-9 — équipement encore attribué : forcer acknowledgment
+        const { data: equipAssigned } = await admin
+          .from("equipment_inventory")
+          .select("id, category, serial_number")
+          .eq("account_id", body.account_id)
+          .in("status", ["assigned", "deployed", "active"]);
+        const equipmentCount = equipAssigned?.length ?? 0;
+        if (equipmentCount > 0 && !acknowledgeEquipment) {
+          return json(400, {
+            error: `${equipmentCount} équipement(s) encore attribué(s) — confirmez la création des retours (acknowledge_equipment=true).`,
+            code: "EQUIPMENT_RETURN_ACK_REQUIRED",
+            equipment_count: equipmentCount,
+          });
+        }
 
         const nowIso = new Date().toISOString();
+        const previousStatus = acct.status;
+
+        // ---- Mutation principale ---------------------------------------
         const { error: upErr } = await admin.from("accounts").update({
           status: "cancelled",
           cancelled_at: nowIso,
@@ -663,29 +761,91 @@ serve(async (req) => {
         }).eq("id", body.account_id);
         if (upErr) return json(500, { error: upErr.message });
 
-        // Cascade: cancel every non-terminal subscription. Include pending/paused states so QA-provisioned
-        // or trigger-normalized rows don't slip through. Terminal states (cancelled/terminated/expired/refunded)
-        // are excluded to keep this idempotent.
-        // Enum billing_subscription_status: active | pending | suspended | cancelled | expired | not_renewed.
-        // Cascade all non-terminal states; leave cancelled/expired/not_renewed alone.
+        // F26-2 — cascade réelle sur customer_id canonique
         const NON_TERMINAL_STATES = ["active", "pending", "suspended"];
         let cancelledSubs = 0;
-        try {
-          const { data: subs, error: subErr } = await admin
-            .from("billing_subscriptions")
-            .update({ status: "cancelled", updated_at: nowIso })
-            .eq("customer_id", client_user_id)
-            .in("status", NON_TERMINAL_STATES)
-            .select("id");
-          if (subErr) console.error("cancel_account subs update", subErr);
-          cancelledSubs = subs?.length ?? 0;
-        } catch (e) { console.error("cancel_account subs exception", e); }
+        let subsAfter: any[] = [];
+        if (customerId) {
+          try {
+            const { data: subs, error: subErr } = await admin
+              .from("billing_subscriptions")
+              .update({ status: "cancelled", updated_at: nowIso })
+              .eq("customer_id", customerId)
+              .in("status", NON_TERMINAL_STATES)
+              .select("id, plan_name");
+            if (subErr) console.error("cancel_account subs update", subErr);
+            cancelledSubs = subs?.length ?? 0;
+            subsAfter = subs ?? [];
+          } catch (e) { console.error("cancel_account subs exception", e); }
+        }
 
+        // F26-5 — désactivation AutoPay + neutralisation de la remise
+        let autopayDisabled = false;
+        if (customerId && (billingCust?.autopay_enabled || billingCust?.autopay_discount_active)) {
+          try {
+            const { error: apErr } = await admin
+              .from("billing_customers")
+              .update({
+                autopay_enabled: false,
+                autopay_discount_active: false,
+                updated_at: nowIso,
+              })
+              .eq("id", customerId);
+            if (apErr) console.error("cancel_account autopay off", apErr);
+            else autopayDisabled = true;
+          } catch (e) { console.error("cancel_account autopay exception", e); }
+        }
+
+        // F26-9 — créer une demande de retour par équipement encore attribué
+        let equipmentReturnRequests = 0;
+        if (equipmentCount > 0) {
+          try {
+            const rows = (equipAssigned ?? []).map((eq: any) => ({
+              account_id: body.account_id,
+              equipment_inventory_id: eq.id,
+              client_user_id,
+              reason: "account_cancelled",
+              reason_detail: `Annulation compte — motif: ${reason}`,
+              status: "requested",
+              requested_at: nowIso,
+            }));
+            const { data: retIns, error: retErr } = await admin
+              .from("equipment_return_requests")
+              .insert(rows)
+              .select("id");
+            if (retErr) console.error("cancel_account equipment returns", retErr);
+            else equipmentReturnRequests = retIns?.length ?? 0;
+          } catch (e) { console.error("cancel_account equipment exception", e); }
+        }
+
+        // F26-7 — audit snapshot before/after complet
         await audit("cancel_account", {
           account_id: body.account_id,
+          account_number: (acct as any).account_number ?? null,
           reason,
-          previous_status: acct.status,
+          idempotency_key: idempotencyKey,
+          previous_status: previousStatus,
+          new_status: "cancelled",
+          before_state: {
+            status: previousStatus,
+            balance_due: balanceDue,
+            mrr: (acct as any).mrr ?? null,
+            subscriptions: subsBefore,
+            autopay_enabled: billingCust?.autopay_enabled ?? false,
+            equipment_assigned: equipmentCount,
+          },
+          after_state: {
+            status: "cancelled",
+            cancelled_at: nowIso,
+            cancelled_subscriptions: subsAfter,
+            autopay_disabled: autopayDisabled,
+            equipment_return_requests: equipmentReturnRequests,
+          },
           cancelled_subscriptions: cancelledSubs,
+          autopay_disabled: autopayDisabled,
+          equipment_return_requests: equipmentReturnRequests,
+          unpaid_balance_acknowledged: balanceDue > 0 ? acknowledgeUnpaid : null,
+          equipment_acknowledged: equipmentCount > 0 ? acknowledgeEquipment : null,
         });
 
         try {
@@ -697,8 +857,15 @@ serve(async (req) => {
             action_type: "account_cancel",
             entity_type: "account",
             entity_id: body.account_id,
-            summary: `Compte annulé — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}`,
-            after_data: { reason, cancelled_subscriptions: cancelledSubs },
+            summary: `Compte annulé — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement` : ""}`,
+            before_data: { status: previousStatus, balance_due: balanceDue, subscriptions: subsBefore.length },
+            after_data: {
+              status: "cancelled",
+              reason,
+              cancelled_subscriptions: cancelledSubs,
+              autopay_disabled: autopayDisabled,
+              equipment_return_requests: equipmentReturnRequests,
+            },
           });
         } catch (_e) { /* swallow */ }
 
@@ -707,14 +874,31 @@ serve(async (req) => {
             client_id: client_user_id,
             account_id: body.account_id,
             note_type: "system",
-            body: `Compte annulé — par ${user.email || callerName} — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}`,
+            body: `Compte annulé — par ${user.email || callerName} — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement demandé(s)` : ""}${balanceDue > 0 ? ` — Solde impayé ${balanceDue.toFixed(2)} $ reste dû` : ""}`,
             created_by_user_id: user.id,
             created_by_role: callerRole,
             created_by_name: callerName,
           });
         } catch (_e) { /* swallow */ }
 
-        return json(200, { ok: true, account_id: body.account_id, cancelled_subscriptions: cancelledSubs });
+        // F26-3 — email bilingue via email_queue
+        await enqueueEmail("client_account_cancelled", {
+          account_number: (acct as any).account_number ?? null,
+          cancelled_at_display: fmtDateTime(nowIso),
+          reason,
+          balance_due: balanceDue,
+          cancelled_subscriptions: cancelledSubs,
+          equipment_return_requests: equipmentReturnRequests,
+        });
+
+        return json(200, {
+          ok: true,
+          account_id: body.account_id,
+          cancelled_subscriptions: cancelledSubs,
+          autopay_disabled: autopayDisabled,
+          equipment_return_requests: equipmentReturnRequests,
+          balance_due: balanceDue,
+        });
       }
 
 
@@ -752,6 +936,7 @@ serve(async (req) => {
 
         // Cascade: resume suspended subs (default true) and/or reactivate cancelled subs (opt-in).
         // Enum billing_subscription_status: active | pending | suspended | cancelled | expired | not_renewed.
+        // F26-2 sibling — resolve billing_customers.id first (customer_id canonique).
         const resumeSuspended = body.resume_suspended !== false;
         const reactivateCancelled = body.reactivate_cancelled === true;
         const targetStates: string[] = [];
@@ -761,14 +946,21 @@ serve(async (req) => {
         let reactivatedSubs = 0;
         if (targetStates.length > 0) {
           try {
-            const { data: subs, error: subErr } = await admin
-              .from("billing_subscriptions")
-              .update({ status: "active", updated_at: nowIso })
-              .eq("customer_id", client_user_id)
-              .in("status", targetStates)
-              .select("id");
-            if (subErr) console.error("reactivate_account subs update", subErr);
-            reactivatedSubs = subs?.length ?? 0;
+            const { data: bc } = await admin
+              .from("billing_customers")
+              .select("id")
+              .eq("user_id", client_user_id)
+              .maybeSingle();
+            if (bc?.id) {
+              const { data: subs, error: subErr } = await admin
+                .from("billing_subscriptions")
+                .update({ status: "active", updated_at: nowIso })
+                .eq("customer_id", bc.id)
+                .in("status", targetStates)
+                .select("id");
+              if (subErr) console.error("reactivate_account subs update", subErr);
+              reactivatedSubs = subs?.length ?? 0;
+            }
           } catch (e) { console.error("reactivate_account subs exception", e); }
         }
 

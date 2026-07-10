@@ -494,6 +494,49 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // MODULE 26 — Annulation du compte
+    // ===================================================================
+    case "client_account_cancelled": {
+      const cancelledAt = esc(v.cancelled_at_display || "");
+      const reason = esc(v.reason || "");
+      const balanceDue = Number(v.balance_due ?? 0);
+      const cancelledSubs = Number(v.cancelled_subscriptions ?? 0);
+      const equipReturns = Number(v.equipment_return_requests ?? 0);
+      const subject = isEn
+        ? "Your account has been cancelled — Nivra Telecom"
+        : "Votre compte a été résilié — Nivra Telecom";
+      const cardRows: [string, string][] = [];
+      if (accountNum) cardRows.push([isEn ? "Account" : "Compte", `#${String(accountNum).replace(/^#/, "")}`]);
+      if (cancelledAt) cardRows.push([isEn ? "Cancelled on" : "Résilié le", cancelledAt]);
+      if (reason) cardRows.push([isEn ? "Reason" : "Motif", reason]);
+      if (cancelledSubs > 0) cardRows.push([isEn ? "Services stopped" : "Services résiliés", String(cancelledSubs)]);
+      if (equipReturns > 0) cardRows.push([isEn ? "Equipment to return" : "Équipement à retourner", String(equipReturns)]);
+      if (balanceDue > 0) cardRows.push([isEn ? "Outstanding balance" : "Solde impayé", `${balanceDue.toFixed(2)} $`]);
+      const bodyText = isEn
+        ? `Your Nivra Telecom account has been cancelled. All recurring services and AutoPay have been stopped.${balanceDue > 0 ? ` An outstanding balance of ${balanceDue.toFixed(2)} $ remains due — please settle it with our billing team.` : ""}${equipReturns > 0 ? ` A return request has been created for the equipment still assigned to your account; return instructions will follow separately.` : ""}`
+        : `Votre compte Nivra Telecom a été résilié. Tous les services récurrents et l'AutoPay ont été arrêtés.${balanceDue > 0 ? ` Un solde impayé de ${balanceDue.toFixed(2)} $ reste dû — merci de régulariser avec notre équipe facturation.` : ""}${equipReturns > 0 ? ` Une demande de retour a été créée pour les équipements encore attribués à votre compte ; les instructions vous seront envoyées séparément.` : ""}`;
+      return {
+        subject,
+        html: shell({
+          preheader: isEn ? "Your account has been cancelled." : "Votre compte a été résilié.",
+          badge: isEn ? "ACCOUNT CANCELLED" : "COMPTE RÉSILIÉ",
+          heroTitle: isEn ? "Your account has been cancelled" : "Votre compte a été résilié",
+          heroSub: cancelledAt ? (isEn ? `On ${cancelledAt}` : `Le ${cancelledAt}`) : "",
+          icon: "info",
+          greeting,
+          bodyText,
+          cardTitle: isEn ? "Cancellation details" : "Détails de la résiliation",
+          cardRows,
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: isEn ? "Open my portal" : "Ouvrir mon portail",
+          helpHtml: isEn
+            ? `Questions? Write to <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Questions ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // ORDERS
     // ===================================================================
     case "order_submitted":
