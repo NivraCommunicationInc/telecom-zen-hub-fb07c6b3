@@ -309,6 +309,17 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         />
       )}
 
+      {accountId && clientId && (
+        <ReviewDiscountModule
+          open={reviewDiscountOpen}
+          onClose={() => setReviewDiscountOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
+        />
+      )}
+
 
 
       <PauseAccountDialog
