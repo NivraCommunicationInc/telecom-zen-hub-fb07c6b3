@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { toast } from "sonner";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { X, Send, Loader2 } from "lucide-react";
 
 interface Props {
