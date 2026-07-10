@@ -112,12 +112,13 @@ Deno.serve(async (req) => {
   // Provision fixtures: 2 client accounts + 1 no-role staff user
   // -------------------------------------------------------------------
   const upsertUser = async (email: string, meta: Record<string, unknown>) => {
-    const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const existing = list?.users?.find((u) => u.email?.toLowerCase() === email);
     const password = `Qa25!${crypto.randomUUID()}`;
-    if (existing) {
-      await admin.auth.admin.updateUserById(existing.id, { password });
-      return { id: existing.id, password, reused: true };
+    // Look up existing user via profiles (listUsers only returns 200 per page).
+    const { data: existingProfile } = await admin
+      .from("profiles").select("user_id").eq("email", email).maybeSingle();
+    if (existingProfile?.user_id) {
+      await admin.auth.admin.updateUserById(existingProfile.user_id, { password });
+      return { id: existingProfile.user_id, password, reused: true };
     }
     const { data: nu, error: cerr } = await admin.auth.admin.createUser({
       email, password, email_confirm: true, user_metadata: meta,
