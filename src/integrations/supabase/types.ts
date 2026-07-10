@@ -31779,6 +31779,7 @@ export type Database = {
         Returns: Json
       }
       qa_purge_consent_records: { Args: { p_ids: string[] }; Returns: number }
+      qa_purge_privacy_requests: { Args: { p_ids: string[] }; Returns: number }
       queue_email: {
         Args: {
           p_event_key: string
