@@ -405,6 +405,12 @@ serve(async (req) => {
   try {
     switch (action) {
       case "send_password_reset": {
+        // Anti-enum: if the target does not exist, return the generic message
+        // without attempting to generate a link (which would leak existence).
+        if (!targetId) {
+          await auditDenied(action, "TARGET_NOT_FOUND", "Utilisateur introuvable", { target_email: targetEmail });
+          return json(200, { success: true, message: GENERIC_TARGET_MSG });
+        }
         const link = await genRecoveryLink(targetEmail!);
         await queueEmail("client_password_reset", targetEmail!, {
           reset_link: link,
