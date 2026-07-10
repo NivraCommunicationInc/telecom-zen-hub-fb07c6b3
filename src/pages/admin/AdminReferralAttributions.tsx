@@ -151,7 +151,7 @@ const AdminReferralAttributions = () => {
       // F33-1/F33-14 — All writes on referral_attributions AND commission_ledger_entries
       // are consolidated in the server-side Edge Function. The unique index on
       // (attribution_id, type) guarantees no double commission on approve→reject→approve.
-      const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+      const { error } = await adminClient.functions.invoke("admin-referrals-manage", {
         body: {
           action: "attribution.decide",
           attribution_id: attributionId,
