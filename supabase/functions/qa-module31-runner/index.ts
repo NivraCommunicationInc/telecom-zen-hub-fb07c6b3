@@ -553,7 +553,7 @@ Deno.serve(async (req) => {
     }).select("id").single();
 
     // trigger sync while payment_status=pending
-    await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
+    await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: serviceKey }, body: JSON.stringify({ internal: true,
       action: "sync_single", sale_id: capFso!.id }),
     }).then(r => r.text().then(t => console.log("[runner] fss:", r.status, t.slice(0,200)))).catch(e => console.log("[runner] fss ERR:", e.message));
     await new Promise((r) => setTimeout(r, 1200));
@@ -578,7 +578,7 @@ Deno.serve(async (req) => {
       await admin.from("field_sales_orders")
         .update({ payment_status: "confirmed", payment_reference: "QA-SQ-CAPTURED" })
         .eq("id", capFso!.id);
-      await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
+      await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: serviceKey }, body: JSON.stringify({ internal: true,
         action: "sync_single", sale_id: capFso!.id }),
       }).then(r => r.text().then(t => console.log("[runner] fss:", r.status, t.slice(0,200)))).catch(e => console.log("[runner] fss ERR:", e.message));
       await new Promise((r) => setTimeout(r, 1200));
@@ -598,7 +598,7 @@ Deno.serve(async (req) => {
 
     // C27: double webhook — re-invoke sync → no duplicate
     {
-      await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
+      await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: serviceKey }, body: JSON.stringify({ internal: true,
         action: "sync_single", sale_id: capFso!.id }),
       }).then(r => r.text().then(t => console.log("[runner] fss:", r.status, t.slice(0,200)))).catch(e => console.log("[runner] fss ERR:", e.message));
       await new Promise((r) => setTimeout(r, 1200));
