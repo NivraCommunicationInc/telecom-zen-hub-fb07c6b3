@@ -1141,43 +1141,64 @@ export function FraudLockDialog(props: Base) {
 /* 14. Journal consentements                                                   */
 /* -------------------------------------------------------------------------- */
 export function ConsentJournalDialog(props: Base) {
-  const [consentType, setConsentType] = useState("marketing_email");
-  const [status, setStatus] = useState<"granted" | "revoked" | "verified">("granted");
-  const [channel, setChannel] = useState("phone");
+  const [consentType, setConsentType] = useState<string>("marketing_email");
+  const [status, setStatus] = useState<"granted" | "denied" | "withdrawn" | "expired" | "pending">("granted");
+  const [channel, setChannel] = useState<string>("phone");
   const [proof, setProof] = useState("");
   const [notes, setNotes] = useState("");
+  const [consentTextVersion, setConsentTextVersion] = useState("v1");
   const [loading, setLoading] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
   const invalidate = useInvalidateClient(props.clientUserId);
+
+  // Reset idempotency key each time dialog opens; keep stable across retries within a session
+  useEffect(() => {
+    if (props.open) {
+      setIdempotencyKey(crypto.randomUUID());
+    }
+  }, [props.open]);
 
   async function submit() {
     if (!props.clientUserId) return toast.error("Client manquant");
     if (!proof.trim()) return toast.error("Preuve / référence obligatoire");
+    if (loading) return; // double-submit guard
     setLoading(true);
     try {
-      await writeCoreActivity({
-        clientUserId: props.clientUserId,
-        accountId: props.accountId,
-        action: "consent_journal_entry",
-        reason: notes || proof,
-        details: { consentType, status, channel, proof },
+      const res = await callCoreAction("consent-journal-action", {
+        subject_user_id: props.clientUserId,
+        account_id: props.accountId ?? null,
+        consent_type: consentType,
+        status,
+        channel,
+        idempotency_key: idempotencyKey,
+        consent_text_version: consentTextVersion || null,
+        proof_ref: proof.trim(),
+        notes: notes.trim() || null,
+      }, {
+        reason: notes.trim() || proof.trim() || "Journal consentement Loi 25",
+        successMessage: "Consentement journalisé",
+        errorMessage: "Échec journalisation consentement",
       });
-      toast.success("Consentement journalisé");
-      invalidate(); props.onRefresh?.(); props.onClose();
-    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
-    finally { setLoading(false); }
+      if (!res.ok) return; // toast already emitted by callCoreAction
+      invalidate();
+      props.onRefresh?.();
+      props.onClose();
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
+    <Dialog open={props.open} onOpenChange={(o) => !o && !loading && props.onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-blue-500" />Journal consentements</DialogTitle>
-          <DialogDescription>Ajouter une preuve vérifiable au dossier client.</DialogDescription>
+          <DialogDescription>Ajouter une preuve vérifiable au dossier client (Loi 25).</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">Audit Loi 25</Badge>
-            <Badge variant="outline">Avant / après</Badge>
+            <Badge variant="outline">Append-only</Badge>
             <Badge variant="outline">Raison obligatoire</Badge>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1187,9 +1208,17 @@ export function ConsentJournalDialog(props: Base) {
                 <SelectContent>
                   <SelectItem value="marketing_email">Marketing courriel</SelectItem>
                   <SelectItem value="marketing_sms">Marketing SMS</SelectItem>
-                  <SelectItem value="autopay">AutoPay</SelectItem>
-                  <SelectItem value="service_changes">Changements de service</SelectItem>
-                  <SelectItem value="privacy_request">Demande confidentialité</SelectItem>
+                  <SelectItem value="marketing_phone">Marketing téléphone</SelectItem>
+                  <SelectItem value="data_processing">Traitement des données</SelectItem>
+                  <SelectItem value="data_sharing_partners">Partage partenaires</SelectItem>
+                  <SelectItem value="cookies_analytics">Cookies analytiques</SelectItem>
+                  <SelectItem value="cookies_marketing">Cookies marketing</SelectItem>
+                  <SelectItem value="credit_check">Vérification crédit</SelectItem>
+                  <SelectItem value="identity_verification">Vérification identité</SelectItem>
+                  <SelectItem value="recording_calls">Enregistrement appels</SelectItem>
+                  <SelectItem value="biometrics">Biométrie</SelectItem>
+                  <SelectItem value="loi25_general">Loi 25 – général</SelectItem>
+                  <SelectItem value="other">Autre</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1198,28 +1227,40 @@ export function ConsentJournalDialog(props: Base) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="granted">Accordé</SelectItem>
-                  <SelectItem value="revoked">Révoqué</SelectItem>
-                  <SelectItem value="verified">Vérifié</SelectItem>
+                  <SelectItem value="denied">Refusé</SelectItem>
+                  <SelectItem value="withdrawn">Retiré</SelectItem>
+                  <SelectItem value="expired">Expiré</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <div><Label>Canal</Label>
-            <Select value={channel} onValueChange={setChannel}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="phone">Téléphone</SelectItem>
-                <SelectItem value="email">Courriel</SelectItem>
-                <SelectItem value="portal">Portail client</SelectItem>
-                <SelectItem value="in_person">En personne</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Canal</Label>
+              <Select value={channel} onValueChange={setChannel}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phone">Téléphone</SelectItem>
+                  <SelectItem value="email">Courriel</SelectItem>
+                  <SelectItem value="portal">Portail client</SelectItem>
+                  <SelectItem value="core">Core (agent)</SelectItem>
+                  <SelectItem value="field">Terrain</SelectItem>
+                  <SelectItem value="chatbot">Chatbot</SelectItem>
+                  <SelectItem value="public_form">Formulaire public</SelectItem>
+                  <SelectItem value="in_person">En personne</SelectItem>
+                  <SelectItem value="other">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Version du texte</Label>
+              <Input value={consentTextVersion} onChange={(e) => setConsentTextVersion(e.target.value)} placeholder="v1" maxLength={60} />
+            </div>
           </div>
-          <div><Label>Preuve / référence</Label><Input value={proof} onChange={(e) => setProof(e.target.value)} placeholder="Ticket, appel, courriel, IP, référence…" /></div>
-          <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+          <div><Label>Preuve / référence</Label><Input value={proof} onChange={(e) => setProof(e.target.value)} placeholder="Ticket, appel, courriel, référence…" maxLength={500} /></div>
+          <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} /></div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
+          <Button variant="ghost" onClick={props.onClose} disabled={loading}>Annuler</Button>
           <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Journaliser</Button>
         </DialogFooter>
       </DialogContent>
