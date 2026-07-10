@@ -4332,8 +4332,12 @@ export type Database = {
           account_id: string | null
           client_id: string
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
           doc_number: string | null
           doc_type: string
+          edge_function: string | null
           email_message_id: string | null
           email_sent: boolean
           email_sent_at: string | null
@@ -4342,7 +4346,10 @@ export type Database = {
           id: string
           idempotency_key: string
           metadata: Json | null
+          mime_type: string | null
           recipient_email: string | null
+          retention_until: string | null
+          sha256_hash: string | null
           storage_path: string
           updated_at: string
         }
@@ -4350,8 +4357,12 @@ export type Database = {
           account_id?: string | null
           client_id: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           doc_number?: string | null
           doc_type: string
+          edge_function?: string | null
           email_message_id?: string | null
           email_sent?: boolean
           email_sent_at?: string | null
@@ -4360,7 +4371,10 @@ export type Database = {
           id?: string
           idempotency_key: string
           metadata?: Json | null
+          mime_type?: string | null
           recipient_email?: string | null
+          retention_until?: string | null
+          sha256_hash?: string | null
           storage_path: string
           updated_at?: string
         }
@@ -4368,8 +4382,12 @@ export type Database = {
           account_id?: string | null
           client_id?: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           doc_number?: string | null
           doc_type?: string
+          edge_function?: string | null
           email_message_id?: string | null
           email_sent?: boolean
           email_sent_at?: string | null
@@ -4378,7 +4396,10 @@ export type Database = {
           id?: string
           idempotency_key?: string
           metadata?: Json | null
+          mime_type?: string | null
           recipient_email?: string | null
+          retention_until?: string | null
+          sha256_hash?: string | null
           storage_path?: string
           updated_at?: string
         }
@@ -4630,28 +4651,55 @@ export type Database = {
       client_documents: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
           document_name: string
           document_type: string | null
           document_url: string
+          edge_function: string | null
+          file_size_bytes: number | null
           id: string
+          idempotency_key: string | null
+          mime_type: string | null
+          retention_until: string | null
+          sha256_hash: string | null
           uploaded_by: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           document_name: string
           document_type?: string | null
           document_url: string
+          edge_function?: string | null
+          file_size_bytes?: number | null
           id?: string
+          idempotency_key?: string | null
+          mime_type?: string | null
+          retention_until?: string | null
+          sha256_hash?: string | null
           uploaded_by: string
           user_id: string
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           document_name?: string
           document_type?: string | null
           document_url?: string
+          edge_function?: string | null
+          file_size_bytes?: number | null
           id?: string
+          idempotency_key?: string | null
+          mime_type?: string | null
+          retention_until?: string | null
+          sha256_hash?: string | null
           uploaded_by?: string
           user_id?: string
         }
@@ -7986,6 +8034,90 @@ export type Database = {
           raw_value?: string | null
           result?: string | null
           table_name?: string
+        }
+        Relationships: []
+      }
+      document_action_idempotency: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          expires_at: string
+          idempotency_key: string
+          request_hash: string
+          response: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          expires_at?: string
+          idempotency_key: string
+          request_hash: string
+          response?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          expires_at?: string
+          idempotency_key?: string
+          request_hash?: string
+          response?: Json | null
+        }
+        Relationships: []
+      }
+      document_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: string | null
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          document_id: string | null
+          document_table: string
+          edge_function: string | null
+          id: string
+          idempotency_key: string | null
+          ip_address: string | null
+          reason: string | null
+          target_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          document_id?: string | null
+          document_table: string
+          edge_function?: string | null
+          id?: string
+          idempotency_key?: string | null
+          ip_address?: string | null
+          reason?: string | null
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          document_id?: string | null
+          document_table?: string
+          edge_function?: string | null
+          id?: string
+          idempotency_key?: string | null
+          ip_address?: string | null
+          reason?: string | null
+          target_user_id?: string | null
+          user_agent?: string | null
         }
         Relationships: []
       }
@@ -11843,16 +11975,23 @@ export type Database = {
       hr_documents: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
           document_type: string
+          edge_function: string | null
           employee_id: string
           file_path: string
           file_size: number | null
           id: string
+          idempotency_key: string | null
           mime_type: string | null
           notes: string | null
+          retention_until: string | null
           review_note: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          sha256_hash: string | null
           status: string
           title: string
           updated_at: string
@@ -11860,16 +11999,23 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           document_type: string
+          edge_function?: string | null
           employee_id: string
           file_path: string
           file_size?: number | null
           id?: string
+          idempotency_key?: string | null
           mime_type?: string | null
           notes?: string | null
+          retention_until?: string | null
           review_note?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          sha256_hash?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -11877,16 +12023,23 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           document_type?: string
+          edge_function?: string | null
           employee_id?: string
           file_path?: string
           file_size?: number | null
           id?: string
+          idempotency_key?: string | null
           mime_type?: string | null
           notes?: string | null
+          retention_until?: string | null
           review_note?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          sha256_hash?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -17557,47 +17710,74 @@ export type Database = {
       order_documents: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
           doc_type: string
+          edge_function: string | null
           file_name: string | null
           file_size: number | null
+          file_size_bytes: number | null
           fulfillment_snapshot_id: string | null
           generated_at: string
           generated_by: string | null
           generated_by_role: string | null
           id: string
+          idempotency_key: string | null
+          mime_type: string | null
           order_id: string
           order_snapshot_id: string | null
           pdf_url: string | null
+          retention_until: string | null
+          sha256_hash: string | null
           version: number
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           doc_type: string
+          edge_function?: string | null
           file_name?: string | null
           file_size?: number | null
+          file_size_bytes?: number | null
           fulfillment_snapshot_id?: string | null
           generated_at?: string
           generated_by?: string | null
           generated_by_role?: string | null
           id?: string
+          idempotency_key?: string | null
+          mime_type?: string | null
           order_id: string
           order_snapshot_id?: string | null
           pdf_url?: string | null
+          retention_until?: string | null
+          sha256_hash?: string | null
           version?: number
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           doc_type?: string
+          edge_function?: string | null
           file_name?: string | null
           file_size?: number | null
+          file_size_bytes?: number | null
           fulfillment_snapshot_id?: string | null
           generated_at?: string
           generated_by?: string | null
           generated_by_role?: string | null
           id?: string
+          idempotency_key?: string | null
+          mime_type?: string | null
           order_id?: string
           order_snapshot_id?: string | null
           pdf_url?: string | null
+          retention_until?: string | null
+          sha256_hash?: string | null
           version?: number
         }
         Relationships: [
@@ -32024,6 +32204,31 @@ export type Database = {
           idempotent: boolean
           ticket_number: string
         }[]
+      }
+      rpc_document_register: {
+        Args: {
+          p_actor_id: string
+          p_actor_role: string
+          p_idempotency_key: string
+          p_ip: string
+          p_payload: Json
+          p_reason: string
+          p_table: string
+          p_ua: string
+        }
+        Returns: Json
+      }
+      rpc_document_soft_delete: {
+        Args: {
+          p_actor_id: string
+          p_actor_role: string
+          p_id: string
+          p_ip: string
+          p_reason: string
+          p_table: string
+          p_ua: string
+        }
+        Returns: Json
       }
       rpc_privacy_request_create: { Args: { p_payload: Json }; Returns: Json }
       rpc_privacy_request_update_status: {
