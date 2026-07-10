@@ -90,10 +90,17 @@ type TestCtx = {
 
 async function provision(db: SupabaseClient): Promise<TestCtx> {
   const mk = async (label: string) => {
+    const email = `qa-m32-${label.toLowerCase()}-${Date.now()}-${crypto.randomUUID().slice(0,8)}@qa.nivra.local`;
+    const password = `Qa32!${crypto.randomUUID()}`;
+    const { data: nu, error: eU } = await db.auth.admin.createUser({
+      email, password, email_confirm: true, user_metadata: { qa: "m32" },
+    });
+    if (eU || !nu?.user) throw new Error(`provision user ${label}: ${eU?.message}`);
+    const clientId = nu.user.id;
     const { data, error } = await db.from("accounts").insert({
       account_number: `${QA_PREFIX}${label}-${Date.now()}`,
       status: "active",
-      client_id: null,
+      client_id: clientId,
     }).select("id").single();
     if (error) throw new Error(`provision account ${label}: ${error.message}`);
     await db.from("loyalty_points").insert({
@@ -101,6 +108,7 @@ async function provision(db: SupabaseClient): Promise<TestCtx> {
     });
     return data.id as string;
   };
+
   const account_a = await mk("A");
   const account_b = await mk("B");
 
