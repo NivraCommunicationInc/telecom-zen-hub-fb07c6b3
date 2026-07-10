@@ -73,10 +73,14 @@ export default function ClientLoyalty() {
   useLoyaltyReferralRealtime(user?.id, () => { refetch(); });
 
   const handleRedeem = async () => {
-    if (!confirmReward || !points) return;
+    if (!confirmReward || !points || redeeming) return;
     setRedeeming(true);
+    // F32-2/3: idempotency_key obligatoire — empêche double-clic / retry réseau
+    const idem = `redeem-${points.account_id}-${confirmReward.id}-${crypto.randomUUID()}`;
     const { data, error } = await portalClient.rpc("redeem_loyalty_reward", {
-      p_account_id: points.account_id, p_reward_id: confirmReward.id,
+      p_account_id: points.account_id,
+      p_reward_id: confirmReward.id,
+      p_idempotency_key: idem,
     });
     setRedeeming(false);
     setConfirmReward(null);
