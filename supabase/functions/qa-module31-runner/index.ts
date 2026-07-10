@@ -759,11 +759,16 @@ Deno.serve(async (req) => {
       const { count: auditLeft } = await admin.from("admin_audit_log")
         .select("id", { count: "exact", head: true })
         .in("admin_user_id", callerIds).like("action", "order_new.%");
+      const { data: leftProfiles } = await admin.from("profiles")
+        .select("user_id").ilike("email", "qa-m31-%");
+      const leftUserIds = ((leftProfiles || []) as any[]).map((r) => r.user_id);
       const { count: ordersByClientLeft } = await admin.from("orders")
-        .select("id", { count: "exact", head: true }).in("user_id", clientIds);
+        .select("id", { count: "exact", head: true })
+        .in("user_id", leftUserIds.length ? leftUserIds : clientIds);
       const { count: ordersByPatternLeft } = await admin.from("orders")
         .select("id", { count: "exact", head: true }).ilike("order_number", "QA31-%");
       const ordersLeft = (ordersByClientLeft ?? 0) + (ordersByPatternLeft ?? 0);
+
       const { count: emailQaLeft } = await admin.from("email_queue")
         .select("id", { count: "exact", head: true }).ilike("to_email", "qa-m31-%");
       const total = (qLeft ?? 0) + fsoLeft + intentLeft + (auditLeft ?? 0) + ordersLeft + (emailQaLeft ?? 0);
