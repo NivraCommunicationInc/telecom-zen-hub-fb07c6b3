@@ -15564,7 +15564,10 @@ export type Database = {
           applied_at: string | null
           created_at: string
           id: string
+          idempotency_key: string | null
           points_spent: number
+          refund_tx_id: string | null
+          refunded_at: string | null
           reward_id: string
           status: string
         }
@@ -15573,7 +15576,10 @@ export type Database = {
           applied_at?: string | null
           created_at?: string
           id?: string
+          idempotency_key?: string | null
           points_spent: number
+          refund_tx_id?: string | null
+          refunded_at?: string | null
           reward_id: string
           status?: string
         }
@@ -15582,7 +15588,10 @@ export type Database = {
           applied_at?: string | null
           created_at?: string
           id?: string
+          idempotency_key?: string | null
           points_spent?: number
+          refund_tx_id?: string | null
+          refunded_at?: string | null
           reward_id?: string
           status?: string
         }
@@ -30099,6 +30108,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_loyalty_redemption_decide: {
+        Args: { p_decision: string; p_reason: string; p_redemption_id: string }
+        Returns: Json
+      }
       admin_loyalty_transfer: {
         Args: {
           p_from_account: string
@@ -30830,6 +30843,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      expire_loyalty_points: { Args: never; Returns: Json }
       expire_old_field_payment_intents: { Args: never; Returns: number }
       expire_stale_holds: { Args: never; Returns: number }
       extract_uuid_from_text: { Args: { p_text: string }; Returns: string }
@@ -31551,10 +31565,16 @@ export type Database = {
         }
         Returns: Json
       }
-      redeem_loyalty_reward: {
-        Args: { p_account_id: string; p_reward_id: string }
-        Returns: Json
-      }
+      redeem_loyalty_reward:
+        | { Args: { p_account_id: string; p_reward_id: string }; Returns: Json }
+        | {
+            Args: {
+              p_account_id: string
+              p_idempotency_key?: string
+              p_reward_id: string
+            }
+            Returns: Json
+          }
       refresh_customer_portal_snapshot: {
         Args: { _event_id?: string; _event_source?: string; _user_id: string }
         Returns: Json
