@@ -135,3 +135,45 @@
 ---
 
 **En attente feu vert pour appliquer F30-1 → F30-23.**
+
+---
+
+## 4. Static Fixes — F30-1 → F30-23 appliqués (2026-07-10)
+
+**Migration** : `mobile_addons_catalog` créée (source de vérité serveur pour les options mobiles). RLS admin-only sur écriture, lecture publique restreinte aux entrées actives.
+
+**Edge Function `mobile-account-actions`** — réécrite selon le patron M28/M29 :
+- F30-1 ownership stricte : profile → account → subscription (403 `CROSS_CLIENT_TARGET`)
+- F30-2 RBAC granulaire : `ROLES_TOPUP`, `ROLES_ADDON`, `ROLES_SIM_STD`, `ROLES_SIM_CRITICAL` (suspend_stolen / replace_sim ⇒ admin/super_admin/supervisor/techops uniquement)
+- F30-3 add-ons résolus depuis `mobile_addons_catalog` (catalog_id ou addon_code) — plus jamais dictés par le frontend
+- F30-4 lectures scopées `(user_id, account_id)` côté UI ET EF
+- F30-5 `payment_reference` généré serveur (`serverRef("TOP")`) sauf `manual`/`cash` où une référence agent sanitisée est acceptée
+- F30-6 anti-flood 20 mobile.* / 60 s (audit log)
+- F30-7 idempotency replay 5 min via `admin_audit_log.details.idempotency_key`
+- F30-8 motifs obligatoires : ≥5 chars std, ≥10 chars critiques
+- F30-9 `metadata.simulated = true` sur toutes les actions
+- F30-10 alertes `mobile_addon_billing_sync_pending` levées pour tout addon récurrent
+- F30-11 `sim_action` : `subscription_id` obligatoire + fulfillment résolu strictement
+- F30-12 machine à états SIM (suspend/reactivate/replace) dérivée de la dernière `sim_actions.status='completed'`
+- F30-13 `remove_addon` valide `account_id` scope
+- F30-14 PayPal retiré (`ALLOWED_PAYMENT_METHODS` = manual/cash/interac/credit_card/debit_card/square/adjustment)
+- F30-15 regex MSISDN + ICCID + cap montant (500 $) + cap addon (200 $/mois) + whitelist devises
+- F30-16 codes normalisés (`UNAUTHORIZED`, `FORBIDDEN_ROLE`, `CROSS_CLIENT_TARGET`, `RATE_LIMIT`, `REASON_REQUIRED`, `INVALID_STATE`, `AMOUNT_EXCEEDED`, `UNKNOWN_ADDON`, `ADDON_ALREADY_ACTIVE`, `INVALID_PAYMENT_METHOD`, `NOT_FOUND`, `DB_ERROR`, `INTERNAL_ERROR`)
+- F30-17 `actor_role` réel via `checkStaffAuth().callerRole`
+- F30-18 `admin_audit_log.details.severity` = `critical` pour SIM criticals
+- F30-19 échec audit/activity/notes/email ⇒ `billing_system_alerts` (`mobile_audit_write_failed`, `mobile_activity_write_failed`, `mobile_note_write_failed`, `mobile_email_enqueue_failed`, `mobile_fulfillment_sync_failed`)
+- F30-20 catalogue serveur (couvre F30-3)
+- F30-21 emails lisent `client_email_preferences.preferred_language`
+- F30-22 `SIM_ACTION_LABELS` canonique (UI mirroir)
+- F30-23 header documente `block_roaming` vs `block_international`
+
+**Frontend `MobileServiceActionsDialog.tsx`** :
+- Aucune écriture directe — toutes les mutations passent par l'EF canonique
+- Add-ons lus depuis `mobile_addons_catalog` (dropdown), plus aucune saisie de prix libre
+- Lectures `mobile_addons` scopées par `account_id`
+- PayPal retiré du sélecteur méthode de paiement
+- Motifs obligatoires côté UI (miroir des règles serveur 5/10)
+- Idempotency keys stables par intention (`topup:*`, `addon-add:*`, `addon-remove:*`, `sim:*`)
+- Bouton SIM désactivé sans `subscription_id`
+
+**Statut** : STATIC FIXES DÉPLOYÉS ✅ — en attente feu vert pour lancer l'E2E QA du Module 30.
