@@ -52,7 +52,7 @@ const MODEM_ACTIONS: Array<{ value: string; label: string; danger?: boolean }> =
   { value: "reactivate",     label: "Réactiver le modem" },
 ];
 
-const LINK_STATUSES = ["up", "degraded", "down", "unstable"] as const;
+const LINK_STATUSES = ["ok", "degraded", "down"] as const;
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
