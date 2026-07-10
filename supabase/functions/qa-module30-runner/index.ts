@@ -27,6 +27,10 @@ Deno.serve(async (req) => {
   const push = (c: Check) => checks.push(c);
 
   const callEF = async (accessToken: string, payload: unknown) => {
+    // Space out nested invocations to stay under the platform trace-ingest rate limit
+    // (~30 nested EF invokes per parent invocation). Without this the runner aborts
+    // around C32-C33 with "Rate limit exceeded for trace".
+    await new Promise((res) => setTimeout(res, 900));
     const r = await fetch(`${url}/functions/v1/mobile-account-actions`, {
       method: "POST",
       headers: {
