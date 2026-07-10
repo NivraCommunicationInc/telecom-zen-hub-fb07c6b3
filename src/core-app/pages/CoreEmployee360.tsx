@@ -573,18 +573,23 @@ function DocumentsTab({ empId }: { empId: string }) {
         contentType: file.type, upsert: false,
       });
       if (upErr) throw upErr;
-      const { error: insErr } = await supabase.from("hr_documents").insert({
-        employee_id: empId,
-        document_type: docType,
-        title: file.name,
-        file_path: path,
-        file_size: file.size,
-        mime_type: file.type,
-        uploaded_by: user?.id,
-        notes: notes || null,
-        status: "active",
+      const { callDocumentAction } = await import("@/lib/callDocumentAction");
+      const r = await callDocumentAction({
+        action: "register",
+        table: "hr_documents",
+        reason: `Ajout document RH (${docType}) par Core`,
+        payload: {
+          employee_id: empId,
+          document_type: docType,
+          title: file.name,
+          file_path: path,
+          file_size: file.size,
+          mime_type: file.type,
+          notes: notes || null,
+          status: "active",
+        },
       });
-      if (insErr) throw insErr;
+      if (!r.ok) throw new Error(r.error ?? "register_failed");
       toast.success("Document ajouté");
       setUploadOpen(false); setFile(null); setNotes(""); setDocType("other");
       qc.invalidateQueries({ queryKey: ["e360-docs", empId] });
