@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
 
     const frozen = (name: string, code: string, price: number) => ({
       frozen_name: name, frozen_code: code, frozen_unit_price: price,
-      frozen_currency: "CAD", frozen_cycle: "monthly", frozen_frequency: 1,
+      frozen_currency: "CAD", frozen_cycle: "monthly", frozen_frequency: "monthly",
       frozen_anchor_date: nowIso.slice(0, 10),
     });
     const traceBase = { source_type: "qa_module26" };
