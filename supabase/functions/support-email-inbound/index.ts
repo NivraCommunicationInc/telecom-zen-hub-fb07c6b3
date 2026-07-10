@@ -8,6 +8,7 @@
  *   { from, from_name?, subject, text?, html?, message_id? }
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { createTicket, replyTicket, setTicketAiSchedule, type TicketActor } from "../_shared/ticketService.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
