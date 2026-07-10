@@ -5980,21 +5980,21 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const firstName = esc(v.first_name || clientName);
       const googleReviewUrl = String(v.google_review_url || "https://g.page/r/CXlAG2vT9CgoEAE/review");
       return {
-        subject: "Un immense merci — et un petit cadeau de 5 $ pour vous 💙",
+        subject: "🎁 5 $ de rabais pour vous — merci d'être avec Nivra",
         html: shell({
-          preheader: "Partagez votre expérience Nivra en 2 minutes et recevez 5 $ de rabais sur votre prochaine facture.",
-          badge: "MERCI D'ÊTRE AVEC NOUS",
-          heroTitle: "Votre voix fait grandir Nivra 💙",
+          preheader: "Partagez votre expérience en 2 minutes et obtenez 5 $ de rabais sur votre prochaine facture.",
+          badge: "🎁 RABAIS DE 5 $ INCLUS",
+          heroTitle: "Un cadeau de 5 $ pour votre prochaine facture 💙",
           icon: "star",
           greeting: `Bonjour ${firstName},`,
           bodyText:
             "Chez Nivra, chaque client compte vraiment — et vous en faites partie. Merci sincèrement de nous avoir choisis pour vous connecter au monde.<br/><br/>" +
-            "Notre mission, c'est d'offrir un service simple, humain et fiable aux Québécois. Et pour continuer de nous améliorer, votre avis vaut de l'or. En prenant <strong>moins de 2 minutes</strong> pour partager votre expérience sur Google, vous nous aidez à faire découvrir Nivra à d'autres familles d'ici.<br/><br/>" +
-            "Pour vous remercier de ce petit geste, on vous offre <strong>un rabais de 5 $ sur votre prochaine facture</strong> — notre façon de vous dire merci d'avoir pris le temps. ✨<br/><br/>" +
-            "Bonne ou perfectible, votre honnêteté est ce qui nous rend meilleurs. On a hâte de vous lire.",
+            "<div style=\"background:#f0f7ff;border-left:4px solid #0066CC;padding:16px 20px;border-radius:8px;margin:8px 0 20px;\"><strong style=\"color:#0066CC;font-size:17px;\">🎁 Notre cadeau : 5 $ de rabais sur votre prochaine facture</strong><br/><span style=\"color:#333;\">Laissez-nous un avis Google (moins de 2 minutes) et nous appliquons automatiquement <strong>5 $ de crédit</strong> sur votre prochaine facture Nivra.</span></div>" +
+            "Notre mission, c'est d'offrir un service simple, humain et fiable aux Québécois. Votre avis vaut de l'or : il aide d'autres familles d'ici à découvrir Nivra, et il nous pousse à nous améliorer chaque jour.<br/><br/>" +
+            "Bonne ou perfectible, votre honnêteté est ce qui nous rend meilleurs. On a hâte de vous lire ⭐",
           ctaPrimaryUrl: googleReviewUrl,
-          ctaPrimaryLabel: "⭐ Laisser mon avis Google (2 min)",
-          helpHtml: "<strong>Comment récupérer votre rabais de 5 $ :</strong> après avoir publié votre avis, répondez à ce courriel avec une capture d'écran. Nous appliquerons le crédit directement sur votre prochaine facture. Merci du fond du cœur — l'équipe Nivra 💙",
+          ctaPrimaryLabel: "⭐ Laisser mon avis + obtenir mon 5 $",
+          helpHtml: "<strong>Comment récupérer votre rabais de 5 $ :</strong> après avoir publié votre avis Google, répondez simplement à ce courriel avec une capture d'écran. Nous appliquons le crédit de 5 $ directement sur votre prochaine facture. Merci du fond du cœur — l'équipe Nivra 💙",
         }),
       };
     }
