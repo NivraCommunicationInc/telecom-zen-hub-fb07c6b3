@@ -325,21 +325,27 @@ serve(async (req) => {
   ) => {
     if (!body.client_user_id) return;
     try {
-      await admin.from("client_activity_logs").insert({
+      const { error } = await admin.from("client_activity_logs").insert({
         client_id: body.client_user_id,
+        actor_user_id: user.id,
+        actor_name: callerName ?? callerProfile?.email ?? "system",
+        actor_role: primaryRole,
         action_type,
         entity_id,
         entity_type,
         summary,
-        performed_by: user.id,
-        after_data: after,
-        metadata: { module_tag: "module31_new_order", actor_role: primaryRole,
-                    simulated: !!body.simulated },
+        after_data: {
+          ...(after ?? {}),
+          module_tag: "module31_new_order",
+          simulated: !!body.simulated,
+        },
       });
+      if (error) await raiseAlert("order_new_activity_failed", { action_type, error: error.message });
     } catch (e) {
       await raiseAlert("order_new_activity_failed", { action_type, error: String(e) });
     }
   };
+
 
   const clientInternalNote = async (title: string, content: string, tag: string) => {
     if (!body.client_user_id) return;
