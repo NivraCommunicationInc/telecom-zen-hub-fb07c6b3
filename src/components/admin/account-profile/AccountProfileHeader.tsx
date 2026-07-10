@@ -27,6 +27,7 @@ import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { adminClient as supabase } from "@/integrations/backend";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -143,18 +144,18 @@ export function AccountProfileHeader({
     if (!ticketSubject.trim()) return;
     setSaving(true);
     try {
-      const ticketNumber = `NVR-${String(Date.now()).slice(-6)}`;
-      const { error } = await supabase.from("support_tickets").insert({
-        client_id: clientId,
+      const res = await callSupportAction("create_ticket", {
+        owner_user_id: account?.owner_user_id ?? profile?.user_id ?? null,
+        account_id: account?.id ?? null,
+        client_email: profile?.email ?? null,
+        client_name: profile?.full_name ?? null,
         subject: ticketSubject.trim(),
         description: ticketDesc.trim() || null,
         priority: ticketPriority,
-        status: "open",
-        ticket_number: ticketNumber,
-        created_by: user?.id || null,
+        source: "core",
+        idempotency_key: `core-header-${clientId}-${Date.now()}`,
       });
-      if (error) throw error;
-      toast.success(`Ticket ${ticketNumber} créé`);
+      toast.success(`Ticket ${res.ticket_number ?? ""} créé`);
       setTicketSubject("");
       setTicketDesc("");
       setTicketOpen(false);
