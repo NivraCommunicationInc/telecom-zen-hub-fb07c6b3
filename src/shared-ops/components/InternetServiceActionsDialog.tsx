@@ -78,6 +78,7 @@ export function InternetServiceActionsDialog({
   const [planPrice, setPlanPrice] = useState("");
   const [planSpeed, setPlanSpeed] = useState("");
   const [planChangeType, setPlanChangeType] = useState<"upgrade" | "downgrade" | "lateral">("upgrade");
+  const [planReason, setPlanReason] = useState(""); // F28-1 / F27 motif
 
   // Modem
   const [modemAction, setModemAction] = useState("");
@@ -109,14 +110,26 @@ export function InternetServiceActionsDialog({
   const [ipReason, setIpReason] = useState("");
   const [activeIp, setActiveIp] = useState<StaticIp | null>(null);
 
+  // F28-15 — stable idempotency keys per dialog open
+  const [idemPlan, setIdemPlan] = useState("");
+  const [idemModem, setIdemModem] = useState("");
+  const [idemDiag, setIdemDiag] = useState("");
+  const [idemWifi, setIdemWifi] = useState("");
+  const [idemIp, setIdemIp] = useState("");
+
   useEffect(() => {
     if (!open) return;
     setTab("plan");
-    setPlanName(""); setPlanPrice(""); setPlanSpeed(""); setPlanChangeType("upgrade");
+    setPlanName(""); setPlanPrice(""); setPlanSpeed(""); setPlanChangeType("upgrade"); setPlanReason("");
     setModemAction(""); setModemSerial(""); setModemMac(""); setModemReason("");
     setDiagType("full"); setLinkStatus("ok"); setDownload(""); setUpload("");
     setLatency(""); setLoss(""); setDiagNotes("");
     setIpAddr(""); setIpPrice("9.99"); setIpReason(""); setIpMode("assign");
+    setIdemPlan(`inetplan-${crypto.randomUUID()}`);
+    setIdemModem(`inetmodem-${crypto.randomUUID()}`);
+    setIdemDiag(`inetdiag-${crypto.randomUUID()}`);
+    setIdemWifi(`inetwifi-${crypto.randomUUID()}`);
+    setIdemIp(`inetip-${crypto.randomUUID()}`);
   }, [open]);
 
   // Load WiFi current
