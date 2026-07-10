@@ -3928,6 +3928,7 @@ export type Database = {
       }
       channel_selections: {
         Row: {
+          account_id: string | null
           channels: Json
           confirmed_at: string | null
           confirmed_by: string | null
@@ -3942,6 +3943,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           channels?: Json
           confirmed_at?: string | null
           confirmed_by?: string | null
@@ -3956,6 +3958,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_id?: string | null
           channels?: Json
           confirmed_at?: string | null
           confirmed_by?: string | null
