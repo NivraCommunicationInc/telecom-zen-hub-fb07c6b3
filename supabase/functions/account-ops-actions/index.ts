@@ -115,8 +115,12 @@ serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { isStaff, callerRole } = await checkStaffAuth(admin, user.id);
+  const { isStaff, callerRole, roles } = await checkStaffAuth(admin, user.id);
   if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
+  // F1 — Module 25: enforce the documented ALLOWED_ROLES matrix (was dead code).
+  if (!roles.some((r) => ALLOWED_ROLES.has(r))) {
+    return json(403, { error: "Rôle non autorisé pour cette action" });
+  }
 
   let body: Body;
   try { body = await req.json(); }
