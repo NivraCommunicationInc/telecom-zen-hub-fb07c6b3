@@ -583,14 +583,21 @@ const AdminClients = () => {
       if (!user) throw new Error("Not authenticated");
 
       const documentUrl = `document://${file.name}`;
-      const { error } = await supabase.from("client_documents").insert({
-        user_id: selectedClient.user_id,
-        uploaded_by: user.id,
-        document_name: file.name,
-        document_type: file.type.includes("pdf") ? "contract" : file.type.includes("image") ? "id" : "general",
-        document_url: documentUrl,
+      const { callDocumentAction } = await import("@/lib/callDocumentAction");
+      const r = await callDocumentAction({
+        action: "register",
+        table: "client_documents",
+        reason: "Téléversement document client (admin)",
+        payload: {
+          user_id: selectedClient.user_id,
+          document_name: file.name,
+          document_type: file.type.includes("pdf") ? "contract" : file.type.includes("image") ? "id" : "general",
+          document_url: documentUrl,
+          mime_type: file.type,
+          file_size_bytes: file.size,
+        },
       });
-      if (error) throw error;
+      if (!r.ok) throw new Error(r.error ?? "register_failed");
     },
     onSuccess: (_, file) => {
       refetchDocuments();
@@ -619,8 +626,14 @@ const AdminClients = () => {
 
   const deleteDocumentMutation = useMutation({
     mutationFn: async ({ docId, reason }: { docId: string; reason: string }) => {
-      const { error } = await supabase.from("client_documents").delete().eq("id", docId);
-      if (error) throw error;
+      const { callDocumentAction } = await import("@/lib/callDocumentAction");
+      const r = await callDocumentAction({
+        action: "soft_delete",
+        table: "client_documents",
+        document_id: docId,
+        reason: reason || "Suppression document (admin)",
+      });
+      if (!r.ok) throw new Error(r.error ?? "delete_failed");
       return reason;
     },
     onSuccess: (reason) => {

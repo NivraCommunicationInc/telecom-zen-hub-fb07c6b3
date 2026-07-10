@@ -1557,14 +1557,22 @@ const ClientMyServices = () => {
                     
                     if (uploadError) throw uploadError;
                     
-                    // Record in client_documents table
-                    await portalSupabase.from("client_documents").insert({
-                      user_id: user.id,
-                      uploaded_by: user.id,
-                      document_name: safeName,
-                      document_url: path,
-                      document_type: "general"
+                    // Record via canonical Edge Function (single door)
+                    const { callDocumentAction } = await import("@/lib/callDocumentAction");
+                    const r = await callDocumentAction({
+                      action: "register",
+                      table: "client_documents",
+                      reason: "Téléversement document client (portail)",
+                      payload: {
+                        user_id: user.id,
+                        document_name: safeName,
+                        document_url: path,
+                        document_type: "general",
+                        mime_type: file.type,
+                        file_size_bytes: file.size,
+                      },
                     });
+                    if (!r.ok) throw new Error(r.error ?? "register_failed");
                     
                     toast({ title: "Document téléversé", description: safeName });
                     queryClient.invalidateQueries({ queryKey: ["client-documents"] });
