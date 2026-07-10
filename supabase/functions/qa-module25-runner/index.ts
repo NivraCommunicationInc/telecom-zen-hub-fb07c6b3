@@ -46,8 +46,14 @@ Deno.serve(async (req) => {
   {
     const qaAdminEmail = "qa-module25-runner-admin@nivra-test.ca";
     const password = `Qa25!${crypto.randomUUID()}`;
-    const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    let qaAdmin = list?.users?.find((u) => u.email?.toLowerCase() === qaAdminEmail);
+    // Look up existing QA admin via profiles (auth.listUsers only paginates 200 at a time).
+    const { data: existingProfile } = await admin
+      .from("profiles").select("user_id").eq("email", qaAdminEmail).maybeSingle();
+    let qaAdmin: { id: string; email?: string | null } | null = null;
+    if (existingProfile?.user_id) {
+      const { data: got } = await admin.auth.admin.getUserById(existingProfile.user_id);
+      if (got?.user) qaAdmin = got.user;
+    }
     if (qaAdmin) {
       await admin.auth.admin.updateUserById(qaAdmin.id, { password });
     } else {
