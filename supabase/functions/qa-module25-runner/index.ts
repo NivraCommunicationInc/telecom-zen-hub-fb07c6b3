@@ -395,10 +395,11 @@ Deno.serve(async (req) => {
     });
     const { data: freeze } = await admin.from("service_change_requests").insert({
       account_id: accountA,
-      client_user_id: clientA,
+      client_id: clientA,
       change_type: "freeze_cycle",
       status: "active",
-      request_source: "qa_module25",
+      requested_plan_name: "QA-M25 freeze",
+      requested_by: clientA,
       notes: `${runTag} freeze M20`,
     }).select("id").single();
 
