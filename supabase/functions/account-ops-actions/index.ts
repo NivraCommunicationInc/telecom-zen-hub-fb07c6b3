@@ -838,7 +838,7 @@ serve(async (req) => {
           before_state: {
             status: previousStatus,
             balance_due: balanceDue,
-            mrr: (acct as any).mrr ?? null,
+            unpaid_invoices: subsBefore.length ? null : null,
             subscriptions: subsBefore,
             autopay_enabled: billingCust?.autopay_enabled ?? false,
             equipment_assigned: equipmentCount,
