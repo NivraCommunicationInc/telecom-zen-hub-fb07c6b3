@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
       }
 
       case "add_participant": {
-        if (!STAFF_ROLES.has(actor.role) && actor.role !== "admin" && actor.role !== "employee") {
+        if (actor.role !== "admin" && actor.role !== "employee" && actor.role !== "system" && actor.role !== "bot") {
           return json(403, { error: "staff_only" });
         }
         if (!body.ticket_id || !body.user_id) return json(400, { error: "ticket_id_and_user_id_required" });
@@ -182,6 +182,81 @@ Deno.serve(async (req) => {
           role: body.participant_role, can_reply: body.can_reply, can_reassign: body.can_reassign,
         });
         return json(200, { ok: true, participant_id: p.id });
+      }
+
+      case "assign_ticket": {
+        // Staff-only. Assigns / reassigns a ticket to an internal user.
+        if (!["admin", "employee", "system", "bot"].includes(actor.role)) {
+          return json(403, { error: "staff_only" });
+        }
+        if (!body.ticket_id) return json(400, { error: "ticket_id_required" });
+        const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (body.assigned_to_user_id !== undefined) update.assigned_to_user_id = body.assigned_to_user_id;
+        if (body.assigned_to !== undefined) update.assigned_to = body.assigned_to;
+        if (body.assigned_department !== undefined) update.assigned_department = body.assigned_department;
+        const { error: upErr } = await admin.from("support_tickets").update(update).eq("id", body.ticket_id);
+        if (upErr) return json(400, { error: upErr.message });
+        await admin.from("admin_audit_log").insert({
+          action: "ticket.assigned",
+          admin_user_id: actor.user_id,
+          target_id: body.ticket_id,
+          target_type: "support_ticket",
+          details: { role: actor.role, ...update, reason: body.reason ?? null },
+        }).then(() => undefined, () => undefined);
+        return json(200, { ok: true, ticket_id: body.ticket_id });
+      }
+
+      case "update_ticket_meta": {
+        // Staff-only. Update non-state metadata (priority/category/related_order/etc).
+        if (!["admin", "employee", "system", "bot"].includes(actor.role)) {
+          return json(403, { error: "staff_only" });
+        }
+        if (!body.ticket_id) return json(400, { error: "ticket_id_required" });
+        const allow = [
+          "priority", "category", "issue_type",
+          "related_order_id", "related_order_reference",
+          "requires_id_upload", "id_verification_status",
+          "cc_user_ids", "attachments", "internal_notes",
+          "tags", "route_to",
+        ];
+        const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        for (const k of allow) if (body[k] !== undefined) update[k] = body[k];
+        // "status" MUST go through transition_status — forbid here
+        if ("status" in body) {
+          return json(400, { error: "use_transition_status_for_status_changes" });
+        }
+        const { error: upErr } = await admin.from("support_tickets").update(update).eq("id", body.ticket_id);
+        if (upErr) return json(400, { error: upErr.message });
+        await admin.from("admin_audit_log").insert({
+          action: "ticket.meta_updated",
+          admin_user_id: actor.user_id,
+          target_id: body.ticket_id,
+          target_type: "support_ticket",
+          details: { role: actor.role, fields: Object.keys(update) },
+        }).then(() => undefined, () => undefined);
+        return json(200, { ok: true, ticket_id: body.ticket_id });
+      }
+
+      case "enqueue_ticket_notification": {
+        // Staff-only. Enqueue internal-participant notification emails.
+        if (!["admin", "employee", "system", "bot"].includes(actor.role)) {
+          return json(403, { error: "staff_only" });
+        }
+        const rows = Array.isArray(body.rows) ? body.rows : [];
+        if (rows.length === 0) return json(200, { ok: true, inserted: 0 });
+        const cleaned = rows.map((r: any) => ({
+          to_email: r.to_email,
+          template_key: r.template_key,
+          template_vars: r.template_vars ?? {},
+          dedupe_key: r.dedupe_key ?? r.event_key ?? null,
+          status: "queued",
+          priority: r.priority ?? 0,
+        }));
+        const { error: qErr } = await admin.from("email_queue").insert(cleaned);
+        if (qErr && !qErr.message?.includes("duplicate key")) {
+          return json(400, { error: qErr.message });
+        }
+        return json(200, { ok: true, inserted: cleaned.length });
       }
 
       default:
