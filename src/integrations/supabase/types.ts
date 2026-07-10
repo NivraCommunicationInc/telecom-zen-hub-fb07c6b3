@@ -21866,6 +21866,33 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_settings_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_row: Json | null
+          old_row: Json | null
+          operation: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_row?: Json | null
+          old_row?: Json | null
+          operation: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_row?: Json | null
+          old_row?: Json | null
+          operation?: string
+        }
+        Relationships: []
+      }
       replacement_internal_orders: {
         Row: {
           account_id: string | null
@@ -29891,6 +29918,16 @@ export type Database = {
         }
         Relationships: []
       }
+      v_referral_program_public: {
+        Row: {
+          cooldown_days: number | null
+          discount_percent_first_invoice_monthly: number | null
+          discount_stacks: boolean | null
+          min_cashout_amount: number | null
+          required_cycles: number | null
+        }
+        Relationships: []
+      }
       v_subscription_renewal_health: {
         Row: {
           customer_id: string | null
@@ -31651,6 +31688,17 @@ export type Database = {
         Returns: string
       }
       reveal_supplier_password: { Args: { p_id: string }; Returns: string }
+      rpc_referral_apply_action: {
+        Args: {
+          p_action: string
+          p_actor_id: string
+          p_event_key?: string
+          p_payload?: Json
+          p_reason?: string
+          p_referral_id: string
+        }
+        Returns: Json
+      }
       run_customer_portal_integrity_check: { Args: never; Returns: Json }
       run_subscription_renewals: {
         Args: { p_context?: Json; p_lookahead_days?: number }
