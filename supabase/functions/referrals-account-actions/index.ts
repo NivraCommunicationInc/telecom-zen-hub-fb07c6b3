@@ -277,11 +277,11 @@ serve(async (req) => {
         const reward_reference = (body.reward_reference || "").trim();
         if (!reward_reference) return json(400, { error: "Référence requise" });
 
-        // F33-8 — restreindre reward_type au contrat: points | credit | visa_mastercard_gift_card
-        const inputType = (body.reward_type || ref.reward_type || "visa_mastercard_gift_card").toLowerCase();
-        const allowedTypes = new Set(["points", "credit", "visa_mastercard_gift_card", "gift_card"]);
+        // F33-8 — RPC accepte uniquement points | credit
+        const inputType = (body.reward_type || "credit").toLowerCase();
+        const allowedTypes = new Set(["points", "credit"]);
         if (!allowedTypes.has(inputType)) {
-          return json(400, { error: `reward_type invalide: ${inputType}. Autorisé: points | credit | visa_mastercard_gift_card` });
+          return json(400, { error: `reward_type invalide: ${inputType}. Autorisé: points | credit` });
         }
         const reward_card_provider = (body.reward_card_provider || "").trim() || null;
         const reward_amount = Number.isFinite(body.reward_amount)
