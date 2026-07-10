@@ -20308,15 +20308,21 @@ export type Database = {
           created_at: string
           created_by: string | null
           created_by_email: string | null
+          created_by_role: string | null
           description: string
+          description_hash: string | null
           due_at: string
           id: string
+          idempotency_key: string | null
           internal_notes: string | null
           last_updated_by: string | null
           last_updated_by_email: string | null
           received_at: string
           refusal_reason: string | null
+          request_ip: unknown
           request_type: string
+          request_user_agent: string | null
+          state_transitions: Json
           status: string
           updated_at: string
         }
@@ -20327,15 +20333,21 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_email?: string | null
+          created_by_role?: string | null
           description: string
+          description_hash?: string | null
           due_at?: string
           id?: string
+          idempotency_key?: string | null
           internal_notes?: string | null
           last_updated_by?: string | null
           last_updated_by_email?: string | null
           received_at?: string
           refusal_reason?: string | null
+          request_ip?: unknown
           request_type: string
+          request_user_agent?: string | null
+          state_transitions?: Json
           status?: string
           updated_at?: string
         }
@@ -20346,15 +20358,21 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_email?: string | null
+          created_by_role?: string | null
           description?: string
+          description_hash?: string | null
           due_at?: string
           id?: string
+          idempotency_key?: string | null
           internal_notes?: string | null
           last_updated_by?: string | null
           last_updated_by_email?: string | null
           received_at?: string
           refusal_reason?: string | null
+          request_ip?: unknown
           request_type?: string
+          request_user_agent?: string | null
+          state_transitions?: Json
           status?: string
           updated_at?: string
         }
@@ -32005,6 +32023,11 @@ export type Database = {
           idempotent: boolean
           ticket_number: string
         }[]
+      }
+      rpc_privacy_request_create: { Args: { p_payload: Json }; Returns: Json }
+      rpc_privacy_request_update_status: {
+        Args: { p_payload: Json }
+        Returns: Json
       }
       rpc_referral_apply_action: {
         Args: {
