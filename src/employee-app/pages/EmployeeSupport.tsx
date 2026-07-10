@@ -58,8 +58,12 @@ export default function EmployeeSupport() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ ticketId, newStatus }: { ticketId: string; newStatus: string }) => {
-      const { error } = await supabase.from("support_tickets").update({ status: newStatus }).eq("id", ticketId);
-      if (error) throw error;
+      await callSupportAction("transition_status", {
+        ticket_id: ticketId,
+        to_status: newStatus,
+        reason: `employee_status_change_${newStatus}`,
+        source: "employee_portal",
+      });
       await addOperationalNote({ entityId: ticketId, entityType: "support_ticket", note: `Statut → ${newStatus}`, portal: "employee" });
       await logInternalAudit({ action: `ticket_status_${newStatus}`, category: "operations", portal: "employee", targetType: "support_ticket", targetId: ticketId });
     },
@@ -76,8 +80,12 @@ export default function EmployeeSupport() {
       if (!session?.user) throw new Error("Non authentifié");
       const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
       const name = profile?.full_name ?? session.user.email ?? "Agent";
-      const { error } = await supabase.from("support_tickets").update({ assigned_to: name }).eq("id", ticketId);
-      if (error) throw error;
+      await callSupportAction("assign_ticket", {
+        ticket_id: ticketId,
+        assigned_to: name,
+        assigned_to_user_id: session.user.id,
+        reason: "self_assign",
+      });
       await addOperationalNote({ entityId: ticketId, entityType: "support_ticket", note: `Assigné à ${name}`, portal: "employee" });
     },
     onSuccess: () => {
