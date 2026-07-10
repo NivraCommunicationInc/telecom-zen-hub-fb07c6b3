@@ -98,10 +98,9 @@ Deno.serve(async (req) => {
     });
   };
 
-  const resetAccount = async (accountId: string, opts: { balance?: number } = {}) => {
+  const resetAccount = async (accountId: string) => {
     await admin.from("accounts").update({
       status: "active", cancelled_at: null, cancellation_reason: null,
-      balance_due: opts.balance ?? 0,
     }).eq("id", accountId);
   };
 
