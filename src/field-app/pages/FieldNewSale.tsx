@@ -530,22 +530,19 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
   const linkOrderToServiceAddress = useCallback(async (saleId: string | null | undefined) => {
     if (!saleId || !draft.existing_service_address_id) return;
     try {
-      const { data: fsFinal } = await supabase
-        .from("field_sales_orders")
-        .select("converted_order_id")
-        .eq("id", saleId)
-        .maybeSingle();
-      const coreOrderId = (fsFinal as any)?.converted_order_id;
-      if (coreOrderId) {
-        await supabase
-          .from("orders")
-          .update({ service_address_id: draft.existing_service_address_id } as any)
-          .eq("id", coreOrderId);
-      }
+      // F31-1/F31-4 — routed through canonical EF (ownership validated server-side)
+      await supabase.functions.invoke("new-order-actions", {
+        body: {
+          action: "link_service_address",
+          sale_id: saleId,
+          service_address_id: draft.existing_service_address_id,
+          account_id: draft.existing_account_id ?? null,
+        },
+      });
     } catch (e) {
       logger.warn("linkOrderToServiceAddress failed", e);
     }
-  }, [draft.existing_service_address_id]);
+  }, [draft.existing_service_address_id, draft.existing_account_id]);
 
 
   // ── Submit inline (square_inline): create quote + intent, then Square widget charges ──
