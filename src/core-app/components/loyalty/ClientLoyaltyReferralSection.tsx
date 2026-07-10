@@ -159,32 +159,57 @@ export function ClientLoyaltyReferralSection({ clientId, accountId }: Props) {
     await callRpc("admin_loyalty_extend_expiration", { p_transaction_id: txId, p_new_expires_at: d, p_reason: reason });
   };
 
-  // ── Referral actions ──
+  // ── Referral actions (canonical: referrals-account-actions Edge Function) ──
+  const callReferralEF = async (action: string, payload: Record<string, any>) => {
+    const { data, error } = await supabase.functions.invoke("referrals-account-actions", {
+      body: { action, client_user_id: clientId, ...payload },
+    });
+    if (error || (data && (data as any).error)) {
+      const msg = error?.message || (data as any)?.error || "Erreur";
+      toast.error(msg);
+      throw new Error(msg);
+    }
+    toast.success("Opération effectuée");
+    invalidate();
+    return data;
+  };
+
   const referralAction = async (refId: string, action: "approve" | "reject" | "reassign" | "clawback") => {
     if (action === "reassign") {
       const newRef = window.prompt("ID du nouveau parrain (user_id UUID) :"); if (!newRef) return;
       const reason = askReason("Réattribution du parrain"); if (!reason) return;
-      return callRpc("admin_referral_reassign", { p_referral_id: refId, p_new_referrer_user_id: newRef.trim(), p_reason: reason });
+      return callReferralEF("reassign", {
+        referral_id: refId, new_referrer_user_id: newRef.trim(), reason,
+        idempotency_key: `reassign:${refId}:${Date.now()}`,
+      });
     }
     const reason = askReason(action === "approve" ? "Approbation référence" : action === "reject" ? "Rejet référence" : "Clawback récompense");
     if (!reason) return;
-    if (action === "approve") return callRpc("admin_referral_approve", { p_referral_id: refId, p_reason: reason });
-    if (action === "reject") return callRpc("admin_referral_reject", { p_referral_id: refId, p_reason: reason });
-    return callRpc("admin_referral_clawback", { p_referral_id: refId, p_reason: reason });
+    if (action === "approve") return callReferralEF("qualify", { referral_id: refId, reason, idempotency_key: `qualify:${refId}:${Date.now()}` });
+    if (action === "reject")  return callReferralEF("disqualify", { referral_id: refId, reason, idempotency_key: `disqualify:${refId}:${Date.now()}` });
+    return callReferralEF("clawback", { referral_id: refId, reason, idempotency_key: `clawback:${refId}:${Date.now()}` });
   };
 
   const manualReward = async () => {
-    const referred = window.prompt("user_id du filleul (UUID) :"); if (!referred) return;
-    const kind = window.prompt("Type de récompense : 'points' ou 'credit' :"); if (!kind || !["points","credit"].includes(kind)) return toast.error("Type invalide");
-    const amt = askNumber(`Valeur (${kind === "points" ? "points" : "$"}) :`); if (!amt) return;
-    const reason = askReason("Récompense manuelle référence"); if (!reason) return;
-    await callRpc("admin_referral_manual_reward", {
-      p_referred_user_id: referred.trim(),
-      p_referrer_user_id: clientId,
-      p_kind: kind,
-      p_amount_or_points: amt,
-      p_reason: reason,
+    // Manual bonus is per-influencer, not per-referral → admin-referrals-manage
+    const target = window.prompt("influencer_id (UUID) du bénéficiaire :"); if (!target) return;
+    const amt = askNumber("Montant du bonus ($) :"); if (!amt) return;
+    const reason = askReason("Bonus manuel"); if (!reason) return;
+    const { data, error } = await supabase.functions.invoke("admin-referrals-manage", {
+      body: {
+        action: "manual_bonus",
+        target_influencer_id: target.trim(),
+        bonus_amount: amt,
+        reason,
+        idempotency_key: `manual-bonus:${target}:${Date.now()}`,
+      },
     });
+    if (error || (data as any)?.error) {
+      toast.error(error?.message || (data as any)?.error || "Erreur");
+      return;
+    }
+    toast.success("Bonus manuel appliqué");
+    invalidate();
   };
 
   const pending = txs.filter((t: any) => t.status === "pending");

@@ -21343,6 +21343,36 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_module33_e2e_log: {
+        Row: {
+          check_name: string
+          created_at: string
+          details: Json
+          id: string
+          phase: string
+          run_id: string
+          status: string
+        }
+        Insert: {
+          check_name: string
+          created_at?: string
+          details?: Json
+          id?: string
+          phase: string
+          run_id: string
+          status: string
+        }
+        Update: {
+          check_name?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          phase?: string
+          run_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       quote_adjustments: {
         Row: {
           adjustment_type: Database["public"]["Enums"]["quote_adjustment_type"]
@@ -30201,32 +30231,6 @@ export type Database = {
       }
       admin_promote_order_to_confirmed: {
         Args: { p_order_id: string }
-        Returns: Json
-      }
-      admin_referral_clawback: {
-        Args: { p_reason: string; p_referral_id: string }
-        Returns: Json
-      }
-      admin_referral_decide: {
-        Args: { p_decision: string; p_reason: string; p_referral_id: string }
-        Returns: Json
-      }
-      admin_referral_manual_reward: {
-        Args: {
-          p_kind: string
-          p_reason: string
-          p_referred_user_id?: string
-          p_referrer_user_id: string
-          p_value: number
-        }
-        Returns: Json
-      }
-      admin_referral_reassign: {
-        Args: {
-          p_new_referrer_user_id: string
-          p_reason: string
-          p_referral_id: string
-        }
         Returns: Json
       }
       admin_sign_contract: {

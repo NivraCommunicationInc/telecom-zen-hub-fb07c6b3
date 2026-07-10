@@ -1,11 +1,9 @@
 /**
- * AdminReferralAdvancedDialog — Advanced referral actions for Core admins:
- *   - Reassign referrer  (admin_referral_reassign)
- *   - Manual reward      (admin_referral_manual_reward)
- *   - Clawback           (admin_referral_clawback)
+ * AdminReferralAdvancedDialog — Advanced referral actions for Core admins.
  *
- * Approve / reject use the existing UI in CoreReferralsPage which calls
- * admin_referral_decide (or the reward mutation) directly.
+ * All mutations route through canonical Edge Functions (Module 33 Phase D):
+ *   - Reassign / Clawback → referrals-account-actions (rpc_referral_apply_action)
+ *   - Manual bonus        → admin-referrals-manage (per-influencer credit)
  */
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,40 +26,58 @@ interface Props {
 export function AdminReferralAdvancedDialog({ referral, onClose, onSuccess }: Props) {
   const [tab, setTab] = useState<"reassign" | "manual" | "clawback">("reassign");
   const [newReferrer, setNewReferrer] = useState("");
-  const [rewardKind, setRewardKind] = useState<"points" | "cash">("points");
-  const [rewardValue, setRewardValue] = useState<number>(0);
+  const [targetInfluencerId, setTargetInfluencerId] = useState("");
+  const [bonusAmount, setBonusAmount] = useState<number>(0);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!referral) return null;
 
   const run = async () => {
-    if (!reason.trim()) { toast.error("Raison obligatoire"); return; }
+    if (!reason.trim() || reason.trim().length < 5) {
+      toast.error("Raison obligatoire (5 caractères min.)");
+      return;
+    }
     setBusy(true);
     try {
+      const idem = `${tab}:${referral.id}:${Date.now()}`;
       let res: any;
       if (tab === "reassign") {
         if (!newReferrer.trim()) { toast.error("user_id du nouveau parrain requis"); setBusy(false); return; }
-        res = await supabase.rpc("admin_referral_reassign", {
-          p_referral_id: referral.id,
-          p_new_referrer_user_id: newReferrer.trim(),
-          p_reason: reason,
+        res = await supabase.functions.invoke("referrals-account-actions", {
+          body: {
+            action: "reassign",
+            client_user_id: referral.referrer_user_id,
+            referral_id: referral.id,
+            new_referrer_user_id: newReferrer.trim(),
+            reason,
+            idempotency_key: idem,
+          },
         });
       } else if (tab === "manual") {
-        res = await supabase.rpc("admin_referral_manual_reward", {
-          p_referrer_user_id: referral.referrer_user_id,
-          p_kind: rewardKind,
-          p_value: Number(rewardValue),
-          p_reason: reason,
-          p_referred_user_id: referral.referred_user_id ?? null,
+        if (!targetInfluencerId.trim()) { toast.error("influencer_id cible requis"); setBusy(false); return; }
+        res = await supabase.functions.invoke("admin-referrals-manage", {
+          body: {
+            action: "manual_bonus",
+            target_influencer_id: targetInfluencerId.trim(),
+            bonus_amount: Number(bonusAmount),
+            reason,
+            idempotency_key: idem,
+          },
         });
       } else if (tab === "clawback") {
-        res = await supabase.rpc("admin_referral_clawback", {
-          p_referral_id: referral.id,
-          p_reason: reason,
+        res = await supabase.functions.invoke("referrals-account-actions", {
+          body: {
+            action: "clawback",
+            client_user_id: referral.referrer_user_id,
+            referral_id: referral.id,
+            reason,
+            idempotency_key: idem,
+          },
         });
       }
-      if (res?.error) throw res.error;
+      if (res?.error) throw new Error(res.error.message || String(res.error));
+      if (res?.data?.error) throw new Error(res.data.error);
       toast.success("Action appliquée");
       onSuccess?.();
       onClose();
@@ -71,6 +87,7 @@ export function AdminReferralAdvancedDialog({ referral, onClose, onSuccess }: Pr
       setBusy(false);
     }
   };
+
 
   return (
     <Dialog open={!!referral} onOpenChange={(o) => !o && onClose()}>
@@ -103,19 +120,20 @@ export function AdminReferralAdvancedDialog({ referral, onClose, onSuccess }: Pr
           </TabsContent>
 
           <TabsContent value="manual" className="space-y-3 mt-3">
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" variant={rewardKind === "points" ? "default" : "outline"}
-                onClick={() => setRewardKind("points")}>Points</Button>
-              <Button size="sm" variant={rewardKind === "cash" ? "default" : "outline"}
-                onClick={() => setRewardKind("cash")}>Cash ($)</Button>
+            <p className="text-xs text-muted-foreground">
+              Bonus manuel appliqué au ledger de commissions d'un influenceur
+              (hors flux parrainage classique).
+            </p>
+            <div>
+              <label className="text-xs font-medium">influencer_id cible</label>
+              <Input value={targetInfluencerId} onChange={(e) => setTargetInfluencerId(e.target.value)}
+                placeholder="uuid" className="font-mono text-xs" />
             </div>
             <div>
-              <label className="text-xs font-medium">
-                {rewardKind === "points" ? "Points à créditer" : "Montant ($)"}
-              </label>
-              <Input type="number" step={rewardKind === "cash" ? "0.01" : "1"}
-                value={rewardValue}
-                onChange={(e) => setRewardValue(Number(e.target.value))} />
+              <label className="text-xs font-medium">Montant du bonus ($)</label>
+              <Input type="number" step="0.01"
+                value={bonusAmount}
+                onChange={(e) => setBonusAmount(Number(e.target.value))} />
             </div>
           </TabsContent>
 
