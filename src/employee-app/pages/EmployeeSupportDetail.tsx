@@ -81,28 +81,20 @@ export default function EmployeeSupportDetail() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const { error } = await supabase.from("ticket_replies").insert({
+      await callSupportAction("reply_ticket", {
         ticket_id: ticketId!,
-        user_id: user.id,
         content: content.trim(),
-        sender_role: "employee",
-        sender_name: profile?.full_name ?? user.email ?? "Agent",
-        is_admin: true,
+        idempotency_key: `emp-reply-${user.id}-${ticketId}-${Date.now()}`,
       });
-      if (error) throw error;
 
       // If ticket was open, move to in_progress
       if (ticket?.status === "open") {
-        await supabase
-          .from("support_tickets")
-          .update({ status: "in_progress", updated_at: new Date().toISOString() })
-          .eq("id", ticketId!);
+        await callSupportAction("transition_status", {
+          ticket_id: ticketId!,
+          to_status: "in_progress",
+          reason: "employee_reply_auto_progress",
+          source: "employee_portal",
+        });
       }
 
       await logInternalAudit({
@@ -125,11 +117,12 @@ export default function EmployeeSupportDetail() {
   // Status change
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
-      const { error } = await supabase
-        .from("support_tickets")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", ticketId!);
-      if (error) throw error;
+      await callSupportAction("transition_status", {
+        ticket_id: ticketId!,
+        to_status: newStatus,
+        reason: `employee_status_change_${newStatus}`,
+        source: "employee_portal",
+      });
 
       await addOperationalNote({
         entityId: ticketId!,
@@ -160,15 +153,12 @@ export default function EmployeeSupportDetail() {
       const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
       const name = profile?.full_name ?? user.email ?? "Agent";
 
-      const { error } = await supabase
-        .from("support_tickets")
-        .update({
-          assigned_to_user_id: user.id,
-          assigned_to: name,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", ticketId!);
-      if (error) throw error;
+      await callSupportAction("assign_ticket", {
+        ticket_id: ticketId!,
+        assigned_to_user_id: user.id,
+        assigned_to: name,
+        reason: "self_assign",
+      });
 
       await addOperationalNote({
         entityId: ticketId!,
