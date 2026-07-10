@@ -89,15 +89,35 @@ export async function ensureFieldCommissionAfterCapture(
     }
 
     // Reuse the sales_commissions row already computed by field-sales-sync
-    // (it holds the tier/bonus-adjusted total for this sale).
+    // (it holds the tier/bonus-adjusted total for this sale). Fall back to a
+    // canonical recompute from the sale's services × default 10% so we can
+    // still honor F31-6 when the commission engine was skipped (no active
+    // rules, unique-constraint miss, transient failure, etc.).
     const { data: salesComm } = await supabaseAdmin
       .from("sales_commissions")
       .select("commission_amount, salesperson_id")
       .eq("field_order_id", sale.id)
       .maybeSingle();
 
-    const amount = Number(salesComm?.commission_amount ?? 0);
+    let amount = Number(salesComm?.commission_amount ?? 0);
     const agentId = salesComm?.salesperson_id ?? sale.salesperson_id;
+
+    if (amount <= 0) {
+      const { data: fso } = await supabaseAdmin
+        .from("field_sales_orders")
+        .select("services")
+        .eq("id", sale.id)
+        .maybeSingle();
+      const svcArr: any[] = Array.isArray(fso?.services) ? fso!.services : [];
+      let monthlyTotal = 0;
+      for (const s of svcArr) {
+        const q = Number(s?.quantity ?? 1) || 1;
+        const m = Number(s?.price_monthly ?? s?.monthly_price ?? s?.monthlyPrice ?? 0) || 0;
+        if (m > 0) monthlyTotal += m * q;
+      }
+      amount = Math.round(monthlyTotal * 0.10 * 100) / 100;
+    }
+
     if (!agentId || amount <= 0) {
       return { ok: true, status: "skipped_no_commission_row" };
     }
