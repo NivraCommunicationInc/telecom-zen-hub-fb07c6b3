@@ -1,11 +1,10 @@
 /**
- * Field Sales — Quotes service.
+ * Field Sales — Quotes service (Module 31 hardened).
  *
- * Quotes are saved BEFORE any order/invoice is created. They live in
- * `field_quotes` and the client receives a secure Review Order link.
- *
- * Sending the quote creates a field payment intent and emails the client a
- * Review Order link. The client must never be sent back to GuestCheckout.
+ * As of Module 31 (F31-1) all quote/order mutations funnel through the
+ * canonical `new-order-actions` edge function. This file no longer writes
+ * to `field_quotes` directly — pricing, catalogue resolution, ownership
+ * and traceability are enforced server-side.
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
@@ -18,9 +17,13 @@ export interface SaveQuotePayload {
   tps: number;
   tvq: number;
   total: number;
+  monthlyBeforeDiscount?: number;
+  equipmentTotal?: number;
+  firstMonthCredit?: number;
   agentGps?: { lat: number; lng: number; accuracy: number } | null;
-  /** When true, the `field_quote` email is NOT sent (used by the payment-link flow which sends its own email). */
+  /** When true, the `field_quote` email is NOT sent (kept for compatibility). */
   skipClientEmail?: boolean;
+  idempotencyKey?: string;
 }
 
 export interface SavedQuote {
@@ -28,136 +31,62 @@ export interface SavedQuote {
   valid_until: string;
 }
 
-async function resolveFunctionError(error: any, fallback: string): Promise<Error> {
-  const context = error?.context;
-  if (context && typeof context.json === "function") {
-    try {
-      const body = await context.json();
-      if (body?.error) return new Error(String(body.error));
-    } catch {
-      // ignore body parse failures and use fallbacks below
-    }
+async function extractEdgeError(error: any, data: any, fallback: string): Promise<Error> {
+  if (data?.error) return new Error(String(data.error));
+  const ctx = error?.context;
+  if (ctx?.json) {
+    try { const b = await ctx.json(); if (b?.error) return new Error(String(b.error)); }
+    catch { /* ignore */ }
   }
-
-  if (context && typeof context.text === "function") {
-    try {
-      const text = await context.text();
-      if (text) return new Error(text);
-    } catch {
-      // ignore body parse failures and use fallbacks below
-    }
-  }
-
   if (error?.message && error.message !== "Edge Function returned a non-2xx status code") {
     return new Error(error.message);
   }
-
   return new Error(fallback);
 }
 
 /**
- * Persists the current draft as a `field_quote` row and emails the client a
- * link to finish the order. Throws on failure.
+ * Create a server-priced field_quote via `new-order-actions`.
+ * All catalogue resolution, TPS/TVQ, discount validation, and ownership
+ * checks happen server-side. If price mismatch > tolerance, throws.
  */
-export async function saveQuoteAndEmail({
-  draft,
-  agentName,
-  activationFee,
-  subtotal,
-  tps,
-  tvq,
-  total,
-  agentGps,
-  skipClientEmail,
-}: SaveQuotePayload): Promise<SavedQuote> {
+export async function saveQuoteAndEmail(payload: SaveQuotePayload): Promise<SavedQuote> {
+  const { draft, agentName, activationFee, subtotal, tps, tvq, total,
+          monthlyBeforeDiscount, equipmentTotal, firstMonthCredit,
+          agentGps, idempotencyKey } = payload;
+
   const { data: userData } = await supabase.auth.getUser();
-  const agentId = userData?.user?.id;
-  if (!agentId) throw new Error("Agent non authentifié.");
+  if (!userData?.user?.id) throw new Error("Agent non authentifié.");
 
-  // 1) Insert the quote row.
-  // Staff tunnel context is stored inside client_info because field_quotes has
-  // no dedicated account/service-address columns. Edge sync functions read
-  // these optional ids and keep normal Field sales unchanged when absent.
-  const clientInfo = {
-    ...(draft.customer as any),
-    custom_adjustments: draft.custom_adjustments || [],
-    existing_account_id: draft.existing_account_id ?? null,
-    existing_service_address_id: draft.existing_service_address_id ?? null,
-  };
-
-  const normalizedServices = (draft.services || []).map((service: any) => {
-    const monthlyPrice = Number(service?.monthlyPrice ?? service?.price_monthly ?? service?.monthly_price ?? service?.price ?? 0) || 0;
-    return {
-      ...service,
-      kind: "service",
-      quantity: Number(service?.quantity ?? 1) || 1,
-      monthlyPrice,
-      price_monthly: monthlyPrice,
-      monthly_price: monthlyPrice,
-      price_setup: 0,
-    };
-  });
-
-  const normalizedEquipment = (draft.equipment || []).map((equipment: any) => {
-    const setupPrice = Number(equipment?.price_setup ?? equipment?.price ?? 0) || 0;
-    return {
-      ...equipment,
-      kind: "equipment",
-      quantity: Number(equipment?.quantity ?? 1) || 1,
-      price: setupPrice,
-      price_setup: setupPrice,
-      price_monthly: 0,
-      monthly_price: 0,
-    };
-  });
-
-  const { data: inserted, error: qErr } = await supabase
-    .from("field_quotes")
-    .insert({
-      agent_id: agentId,
-      agent_name: agentName,
-      client_info: clientInfo as any,
-      services: normalizedServices as any,
-      equipment: normalizedEquipment as any,
-      discount: draft.discount as any,
+  const { data, error } = await supabase.functions.invoke("new-order-actions", {
+    body: {
+      action: "create_quote",
+      idempotency_key: idempotencyKey || `quote_${Date.now()}_${userData.user.id}`,
+      client_user_id: null,
+      account_id: draft.existing_account_id ?? null,
+      service_address_id: draft.existing_service_address_id ?? null,
+      customer: draft.customer,
+      services: draft.services,
+      equipment: draft.equipment,
+      custom_adjustments: draft.custom_adjustments || [],
+      discount: draft.discount,
       activation_fee: activationFee,
-      subtotal,
-      tps,
-      tvq,
-      total,
-      status: "draft",
-      agent_gps_coords: agentGps ?? null,
-      install_date: draft.customer.install_date || null,
-      install_mode: draft.customer.install_mode || "technician",
-    } as any)
-    .select("id, valid_until")
-    .single();
-  if (qErr || !inserted) throw qErr ?? new Error("Échec de la création de la soumission.");
-
-  const quoteId = inserted.id as string;
-  const validUntil = inserted.valid_until as string;
-
-  // 2) Create the Review Order/Square link and send that email.
-  // IMPORTANT: never send field-sale clients to /commander?quote_id=...
-  // That route is GuestCheckout and would make the client recreate the order.
-  if (!skipClientEmail && draft.customer.email) {
-    const { data: linkData, error: linkErr } = await supabase.functions.invoke("field-payment-link-create", {
-      body: { quote_id: quoteId, mode: "email" },
-    });
-
-    if (linkErr || !linkData?.ok) {
-      // Non-fatal: quote is still saved. Caller can decide how to surface this.
-      console.warn("[field_quote] review-order link failed", linkErr || linkData?.error);
-    }
-  }
-
-  return { id: quoteId, valid_until: validUntil };
+      agent_name: agentName,
+      agent_gps: agentGps,
+      client_totals: {
+        subtotal, tps, tvq, total,
+        monthly_before_discount: monthlyBeforeDiscount,
+        equipment_total: equipmentTotal,
+        first_month_credit: firstMonthCredit,
+      },
+    },
+  });
+  if (error || !data?.ok) throw await extractEdgeError(error, data, "Échec de la soumission");
+  return { id: data.quote_id, valid_until: data.valid_until };
 }
 
 /**
  * Agent → Client secure Square payment link.
- * Calls the `field-payment-link-create` edge function which creates a
- * `field_payment_intents` row and emails the client the /payer/{id} URL.
+ * (Unchanged — still calls field-payment-link-create edge.)
  */
 export interface PaymentLinkResult {
   intent_id: string;
@@ -173,8 +102,7 @@ export async function sendPaymentLinkFromQuote(
   const { data, error } = await supabase.functions.invoke("field-payment-link-create", {
     body: { quote_id: quoteId, mode },
   });
-  if (error) throw await resolveFunctionError(error, "Échec de la création du lien de paiement.");
-  if (!data?.ok) throw new Error(data?.error || "Échec de la création du lien de paiement.");
+  if (error || !data?.ok) throw await extractEdgeError(error, data, "Échec du lien de paiement");
   return {
     intent_id: data.intent_id,
     payment_url: data.payment_url,
