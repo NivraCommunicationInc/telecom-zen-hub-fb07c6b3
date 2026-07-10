@@ -64,30 +64,41 @@ export function QuickTicketDialog({
     }
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("account-ops-actions", {
-        body: {
-          action: isReminder ? "send_reminder" : "create_ticket",
-          client_user_id: clientUserId,
-          account_id: accountId ?? null,
-          subject: subject.trim(),
-          description: description.trim(),
-          priority,
-          category,
-          reminder_type: isReminder ? reminderType : undefined,
-          idempotency_key: `ticket-${clientUserId}-${Date.now()}`,
-        },
-      });
+      // MODULE 35 — SINGLE DOOR: all ticket writes flow through support-account-actions.
+      const fn = isReminder ? "account-ops-actions" : "support-account-actions";
+      const payload = isReminder
+        ? {
+            action: "send_reminder",
+            client_user_id: clientUserId,
+            account_id: accountId ?? null,
+            subject: subject.trim(),
+            description: description.trim(),
+            priority, category,
+            reminder_type: reminderType,
+            idempotency_key: `reminder-${clientUserId}-${Date.now()}`,
+          }
+        : {
+            action: "create_ticket",
+            owner_user_id: clientUserId,
+            account_id: accountId ?? null,
+            subject: subject.trim(),
+            description: description.trim(),
+            priority, category,
+            source: "core",
+            idempotency_key: `ticket-${clientUserId}-${Date.now()}`,
+            __audit_reason: "Ouverture ticket depuis Client 360",
+          };
+      const { data, error } = await supabase.functions.invoke(fn, { body: payload });
       if (error) throw error;
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       toast.success(isReminder ? "Rappel envoyé au client" : "Ticket créé — courriel envoyé");
       onClose();
     } catch (e: any) {
-      // Extract actual error from edge function response
       let msg = e?.message || "Erreur inconnue";
       try {
         const body = await (e?.context as Response)?.json?.();
         if (body?.error) msg = body.error;
-      } catch {}
+      } catch { /* ignore */ }
       toast.error(msg);
     } finally {
       setBusy(false);
