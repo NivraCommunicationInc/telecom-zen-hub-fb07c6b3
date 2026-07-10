@@ -187,10 +187,12 @@ Deno.serve(async (req) => {
     const clientA = await ensureClient("qa-m30-client-a@nivra-test.ca", "A");
     const clientB = await ensureClient("qa-m30-client-b@nivra-test.ca", "B");
 
-    await cleanupClient(clientA.userId);
-    await cleanupClient(clientB.userId);
-    await cleanupAudit([adminCaller.userId, salesCaller.userId, supportCaller.userId]);
-    // recreate subscriptions + fulfillment since we deleted them
+    if (phase !== "part2") {
+      await cleanupClient(clientA.userId);
+      await cleanupClient(clientB.userId);
+      await cleanupAudit([adminCaller.userId, salesCaller.userId, supportCaller.userId]);
+    }
+    // recreate/reuse subscriptions + fulfillment (ensureClient is idempotent)
     const cA = await ensureClient("qa-m30-client-a@nivra-test.ca", "A");
     const cB = await ensureClient("qa-m30-client-b@nivra-test.ca", "B");
 
