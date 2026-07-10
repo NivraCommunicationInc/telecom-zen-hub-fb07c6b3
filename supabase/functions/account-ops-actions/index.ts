@@ -205,6 +205,9 @@ serve(async (req) => {
       // ============================================================
       case "create_ticket":
       case "send_reminder": {
+        // MODULE 35 — SINGLE DOOR: delegate to canonical support-account-actions.
+        // This block is now a thin backward-compat wrapper. All Ticket writes
+        // must ultimately flow through public.rpc_ticket_create.
         const subject = (body.subject || "").trim();
         const description = (body.description || "").trim();
         if (!subject) return json(400, { error: "Sujet requis" });
@@ -212,43 +215,30 @@ serve(async (req) => {
         const priority = body.priority || "normal";
         const category = body.category || (action === "send_reminder" ? "reminder" : "general");
 
-        const { data, error } = await admin
-          .from("support_tickets")
-          .insert({
-            user_id: client_user_id,
+        const { createTicket } = await import("../_shared/ticketService.ts");
+        try {
+          const ticket = await createTicket(admin, {
+            user_id: user.id, role: (callerRole === "admin" ? "admin" : "employee"),
+            name: callerName, email: user.email ?? null,
+          }, {
+            owner_user_id: client_user_id,
             account_id: body.account_id ?? null,
-            subject,
-            description,
-            status: "open",
-            priority,
-            category,
+            subject, description,
+            category, priority,
+            source: action === "send_reminder" ? "reminder_account_360" : "staff_account_360",
             client_email: clientEmail,
             client_name: clientName,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            source: "staff_account_360",
-          })
-          .select("id,ticket_number")
-          .single();
-        if (error) return json(500, { error: error.message });
-
-        await audit(action, { ticket_id: data.id, ticket_number: data.ticket_number, priority, category });
-
-        if (action === "send_reminder") {
-          await enqueueEmail("client_account_reminder", {
-            subject, message: description,
-            ticket_number: data.ticket_number || "—",
-            reminder_type: body.reminder_type || "general",
+            related_order_id: null,
+            idempotency_key: body.idempotency_key ?? null,
+            metadata: action === "send_reminder"
+              ? { reminder_type: body.reminder_type || "general" }
+              : {},
           });
-        } else {
-          await enqueueEmail("client_ticket_opened", {
-            subject, message: description,
-            ticket_number: data.ticket_number || "—",
-            priority,
-          });
+          await audit(action, { ticket_id: ticket.id, ticket_number: ticket.ticket_number, priority, category, via: "ticketService" });
+          return json(200, { ok: true, ticket_id: ticket.id, ticket_number: ticket.ticket_number });
+        } catch (e) {
+          return json(500, { error: (e as Error).message });
         }
-
-        return json(200, { ok: true, ticket_id: data.id, ticket_number: data.ticket_number });
       }
 
       // ============================================================
