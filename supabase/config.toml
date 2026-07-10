@@ -308,3 +308,12 @@ verify_jwt = false
 
 [functions.shipping-register-tracker]
 verify_jwt = false
+
+[functions.rewards-catalog-admin]
+verify_jwt = true
+
+[functions.loyalty-account-actions]
+verify_jwt = true
+
+[functions.qa-module32-runner]
+verify_jwt = true
