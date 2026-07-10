@@ -29,8 +29,6 @@ Deno.serve(async (req) => {
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-    // Optional admin auth — if a user JWT is provided, enforce admin role.
-    // Otherwise the function runs unauthenticated (QA runner, service_role only).
     const authHeader = req.headers.get("Authorization");
     if (authHeader && !authHeader.includes(SERVICE_KEY)) {
       const userClient = createClient(SUPABASE_URL, ANON, {
@@ -43,9 +41,8 @@ Deno.serve(async (req) => {
       }
     }
 
-
     const body = await req.json().catch(() => ({}));
-    const phase = String(body?.phase ?? "all"); // 1 | 2 | all | cleanup
+    const phase = String(body?.phase ?? "all");
 
     if (phase === "cleanup") {
       const c = await cleanup(admin);
@@ -53,17 +50,45 @@ Deno.serve(async (req) => {
     }
 
     const checks: Check[] = [];
-    await cleanup(admin); // clean state first
+    await cleanup(admin);
+
+    // --- QA admin user (grants admin role, signs in to get JWT) ------
+    const adminEmail = `qa-m32-admin-${Date.now()}-${crypto.randomUUID().slice(0,8)}@qa.nivra.local`;
+    const adminPass = `Qa32!${crypto.randomUUID()}`;
+    const { data: adminUser, error: eAdmin } = await admin.auth.admin.createUser({
+      email: adminEmail, password: adminPass, email_confirm: true, user_metadata: { qa: "m32-admin" },
+    });
+    if (eAdmin || !adminUser?.user) return json({ error: `qa admin create: ${eAdmin?.message}` }, 500);
+    await admin.from("user_roles").insert({ user_id: adminUser.user.id, role: "admin", is_active: true });
+
+    const anonClient = createClient(SUPABASE_URL, ANON, { auth: { persistSession: false } });
+    const { data: adminSess, error: eSess } = await anonClient.auth.signInWithPassword({ email: adminEmail, password: adminPass });
+    if (eSess || !adminSess?.session) return json({ error: `qa admin signin: ${eSess?.message}` }, 500);
+    const adminJwt = adminSess.session.access_token;
+    const adminAuthed = createClient(SUPABASE_URL, ANON, {
+      global: { headers: { Authorization: `Bearer ${adminJwt}` } },
+      auth: { persistSession: false },
+    });
 
     let ctx: TestCtx;
     try {
       ctx = await provision(admin);
-      checks.push({ id: "SETUP", label: "Provisionnement comptes QA", pass: true, detail: ctx });
+      checks.push({ id: "SETUP", label: "Provisionnement comptes QA", pass: true, detail: { account_a: ctx.account_a, account_b: ctx.account_b } });
 
-      if (phase === "1" || phase === "all") await phase1(admin, ctx, checks);
-      if (phase === "2" || phase === "all") await phase2(admin, ctx, checks);
+      // Client A authenticated (owner of account_a) for redeem tests
+      const clientAAuthed = createClient(SUPABASE_URL, ANON, { auth: { persistSession: false } });
+      const sess = await clientAAuthed.auth.signInWithPassword({ email: ctx.email_a, password: ctx.pass_a });
+      if (sess.error) throw new Error(`sign-in A: ${sess.error.message}`);
+      const clientAClient = createClient(SUPABASE_URL, ANON, {
+        global: { headers: { Authorization: `Bearer ${sess.data.session!.access_token}` } },
+        auth: { persistSession: false },
+      });
+
+      if (phase === "1" || phase === "all") await phase1(adminAuthed, admin, ctx, checks);
+      if (phase === "2" || phase === "all") await phase2(adminAuthed, admin, clientAClient, ctx, checks);
     } finally {
       const c = await cleanup(admin);
+      try { await admin.auth.admin.deleteUser(adminUser.user.id); } catch { /* ignore */ }
       checks.push({
         id: "CLEANUP",
         label: "Cleanup zéro orphan",
@@ -80,6 +105,7 @@ Deno.serve(async (req) => {
     return json({ error: (e as Error).message }, 500);
   }
 });
+
 
 type TestCtx = {
   account_a: string;
