@@ -29,8 +29,12 @@ type Action =
   | "notify_address_change"
   | "pause_account"
   | "unpause_account"
+  | "update_pause"
   | "cancel_account"
   | "reactivate_account";
+
+// Module 25 — durée max de pause temporaire (jours)
+const PAUSE_MAX_DAYS = 180;
 
 interface Body {
   action: Action;
@@ -67,10 +71,11 @@ interface Body {
   new_postal?: string;
   old_address?: string;
 
-  // pause_account / unpause_account
+  // pause_account / unpause_account / update_pause
   paused_until?: string;         // ISO date
-  pause_charge_pct?: number;     // 0..100
+  pause_charge_pct?: number;     // 0..100 — F5: ignoré serveur, conservé pour compat
   reason?: string;
+  auto_resume?: boolean;         // set by pause-auto-resume cron (bypasses reason requirement)
 
   // reactivate_account
   resume_suspended?: boolean;    // default true
@@ -111,8 +116,12 @@ serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { isStaff, callerRole } = await checkStaffAuth(admin, user.id);
+  const { isStaff, callerRole, roles } = await checkStaffAuth(admin, user.id);
   if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
+  // F1 — Module 25: enforce the documented ALLOWED_ROLES matrix (was dead code).
+  if (!roles.some((r) => ALLOWED_ROLES.has(r))) {
+    return json(403, { error: "Rôle non autorisé pour cette action" });
+  }
 
   let body: Body;
   try { body = await req.json(); }
@@ -333,42 +342,86 @@ serve(async (req) => {
       }
 
       // ============================================================
+      // Module 25 — Pause temporaire (create / update / lift)
+      //
+      // F5 note: `pause_charge_pct` is intentionally NOT read by billing.
+      // La pause temporaire = suspension opérationnelle complète du compte;
+      // le billing lifecycle ignore les comptes `status='suspended'`. Nous
+      // gelons donc la valeur à 0 côté serveur pour éviter toute promesse
+      // non tenue. Le champ reste dans la table pour rétro-compatibilité
+      // mais n'est plus alimenté par cette EF. Si un jour un vrai prorata
+      // partiel devait être appliqué, ce sera un nouveau module dédié.
+      // ============================================================
       case "pause_account": {
         const reason = (body.reason || "").trim();
         const untilRaw = body.paused_until;
-        const pct = Number.isFinite(body.pause_charge_pct as number) ? Math.max(0, Math.min(100, Number(body.pause_charge_pct))) : 35;
         if (!body.account_id) return json(400, { error: "account_id requis" });
         if (!untilRaw) return json(400, { error: "Date de fin requise" });
-        if (!reason) return json(400, { error: "Motif obligatoire" });
+        if (reason.length < 5) return json(400, { error: "Motif obligatoire (min. 5 caractères)" });
         const until = new Date(untilRaw);
         if (Number.isNaN(until.getTime())) return json(400, { error: "Date invalide" });
         if (until.getTime() <= Date.now()) return json(400, { error: "La date doit être dans le futur" });
+        const maxTs = Date.now() + PAUSE_MAX_DAYS * 86_400_000;
+        if (until.getTime() > maxTs) {
+          return json(400, { error: `La pause ne peut dépasser ${PAUSE_MAX_DAYS} jours` });
+        }
 
         const { data: acct, error: acctErr } = await admin
           .from("accounts")
-          .select("id, status, paused_until")
+          .select("id, status, paused_until, client_id")
           .eq("id", body.account_id)
           .maybeSingle();
         if (acctErr) return json(500, { error: acctErr.message });
         if (!acct) return json(404, { error: "Compte introuvable" });
+        // F2 — Ownership check: le compte doit appartenir au client_user_id fourni.
+        if ((acct as any).client_id !== client_user_id) {
+          await audit("pause_account_denied", {
+            reason_code: "CROSS_CLIENT_TARGET",
+            account_id: body.account_id,
+            claimed_client_user_id: client_user_id,
+          });
+          return json(403, { error: "Compte non associé à ce client" });
+        }
         if (acct.status === "suspended") return json(409, { error: "Ce compte est déjà en pause temporaire" });
         if (acct.status === "cancelled") return json(409, { error: "Ce compte est résilié — pause impossible" });
+
+        // F10 — Conflit avec Module 20 (Geler cycle / essai).
+        // Interdit si une requête de gel active existe pour ce compte.
+        try {
+          const { data: freeze } = await admin
+            .from("service_change_requests")
+            .select("id, status, change_type")
+            .eq("account_id", body.account_id)
+            .in("change_type", ["freeze_cycle", "trial_extension", "billing_hold"])
+            .in("status", ["pending", "approved", "active"])
+            .limit(1)
+            .maybeSingle();
+          if (freeze) {
+            await audit("pause_account_denied", {
+              reason_code: "FREEZE_ACTIVE",
+              account_id: body.account_id,
+              freeze_id: (freeze as any).id,
+            });
+            return json(409, { error: "Un gel de cycle est déjà actif sur ce compte (Module 20). Levez-le avant d'appliquer une pause." });
+          }
+        } catch (_e) { /* swallow — best effort */ }
 
         const nowIso = new Date().toISOString();
         const { error: upErr } = await admin.from("accounts").update({
           status: "suspended",
           paused_at: nowIso,
           paused_until: until.toISOString(),
-          pause_charge_pct: pct,
+          pause_charge_pct: 0, // F5 — neutralisé
           pause_reason: reason,
           updated_at: nowIso,
         }).eq("id", body.account_id);
         if (upErr) return json(500, { error: upErr.message });
 
         await audit("pause_account", {
+          module_tag: "pause_temporaire",
           account_id: body.account_id,
           paused_until: until.toISOString(),
-          pause_charge_pct: pct,
+          pause_charge_pct: 0,
           reason,
         });
 
@@ -381,8 +434,8 @@ serve(async (req) => {
             action_type: "account_pause",
             entity_type: "account",
             entity_id: body.account_id,
-            summary: `Pause temporaire appliquée jusqu'au ${until.toISOString().split("T")[0]} (${pct}%)`,
-            after_data: { paused_until: until.toISOString(), pause_charge_pct: pct, reason },
+            summary: `Pause temporaire appliquée jusqu'au ${until.toISOString().split("T")[0]}`,
+            after_data: { paused_until: until.toISOString(), reason },
           });
         } catch (_e) { /* swallow */ }
 
@@ -391,7 +444,88 @@ serve(async (req) => {
             client_id: client_user_id,
             account_id: body.account_id,
             note_type: "system",
-            body: `Pause temporaire — par ${user.email || callerName} — jusqu'au ${until.toISOString().split("T")[0]} (${pct}% du forfait) — motif: ${reason}`,
+            body: `Pause temporaire — par ${user.email || callerName} — jusqu'au ${until.toISOString().split("T")[0]} — motif: ${reason}`,
+            created_by_user_id: user.id,
+            created_by_role: callerRole,
+            created_by_name: callerName,
+          });
+        } catch (_e) { /* swallow */ }
+
+        // F6 — Notification client via email_queue uniquement.
+        await enqueueEmail("client_account_paused", {
+          paused_until: until.toISOString().split("T")[0],
+          reason,
+        });
+
+        return json(200, { ok: true, account_id: body.account_id });
+      }
+
+      // ============================================================
+      // F8 — Modifier une pause existante (paused_until + motif)
+      // ============================================================
+      case "update_pause": {
+        const reason = (body.reason || "").trim();
+        const untilRaw = body.paused_until;
+        if (!body.account_id) return json(400, { error: "account_id requis" });
+        if (!untilRaw) return json(400, { error: "Nouvelle date de fin requise" });
+        if (reason.length < 5) return json(400, { error: "Motif obligatoire (min. 5 caractères)" });
+        const until = new Date(untilRaw);
+        if (Number.isNaN(until.getTime())) return json(400, { error: "Date invalide" });
+        if (until.getTime() <= Date.now()) return json(400, { error: "La date doit être dans le futur" });
+        const maxTs = Date.now() + PAUSE_MAX_DAYS * 86_400_000;
+        if (until.getTime() > maxTs) return json(400, { error: `La pause ne peut dépasser ${PAUSE_MAX_DAYS} jours` });
+
+        const { data: acct, error: acctErr } = await admin
+          .from("accounts")
+          .select("id, status, paused_until, pause_reason, client_id")
+          .eq("id", body.account_id)
+          .maybeSingle();
+        if (acctErr) return json(500, { error: acctErr.message });
+        if (!acct) return json(404, { error: "Compte introuvable" });
+        if ((acct as any).client_id !== client_user_id) {
+          await audit("update_pause_denied", { reason_code: "CROSS_CLIENT_TARGET", account_id: body.account_id });
+          return json(403, { error: "Compte non associé à ce client" });
+        }
+        if (acct.status !== "suspended") return json(409, { error: "Le compte n'est pas en pause" });
+
+        const nowIso = new Date().toISOString();
+        const before = { paused_until: (acct as any).paused_until, pause_reason: (acct as any).pause_reason };
+        const { error: upErr } = await admin.from("accounts").update({
+          paused_until: until.toISOString(),
+          pause_reason: reason,
+          updated_at: nowIso,
+        }).eq("id", body.account_id);
+        if (upErr) return json(500, { error: upErr.message });
+
+        await audit("update_pause", {
+          module_tag: "pause_temporaire",
+          account_id: body.account_id,
+          before_state: before,
+          after_state: { paused_until: until.toISOString(), pause_reason: reason },
+          reason,
+        });
+
+        try {
+          await admin.from("client_activity_logs").insert({
+            client_id: client_user_id,
+            actor_user_id: user.id,
+            actor_name: callerName,
+            actor_role: callerRole,
+            action_type: "account_pause",
+            entity_type: "account",
+            entity_id: body.account_id,
+            summary: `Pause temporaire modifiée — nouvelle échéance ${until.toISOString().split("T")[0]}`,
+            before_data: before,
+            after_data: { paused_until: until.toISOString(), reason },
+          });
+        } catch (_e) { /* swallow */ }
+
+        try {
+          await admin.from("client_internal_notes").insert({
+            client_id: client_user_id,
+            account_id: body.account_id,
+            note_type: "system",
+            body: `Pause temporaire modifiée — par ${user.email || callerName} — nouvelle échéance ${until.toISOString().split("T")[0]} — motif: ${reason}`,
             created_by_user_id: user.id,
             created_by_role: callerRole,
             created_by_name: callerName,
@@ -404,16 +538,28 @@ serve(async (req) => {
       // ============================================================
       case "unpause_account": {
         const reason = (body.reason || "").trim();
+        const autoResume = body.auto_resume === true; // appelé par cron
         if (!body.account_id) return json(400, { error: "account_id requis" });
-        if (!reason) return json(400, { error: "Motif obligatoire" });
+        if (!autoResume && reason.length < 5) {
+          return json(400, { error: "Motif obligatoire (min. 5 caractères)" });
+        }
 
         const { data: acct, error: acctErr } = await admin
           .from("accounts")
-          .select("id, status")
+          .select("id, status, client_id")
           .eq("id", body.account_id)
           .maybeSingle();
         if (acctErr) return json(500, { error: acctErr.message });
         if (!acct) return json(404, { error: "Compte introuvable" });
+        // F2 — Ownership check (skip for cron/service auto-resume: client_user_id may equal owner already).
+        if ((acct as any).client_id !== client_user_id) {
+          await audit("unpause_account_denied", {
+            reason_code: "CROSS_CLIENT_TARGET",
+            account_id: body.account_id,
+            claimed_client_user_id: client_user_id,
+          });
+          return json(403, { error: "Compte non associé à ce client" });
+        }
         if (acct.status !== "suspended") return json(409, { error: "Le compte n'est pas en pause" });
 
         const nowIso = new Date().toISOString();
@@ -427,19 +573,26 @@ serve(async (req) => {
         }).eq("id", body.account_id);
         if (upErr) return json(500, { error: upErr.message });
 
-        await audit("unpause_account", { account_id: body.account_id, reason });
+        await audit("unpause_account", {
+          module_tag: "pause_temporaire",
+          account_id: body.account_id,
+          reason: autoResume ? "auto_resume" : reason,
+          auto_resume: autoResume,
+        });
 
         try {
           await admin.from("client_activity_logs").insert({
             client_id: client_user_id,
             actor_user_id: user.id,
-            actor_name: callerName,
-            actor_role: callerRole,
+            actor_name: autoResume ? "Système (reprise automatique)" : callerName,
+            actor_role: autoResume ? "system" : callerRole,
             action_type: "account_pause",
             entity_type: "account",
             entity_id: body.account_id,
-            summary: "Pause temporaire levée — compte réactivé",
-            after_data: { reason },
+            summary: autoResume
+              ? "Pause temporaire levée automatiquement (échéance atteinte)"
+              : "Pause temporaire levée — compte réactivé",
+            after_data: { reason: autoResume ? "auto_resume" : reason },
           });
         } catch (_e) { /* swallow */ }
 
@@ -448,12 +601,22 @@ serve(async (req) => {
             client_id: client_user_id,
             account_id: body.account_id,
             note_type: "system",
-            body: `Pause temporaire levée — par ${user.email || callerName} — motif: ${reason}`,
+            body: autoResume
+              ? `Pause temporaire levée automatiquement (échéance atteinte)`
+              : `Pause temporaire levée — par ${user.email || callerName} — motif: ${reason}`,
             created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
+            created_by_role: autoResume ? "system" : callerRole,
+            created_by_name: autoResume ? "Système" : callerName,
           });
         } catch (_e) { /* swallow */ }
+
+        // F6 — Notification client
+        await enqueueEmail("client_account_resumed", {
+          auto_resume: autoResume,
+          reason: autoResume ? "Échéance atteinte" : reason,
+        });
+
+
 
         return json(200, { ok: true, account_id: body.account_id });
       }

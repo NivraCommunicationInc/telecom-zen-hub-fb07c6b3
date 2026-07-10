@@ -200,19 +200,23 @@ function mapPauseError(msg?: string): string {
   return msg || "Échec de l'opération.";
 }
 
-export function PauseAccountDialog({ accountId, clientUserId, accountStatus, monthlyRevenue, open, onClose, onRefresh }: any) {
+export function PauseAccountDialog({ accountId, clientUserId, accountStatus, open, onClose, onRefresh }: any) {
   const [until, setUntil] = useState<string>("");
-  const [pct, setPct] = useState<number>(35);
   const [reason, setReason] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const isPaused = accountStatus === "suspended";
-  const monthlyCharge = Number(monthlyRevenue || 0) * (pct / 100);
+
+  // F4 — plafond côté UI (aligné sur PAUSE_MAX_DAYS serveur = 180j)
+  const maxDateStr = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 180);
+    return d.toISOString().split("T")[0];
+  })();
 
   useEffect(() => {
     if (open) {
       setUntil("");
-      setPct(35);
       setReason("");
     }
   }, [open]);
@@ -220,8 +224,8 @@ export function PauseAccountDialog({ accountId, clientUserId, accountStatus, mon
   async function submitPause() {
     if (!accountId || !clientUserId) return toast.error("Compte manquant");
     if (!until) return toast.error("Date de fin requise");
-    if (!reason.trim()) return toast.error("Motif obligatoire.");
-    if (!window.confirm(`Mettre le compte en pause jusqu'au ${until} avec ${pct}% de facturation ?`)) return;
+    if (reason.trim().length < 5) return toast.error("Motif obligatoire (min. 5 caractères).");
+    if (!window.confirm(`Mettre le compte en pause jusqu'au ${until} ?\n\nLa facturation est intégralement suspendue pendant cette période.`)) return;
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke("account-ops-actions", {
@@ -230,7 +234,6 @@ export function PauseAccountDialog({ accountId, clientUserId, accountStatus, mon
           client_user_id: clientUserId,
           account_id: accountId,
           paused_until: new Date(until).toISOString(),
-          pause_charge_pct: pct,
           reason: reason.trim(),
         },
       });
@@ -248,7 +251,7 @@ export function PauseAccountDialog({ accountId, clientUserId, accountStatus, mon
 
   async function submitUnpause() {
     if (!accountId || !clientUserId) return toast.error("Compte manquant");
-    if (!reason.trim()) return toast.error("Motif obligatoire.");
+    if (reason.trim().length < 5) return toast.error("Motif obligatoire (min. 5 caractères).");
     if (!window.confirm("Lever la pause temporaire et réactiver le compte ?")) return;
     setSaving(true);
     try {
@@ -277,34 +280,36 @@ export function PauseAccountDialog({ accountId, clientUserId, accountStatus, mon
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-sm">
-            {isPaused ? "Pause temporaire — compte actuellement en pause" : "Suspension temporaire"}
+            {isPaused ? "Pause temporaire — compte actuellement en pause" : "Pause temporaire"}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-[11px]">
           {isPaused ? (
             <p className="text-muted-foreground">
-              Ce compte est actuellement en pause. Vous pouvez la lever pour réactiver le compte. Un motif est requis.
+              Ce compte est actuellement en pause. Vous pouvez la lever pour réactiver le compte. Un motif d'au moins 5 caractères est requis.
             </p>
           ) : (
-            <p className="text-muted-foreground">
-              Le compte sera suspendu jusqu'à la date choisie. Une charge réduite continuera d'être facturée pendant la pause. Un motif est requis.
-            </p>
+            <>
+              <p className="text-muted-foreground">
+                Le compte sera suspendu jusqu'à la date choisie. La facturation est <b>intégralement suspendue</b> pendant la pause. Une reprise automatique est planifiée à l'échéance.
+              </p>
+              <p className="text-[10px] text-amber-500/90 leading-relaxed">
+                ℹ️ La pause temporaire n'affecte pas l'accès au portail client (géré séparément par le Module 24 — Accès en ligne). Durée maximum : 180 jours.
+              </p>
+            </>
           )}
 
           {!isPaused && (
-            <>
-              <label className="block space-y-1">
-                <span className="text-muted-foreground">Suspendre jusqu'au</span>
-                <input type="date" className={inputCls} value={until} onChange={(e) => setUntil(e.target.value)} />
-              </label>
-              <label className="block space-y-1">
-                <span className="text-muted-foreground">Charge mensuelle pendant la pause (% du forfait)</span>
-                <input type="number" min={0} max={100} step={5} className={inputCls} value={pct} onChange={(e) => setPct(Number(e.target.value))} />
-                <span className="block text-emerald-400 mt-1">
-                  ≈ {fmtCAD(monthlyCharge)} / mois (forfait actuel: {fmtCAD(monthlyRevenue)})
-                </span>
-              </label>
-            </>
+            <label className="block space-y-1">
+              <span className="text-muted-foreground">Suspendre jusqu'au</span>
+              <input
+                type="date"
+                className={inputCls}
+                value={until}
+                max={maxDateStr}
+                onChange={(e) => setUntil(e.target.value)}
+              />
+            </label>
           )}
 
           <label className="block space-y-1">
@@ -315,11 +320,11 @@ export function PauseAccountDialog({ accountId, clientUserId, accountStatus, mon
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary} disabled={saving}>Annuler</button>
           {isPaused ? (
-            <button onClick={submitUnpause} disabled={saving || !reason.trim()} className={btnWarning}>
+            <button onClick={submitUnpause} disabled={saving || reason.trim().length < 5} className={btnWarning}>
               {saving ? "Enregistrement…" : "Lever la pause"}
             </button>
           ) : (
-            <button onClick={submitPause} disabled={saving || !reason.trim() || !until} className={btnWarning}>
+            <button onClick={submitPause} disabled={saving || reason.trim().length < 5 || !until} className={btnWarning}>
               {saving ? "Enregistrement…" : "Mettre en pause"}
             </button>
           )}
@@ -328,6 +333,7 @@ export function PauseAccountDialog({ accountId, clientUserId, accountStatus, mon
     </Dialog>
   );
 }
+
 
 /* ────────── Cancel account — Module 5 (canonical via account-ops-actions) ────────── */
 export function CancelAccountDialog({ accountId, clientId, accountStatus, open, onClose, onRefresh }: any) {
