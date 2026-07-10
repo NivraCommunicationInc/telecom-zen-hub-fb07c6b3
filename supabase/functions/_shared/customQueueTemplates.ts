@@ -417,6 +417,83 @@ export function renderQueueTemplate(
     }
 
     // ===================================================================
+    // MODULE 25 — Pause temporaire (mise en pause / levée / mise à jour)
+    // ===================================================================
+    case "client_account_paused": {
+      const pausedUntil = esc(v.paused_until_display || v.paused_until || "");
+      const reason = esc(v.reason || "");
+      const isUpdate = !!v.is_update;
+      const subject = isEn
+        ? (isUpdate ? "Pause updated — Nivra Telecom" : "Your account is paused — Nivra Telecom")
+        : (isUpdate ? "Mise à jour de votre pause — Nivra Telecom" : "Votre compte est en pause temporaire — Nivra Telecom");
+      const cardRows: [string, string][] = [];
+      if (accountNum) cardRows.push([isEn ? "Account" : "Compte", `#${String(accountNum).replace(/^#/, "")}`]);
+      if (pausedUntil) cardRows.push([isEn ? "Paused until" : "Pause jusqu'au", pausedUntil]);
+      if (reason) cardRows.push([isEn ? "Reason" : "Motif", reason]);
+      return {
+        subject,
+        html: shell({
+          preheader: isEn ? "Your account has been paused temporarily." : "Votre compte a été mis en pause temporairement.",
+          badge: isEn ? "TEMPORARY PAUSE" : "PAUSE TEMPORAIRE",
+          heroTitle: isEn
+            ? (isUpdate ? "Your pause has been updated" : "Your account is on temporary pause")
+            : (isUpdate ? "Votre pause a été mise à jour" : "Votre compte est en pause temporaire"),
+          heroSub: pausedUntil ? (isEn ? `Until ${pausedUntil}` : `Jusqu'au ${pausedUntil}`) : "",
+          icon: "info",
+          greeting,
+          bodyText: isEn
+            ? "Your services are temporarily paused. Billing is fully suspended for the entire pause period. Your services will resume automatically at the end of the pause, or you can request an early lift from support."
+            : "Vos services sont temporairement suspendus. La facturation est intégralement interrompue pendant toute la durée de la pause. Vos services reprendront automatiquement à la fin de la période, ou vous pouvez demander une levée anticipée auprès du support.",
+          cardTitle: isEn ? "Pause details" : "Détails de la pause",
+          cardRows,
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: isEn ? "Open my portal" : "Ouvrir mon portail",
+          helpHtml: isEn
+            ? `Questions? Write to <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Questions ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    case "client_account_resumed": {
+      const auto = !!v.auto_resume;
+      const subject = isEn
+        ? "Your account is active again — Nivra Telecom"
+        : "Votre compte est de nouveau actif — Nivra Telecom";
+      const cardRows: [string, string][] = [];
+      if (accountNum) cardRows.push([isEn ? "Account" : "Compte", `#${String(accountNum).replace(/^#/, "")}`]);
+      cardRows.push([
+        isEn ? "Resumed on" : "Réactivé le",
+        esc(v.resumed_at_display || new Date().toLocaleDateString(isEn ? "en-CA" : "fr-CA")),
+      ]);
+      cardRows.push([
+        isEn ? "Trigger" : "Déclencheur",
+        auto ? (isEn ? "Automatic (end of pause)" : "Automatique (fin de pause)") : (isEn ? "Manual lift" : "Levée manuelle"),
+      ]);
+      return {
+        subject,
+        html: shell({
+          preheader: isEn ? "Your services have resumed." : "Vos services ont repris.",
+          badge: isEn ? "PAUSE LIFTED" : "PAUSE LEVÉE",
+          heroTitle: isEn ? "Welcome back — your services are active" : "Bon retour — vos services sont actifs",
+          heroSub: "",
+          icon: "check",
+          greeting,
+          bodyText: isEn
+            ? "The temporary pause on your account has ended. Regular billing resumes on your next normal cycle."
+            : "La pause temporaire sur votre compte est terminée. La facturation régulière reprend à votre prochain cycle normal.",
+          cardTitle: isEn ? "Resume details" : "Détails de la reprise",
+          cardRows,
+          ctaPrimaryUrl: portalUrl,
+          ctaPrimaryLabel: isEn ? "Open my portal" : "Ouvrir mon portail",
+          helpHtml: isEn
+            ? `Questions? Write to <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`
+            : `Questions ? Écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:${BRAND_PRIMARY};">${SUPPORT_EMAIL}</a>`,
+        }),
+      };
+    }
+
+    // ===================================================================
     // ORDERS
     // ===================================================================
     case "order_submitted":
