@@ -1072,60 +1072,23 @@ const GuestCheckout = () => {
       }
 
       // Step 6c: Client-referral tracking (non-blocking).
-      // For client codes (peer-to-peer), record in client_referrals and activate the
-      // 5$/mois × 10 mois discount on the new billing_subscription.
-      // Influencer codes continue to flow through promotion_redemptions / referral_attributions.
+      // F33-2/F33-3 — Client-referral attach is now server-side only.
+      // Direct writes on client_referrals + billing_subscriptions from the
+      // browser are blocked at DB level (Phase A part 1).
       if (appliedReferral && appliedReferral.type === "client" && appliedReferral.referrer_user_id) {
         try {
-          // Resolve referrer's account_id
-          const { data: referrerAcct } = await supabase
-            .from("accounts")
-            .select("id")
-            .eq("client_id", appliedReferral.referrer_user_id)
-            .limit(1)
-            .maybeSingle();
-
-          await supabase.from("client_referrals" as any).insert({
-            referral_code_used: appliedReferral.code,
-            referrer_user_id: appliedReferral.referrer_user_id,
-            referrer_account_id: referrerAcct?.id || null,
-            referred_user_id: userId,
-            referred_account_id: accountId,
-            referred_order_id: response.order_id,
-            status: "pending",
-            qualifying_cycles_paid: 0,
-            required_cycles: 3,
-            reward_status: "not_eligible",
-            reward_type: "gift_card",
-            reward_amount: 25.00,
-            discount_total_months: 10,
+          await supabase.functions.invoke("referrals-attach-on-order", {
+            body: {
+              referral_code: appliedReferral.code,
+              order_id: response.order_id,
+              referred_user_id: userId,
+              referred_email: (email || "").toLowerCase() || undefined,
+              idempotency_key: `guest:${response.order_id}:${appliedReferral.code}`,
+            },
           });
-
-          // Activate referral discount on the new subscription tied to this account.
-          // billing_subscriptions.customer_id → billing_customers.id ; billing_customers.user_id → accounts.client_id
-          const { data: bcRows } = await supabase
-            .from("billing_customers")
-            .select("id")
-            .eq("user_id", userId)
-            .limit(1);
-          const bcId = bcRows?.[0]?.id;
-          if (bcId) {
-            await supabase
-              .from("billing_subscriptions")
-              .update({
-                referral_discount_active: true,
-                referral_discount_amount: 5.00,
-                referral_discount_months_remaining: 10,
-                referral_code_used: appliedReferral.code,
-              } as any)
-              .eq("customer_id", bcId)
-              .eq("order_id", response.order_id);
-          }
-
-          // Clear the saved referral code — used now.
           try { localStorage.removeItem("nivra_ref_code"); } catch { /* noop */ }
         } catch (e) {
-          console.warn("[GuestCheckout] Client-referral tracking failed (non-blocking):", e);
+          console.warn("[GuestCheckout] referrals-attach-on-order failed (non-blocking):", e);
         }
       }
 

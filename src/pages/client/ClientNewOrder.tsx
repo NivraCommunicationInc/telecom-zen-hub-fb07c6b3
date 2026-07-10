@@ -2733,34 +2733,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       // Record promo/referral redemption only when promo discount was actually applied by authoritative pricing
       if (appliedPromo && user?.id && canonicalPromoDiscount > 0) {
         try {
-          // Check if this is a referral code (influencer code)
+          // F33-2/F33-3 — Influencer attribution goes through the server-side
+          // Edge Function referrals-attach-on-order. Direct INSERT on
+          // referral_attributions is blocked at DB level.
           if (appliedPromo.is_referral_code && appliedPromo.referral_code_id && appliedPromo.influencer_id) {
-            // Record in referral_attributions for influencer tracking
-            const { error: attrError } = await supabase.from("referral_attributions").insert({
-              referral_code_id: appliedPromo.referral_code_id,
-              influencer_id: appliedPromo.influencer_id,
-              order_id: data.id,
-              customer_id: user.id,
-              customer_email: (profile?.email || user.email || "").toLowerCase(),
-              customer_discount_amount: canonicalPromoDiscount,
-              status: 'pending',
-            });
-            
-            if (attrError) {
-              console.error("[Referral] Attribution insert failed:", attrError);
+            const { error: attachError } = await supabase.functions.invoke(
+              "referrals-attach-on-order",
+              {
+                body: {
+                  referral_code: appliedPromo.code,
+                  order_id: data.id,
+                  referred_user_id: user.id,
+                  referred_email: (profile?.email || user.email || "").toLowerCase(),
+                  idempotency_key: `client-order:${data.id}:${appliedPromo.referral_code_id}`,
+                },
+              },
+            );
+            if (attachError) {
+              console.error("[Referral] Server attach failed:", attachError);
               postStepErrors.push("referral_attribution");
             } else {
-              console.log("[Referral] Attribution recorded for order:", data.order_number, "influencer:", appliedPromo.influencer_id);
-            }
-            
-            // Also increment usage_count on referral_codes
-            const { error: rpcError } = await supabase.rpc('increment_referral_usage', { 
-              code_id: appliedPromo.referral_code_id 
-            });
-            if (rpcError) {
-              console.error("[Referral] Usage count increment failed:", rpcError);
-            } else {
-              console.log("[Referral] Usage count incremented for code:", appliedPromo.referral_code_id);
+              console.log("[Referral] Attribution recorded server-side for order:", data.order_number);
             }
           } else if (!appliedPromo.is_client_referral) {
             // Regular promo code - record in promotion_redemptions

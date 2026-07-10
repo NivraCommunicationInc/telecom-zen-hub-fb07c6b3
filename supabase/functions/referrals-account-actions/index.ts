@@ -1,30 +1,23 @@
-// Referrals account actions — Nivra Core & Nivra OneView CS
-// Staff-only operations on `client_referrals` (the qualifying referral table).
+// ============================================================
+// Referrals account actions — Nivra Core / Nivra OneView CS
+// Module 33 — Phase A part 2
 //
-// Actions:
-//   - list_for_client    : returns all referrals where the client is referrer
-//   - qualify            : force-qualify a referral (sets status=qualified, reward_status=reward_pending)
-//   - issue_reward       : mark reward as issued (records provider/reference)
-//   - mark_delivered     : mark reward delivered to client
-//   - mark_fraud         : flag fraud (sets fraud_flag, optional notes)
-//   - clear_fraud        : remove fraud flag
-//   - disqualify         : disqualify a referral with a reason
+// Strict RBAC:  admin | supervisor | billing_admin
+// FORBIDDEN:    sales, employee, support (F33-11)
 //
-// All writes are gated by staff role, audited, and (except list) queue a
-// branded Violet Bold client email.
-
+// All mutations flow through rpc_referral_apply_action (row lock + audit +
+// reason + event_key idempotency, F33-1). Direct writes on
+// client_referrals are gated to service_role by DB grants (Phase A part 1).
+// ============================================================
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ALLOWED_ROLES = new Set([
-  "admin", "employee", "supervisor", "support", "billing_admin", "sales",
-]);
+const ALLOWED_ROLES = new Set(["admin", "supervisor", "billing_admin"]);
 
 type Action =
   | "list_for_client"
@@ -33,19 +26,24 @@ type Action =
   | "mark_delivered"
   | "mark_fraud"
   | "clear_fraud"
-  | "disqualify";
+  | "disqualify"
+  | "clawback"
+  | "reassign";
 
 interface Body {
   action: Action;
-  client_user_id: string;            // the REFERRER user_id (account being inspected)
+  client_user_id: string;
   referral_id?: string;
+  idempotency_key?: string;
   // issue_reward
   reward_reference?: string;
   reward_card_provider?: string;
   reward_amount?: number;
-  reward_type?: string;
-  // mark_fraud / disqualify
+  reward_type?: string; // points | credit | visa_mastercard_gift_card
+  // mark_fraud / disqualify / clawback / reassign
   reason?: string;
+  // reassign
+  new_referrer_user_id?: string;
 }
 
 const json = (status: number, payload: unknown) =>
@@ -79,10 +77,16 @@ serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  // Strict RBAC (F33-11): only admin / supervisor / billing_admin
   const { data: roles } = await admin
     .from("user_roles").select("role").eq("user_id", user.id);
-  const { isStaff, callerRole: _callerRole } = await checkStaffAuth(admin, user.id);
-  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
+  const roleList = (roles || []).map((r: { role: string }) => r.role);
+  const authorized = roleList.some((r) => ALLOWED_ROLES.has(r));
+  if (!authorized) {
+    return json(403, {
+      error: "Action réservée à admin/supervisor/billing_admin. Rôle sales exclu.",
+    });
+  }
 
   let body: Body;
   try { body = await req.json(); }
@@ -93,7 +97,7 @@ serve(async (req) => {
     return json(400, { error: "Champs requis: action, client_user_id" });
   }
 
-  // Fetch referrer profile (for first_name, email on audit)
+  // Fetch referrer profile (audit/email)
   const { data: refProfile } = await admin
     .from("profiles")
     .select("user_id, email, first_name")
@@ -102,9 +106,8 @@ serve(async (req) => {
   const refEmail = refProfile?.email || null;
   const refFirst = refProfile?.first_name || "Client";
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("cf-connecting-ip") || "unknown";
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+             req.headers.get("cf-connecting-ip") || "unknown";
 
   const audit = async (label: string, payload: Record<string, unknown>) => {
     try {
@@ -119,24 +122,42 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
-  const enqueueEmail = async (template: string, vars: Record<string, unknown>) => {
+  const enqueueEmail = async (
+    template: string,
+    vars: Record<string, unknown>,
+    eventKey?: string,
+  ) => {
     if (!refEmail) return;
     try {
+      // F33-17 idempotence — event_key prevents duplicate emails on retries
+      if (eventKey) {
+        const { data: exists } = await admin
+          .from("email_queue")
+          .select("id")
+          .eq("to_email", refEmail)
+          .eq("template_key", template)
+          .contains("template_vars", { event_key: eventKey })
+          .limit(1);
+        if (exists && exists.length > 0) return;
+      }
       await admin.from("email_queue").insert({
         to_email: refEmail,
         template_key: template,
-        template_vars: { ...vars, first_name: refFirst, to_email: refEmail },
+        template_vars: {
+          ...vars,
+          first_name: refFirst,
+          to_email: refEmail,
+          event_key: eventKey,
+        },
         status: "queued",
         priority: 0,
       });
     } catch (_e) { /* swallow */ }
   };
 
-  // Helper: fetch a referral that belongs to this referrer
   const loadReferral = async (id: string) => {
     const { data, error } = await admin
-      .from("client_referrals")
-      .select("*")
+      .from("client_referrals").select("*")
       .eq("id", id)
       .eq("referrer_user_id", client_user_id)
       .maybeSingle();
@@ -145,14 +166,32 @@ serve(async (req) => {
     return data;
   };
 
-  // Helper: pretty referred name
   const referredName = async (referred_user_id: string): Promise<string> => {
     const { data } = await admin
       .from("profiles")
       .select("first_name,last_name")
-      .eq("user_id", referred_user_id)
-      .maybeSingle();
+      .eq("user_id", referred_user_id).maybeSingle();
     return [data?.first_name, data?.last_name].filter(Boolean).join(" ") || "votre filleul";
+  };
+
+  // Helper — canonical write via rpc_referral_apply_action (F33-1)
+  const applyAction = async (
+    referralId: string,
+    rpcAction: string,
+    reason: string | null,
+    payload: Record<string, unknown>,
+    eventKey: string,
+  ) => {
+    const { data, error } = await admin.rpc("rpc_referral_apply_action", {
+      p_referral_id: referralId,
+      p_action: rpcAction,
+      p_actor_id: user.id,
+      p_reason: reason,
+      p_payload: payload,
+      p_event_key: eventKey,
+    });
+    if (error) throw new Error(error.message);
+    return data as { ok: boolean; idempotent?: boolean };
   };
 
   try {
@@ -168,15 +207,15 @@ serve(async (req) => {
             reward_card_provider, reward_issued_at, reward_sent_at, reward_delivered_at,
             qualified_at, disqualified_at, disqualification_reason,
             fraud_flag, fraud_review_notes, fraud_checked_at,
-            notes, created_at, updated_at
+            notes, created_at, updated_at,
+            reassigned_from, reassigned_at, clawback_at, clawback_reason
           `)
           .eq("referrer_user_id", client_user_id)
           .order("created_at", { ascending: false });
         if (error) return json(500, { error: error.message });
 
-        // Hydrate referred names
         const ids = Array.from(new Set((data || []).map((r) => r.referred_user_id).filter(Boolean)));
-        let nameMap: Record<string, string> = {};
+        const nameMap: Record<string, string> = {};
         if (ids.length > 0) {
           const { data: profs } = await admin
             .from("profiles")
@@ -196,10 +235,16 @@ serve(async (req) => {
       // ============================================================
       case "qualify": {
         if (!body.referral_id) return json(400, { error: "referral_id requis" });
+        if (!body.idempotency_key) return json(400, { error: "idempotency_key requis" });
         const ref = await loadReferral(body.referral_id);
         if (ref.status === "qualified" || ref.reward_status === "reward_issued") {
           return json(400, { error: "Parrainage déjà qualifié ou récompensé" });
         }
+        const eventKey = `qualify:${body.referral_id}:${body.idempotency_key}`;
+        const rpcRes = await applyAction(ref.id, "qualify", null, { by: user.id }, eventKey);
+        if (rpcRes.idempotent) return json(200, { ok: true, idempotent: true });
+
+        // Row already locked & event logged by RPC — now apply state
         const now = new Date().toISOString();
         const { error } = await admin
           .from("client_referrals")
@@ -212,29 +257,42 @@ serve(async (req) => {
           .eq("id", ref.id);
         if (error) return json(500, { error: error.message });
 
-        await audit("qualify", { referral_id: ref.id });
+        await audit("qualify", { referral_id: ref.id, idempotency_key: body.idempotency_key });
         const rname = await referredName(ref.referred_user_id);
         await enqueueEmail("client_referral_qualified", {
           referred_name: rname,
           reward_amount: fmtMoney(Number(ref.reward_amount ?? 25)),
-        });
+        }, eventKey);
         return json(200, { ok: true });
       }
 
       // ============================================================
       case "issue_reward": {
         if (!body.referral_id) return json(400, { error: "referral_id requis" });
+        if (!body.idempotency_key) return json(400, { error: "idempotency_key requis" });
         const ref = await loadReferral(body.referral_id);
         if (ref.reward_status === "reward_issued") {
           return json(400, { error: "Récompense déjà émise" });
         }
         const reward_reference = (body.reward_reference || "").trim();
         if (!reward_reference) return json(400, { error: "Référence requise" });
+
+        // F33-8 — restreindre reward_type au contrat: points | credit | visa_mastercard_gift_card
+        const inputType = (body.reward_type || ref.reward_type || "visa_mastercard_gift_card").toLowerCase();
+        const allowedTypes = new Set(["points", "credit", "visa_mastercard_gift_card", "gift_card"]);
+        if (!allowedTypes.has(inputType)) {
+          return json(400, { error: `reward_type invalide: ${inputType}. Autorisé: points | credit | visa_mastercard_gift_card` });
+        }
         const reward_card_provider = (body.reward_card_provider || "").trim() || null;
         const reward_amount = Number.isFinite(body.reward_amount)
           ? Number(body.reward_amount)
           : Number(ref.reward_amount ?? 25);
-        const reward_type = (body.reward_type || ref.reward_type || "visa_mastercard_gift_card");
+
+        const eventKey = `issue_reward:${body.referral_id}:${body.idempotency_key}`;
+        const rpcRes = await applyAction(ref.id, "issue_reward", null, {
+          reward_amount, reward_reference, reward_card_provider, reward_type: inputType,
+        }, eventKey);
+        if (rpcRes.idempotent) return json(200, { ok: true, idempotent: true });
 
         const now = new Date().toISOString();
         const { error } = await admin
@@ -246,36 +304,40 @@ serve(async (req) => {
             reward_reference,
             reward_card_provider,
             reward_amount,
-            reward_type,
-            // ensure qualified
-            status: ref.status === "qualified" ? "qualified" : "qualified",
+            reward_type: inputType,
+            status: "qualified",
             qualified_at: ref.qualified_at ?? now,
           })
           .eq("id", ref.id);
         if (error) return json(500, { error: error.message });
 
         await audit("issue_reward", {
-          referral_id: ref.id, reward_amount, reward_reference, reward_card_provider,
+          referral_id: ref.id, reward_amount, reward_reference,
+          reward_card_provider, idempotency_key: body.idempotency_key,
         });
         const rname = await referredName(ref.referred_user_id);
         await enqueueEmail("client_referral_reward_issued", {
           referred_name: rname,
           reward_amount: fmtMoney(reward_amount),
-          reward_type: reward_type === "visa_mastercard_gift_card"
+          reward_type: inputType === "visa_mastercard_gift_card"
             ? "Carte cadeau Visa/Mastercard"
-            : reward_type,
+            : inputType,
           reward_reference,
-        });
+        }, eventKey);
         return json(200, { ok: true });
       }
 
       // ============================================================
       case "mark_delivered": {
         if (!body.referral_id) return json(400, { error: "referral_id requis" });
+        if (!body.idempotency_key) return json(400, { error: "idempotency_key requis" });
         const ref = await loadReferral(body.referral_id);
         if (ref.reward_status !== "reward_issued") {
           return json(400, { error: "Émettre la récompense avant de la livrer" });
         }
+        const eventKey = `mark_delivered:${body.referral_id}:${body.idempotency_key}`;
+        const rpcRes = await applyAction(ref.id, "mark_delivered", null, {}, eventKey);
+        if (rpcRes.idempotent) return json(200, { ok: true, idempotent: true });
         const now = new Date().toISOString();
         const { error } = await admin
           .from("client_referrals")
@@ -292,9 +354,13 @@ serve(async (req) => {
       // ============================================================
       case "mark_fraud": {
         if (!body.referral_id) return json(400, { error: "referral_id requis" });
-        const ref = await loadReferral(body.referral_id);
+        if (!body.idempotency_key) return json(400, { error: "idempotency_key requis" });
         const reason = (body.reason || "").trim();
         if (!reason) return json(400, { error: "Raison requise" });
+        const ref = await loadReferral(body.referral_id);
+        const eventKey = `mark_fraud:${body.referral_id}:${body.idempotency_key}`;
+        const rpcRes = await applyAction(ref.id, "mark_fraud", reason, {}, eventKey);
+        if (rpcRes.idempotent) return json(200, { ok: true, idempotent: true });
         const now = new Date().toISOString();
         const { error } = await admin
           .from("client_referrals")
@@ -314,7 +380,11 @@ serve(async (req) => {
       // ============================================================
       case "clear_fraud": {
         if (!body.referral_id) return json(400, { error: "referral_id requis" });
+        if (!body.idempotency_key) return json(400, { error: "idempotency_key requis" });
         const ref = await loadReferral(body.referral_id);
+        const eventKey = `clear_fraud:${body.referral_id}:${body.idempotency_key}`;
+        const rpcRes = await applyAction(ref.id, "clear_fraud", null, {}, eventKey);
+        if (rpcRes.idempotent) return json(200, { ok: true, idempotent: true });
         const { error } = await admin
           .from("client_referrals")
           .update({
@@ -322,9 +392,7 @@ serve(async (req) => {
             fraud_review_notes: null,
             fraud_checked_at: new Date().toISOString(),
             fraud_checked_by: user.id,
-            status: ref.qualifying_cycles_paid >= ref.required_cycles
-              ? "qualified"
-              : "code_used",
+            status: ref.qualifying_cycles_paid >= ref.required_cycles ? "qualified" : "code_used",
           })
           .eq("id", ref.id);
         if (error) return json(500, { error: error.message });
@@ -335,8 +403,13 @@ serve(async (req) => {
       // ============================================================
       case "disqualify": {
         if (!body.referral_id) return json(400, { error: "referral_id requis" });
+        if (!body.idempotency_key) return json(400, { error: "idempotency_key requis" });
+        const reason = (body.reason || "").trim();
+        if (!reason) return json(400, { error: "Raison requise" });
         const ref = await loadReferral(body.referral_id);
-        const reason = (body.reason || "").trim() || "Non admissible";
+        const eventKey = `disqualify:${body.referral_id}:${body.idempotency_key}`;
+        const rpcRes = await applyAction(ref.id, "disqualify", reason, {}, eventKey);
+        if (rpcRes.idempotent) return json(200, { ok: true, idempotent: true });
         const now = new Date().toISOString();
         const { error } = await admin
           .from("client_referrals")
@@ -351,8 +424,70 @@ serve(async (req) => {
         await audit("disqualify", { referral_id: ref.id, reason });
         const rname = await referredName(ref.referred_user_id);
         await enqueueEmail("client_referral_disqualified", {
-          referred_name: rname,
-          reason,
+          referred_name: rname, reason,
+        }, eventKey);
+        return json(200, { ok: true });
+      }
+
+      // ============================================================
+      case "clawback": {
+        if (!body.referral_id) return json(400, { error: "referral_id requis" });
+        if (!body.idempotency_key) return json(400, { error: "idempotency_key requis" });
+        const reason = (body.reason || "").trim();
+        if (!reason) return json(400, { error: "Raison requise" });
+        const ref = await loadReferral(body.referral_id);
+        const eventKey = `clawback:${body.referral_id}:${body.idempotency_key}`;
+        const rpcRes = await applyAction(ref.id, "clawback", reason, {}, eventKey);
+        if (rpcRes.idempotent) return json(200, { ok: true, idempotent: true });
+        const now = new Date().toISOString();
+        const { error } = await admin
+          .from("client_referrals")
+          .update({
+            clawback_at: now,
+            clawback_by: user.id,
+            clawback_reason: reason,
+            reward_status: "cancelled",
+            status: "disqualified",
+          })
+          .eq("id", ref.id);
+        if (error) return json(500, { error: error.message });
+        await audit("clawback", { referral_id: ref.id, reason });
+        return json(200, { ok: true });
+      }
+
+      // ============================================================
+      case "reassign": {
+        if (!body.referral_id) return json(400, { error: "referral_id requis" });
+        if (!body.idempotency_key) return json(400, { error: "idempotency_key requis" });
+        if (!body.new_referrer_user_id) return json(400, { error: "new_referrer_user_id requis" });
+        const reason = (body.reason || "").trim();
+        if (!reason) return json(400, { error: "Raison requise" });
+        const ref = await loadReferral(body.referral_id);
+        if (body.new_referrer_user_id === ref.referred_user_id) {
+          return json(400, { error: "Auto-parrainage interdit (F33-B)" });
+        }
+        const eventKey = `reassign:${body.referral_id}:${body.idempotency_key}`;
+        const rpcRes = await applyAction(ref.id, "reassign", reason, {
+          from: client_user_id, to: body.new_referrer_user_id,
+        }, eventKey);
+        if (rpcRes.idempotent) return json(200, { ok: true, idempotent: true });
+        // Resolve new referrer account
+        const { data: newAcct } = await admin
+          .from("accounts").select("id").eq("client_id", body.new_referrer_user_id).limit(1).maybeSingle();
+        const now = new Date().toISOString();
+        const { error } = await admin
+          .from("client_referrals")
+          .update({
+            reassigned_from: client_user_id,
+            reassigned_at: now,
+            reassigned_by: user.id,
+            referrer_user_id: body.new_referrer_user_id,
+            referrer_account_id: newAcct?.id ?? null,
+          })
+          .eq("id", ref.id);
+        if (error) return json(500, { error: error.message });
+        await audit("reassign", {
+          referral_id: ref.id, from: client_user_id, to: body.new_referrer_user_id, reason,
         });
         return json(200, { ok: true });
       }

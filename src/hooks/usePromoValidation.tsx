@@ -100,21 +100,18 @@ export const usePromoValidation = () => {
     if (!appliedPromo) return;
 
     try {
-      // If it's a referral code, record in referral_attributions
+      // F33-2/F33-3 — referral attributions must go through the server-side
+      // Edge Function referrals-attach-on-order. Direct INSERT on
+      // referral_attributions is blocked at DB level (Phase A part 1).
       if (appliedPromo.is_referral_code && appliedPromo.referral_code_id && appliedPromo.influencer_id) {
-        await backendClient.from("referral_attributions").insert({
-          referral_code_id: appliedPromo.referral_code_id,
-          influencer_id: appliedPromo.influencer_id,
-          order_id: orderId,
-          customer_id: clientId,
-          customer_email: clientEmail.toLowerCase(),
-          customer_discount_amount: appliedPromo.discount_amount,
-          status: 'pending',
-        });
-
-        // Also increment usage_count on referral_codes
-        await backendClient.rpc('increment_referral_usage', { 
-          code_id: appliedPromo.referral_code_id 
+        await backendClient.functions.invoke("referrals-attach-on-order", {
+          body: {
+            referral_code: appliedPromo.code,
+            order_id: orderId,
+            referred_user_id: clientId,
+            referred_email: clientEmail.toLowerCase(),
+            idempotency_key: `promo:${orderId}:${appliedPromo.referral_code_id}`,
+          },
         });
       } else {
         // Regular promo code - record in promotion_redemptions

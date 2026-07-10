@@ -148,70 +148,19 @@ const AdminReferralAttributions = () => {
       note: string;
       commission?: number;
     }) => {
-      // Update attribution status
-      const { error: updateError } = await adminClient
-        .from("referral_attributions")
-        .update({ 
-          status: newStatus,
-          fraud_notes: note || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", attributionId);
-
-      if (updateError) throw updateError;
-
-      // If approved, create commission ledger entry
-      if (newStatus === "approved" && commission && commission > 0) {
-        const attr = actionDialog.attribution;
-        if (!attr) throw new Error("Attribution not found");
-
-        const { error: ledgerError } = await adminClient
-          .from("commission_ledger_entries")
-          .insert({
-            influencer_id: attr.influencer_id,
-            attribution_id: attributionId,
-            type: "approved_credit",
-            amount: commission,
-            currency: "CAD",
-            status: "approved",
-            notes: note || `Commission approuvée pour parrainage ${attr.referral_codes?.code || ""}`,
-            approved_at: new Date().toISOString(),
-            created_by: user?.id || null,
-          });
-
-        if (ledgerError) throw ledgerError;
-      }
-
-      // If rejected or disputed, optionally create a reversal if there was a previous credit
-      if (newStatus === "rejected" || newStatus === "disputed") {
-        // Check if there's an existing approved credit for this attribution
-        const { data: existingCredits } = await adminClient
-          .from("commission_ledger_entries")
-          .select("id, amount")
-          .eq("attribution_id", attributionId)
-          .eq("type", "approved_credit")
-          .eq("status", "approved");
-
-        if (existingCredits && existingCredits.length > 0) {
-          // Create reversal entries for each credit
-          for (const credit of existingCredits) {
-            await adminClient
-              .from("commission_ledger_entries")
-              .insert({
-                influencer_id: actionDialog.attribution?.influencer_id,
-                attribution_id: attributionId,
-                type: "reversal",
-                amount: -credit.amount,
-                currency: "CAD",
-                status: "approved",
-                notes: note || `Annulation: ${newStatus === "rejected" ? "Rejeté" : "Contesté"}`,
-                approved_at: new Date().toISOString(),
-                created_by: user?.id || null,
-              });
-          }
-        }
-      }
-
+      // F33-1/F33-14 — All writes on referral_attributions AND commission_ledger_entries
+      // are consolidated in the server-side Edge Function. The unique index on
+      // (attribution_id, type) guarantees no double commission on approve→reject→approve.
+      const { error } = await adminClient.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: "attribution.decide",
+          attribution_id: attributionId,
+          decision: newStatus,
+          note,
+          commission: commission ?? 0,
+        },
+      });
+      if (error) throw error;
       return { attributionId, newStatus };
     },
     onSuccess: (_, variables) => {

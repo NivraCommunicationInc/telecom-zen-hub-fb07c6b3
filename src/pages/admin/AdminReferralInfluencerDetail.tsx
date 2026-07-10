@@ -214,13 +214,16 @@ const AdminReferralInfluencerDetail = () => {
 
   const available = balances.approved - balances.paid;
 
-  // Add code mutation
+  // Add code — routed via admin-referrals-manage (F33-1)
   const addCode = useMutation({
     mutationFn: async ({ code, usageLimit }: { code: string; usageLimit?: number }) => {
-      const { error } = await supabase.from("referral_codes").insert({
-        influencer_id: id,
-        code: code.toUpperCase(),
-        usage_limit_total: usageLimit || null,
+      const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: "code.create",
+          influencer_id: id,
+          code: code.toUpperCase(),
+          usage_limit_total: usageLimit || null,
+        },
       });
       if (error) throw error;
     },
@@ -236,7 +239,7 @@ const AdminReferralInfluencerDetail = () => {
     },
   });
 
-  // Update code mutation
+  // Update code — routed via admin-referrals-manage
   const updateCode = useMutation({
     mutationFn: async ({
       codeId,
@@ -245,11 +248,24 @@ const AdminReferralInfluencerDetail = () => {
       codeId: string;
       updates: { status?: string; usage_limit_total?: number | null; usage_limit_monthly?: number | null };
     }) => {
-      const { error } = await supabase
-        .from("referral_codes")
-        .update(updates)
-        .eq("id", codeId);
-      if (error) throw error;
+      // Toggle status action goes through code.toggle; limits go through code.update
+      if (updates.status && (updates.status === "active" || updates.status === "disabled")) {
+        const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+          body: { action: "code.toggle", code_id: codeId, status: updates.status },
+        });
+        if (error) throw error;
+      }
+      if (updates.usage_limit_total !== undefined || updates.usage_limit_monthly !== undefined) {
+        const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+          body: {
+            action: "code.update",
+            code_id: codeId,
+            usage_limit_total: updates.usage_limit_total,
+            usage_limit_monthly: updates.usage_limit_monthly,
+          },
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["influencer-codes", id] });
@@ -265,10 +281,9 @@ const AdminReferralInfluencerDetail = () => {
   // Toggle code status
   const toggleCodeStatus = useMutation({
     mutationFn: async ({ codeId, newStatus }: { codeId: string; newStatus: string }) => {
-      const { error } = await supabase
-        .from("referral_codes")
-        .update({ status: newStatus })
-        .eq("id", codeId);
+      const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: { action: "code.toggle", code_id: codeId, status: newStatus },
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -305,33 +320,19 @@ const AdminReferralInfluencerDetail = () => {
     },
   });
 
-  // Update influencer status
+  // Update influencer status — via admin-referrals-manage (cascade codes server-side)
   const updateStatus = useMutation({
     mutationFn: async ({ status, reason }: { status: "active" | "suspended"; reason?: string }) => {
-      const updates: any = { status };
-      if (reason) {
-        updates.notes = `${influencer?.notes ? influencer.notes + "\n" : ""}[${new Date().toISOString()}] ${status === "suspended" ? "Suspension" : "Réactivation"}: ${reason}`;
-      }
-
-      const { error } = await supabase
-        .from("influencers")
-        .update(updates)
-        .eq("id", id);
+      const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: "influencer.set_status",
+          influencer_id: id,
+          new_status: status,
+          reason: reason || (status === "suspended" ? "Suspension admin" : undefined),
+          cascade_codes: true,
+        },
+      });
       if (error) throw error;
-
-      // If suspending, disable all codes
-      if (status === "suspended") {
-        await supabase
-          .from("referral_codes")
-          .update({ status: "disabled" })
-          .eq("influencer_id", id);
-      } else if (status === "active") {
-        // Reactivate codes when reactivating
-        await supabase
-          .from("referral_codes")
-          .update({ status: "active" })
-          .eq("influencer_id", id);
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["influencer", id] });
@@ -364,36 +365,33 @@ const AdminReferralInfluencerDetail = () => {
     },
   });
 
-  // Activate pending influencer mutation
+  // Activate pending influencer — via admin-referrals-manage
   const activateInfluencer = useMutation({
     mutationFn: async () => {
-      // Update status to active
-      const { error: updateError } = await supabase
-        .from("influencers")
-        .update({ status: "active" })
-        .eq("id", id);
-
-      if (updateError) throw updateError;
-
-      // Check if they have an active code, if not generate one
+      // 1) Set active + cascade codes
+      const { error: sErr } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: "influencer.set_status",
+          influencer_id: id,
+          new_status: "active",
+          cascade_codes: true,
+        },
+      });
+      if (sErr) throw sErr;
+      // 2) Generate first code server-side if none exists
       const { data: existingCodes } = await supabase
         .from("referral_codes")
         .select("id")
         .eq("influencer_id", id)
         .eq("status", "active")
         .limit(1);
-
       if (!existingCodes || existingCodes.length === 0) {
         const code = `${(influencer?.first_name || "REF").toUpperCase().slice(0, 3)}${Math.random()
-          .toString(36)
-          .substring(2, 6)
-          .toUpperCase()}`;
-
-        await supabase.from("referral_codes").insert({
-          influencer_id: id,
-          code,
-          status: "active",
+          .toString(36).substring(2, 6).toUpperCase()}`;
+        const { error: cErr } = await supabase.functions.invoke("admin-referrals-manage", {
+          body: { action: "code.create", influencer_id: id, code },
         });
+        if (cErr) throw cErr;
       }
     },
     onSuccess: () => {
