@@ -30923,6 +30923,7 @@ export type Database = {
         Args: { _counts: Json }
         Returns: boolean
       }
+      debug_current_role: { Args: never; Returns: Json }
       decrypt_wifi_password: { Args: { p_encrypted: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
