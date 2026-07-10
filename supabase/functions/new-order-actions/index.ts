@@ -350,20 +350,21 @@ serve(async (req) => {
   const clientInternalNote = async (title: string, content: string, tag: string) => {
     if (!body.client_user_id) return;
     try {
-      await admin.from("client_internal_notes").insert({
+      const { error } = await admin.from("client_internal_notes").insert({
         client_id: body.client_user_id,
-        author_id: user.id,
-        author_name: callerName,
-        title,
-        content,
-        tag,
-        metadata: { module_tag: "module31_new_order", account_id: body.account_id ?? null,
-                    order_id: body.order_id ?? null, simulated: !!body.simulated },
+        account_id: body.account_id ?? null,
+        note_type: primaryRole === "admin" ? "admin" : "employee",
+        body: `[${tag}] ${title}\n${content}`,
+        created_by_user_id: user.id,
+        created_by_role: primaryRole,
+        created_by_name: callerName ?? callerProfile?.email ?? "system",
       });
+      if (error) await raiseAlert("order_new_note_failed", { error: error.message });
     } catch (e) {
       await raiseAlert("order_new_note_failed", { error: String(e) });
     }
   };
+
 
   const enqueueEmail = async (payload: Record<string, unknown>) => {
     try {
