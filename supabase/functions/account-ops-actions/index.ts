@@ -936,6 +936,7 @@ serve(async (req) => {
 
         // Cascade: resume suspended subs (default true) and/or reactivate cancelled subs (opt-in).
         // Enum billing_subscription_status: active | pending | suspended | cancelled | expired | not_renewed.
+        // F26-2 sibling — resolve billing_customers.id first (customer_id canonique).
         const resumeSuspended = body.resume_suspended !== false;
         const reactivateCancelled = body.reactivate_cancelled === true;
         const targetStates: string[] = [];
@@ -945,14 +946,21 @@ serve(async (req) => {
         let reactivatedSubs = 0;
         if (targetStates.length > 0) {
           try {
-            const { data: subs, error: subErr } = await admin
-              .from("billing_subscriptions")
-              .update({ status: "active", updated_at: nowIso })
-              .eq("customer_id", client_user_id)
-              .in("status", targetStates)
-              .select("id");
-            if (subErr) console.error("reactivate_account subs update", subErr);
-            reactivatedSubs = subs?.length ?? 0;
+            const { data: bc } = await admin
+              .from("billing_customers")
+              .select("id")
+              .eq("user_id", client_user_id)
+              .maybeSingle();
+            if (bc?.id) {
+              const { data: subs, error: subErr } = await admin
+                .from("billing_subscriptions")
+                .update({ status: "active", updated_at: nowIso })
+                .eq("customer_id", bc.id)
+                .in("status", targetStates)
+                .select("id");
+              if (subErr) console.error("reactivate_account subs update", subErr);
+              reactivatedSubs = subs?.length ?? 0;
+            }
           } catch (e) { console.error("reactivate_account subs exception", e); }
         }
 
