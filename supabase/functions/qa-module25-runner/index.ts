@@ -215,13 +215,13 @@ Deno.serve(async (req) => {
       .select("id, action, details").eq("target_id", clientA)
       .like("action", "account_ops.pause_account%").order("created_at", { ascending: false }).limit(1);
     const { data: act } = await admin.from("client_activity_logs")
-      .select("id, activity_type").eq("client_id", clientA)
+      .select("id, action_type").eq("client_id", clientA).eq("action_type", "account_pause")
       .order("created_at", { ascending: false }).limit(3);
     const { data: note } = await admin.from("client_internal_notes")
-      .select("id, note").eq("client_id", clientA)
+      .select("id, body").eq("client_id", clientA).ilike("body", "Pause temporaire%")
       .order("created_at", { ascending: false }).limit(3);
     const { data: mail } = await admin.from("email_queue")
-      .select("id, template_slug, to_email").eq("template_slug", "client_account_paused")
+      .select("id, template_key, to_email").eq("template_key", "client_account_paused")
       .eq("to_email", CLIENT_A_EMAIL).order("created_at", { ascending: false }).limit(1);
 
     push({
