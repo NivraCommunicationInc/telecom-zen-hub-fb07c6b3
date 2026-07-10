@@ -179,16 +179,17 @@ Deno.serve(async (req) => {
     // Seed 2 active subs on client A
     const nowIso = new Date().toISOString();
     const inXDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString();
+    const traceBase = { source_type: "qa_module26", source_id: crypto.randomUUID() };
     const { data: subs, error: subsSeedErr } = await admin.from("billing_subscriptions").insert([
       { customer_id: billingCustA, plan_code: `QA26-INT-${Date.now()}`, plan_name: "QA Internet 50",
         plan_price: 49.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "Internet" },
+        status: "active", service_category: "Internet", ...traceBase, source_id: crypto.randomUUID() },
       { customer_id: billingCustA, plan_code: `QA26-TV-${Date.now()}`, plan_name: "QA TV Base",
         plan_price: 29.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "TV" },
+        status: "active", service_category: "TV", ...traceBase, source_id: crypto.randomUUID() },
       { customer_id: billingCustB, plan_code: `QA26-INT-B-${Date.now()}`, plan_name: "QA B Internet",
         plan_price: 49.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "Internet" },
+        status: "active", service_category: "Internet", ...traceBase, source_id: crypto.randomUUID() },
     ]).select("id, customer_id");
     if (subsSeedErr) throw new Error(`seed_subs: ${subsSeedErr.message}`);
     (subs ?? []).forEach((s: any) => createdSubIds.push(s.id));
