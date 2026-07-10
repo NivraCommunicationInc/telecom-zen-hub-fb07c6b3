@@ -235,15 +235,19 @@ serve(async (req) => {
 
   if (body.service_address_id) {
     const { data: sa } = await admin
-      .from("service_addresses").select("id, account_id, client_id, user_id")
+      .from("service_addresses").select("id, account_id")
       .eq("id", body.service_address_id).maybeSingle();
     if (!sa) return err(404, "NOT_FOUND", "Adresse de service introuvable");
     if (body.account_id && sa.account_id && sa.account_id !== body.account_id) {
       return err(403, "CROSS_CLIENT_TARGET", "Adresse hors compte cible");
     }
-    if (body.client_user_id && sa.client_id && sa.client_id !== body.client_user_id
-        && sa.user_id !== body.client_user_id) {
-      return err(403, "CROSS_CLIENT_TARGET", "Adresse hors client cible");
+    // Client ownership derived via account (service_addresses is scoped by account_id only)
+    if (body.client_user_id && sa.account_id) {
+      const { data: saAcct } = await admin
+        .from("accounts").select("client_id").eq("id", sa.account_id).maybeSingle();
+      if (saAcct && saAcct.client_id !== body.client_user_id) {
+        return err(403, "CROSS_CLIENT_TARGET", "Adresse hors client cible");
+      }
     }
   }
 
@@ -480,9 +484,12 @@ serve(async (req) => {
       server_tvq = Number(d.tvq_amount || 0);
       server_total = Number(d.grand_total || 0);
     } catch (_e) {
-      // Fallback QC — must match src/lib/pricing/serverTaxEngine.ts
-      const raw = cart_items.reduce((s, i) => s + Number(i.amount || 0) * Number(i.quantity || 1), 0);
-      server_subtotal = Math.round(raw * 100) / 100;
+      // fallback below
+    }
+    // Additional safety: if RPC returned 0 but cart has value, use QC fallback
+    const rawSum = cart_items.reduce((s, i) => s + Number(i.amount || 0) * Number(i.quantity || 1), 0);
+    if (server_total < 0.01 && rawSum > 0.01) {
+      server_subtotal = Math.round(rawSum * 100) / 100;
       server_tps = Math.round(server_subtotal * TPS_RATE * 100) / 100;
       server_tvq = Math.round(server_subtotal * TVQ_RATE * 100) / 100;
       server_total = Math.round((server_subtotal + server_tps + server_tvq) * 100) / 100;

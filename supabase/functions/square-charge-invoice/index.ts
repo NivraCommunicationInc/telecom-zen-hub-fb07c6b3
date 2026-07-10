@@ -332,6 +332,12 @@ serve(async (req) => {
               payment_status: "confirmed", payment_reference: paymentId,
               updated_at: new Date().toISOString(),
             }).eq("id", intentShell.converted_field_order_id);
+
+            // F31-6 — re-invoke field-sales-sync to create field_commissions now that
+            // payment is captured. Idempotent (existing-row check inside sync).
+            await supabase.functions.invoke("field-sales-sync", {
+              body: { action: "sync_single", sale_id: intentShell.converted_field_order_id },
+            }).catch((e) => console.warn("[square-charge-invoice] F31-6 post-capture sync failed:", e));
           }
 
           await supabase.functions.invoke("send-order-confirmation", {
