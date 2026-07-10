@@ -459,6 +459,9 @@ Deno.serve(async (req) => {
     const subsDel = await admin.from("billing_subscriptions").delete()
       .in("customer_id", [billingCustA, billingCustB]).select("id");
     del.billing_subscriptions = subsDel.data?.length ?? 0;
+    const invDel = await admin.from("billing_invoices").delete()
+      .in("customer_id", [billingCustA, billingCustB]).select("id");
+    del.billing_invoices = invDel.data?.length ?? 0;
     const equipDel = await admin.from("equipment_inventory").delete()
       .in("account_id", [accountA, accountB]).select("id");
     del.equipment_inventory = equipDel.data?.length ?? 0;
