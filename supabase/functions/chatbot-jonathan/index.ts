@@ -783,17 +783,22 @@ async function handleToolCall(
       }
 
       case "report_outage": {
-        const { data: ticket, error } = await supabase.from("support_tickets").insert({
-          client_email: args.client_email,
+        const outageActor: TicketActor = {
+          user_id: effectiveUserId ?? null,
+          role: effectiveUserId ? "client" : "system",
+          email: args.client_email ?? null,
+          name: null,
+        };
+        const ticket = await createTicket(supabase as any, outageActor, {
+          owner_user_id: effectiveUserId ?? null,
           subject: fr ? `Panne de service — ${args.service_type}` : `Service outage — ${args.service_type}`,
           description: args.description,
           category: "technical",
           priority: "urgent",
-          status: "open",
           source: "chatbot",
-        } as any).select("ticket_number").single();
-        if (error) throw error;
-        return { result: fr ? `✅ Panne signalée. Ticket: ${(ticket as any).ticket_number}. Notre équipe enquête en priorité.` : `✅ Outage reported. Ticket: ${(ticket as any).ticket_number}. Our team is investigating with priority.` };
+          client_email: args.client_email ?? null,
+        });
+        return { result: fr ? `✅ Panne signalée. Ticket: ${ticket.ticket_number}. Notre équipe enquête en priorité.` : `✅ Outage reported. Ticket: ${ticket.ticket_number}. Our team is investigating with priority.` };
       }
 
       default:
