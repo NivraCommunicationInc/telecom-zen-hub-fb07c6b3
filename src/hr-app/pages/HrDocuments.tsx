@@ -183,9 +183,14 @@ export default function HrDocuments() {
 
   const deleteMut = useMutation({
     mutationFn: async (doc: any) => {
-      await supabase.storage.from("hr-documents").remove([doc.file_path]);
-      const { error } = await supabase.from("hr_documents").delete().eq("id", doc.id);
-      if (error) throw error;
+      const { callDocumentAction } = await import("@/lib/callDocumentAction");
+      const r = await callDocumentAction({
+        action: "soft_delete",
+        table: "hr_documents",
+        document_id: doc.id,
+        reason: "Suppression document RH (employé)",
+      });
+      if (!r.ok) throw new Error(r.error ?? "delete_failed");
     },
     onSuccess: () => {
       toast.success("Document supprimé");
