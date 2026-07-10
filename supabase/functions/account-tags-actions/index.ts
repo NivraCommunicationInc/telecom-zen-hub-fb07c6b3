@@ -35,7 +35,7 @@ const STAFF_ANY = [
   "billing_admin", "sales", "manager", "hr", "field_agent", "field_sales",
 ];
 const ADMIN_ONLY = ["admin", "super_admin"];
-const ADMIN_MANAGER = ["admin", "super_admin", "manager"];
+const ADMIN_MANAGER = ["admin", "super_admin", "supervisor", "manager"];
 
 type Preset = {
   key: string;
