@@ -403,8 +403,8 @@ serve(async (req) => {
 
   for (const uid of [clientId, adminId, supId, supportId, unauthId].filter(Boolean)) {
     await safeDel("admin_audit_log", (b) => b.delete().eq("admin_user_id", uid));
-    await safeDel("activity_logs", (b) => b.delete().eq("admin_user_id", uid));
-    await safeDel("user_roles", (b) => b.delete().eq("admin_user_id", uid));
+    await safeDel("activity_logs", (b) => b.delete().eq("user_id", uid));
+    await safeDel("user_roles", (b) => b.delete().eq("user_id", uid));
   }
 
   if (accountId) await safeDel("accounts", (b) => b.delete().eq("id", accountId));
