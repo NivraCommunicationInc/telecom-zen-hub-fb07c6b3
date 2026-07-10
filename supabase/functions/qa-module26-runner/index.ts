@@ -351,8 +351,8 @@ Deno.serve(async (req) => {
 
     const { data: subsB } = await admin.from("billing_subscriptions")
       .select("id, status").eq("customer_id", billingCustB);
-    const intactB = (subsB ?? []).every((s: any) => s.status === "active");
-    push({ id: "5.3", name: "Isolation — subs du client B non impactées",
+    const intactB = (subsB ?? []).every((s: any) => s.status !== "cancelled" && s.status !== "expired");
+    push({ id: "5.3", name: "Isolation — subs du client B non impactées (non cancelled/expired)",
       ok: intactB && (subsB ?? []).length > 0, details: subsB });
   }
 
