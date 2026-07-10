@@ -319,9 +319,7 @@ serve(async (req) => {
         await enqueueEmail("client_referral_reward_issued", {
           referred_name: rname,
           reward_amount: fmtMoney(reward_amount),
-          reward_type: inputType === "visa_mastercard_gift_card"
-            ? "Carte cadeau Visa/Mastercard"
-            : inputType,
+          reward_type: inputType === "credit" ? "Crédit compte" : "Points fidélité",
           reward_reference,
         }, eventKey);
         return json(200, { ok: true });
