@@ -191,15 +191,19 @@ async function phase1(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   }
   // C9: pending approve
   {
-    const { data: tx } = await db.from("loyalty_transactions").insert({
-      account_id: ctx.account_a, type: "earned_manual", points: 25, description: `${QA_PREFIX}pending`,
+    const { data: tx, error: eIns } = await db.from("loyalty_transactions").insert({
+      account_id: ctx.account_a, type: "adjusted", points: 25, description: `${QA_PREFIX}pending`,
       balance_after: 0, status: "pending",
     }).select("id").single();
-    const { data, error } = await db.rpc("admin_loyalty_approve_pending", {
-      p_transaction_id: tx!.id, p_decision: "approve", p_reason: "QA approve",
-    });
-    checks.push({ id: "C9", label: "Approve pending tx", pass: !error && (data as any)?.ok === true, detail: { data, error } });
+    if (eIns || !tx) { checks.push({ id: "C9", label: "Approve pending tx", pass: false, detail: eIns }); }
+    else {
+      const { data, error } = await db.rpc("admin_loyalty_approve_pending", {
+        p_transaction_id: tx.id, p_decision: "approve", p_reason: "QA approve",
+      });
+      checks.push({ id: "C9", label: "Approve pending tx", pass: !error && (data as any)?.ok === true, detail: { data, error } });
+    }
   }
+
   // C10: earn dedup on unique index (same reference_id)
   {
     const refId = crypto.randomUUID();
