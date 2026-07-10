@@ -25,7 +25,11 @@ type Action =
   | "code.update"
   | "code.toggle"
   | "influencer.set_status"
-  | "attribution.decide";
+  | "attribution.decide"
+  | "cashout.approve"
+  | "cashout.reject"
+  | "cashout.pay"
+  | "manual_bonus";
 
 interface Body {
   action: Action;
@@ -48,6 +52,13 @@ interface Body {
   decision?: "approved" | "rejected" | "hold" | "disputed" | "pending";
   note?: string;
   commission?: number;
+  // cashout.*
+  cashout_id?: string;
+  admin_note?: string;
+  // manual_bonus
+  target_influencer_id?: string;
+  bonus_amount?: number;
+  bonus_notes?: string;
 }
 
 const json = (s: number, p: unknown) =>
