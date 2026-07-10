@@ -297,6 +297,95 @@ serve(async (req) => {
         return json(200, { ok: true });
       }
 
+      // ---------- cashout.approve / reject / pay (F33-20 canonical path) ----------
+      case "cashout.approve":
+      case "cashout.reject":
+      case "cashout.pay": {
+        if (!body.cashout_id) return json(400, { error: "cashout_id requis" });
+        const { data: cashout, error: cErr } = await admin
+          .from("cashout_requests").select("*").eq("id", body.cashout_id).maybeSingle();
+        if (cErr) return json(500, { error: cErr.message });
+        if (!cashout) return json(404, { error: "Demande introuvable" });
+
+        const nextStatus =
+          body.action === "cashout.approve" ? "approved" :
+          body.action === "cashout.reject"  ? "rejected" : "paid";
+
+        if (body.action === "cashout.pay" && cashout.status !== "approved") {
+          return json(400, { error: "Doit être approved avant paiement" });
+        }
+        if (body.action === "cashout.approve" && !["requested","under_review","pending"].includes(cashout.status)) {
+          return json(400, { error: "Statut incompatible avec approbation" });
+        }
+
+        const { error: upErr } = await admin
+          .from("cashout_requests")
+          .update({
+            status: nextStatus,
+            admin_note: body.admin_note ?? null,
+            [body.action === "cashout.pay" ? "paid_at" : body.action === "cashout.approve" ? "approved_at" : "rejected_at"]: new Date().toISOString(),
+            [body.action === "cashout.pay" ? "paid_by" : body.action === "cashout.approve" ? "approved_by" : "rejected_by"]: user.id,
+          })
+          .eq("id", body.cashout_id);
+        if (upErr) return json(500, { error: upErr.message });
+
+        if (body.action === "cashout.pay") {
+          // Idempotent payout record + ledger debit
+          const eventKey = body.idempotency_key || `cashout-pay:${body.cashout_id}`;
+          const { data: existing } = await admin
+            .from("commission_ledger_entries")
+            .select("id")
+            .eq("influencer_id", cashout.influencer_id)
+            .eq("type", "payout_debit")
+            .eq("notes", `Paiement ${cashout.request_number}`)
+            .maybeSingle();
+          if (!existing) {
+            await admin.from("influencer_payouts").insert({
+              influencer_id: cashout.influencer_id,
+              cashout_request_id: cashout.id,
+              amount: cashout.amount,
+              method: cashout.method,
+              paid_by: user.id,
+            });
+            const { error: lErr } = await admin.from("commission_ledger_entries").insert({
+              influencer_id: cashout.influencer_id,
+              type: "payout_debit",
+              amount: -Math.abs(Number(cashout.amount)),
+              status: "paid",
+              notes: `Paiement ${cashout.request_number}`,
+              created_by: user.id,
+            });
+            if (lErr) return json(500, { error: lErr.message });
+          }
+          await audit("cashout_pay", { target: body.cashout_id, event_key: eventKey });
+        } else {
+          await audit(`cashout_${nextStatus}`, { target: body.cashout_id, note: body.admin_note });
+        }
+        return json(200, { ok: true });
+      }
+
+      // ---------- manual_bonus (F33-20 remplace admin_referral_manual_reward) ----------
+      case "manual_bonus": {
+        if (!body.target_influencer_id) return json(400, { error: "target_influencer_id requis" });
+        if (!body.bonus_amount || Number(body.bonus_amount) === 0) return json(400, { error: "bonus_amount requis" });
+        if (!body.reason?.trim()) return json(400, { error: "reason requise" });
+        const { error } = await admin.from("commission_ledger_entries").insert({
+          influencer_id: body.target_influencer_id,
+          type: "manual_bonus",
+          amount: Number(body.bonus_amount),
+          currency: "CAD",
+          status: "approved",
+          notes: body.bonus_notes || body.reason,
+          approved_at: new Date().toISOString(),
+          created_by: user.id,
+        });
+        if (error) return json(500, { error: error.message });
+        await audit("manual_bonus", {
+          target: body.target_influencer_id, amount: body.bonus_amount, reason: body.reason,
+        });
+        return json(200, { ok: true });
+      }
+
       default:
         return json(400, { error: "Action inconnue" });
     }
