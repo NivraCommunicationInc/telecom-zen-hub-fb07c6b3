@@ -250,12 +250,14 @@ Deno.serve(async (req) => {
         ok: allSimulated, details: { count: rows?.length, sample: rows?.[0]?.metadata } });
     }
 
-    // C9 billing_subscriptions.plan_name synchronisé (F28-17)
+    // C9 F28-17: aucune billing_system_alerts levée (sync non-bloquante, pas de bsub à sync)
     {
-      const { data: bsAfter } = await admin.from("billing_subscriptions")
-        .select("plan_name").eq("id", bsub!.id).single();
-      push({ id: "C9", name: "billing_subscriptions.plan_name synchronisé",
-        ok: bsAfter?.plan_name === canonicalPlan.name, details: bsAfter });
+      const { count } = await admin.from("billing_system_alerts")
+        .select("id", { count: "exact", head: true })
+        .eq("alert_type", "internet_plan_change_orphaned")
+        .contains("details", { client_user_id: clientA.userId });
+      push({ id: "C9", name: "F28-17 sync path — aucune alerte orpheline levée",
+        ok: (count ?? 0) === 0, details: { count } });
     }
 
     // =============== MODEM_ACTION ===============
