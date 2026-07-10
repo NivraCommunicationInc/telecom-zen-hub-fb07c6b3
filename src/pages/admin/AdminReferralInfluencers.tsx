@@ -226,43 +226,37 @@ const AdminReferralInfluencers = () => {
     },
   });
 
-  // Activate pending influencer mutation
+  // Activate pending influencer — routed through admin-referrals-manage.
+  // Cascade re-activates codes; code creation delegated to server if none exists.
   const activateInfluencer = useMutation({
     mutationFn: async (influencerId: string) => {
-      // Update status to active
-      const { error: updateError } = await supabase
-        .from("influencers")
-        .update({ status: "active" })
-        .eq("id", influencerId);
+      // 1) Set status active + cascade codes → active
+      const { error: statusErr } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: "influencer.set_status",
+          influencer_id: influencerId,
+          new_status: "active",
+          cascade_codes: true,
+        },
+      });
+      if (statusErr) throw statusErr;
 
-      if (updateError) throw updateError;
-
-      // Check if they have an active code, if not generate one
+      // 2) Generate a first code server-side if none exists
       const { data: existingCodes } = await supabase
         .from("referral_codes")
         .select("id")
         .eq("influencer_id", influencerId)
         .eq("status", "active")
         .limit(1);
-
       if (!existingCodes || existingCodes.length === 0) {
-        // Get influencer info for code generation
         const { data: influencer } = await supabase
-          .from("influencers")
-          .select("first_name")
-          .eq("id", influencerId)
-          .single();
-
+          .from("influencers").select("first_name").eq("id", influencerId).single();
         const code = `${(influencer?.first_name || "REF").toUpperCase().slice(0, 3)}${Math.random()
-          .toString(36)
-          .substring(2, 6)
-          .toUpperCase()}`;
-
-        await supabase.from("referral_codes").insert({
-          influencer_id: influencerId,
-          code,
-          status: "active",
+          .toString(36).substring(2, 6).toUpperCase()}`;
+        const { error: codeErr } = await supabase.functions.invoke("admin-referrals-manage", {
+          body: { action: "code.create", influencer_id: influencerId, code },
         });
+        if (codeErr) throw codeErr;
       }
     },
     onSuccess: () => {
@@ -274,29 +268,23 @@ const AdminReferralInfluencers = () => {
     },
   });
 
-  // Update status mutation
+  // Update status via admin-referrals-manage (cascade to codes handled server-side)
   const updateStatus = useMutation({
     mutationFn: async ({
-      id,
-      status,
+      id, status, reason,
     }: {
-      id: string;
-      status: "active" | "suspended";
+      id: string; status: "active" | "suspended"; reason?: string;
     }) => {
-      const { error } = await supabase
-        .from("influencers")
-        .update({ status })
-        .eq("id", id);
-
+      const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: "influencer.set_status",
+          influencer_id: id,
+          new_status: status,
+          reason: reason || (status === "suspended" ? "Suspension admin" : undefined),
+          cascade_codes: true,
+        },
+      });
       if (error) throw error;
-
-      // If suspending, disable all codes
-      if (status === "suspended") {
-        await supabase
-          .from("referral_codes")
-          .update({ status: "disabled" })
-          .eq("influencer_id", id);
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["influencers"] });
