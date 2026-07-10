@@ -71,6 +71,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend/adminClient";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { format } from "date-fns";
 import { ClientSearchAutocomplete } from "@/components/admin/ClientSearchAutocomplete";
 import { fr } from "date-fns/locale";
