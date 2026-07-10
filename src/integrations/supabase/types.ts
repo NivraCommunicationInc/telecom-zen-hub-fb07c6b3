@@ -14026,20 +14026,25 @@ export type Database = {
       }
       internal_tickets: {
         Row: {
+          account_id: string | null
           assigned_to_department: string
           assigned_to_id: string | null
           assigned_to_name: string | null
           category: string | null
           cc_departments: Json | null
+          client_user_id: string | null
           created_at: string
           created_by_email: string | null
           created_by_id: string
           created_by_name: string
           created_by_role: string
           description: string
+          escalation_type: string | null
           id: string
+          idempotency_key: string | null
           internal_notes: string | null
           priority: string
+          related_support_ticket_id: string | null
           resolved_at: string | null
           resolved_by_id: string | null
           resolved_by_name: string | null
@@ -14049,20 +14054,25 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_id?: string | null
           assigned_to_department: string
           assigned_to_id?: string | null
           assigned_to_name?: string | null
           category?: string | null
           cc_departments?: Json | null
+          client_user_id?: string | null
           created_at?: string
           created_by_email?: string | null
           created_by_id: string
           created_by_name: string
           created_by_role: string
           description: string
+          escalation_type?: string | null
           id?: string
+          idempotency_key?: string | null
           internal_notes?: string | null
           priority?: string
+          related_support_ticket_id?: string | null
           resolved_at?: string | null
           resolved_by_id?: string | null
           resolved_by_name?: string | null
@@ -14072,20 +14082,25 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_id?: string | null
           assigned_to_department?: string
           assigned_to_id?: string | null
           assigned_to_name?: string | null
           category?: string | null
           cc_departments?: Json | null
+          client_user_id?: string | null
           created_at?: string
           created_by_email?: string | null
           created_by_id?: string
           created_by_name?: string
           created_by_role?: string
           description?: string
+          escalation_type?: string | null
           id?: string
+          idempotency_key?: string | null
           internal_notes?: string | null
           priority?: string
+          related_support_ticket_id?: string | null
           resolved_at?: string | null
           resolved_by_id?: string | null
           resolved_by_name?: string | null
