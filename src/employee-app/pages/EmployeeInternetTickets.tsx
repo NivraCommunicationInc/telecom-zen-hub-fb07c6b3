@@ -84,11 +84,12 @@ export default function EmployeeInternetTickets() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ ticketId, newStatus }: { ticketId: string; newStatus: string }) => {
-      const { error } = await supabase
-        .from("support_tickets")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", ticketId);
-      if (error) throw error;
+      await callSupportAction("transition_status", {
+        ticket_id: ticketId,
+        to_status: newStatus,
+        reason: `internal_status_change_${newStatus}`,
+        source: "employee_internet_tickets",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-internet-tickets"] });
