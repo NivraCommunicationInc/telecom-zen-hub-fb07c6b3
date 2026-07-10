@@ -598,7 +598,7 @@ const CoreReferralRewardsPage = () => {
                       (selectedReferral.status === "qualified" || selectedReferral.reward_status === "qualified" || selectedReferral.reward_status === "reward_pending") && (
                       <Button
                         onClick={() => issueReward(selectedReferral)}
-                        disabled={updateReferralMutation.isPending}
+                        disabled={invokeReferralAction.isPending}
                         className="w-full"
                         size="sm"
                       >
@@ -637,7 +637,7 @@ const CoreReferralRewardsPage = () => {
                         />
                         <Button
                           onClick={markRewardSent}
-                          disabled={updateReferralMutation.isPending || !rewardForm.card_reference}
+                          disabled={invokeReferralAction.isPending || !rewardForm.card_reference}
                           className="w-full"
                           size="sm"
                         >
@@ -652,7 +652,7 @@ const CoreReferralRewardsPage = () => {
                       <Button
                         variant="outline"
                         onClick={markDelivered}
-                        disabled={updateReferralMutation.isPending}
+                        disabled={invokeReferralAction.isPending}
                         className="w-full"
                         size="sm"
                       >
