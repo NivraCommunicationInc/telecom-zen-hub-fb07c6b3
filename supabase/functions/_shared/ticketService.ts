@@ -86,7 +86,9 @@ async function enqueueTicketEmail(admin: SupabaseClient, params: {
       to_email: params.toEmail,
       template_key: params.templateKey,
       template_vars: params.vars,
-      dedupe_key: params.dedupeKey,
+      event_key: params.dedupeKey,
+      idempotency_key: params.dedupeKey,
+      entity_type: "support_ticket",
       status: "queued",
       priority: 0,
     });
