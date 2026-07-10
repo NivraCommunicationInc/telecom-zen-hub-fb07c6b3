@@ -331,7 +331,7 @@ serve(async (req) => {
       .eq("action", "supervisor_escalation")
       .maybeSingle();
     push("audit", "A1_audit_entry_present", !!audit, audit ? "ok" : "missing");
-    push("audit", "A2_audit_actor_matches", audit?.admin_user_id === adminId, String(audit?.user_id));
+    push("audit", "A2_audit_actor_matches", audit?.admin_user_id === adminId, String(audit?.admin_user_id));
     push("audit", "A3_audit_target_type", audit?.target_type === "internal_ticket", String(audit?.target_type));
     push("audit", "A4_audit_details_has_client",
       !!(audit?.details as any)?.client_user_id, JSON.stringify(audit?.details ?? {}).slice(0, 200));
