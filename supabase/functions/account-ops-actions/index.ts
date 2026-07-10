@@ -815,7 +815,7 @@ serve(async (req) => {
               client_user_id,
               reason: "account_cancelled",
               reason_detail: `Annulation compte — motif: ${reason}`,
-              status: "requested",
+              status: "pending",
               requested_at: nowIso,
             }));
             const { data: retIns, error: retErr } = await admin
