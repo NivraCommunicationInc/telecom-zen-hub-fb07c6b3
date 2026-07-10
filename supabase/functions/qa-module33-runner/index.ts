@@ -56,11 +56,11 @@ async function makeQaClient(admin: SupabaseClient, tag: string) {
     user_id, email, first_name: `${QA_PREFIX}-${tag}`, last_name: "Test",
   }, { onConflict: "user_id" });
 
+  const account_number = `${QA_PREFIX}-${tag}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const { data: acc, error: aErr } = await admin.from("accounts").insert({
-    user_id,
-    email,
-    first_name: `${QA_PREFIX}-${tag}`,
-    last_name: "Test",
+    client_id: user_id,
+    account_number,
+    account_name: `${QA_PREFIX}-${tag}`,
     status: "active",
   }).select("id").single();
   if (aErr) throw new Error(`accounts ${tag}: ${aErr.message}`);
