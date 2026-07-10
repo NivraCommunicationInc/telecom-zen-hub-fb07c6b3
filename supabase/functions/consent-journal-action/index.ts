@@ -220,9 +220,6 @@ Deno.serve(async (req) => {
   if (!row?.id) return json(500, { error: "insert_failed", detail: "no_row_returned" });
 
   const consentId = row.id as string;
-  const wasIdempotent = row.created_at && row.idempotency_key === b.idempotency_key
-    ? false
-    : false; // RPC returns the row either way; detect via secondary lookup below if needed
 
   // --- Audit ---
   const { error: auditErr } = await admin.from("admin_audit_log").insert({
