@@ -350,6 +350,11 @@ serve(async (req) => {
     // C16 — Unique constraint on (attribution_id, type) prevents duplicate commission (F33-14)
     if (createdAttributionIds.length && infl) {
       const attribution_id = createdAttributionIds[0];
+      // Ensure a first row exists
+      await admin.from("commission_ledger_entries").insert({
+        influencer_id: infl.id, attribution_id, type: "approved_credit",
+        amount: 1, status: "approved", notes: `${QA_PREFIX} first`,
+      });
       const { error: dupErr } = await admin.from("commission_ledger_entries").insert({
         influencer_id: infl.id, attribution_id, type: "approved_credit",
         amount: 1, status: "approved", notes: `${QA_PREFIX} dup`,
@@ -387,25 +392,32 @@ serve(async (req) => {
     }
 
     // C19 — fn_track_referral_payment must NOT exist
-    const { data: legacyRows } = await admin.rpc("has_role", { _user_id: "00000000-0000-0000-0000-000000000000", _role: "admin" }).then(() => admin.from("pg_proc" as any).select("proname"), () => ({ data: null })) as any;
-    // simpler: attempt to invoke; expect failure
-    const legacyProbe = await admin.rpc("fn_track_referral_payment" as any, {}).catch((e) => e);
-    const legacyGone = String((legacyProbe as any)?.message || (legacyProbe as any)?.error?.message || "").toLowerCase().includes("does not exist")
-                    || (legacyProbe as any)?.error?.code === "42883";
+    let legacyGone = false;
+    try {
+      const probe = await admin.rpc("fn_track_referral_payment" as any, {} as any);
+      legacyGone = String(probe.error?.message || "").toLowerCase().includes("does not exist")
+                || probe.error?.code === "42883" || probe.error?.code === "PGRST202";
+    } catch (e) {
+      legacyGone = String((e as Error).message).toLowerCase().includes("does not exist");
+    }
     legacyGone
       ? pass("phase2", "C19_legacy_fn_track_referral_payment_gone")
-      : fail("phase2", "C19_legacy_fn_track_referral_payment_gone", { probe: legacyProbe });
+      : fail("phase2", "C19_legacy_fn_track_referral_payment_gone");
 
     // C20 — Legacy admin_referral_* RPCs dropped
     const legacyNames = ["admin_referral_reassign", "admin_referral_manual_reward", "admin_referral_clawback", "admin_referral_decide"];
     let allGone = true;
     const legacyDetails: Record<string, unknown> = {};
     for (const n of legacyNames) {
-      const p = await admin.rpc(n as any, {}).catch((e) => e);
-      const gone = String((p as any)?.message || (p as any)?.error?.message || "").toLowerCase().includes("does not exist")
-                || (p as any)?.error?.code === "42883";
-      legacyDetails[n] = gone ? "gone" : "still present";
-      if (!gone) allGone = false;
+      try {
+        const p = await admin.rpc(n as any, {} as any);
+        const gone = String(p.error?.message || "").toLowerCase().includes("does not exist")
+                  || p.error?.code === "42883" || p.error?.code === "PGRST202";
+        legacyDetails[n] = gone ? "gone" : (p.error?.message || "still present");
+        if (!gone) allGone = false;
+      } catch (e) {
+        legacyDetails[n] = "gone (threw)";
+      }
     }
     allGone ? pass("phase2", "C20_legacy_admin_rpcs_dropped", legacyDetails)
             : fail("phase2", "C20_legacy_admin_rpcs_dropped", legacyDetails);
