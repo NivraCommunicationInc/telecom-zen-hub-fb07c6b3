@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
   const push = (c: Check) => checks.push(c);
 
   const callEF = async (accessToken: string, payload: unknown) => {
-    await new Promise((res) => setTimeout(res, 900)); // trace-rate throttle
+    await new Promise((res) => setTimeout(res, 250)); // trace-rate throttle
     const r = await fetch(`${url}/functions/v1/new-order-actions`, {
       method: "POST",
       headers: {
