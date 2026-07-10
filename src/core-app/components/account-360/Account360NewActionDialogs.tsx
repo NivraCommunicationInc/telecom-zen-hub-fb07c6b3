@@ -548,48 +548,40 @@ export function QuickPlanChangeDialog(props: Base) {
   const [effectiveDate, setEffectiveDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const notify = useCoreNotify();
   const invalidate = useInvalidateClient(props.clientUserId);
+  // F28-15 — stable idempotency key per dialog open
+  const [idemKey] = useState(() => `inetplan-${crypto.randomUUID()}`);
 
   async function submit() {
     if (!newPlan.trim()) return toast.error("Nouveau forfait requis");
     const price = Number(newPrice);
     if (!(price >= 0)) return toast.error("Prix mensuel requis");
     if (!props.clientUserId) return toast.error("Client manquant");
+    if (reason.trim().length < 5) return toast.error("Motif requis (min. 5 caractères)");
     setLoading(true);
     try {
-      const table = service === "internet" ? "internet_plan_changes" : "tv_plan_changes";
-      const { error } = await (supabase as any).from(table).insert({
-        user_id: props.clientUserId,
-        account_id: props.accountId ?? null,
-        new_plan_name: newPlan,
-        new_monthly_price: price,
-        effective_date: effectiveDate,
-        change_type: "core_manual",
-        status: "requested",
-        reason: reason || "Modification demandée depuis Core",
-        metadata: { source: "core_360", service },
+      // F28-1 — TV route is not managed by internet-account-actions; block until TV EF is wired
+      if (service === "tv") {
+        toast.error("Le changement TV se fait via le module Service TV (Module 14) — non couvert ici.");
+        return;
+      }
+      // F28-1 — All mutations routed through the canonical Edge Function
+      const { data, error } = await supabase.functions.invoke("internet-account-actions", {
+        body: {
+          action: "change_plan",
+          client_user_id: props.clientUserId,
+          account_id: props.accountId ?? null,
+          new_plan_name: newPlan.trim(),
+          new_monthly_price: price,
+          change_type: "lateral",
+          effective_date: effectiveDate,
+          reason: reason.trim(),
+          idempotency_key: idemKey,
+        },
       });
       if (error) throw error;
-      if (props.clientEmail) {
-        await notify({
-          clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: "Modification de votre forfait",
-          heroTitle: "Changement de forfait planifié",
-          cardTitle: "Détails",
-          cardRows: [
-            { label: "Service", value: service === "internet" ? "Internet" : "Télévision" },
-            { label: "Nouveau forfait", value: newPlan },
-            { label: "Prix mensuel", value: `${price.toFixed(2)} $ CAD` },
-            { label: "Date effective", value: effectiveDate },
-          ],
-          actionKey: "plan_change",
-          accountId: props.accountId ?? undefined,
-          clientUserId: props.clientUserId ?? undefined,
-          reason,
-        });
-      }
-      toast.success("Modification enregistrée");
+      if (data && (data as any).error) throw new Error((data as any).error);
+      toast.success("Modification enregistrée — courriel envoyé");
       invalidate(); props.onRefresh?.(); props.onClose();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
     finally { setLoading(false); }
@@ -604,20 +596,20 @@ export function QuickPlanChangeDialog(props: Base) {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="internet">Internet</SelectItem>
-                <SelectItem value="tv">Télévision</SelectItem>
+                <SelectItem value="tv">Télévision (Module 14)</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div><Label>Nouveau forfait</Label><Input value={newPlan} onChange={(e) => setNewPlan(e.target.value)} placeholder="Nom exact du forfait" /></div>
+          <div><Label>Nouveau forfait</Label><Input value={newPlan} onChange={(e) => setNewPlan(e.target.value)} placeholder="Nom exact du forfait (catalogue Nivra)" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Prix mensuel ($)</Label><Input type="number" step="0.01" min="0" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} /></div>
             <div><Label>Date effective</Label><Input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} /></div>
           </div>
-          <div><Label>Raison</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+          <div><Label>Motif (obligatoire, min. 5 car.)</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
-          <Button onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enregistrer</Button>
+          <Button onClick={submit} disabled={loading || reason.trim().length < 5}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enregistrer</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
