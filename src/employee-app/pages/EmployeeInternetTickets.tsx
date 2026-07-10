@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { StatusBadge } from "@/employee-app/components/StatusBadge";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 
 const INTERNET_CATEGORIES = ["technical", "internet", "internet_technical"];
 
