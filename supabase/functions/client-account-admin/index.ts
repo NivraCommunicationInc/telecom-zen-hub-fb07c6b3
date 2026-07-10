@@ -183,11 +183,24 @@ serve(async (req) => {
   let targetEmail = (body.client_email || "").trim().toLowerCase() || null;
 
   if (!targetId && targetEmail) {
+    // Prefer profiles lookup (avoids listUsers pagination limits).
     try {
-      const { data: users } = await admin.auth.admin.listUsers();
-      const found = users?.users?.find((u) => u.email?.toLowerCase() === targetEmail);
-      if (found) targetId = found.id;
+      const { data: prof } = await admin
+        .from("profiles").select("user_id")
+        .ilike("email", targetEmail).maybeSingle();
+      if ((prof as any)?.user_id) targetId = (prof as any).user_id;
     } catch (_e) { /* ignore */ }
+    // Fallback: scan auth.users pages.
+    if (!targetId) {
+      try {
+        for (let page = 1; page <= 20 && !targetId; page++) {
+          const { data: users } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+          const found = users?.users?.find((u) => u.email?.toLowerCase() === targetEmail);
+          if (found) { targetId = found.id; break; }
+          if (!users?.users || users.users.length < 200) break;
+        }
+      } catch (_e) { /* ignore */ }
+    }
   }
   if (targetId && !targetEmail) {
     try {
