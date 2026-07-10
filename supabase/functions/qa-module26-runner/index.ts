@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
       const { data: it, error: itErr } = await admin.from("order_items").insert({
         order_id: ord.id, service_type: category.toLowerCase(),
         plan_code: `QA26-${category}-${Date.now()}`, plan_name: `QA ${category}`,
-        unit_price: 49.99, quantity: 1, line_total: 49.99, is_recurring: true, status: "completed",
+        unit_price: 49.99, quantity: 1, line_total: 49.99, is_recurring: true, status: "active",
       }).select("id").single();
       if (itErr) throw new Error(`seed_item: ${itErr.message}`);
       return it.id as string;
