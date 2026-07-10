@@ -246,27 +246,28 @@ Deno.serve(async (req) => {
         ok: r.status === 422 && r.body?.error_code === "PRICE_MISMATCH", details: r });
     }
 
-    // C4: create_quote — CATALOG_INVALID (service inactif)
+    // C4: create_quote — CATALOG_INVALID (service inactif — use existing inactive svc)
     {
-      // create an inactive shadow service just for this test
-      const { data: inactiveSvc } = await admin.from("services").insert({
-        name: "QA31 Inactive", price: 25, is_active: false, category: "internet",
-      }).select("id, name, price").single();
-      const localMonthly = 25;
-      const localTps = Math.round(localMonthly * 0.05 * 100) / 100;
-      const localTvq = Math.round(localMonthly * 0.09975 * 100) / 100;
-      const localTotal = Math.round((localMonthly + localTps + localTvq) * 100) / 100;
-      const r = await callEF(fieldCaller.jwt, {
-        action: "create_quote", simulated: true,
-        customer: baseCustomer("qa-m31-inactive@nivra-test.ca"),
-        services: [{ id: inactiveSvc!.id, name: inactiveSvc!.name, monthlyPrice: localMonthly }],
-        equipment: [], activation_fee: 0,
-        client_totals: { subtotal: localMonthly, tps: localTps, tvq: localTvq, total: localTotal },
-      });
-      push({ id: "C4", name: "CATALOG_INVALID — service inactif",
-        ok: r.status === 400 && r.body?.error_code === "CATALOG_INVALID", details: r });
-      // cleanup — force delete despite FK
-      await admin.from("services").delete().eq("id", inactiveSvc!.id);
+      const { data: inactiveSvc } = await admin.from("services")
+        .select("id, name, price").eq("is_active", false).limit(1).maybeSingle();
+      if (!inactiveSvc) {
+        push({ id: "C4", name: "CATALOG_INVALID — service inactif",
+          ok: false, details: { skipped: "no inactive service in catalog" } });
+      } else {
+        const localMonthly = Number(inactiveSvc.price);
+        const localTps = Math.round(localMonthly * 0.05 * 100) / 100;
+        const localTvq = Math.round(localMonthly * 0.09975 * 100) / 100;
+        const localTotal = Math.round((localMonthly + localTps + localTvq) * 100) / 100;
+        const r = await callEF(fieldCaller.jwt, {
+          action: "create_quote", simulated: true,
+          customer: baseCustomer("qa-m31-inactive@nivra-test.ca"),
+          services: [{ id: inactiveSvc.id, name: inactiveSvc.name, monthlyPrice: localMonthly }],
+          equipment: [], activation_fee: 0,
+          client_totals: { subtotal: localMonthly, tps: localTps, tvq: localTvq, total: localTotal },
+        });
+        push({ id: "C4", name: "CATALOG_INVALID — service inactif",
+          ok: r.status === 400 && r.body?.error_code === "CATALOG_INVALID", details: r });
+      }
     }
 
     // C5: create_quote missing email → INVALID_INPUT
