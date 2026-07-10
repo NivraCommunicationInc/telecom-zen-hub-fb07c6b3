@@ -153,63 +153,64 @@ Deno.serve(async (req) => {
   let ticket_id: string;
   let ticket_number: string;
 
+  const aiWhen = new Date(Date.now() + 2 * 60 * 1000);
+  const clientActor: TicketActor = {
+    user_id: profile?.user_id ?? null,
+    role: "client",
+    name: resolved_client_name || from_email,
+    email: from_email,
+  };
+
   if (existing?.id) {
     ticket_id = existing.id;
     ticket_number = existing.ticket_number;
-    // Append message to existing ticket, reset AI scheduled time so it considers the new message
-    await supabase
-      .from("support_tickets")
-      .update({
-        status: "open",
-        ai_scheduled_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", ticket_id);
+    // Reset AI scheduled time so it considers the new message; status normalised to 'open'
+    try {
+      await setTicketAiSchedule(supabase, ticket_id, aiWhen);
+    } catch (e) {
+      console.error("[support-email-inbound] setTicketAiSchedule failed", e);
+    }
   } else {
-    const { data: created, error: insertErr } = await supabase
-      .from("support_tickets")
-      .insert({
-        client_email: from_email,
-        client_name: resolved_client_name || null,
+    try {
+      const created = await createTicket(supabase, clientActor, {
+        owner_user_id: profile?.user_id ?? null,
         account_id,
         subject,
-        description: body, // legacy NOT NULL column
-        body,
-        status: "open",
-        source: "email",
+        description: body,
         category: "general",
         priority: "normal",
-        ai_scheduled_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
-        owner_user_id: profile?.user_id ?? null,
-        user_id: profile?.user_id ?? null,
-      })
-      .select("id, ticket_number")
-      .single();
-
-    if (insertErr || !created) {
-      console.error("[support-email-inbound] insert ticket failed", insertErr);
-      return new Response(JSON.stringify({ error: "Could not create ticket", details: insertErr?.message }), {
+        source: "email",
+        client_email: from_email,
+        client_name: resolved_client_name || null,
+        idempotency_key: message_id || null,
+        metadata: { inbound: true },
+      });
+      ticket_id = created.id;
+      ticket_number = created.ticket_number;
+      // Schedule AI pass ~2 min later
+      try { await setTicketAiSchedule(supabase, ticket_id, aiWhen); } catch (_) { /* non-fatal */ }
+    } catch (e) {
+      console.error("[support-email-inbound] createTicket failed", e);
+      return new Response(JSON.stringify({ error: "Could not create ticket", details: (e as Error).message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    ticket_id = created.id;
-    ticket_number = created.ticket_number;
   }
 
-  // 3) Insert the client message into ticket_replies
-  await supabase.from("ticket_replies").insert({
-    ticket_id,
-    user_id: profile?.user_id ?? null,
-    content: body,
-    sender_type: "client",
-    sender_role: "client",
-    sender_email: from_email,
-    sender_name: resolved_client_name || from_email,
-    subject,
-    email_message_id: message_id || null,
-    is_admin: false,
-  });
+  // 3) Append the client message to the ticket via canonical door
+  try {
+    await replyTicket(supabase, clientActor, {
+      ticket_id,
+      content: body,
+      email_message_id: message_id || null,
+      subject,
+      idempotency_key: message_id ? `inbound_${message_id}` : null,
+    });
+  } catch (e) {
+    console.error("[support-email-inbound] replyTicket failed", e);
+  }
+
 
   // 4) AI responder is triggered by pg_cron every 2 min — no invocation needed here
 
