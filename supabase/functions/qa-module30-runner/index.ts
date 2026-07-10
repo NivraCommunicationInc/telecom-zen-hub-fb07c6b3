@@ -725,6 +725,9 @@ Deno.serve(async (req) => {
       push({ id: "C46", name: "Cleanup — 0 orphelin",
         ok: totalOrphans === 0, details: { orphanChecks, subLeft, auditLeft } });
     }
+    } // end phase !== part1
+
+
 
     const pass = checks.filter((c) => c.ok).length;
     const fail = checks.length - pass;
