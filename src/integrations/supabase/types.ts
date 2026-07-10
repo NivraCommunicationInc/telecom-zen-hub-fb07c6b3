@@ -16585,6 +16585,7 @@ export type Database = {
       }
       mobile_fulfillment: {
         Row: {
+          account_id: string | null
           activated_at: string | null
           activation_status: string | null
           assigned_number: string | null
@@ -16606,10 +16607,12 @@ export type Database = {
           sim_tracking_number: string | null
           sim_tracking_url: string | null
           sim_type: string | null
+          subscription_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           activated_at?: string | null
           activation_status?: string | null
           assigned_number?: string | null
@@ -16631,10 +16634,12 @@ export type Database = {
           sim_tracking_number?: string | null
           sim_tracking_url?: string | null
           sim_type?: string | null
+          subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          account_id?: string | null
           activated_at?: string | null
           activation_status?: string | null
           assigned_number?: string | null
@@ -16656,10 +16661,18 @@ export type Database = {
           sim_tracking_number?: string | null
           sim_tracking_url?: string | null
           sim_type?: string | null
+          subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "mobile_fulfillment_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mobile_fulfillment_order_id_fkey"
             columns: ["order_id"]
@@ -16679,6 +16692,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobile_fulfillment_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
         ]
