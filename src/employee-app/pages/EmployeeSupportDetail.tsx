@@ -22,6 +22,7 @@ import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDial
 import { AssignTechnicianDialog } from "@/employee-app/components/AssignTechnicianDialog";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { ProfileName } from "@/hooks/useProfileName";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 
 export default function EmployeeSupportDetail() {
   const { ticketId } = useParams<{ ticketId: string }>();
