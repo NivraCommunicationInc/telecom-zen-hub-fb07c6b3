@@ -556,7 +556,9 @@ Deno.serve(async (req) => {
       push({ id: "C32", name: "replace_sim admin → 200",
         ok: r.status === 200 && !!r.body?.sim_action_id, details: r });
     }
+    } // end phase !== part2
 
+    if (phase !== "part1") {
     // C33: swap_to_esim OK — verify fulfillment sim_type updated
     {
       const r = await callEF(adminCaller.jwt, {
