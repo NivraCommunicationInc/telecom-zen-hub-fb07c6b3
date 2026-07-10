@@ -449,7 +449,7 @@ Deno.serve(async (req) => {
     // Restore accounts to active state
     for (const id of [accountA, accountB]) {
       await admin.from("accounts").update({
-        status: "active", cancelled_at: null, cancellation_reason: null, balance_due: 0,
+        status: "active", cancelled_at: null, cancellation_reason: null,
       }).eq("id", id);
     }
     // Restore autopay on billing customers
