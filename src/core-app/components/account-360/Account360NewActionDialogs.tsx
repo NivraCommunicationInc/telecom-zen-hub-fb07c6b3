@@ -1026,25 +1026,24 @@ export function FraudLockDialog(props: Base) {
 
   async function submit() {
     if (!props.clientUserId) return toast.error("Client manquant");
-    if (!reason.trim() || reason.trim().length < 10) return toast.error("Raison détaillée obligatoire");
+    if (!props.accountId) return toast.error("Compte manquant");
+    if (!reason.trim() || reason.trim().length < 10) return toast.error("Raison détaillée obligatoire (min 10 caractères)");
     setLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (lockMode === "full_lock" && props.accountId) {
-        const { error } = await supabase.from("accounts").update({ status: "blocked", updated_at: new Date().toISOString() } as any).eq("id", props.accountId);
-        if (error) throw error;
+      const { data: resp, error: efErr } = await supabase.functions.invoke("account-tags-actions", {
+        body: {
+          action: "apply_lock",
+          client_user_id: props.clientUserId,
+          account_id: props.accountId,
+          lock_mode: lockMode,
+          reason: reason.trim(),
+          idempotency_key: `lock-${props.accountId}-${lockMode}-${Date.now()}`,
+        },
+      });
+      if (efErr) throw efErr;
+      if (resp && (resp as any).ok === false) {
+        throw new Error((resp as any).error || "Échec du verrouillage");
       }
-      const label = lockMode === "full_lock" ? "Compte verrouillé" : lockMode === "payment_lock" ? "Paiements verrouillés" : "Portail verrouillé";
-      await supabase.from("account_tags").upsert({
-        client_user_id: props.clientUserId,
-        account_id: props.accountId ?? null,
-        tag_key: lockMode,
-        tag_label: label,
-        severity: "critical",
-        note: reason,
-        created_by: userData?.user?.id ?? null,
-        created_by_email: userData?.user?.email ?? null,
-      } as any, { onConflict: "client_user_id,tag_key" });
       await writeCoreActivity({ clientUserId: props.clientUserId, accountId: props.accountId, action: "fraud_lock_applied", reason, details: { lockMode } });
       if (notifyClient && props.clientEmail) {
         await notify({
