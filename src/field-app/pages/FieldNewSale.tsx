@@ -592,10 +592,15 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
 
       if (draft.customer.coaxial_survey) {
         try {
-          await supabase
-            .from("orders")
-            .update({ coaxial_survey: draft.customer.coaxial_survey as any } as any)
-            .eq("id", coreOrderId);
+          // F31-1 — routed through canonical EF (patch coaxial_survey on Core order)
+          await supabase.functions.invoke("new-order-actions", {
+            body: {
+              action: "link_service_address",
+              order_id: coreOrderId,
+              account_id: draft.existing_account_id ?? null,
+              customer: { coaxial_survey: draft.customer.coaxial_survey },
+            },
+          });
         } catch (mirrorErr) { logger.warn("coaxial_survey mirror failed", mirrorErr); }
       }
       if ((intent as any)?.converted_field_order_id) await linkOrderToServiceAddress((intent as any).converted_field_order_id);
