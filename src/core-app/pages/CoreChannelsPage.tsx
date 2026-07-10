@@ -652,9 +652,9 @@ export default function CoreChannelsPage() {
                         <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                           {s.status === "pending" && (
                             <div className="flex gap-1">
-                              <button onClick={() => confirmSelectionMutation.mutate({ id: s.id })}
+                              <button onClick={() => confirmSelectionMutation.mutate({ row: s })}
                                 className="h-6 px-2 rounded text-[10px] font-medium bg-emerald-600/20 text-emerald-400 border border-emerald-500/30">Confirmer</button>
-                              <button onClick={() => cancelSelectionMutation.mutate({ id: s.id })}
+                              <button onClick={() => cancelSelectionMutation.mutate({ row: s })}
                                 className="h-6 px-2 rounded text-[10px] font-medium bg-red-600/20 text-red-400 border border-red-500/30">Annuler</button>
                             </div>
                           )}
