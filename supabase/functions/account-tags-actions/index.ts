@@ -371,7 +371,7 @@ Deno.serve(async (req) => {
         if (body.lock_mode === "full_lock") {
           const { error: upErr } = await admin
             .from("accounts")
-            .update({ status: "blocked", updated_at: new Date().toISOString() } as any)
+            .update({ status: "suspended", updated_at: new Date().toISOString() } as any)
             .eq("id", body.account_id);
           if (upErr) throw upErr;
         }
