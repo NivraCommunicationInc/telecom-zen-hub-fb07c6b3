@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { callCoreAction } from "@/core-app/lib/callCoreAction";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -749,56 +750,57 @@ export function SupervisorEscalationDialog(props: Base) {
 /* 10. Bon de compensation                                                    */
 /* -------------------------------------------------------------------------- */
 const VOUCHER_PRESETS = [
-  { value: "10", label: "10 $ crédit" },
-  { value: "25", label: "25 $ crédit" },
-  { value: "50", label: "50 $ crédit" },
-  { value: "month", label: "1 mois gratuit" },
+  { value: "10", label: "10 $ crédit", preset: "amount" as const, amount: 10 },
+  { value: "25", label: "25 $ crédit", preset: "amount" as const, amount: 25 },
+  { value: "50", label: "50 $ crédit", preset: "amount" as const, amount: 50 },
+  { value: "month", label: "1 mois gratuit (calculé serveur)", preset: "month_free" as const },
+];
+
+const COMPENSATION_CATEGORIES = [
+  { value: "service_issue",  label: "Problème de service" },
+  { value: "retention",      label: "Rétention" },
+  { value: "billing_error",  label: "Erreur de facturation" },
+  { value: "goodwill",       label: "Geste commercial" },
+  { value: "other",          label: "Autre" },
 ];
 
 export function CompensationVoucherDialog(props: Base & { monthlyRevenue?: number }) {
   const [preset, setPreset] = useState("25");
+  const [category, setCategory] = useState("service_issue");
+  const [incidentRef, setIncidentRef] = useState("");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const notify = useCoreNotify();
   const invalidate = useInvalidateClient(props.clientUserId);
 
   async function submit() {
-    if (!reason.trim()) return toast.error("Justification obligatoire");
+    if (!reason.trim() || reason.trim().length < 3) return toast.error("Justification obligatoire (min 3 caractères)");
     if (!props.accountId) return toast.error("Compte manquant");
+    if (!props.clientUserId) return toast.error("Client manquant");
+    const p = VOUCHER_PRESETS.find(x => x.value === preset);
+    if (!p) return toast.error("Preset invalide");
+
     setLoading(true);
     try {
-      const amount = preset === "month" ? Math.max(props.monthlyRevenue ?? 0, 30) : Number(preset);
-      const label = VOUCHER_PRESETS.find(p => p.value === preset)?.label ?? `${amount} $`;
-      const { error } = await supabase.from("account_adjustments").insert({
+      const idempotency_key = `voucher-${props.accountId}-${crypto.randomUUID()}`;
+      const payload: Record<string, unknown> = {
         account_id: props.accountId,
-        type: "compensation",
-        amount,
-        description: `Bon de compensation — ${label} — ${reason}`,
-        months_total: 1, months_remaining: 1, applied_count: 0,
-        status: "active", is_permanent: false, applies_to: "next_invoice",
-      } as any);
-      if (error) throw error;
-      if (props.clientEmail) {
-        await notify({
-          clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: "Un bon de compensation vous a été offert",
-          heroTitle: "Bon de compensation",
-          cardTitle: "Détails du bon",
-          cardRows: [
-            { label: "Valeur", value: label },
-            { label: "Application", value: "Prochaine facture" },
-          ],
-          bodyHtml: "<p>Nous vous remercions de votre patience. Ce crédit sera appliqué automatiquement.</p>",
-          actionKey: "compensation_voucher",
-          accountId: props.accountId ?? undefined,
-          clientUserId: props.clientUserId ?? undefined,
-          reason,
-        });
-      }
-      toast.success("Bon de compensation émis");
+        client_id: props.clientUserId,
+        preset: p.preset,
+        category,
+        idempotency_key,
+        incident_ref: incidentRef.trim() || null,
+        expires_in_days: 90,
+      };
+      if (p.preset === "amount") payload.amount = p.amount;
+
+      const res = await callCoreAction("core-issue-compensation", payload, {
+        reason,
+        successMessage: "Bon de compensation émis",
+        errorMessage: "Émission refusée",
+      });
+      if (!res.ok) return;
       invalidate(); props.onRefresh?.(); props.onClose();
-    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
-    finally { setLoading(false); }
+    } finally { setLoading(false); }
   }
   return (
     <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
@@ -812,6 +814,17 @@ export function CompensationVoucherDialog(props: Base & { monthlyRevenue?: numbe
                 {VOUCHER_PRESETS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+          <div><Label>Catégorie</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {COMPENSATION_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>Référence incident / ticket (facultatif)</Label>
+            <Input value={incidentRef} onChange={(e) => setIncidentRef(e.target.value)} placeholder="TICKET-1234 / INC-5678" />
           </div>
           <div><Label>Justification</Label><Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Contexte incident / satisfaction client…" /></div>
         </div>
