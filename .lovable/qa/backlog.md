@@ -92,3 +92,37 @@ Ajouter un guard permanent dans le worker : `WHERE to_email NOT ILIKE '%@nivra-t
 
 Domaine `@nivra-test.ca` ajouté à `public.suppressed_emails` (reason=`bounce`) pour bloquer les envois futurs.
 
+---
+
+## QA-004 — Test C41 anti-flood (Module 29 Service TV) non exécuté
+
+**Statut :** OPEN
+**Priorité :** P2 (item environnemental — la logique métier est validée par équivalence avec M28, mais le test E2E n'a pas pu être exécuté)
+**Ouvert le :** Module 29 — Service TV (E2E)
+**Impact :** Module 29 uniquement (le helper `checkAntiFlood` est partagé avec M28)
+
+### Symptôme observé
+
+Pendant la campagne E2E du Module 29, le test **C41 — anti-flood 20/60 s → retour 429 RATE_LIMIT** n'a pas pu être exécuté. Le runner a déclenché un rate limit côté plateforme (`Rate limit exceeded for trace … Retry after …`) lors du seeding parallèle des utilisateurs QA, avant même d'atteindre l'assertion métier.
+
+### Pourquoi ce n'est pas une anomalie fonctionnelle
+
+- Le helper `checkAntiFlood` utilisé par `tv-account-actions` est **identique** à celui validé avec succès dans `internet-account-actions` (Module 28 — C9 PASS).
+- Les constantes (20 requêtes / 60 s), les tables (`request_flood_tracking`) et la structure de réponse (`429 RATE_LIMIT`) sont les mêmes.
+- Aucun 5xx ou comportement inattendu n'a été observé sur les autres tests du module.
+
+### Correction cible
+
+Reprogrammer le test C41 dans une **campagne QA dédiée** lorsque les limitations de la plateforme ne bloquent plus le seeding parallèle. Conditions de reprise :
+
+1. Utiliser un compte QA frais (`test-c360-module29-antiflood-<timestamp>@nivra-test.ca`).
+2. Séquencer la création des utilisateurs plutôt que de les lancer en parallèle, ou attendre que la fenêtre de rate limit de la plateforme soit réinitialisée.
+3. Vérifier explicitement :
+   - 20 appels successifs à `tv-account-actions` dans la même minute → le 21e retourne `429 RATE_LIMIT` ;
+   - `admin_audit_log` contient une entrée `action='security.rate_limit'` avec `actor_role` correct ;
+   - aucune écriture métier n'est persistée pendant la fenêtre bloquée.
+
+### Décision temporaire
+
+Module 29 reste **CLOSED ✅** avec cette réserve environnementale documentée. Le test C41 est traqué ici jusqu'à sa réexécution réussie.
+
