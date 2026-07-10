@@ -548,7 +548,7 @@ Deno.serve(async (req) => {
       customer_name: "Prospect Capture", customer_email: "qa-m31-cap@nivra-test.ca",
       customer_phone: "5145550111", customer_address: "1 QA St",
       customer_city: "Laval", customer_postal_code: "H7T 2Y5",
-      services: services as any, total_amount: total,
+      services: services as any, total_amount: 0,
       payment_method: "card_manual", payment_status: "pending", sync_status: "pending",
     }).select("id").single();
 
