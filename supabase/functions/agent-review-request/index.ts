@@ -91,7 +91,7 @@ Deno.serve(async (req: Request) => {
           first_name: profile?.first_name || "Client",
           account_id: a.id,
           review_url: `https://nivra-telecom.ca/avis/${reviewToken}`,
-          google_review_url: "https://share.google/y07QHAdHSZDBDFa9q",
+          google_review_url: "https://g.page/r/CXlAG2vT9CgoEAE/review",
           language,
         },
         status: "queued",
