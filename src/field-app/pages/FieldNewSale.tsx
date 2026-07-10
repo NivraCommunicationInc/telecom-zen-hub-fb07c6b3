@@ -956,37 +956,19 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
                 if (!draft.payment.paypalApprovalUrl || !draft.customer.email || !draft.payment.fieldOrderId) {
                   toast.error("Aucun lien à renvoyer."); return;
                 }
-                const summary = buildServicesList(draft);
-                const equipmentList = buildEquipmentList(draft);
-                const discountLabel = buildDiscountLabel(draft);
-                const fullName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
-                const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
-                const orderNumber = `SUB-${String(draft.payment.fieldOrderId).slice(0, 8).toUpperCase()}`;
-                const payload = {
-                  event_key: `field_payment_link_resend_${draft.payment.fieldOrderId}_${Date.now()}`,
-                  to_email: draft.customer.email,
-                  template_key: "field_payment_link",
-                  template_vars: {
-                    client_name: fullName, first_name: draft.customer.first_name || "Client",
-                    order_number: orderNumber, total: total.toFixed(2),
-                    approval_url: draft.payment.paypalApprovalUrl, payment_url: `https://nivra-telecom.ca/payer/${draft.payment.fieldOrderId}`,
-                    summary, services: summary, equipment: equipmentList,
-                    discount_label: discountLabel,
-                    subtotal: subtotal.toFixed(2), tps: tps.toFixed(2), tvq: tvq.toFixed(2),
-                    valid_until: validUntil,
+                // F31-1/F31-13 — routed through canonical EF
+                const { data, error } = await supabase.functions.invoke("new-order-actions", {
+                  body: {
+                    action: "resend_payment_link",
+                    intent_id: draft.payment.fieldOrderId,
+                    payment_url: draft.payment.paypalApprovalUrl,
+                    customer: draft.customer,
                     agent_name: agentName,
+                    client_totals: { subtotal, tps, tvq, total },
                   },
-                  status: "queued",
-                };
-                let err: any = null;
-                for (let i = 1; i <= 3; i++) {
-                  const { error: e } = await supabase.from("email_queue").insert(payload as any);
-                  if (!e) { err = null; break; }
-                  err = e;
-                  if (i < 3) await new Promise((r) => setTimeout(r, 2000));
-                }
-                if (err) { toast.error("Échec d'envoi du courriel."); }
-                else { toast.success("Courriel renvoyé."); }
+                });
+                if (error || !data?.ok) toast.error(data?.error || "Échec d'envoi du courriel.");
+                else toast.success("Courriel renvoyé.");
               }}
               onChangeMethod={() => {
                 setDraft((d) => ({
@@ -996,135 +978,81 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
                 }));
               }}
               onCancelTransaction={async (reason: string) => {
-                const intentId = draft.payment.fieldOrderId;
-                const orderId = draft.payment.coreOrderId;
-                try {
-                  if (intentId) {
-                    await supabase.from("field_payment_intents" as any)
-                      .update({ status: "cancelled", cancelled_reason: reason } as any).eq("id", intentId);
-                  }
-                  if (orderId) {
-                    await supabase.from("orders").update({ status: "cancelled" } as any).eq("id", orderId);
-                  }
-                  if (draft.customer.email) {
-                    const payload = {
-                      event_key: `tx_cancelled_${intentId || orderId || Date.now()}`,
-                      to_email: draft.customer.email,
-                      template_key: "transaction_cancelled",
-                      template_vars: {
-                        client_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim() || "Client",
-                        first_name: draft.customer.first_name || "Client",
-                        order_number: intentId || orderId || "—",
-                        total: total.toFixed(2),
-                        reason,
-                      },
-                      status: "queued",
-                    };
-                    for (let i = 1; i <= 3; i++) {
-                      const { error } = await supabase.from("email_queue").insert(payload as any);
-                      if (!error) break;
-                      if (i < 3) await new Promise((r) => setTimeout(r, 2000));
-                    }
-                  }
-                  toast.success("Transaction annulée. Client informé.");
-                  clearDraft();
-                  navigate(_exitPath);
-                } catch (e: any) {
-                  logger.warn("Cancel transaction failed", e);
-                  toast.error(e?.message || "Échec de l'annulation");
+                if (!reason || reason.trim().length < 10) {
+                  toast.error("Motif de ≥ 10 caractères requis."); return;
                 }
+                // F31-1/F31-11/F31-14 — cancel routed through canonical EF
+                const { data, error } = await supabase.functions.invoke("new-order-actions", {
+                  body: {
+                    action: "cancel_transaction",
+                    intent_id: draft.payment.fieldOrderId,
+                    order_id: draft.payment.coreOrderId,
+                    reason: reason.trim(),
+                    customer: draft.customer,
+                    account_id: draft.existing_account_id ?? null,
+                    client_totals: { subtotal, tps, tvq, total },
+                  },
+                });
+                if (error || !data?.ok) {
+                  toast.error(data?.error || error?.message || "Échec de l'annulation");
+                  return;
+                }
+                toast.success("Transaction annulée. Client informé.");
+                clearDraft();
+                navigate(_exitPath);
               }}
               onHoldTransaction={async () => {
-                const orderId = draft.payment.coreOrderId;
-                try {
-                  if (orderId) {
-                    await supabase.from("orders").update({ status: "on_hold" } as any).eq("id", orderId);
-                  }
-                  toast.success("Commande mise en attente. Vous pouvez la reprendre depuis Mes commandes.");
-                  navigate(_exitPath);
-                } catch (e: any) {
-                  logger.warn("Hold transaction failed", e);
-                  toast.error(e?.message || "Échec de la mise en attente");
+                if (!draft.payment.coreOrderId) {
+                  toast.error("Aucune commande à mettre en attente."); return;
                 }
+                const reason = window.prompt("Motif de mise en attente (≥ 10 caractères) :", "") || "";
+                if (reason.trim().length < 10) { toast.error("Motif ≥ 10 caractères requis."); return; }
+                const { data, error } = await supabase.functions.invoke("new-order-actions", {
+                  body: {
+                    action: "hold_transaction",
+                    order_id: draft.payment.coreOrderId,
+                    reason: reason.trim(),
+                    account_id: draft.existing_account_id ?? null,
+                  },
+                });
+                if (error || !data?.ok) {
+                  toast.error(data?.error || error?.message || "Échec de la mise en attente");
+                  return;
+                }
+                toast.success("Commande mise en attente.");
+                navigate(_exitPath);
               }}
               onConvertToQuote={async () => {
                 if (!draft.customer.email) { toast.error("Email client requis pour soumission."); return; }
                 const intentId = draft.payment.fieldOrderId;
                 if (!intentId) { toast.error("Lien de paiement requis avant soumission."); return; }
                 const payerUrl = `https://nivra-telecom.ca/payer/${intentId}`;
-                const validUntilDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                const validUntilIso = validUntilDate.toISOString();
-                const validUntilLabel = validUntilDate.toLocaleDateString("fr-CA", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-                const customerName = `${draft.customer.first_name || ""} ${draft.customer.last_name || ""}`.trim() || "Client";
-                const servicesSummary = buildServicesList(draft);
-                const equipmentSummary = buildEquipmentList(draft);
-                const discountLabel = buildDiscountLabel(draft);
-                try {
-                  const insertPayload: any = {
-                    agent_id: user?.id,
-                    agent_name: agentName,
+                // F31-1/F31-13 — routed through canonical EF
+                const { data, error } = await supabase.functions.invoke("new-order-actions", {
+                  body: {
+                    action: "convert_to_quote_sub",
                     intent_id: intentId,
-                    customer_name: customerName,
-                    customer_email: draft.customer.email,
-                    customer_phone: draft.customer.phone || null,
-                    customer_address: draft.customer.address ? draft.customer.address + (draft.customer.apartment ? `, App. ${draft.customer.apartment}` : "") : null,
-                    services: draft.services as any,
-                    equipment: draft.equipment as any,
-                    discount: { monthly: monthlyDiscountAmount, installation: installationDiscountAmount } as any,
-                    subtotal, tps, tvq, total,
                     payment_url: payerUrl,
-                    status: "pending_client",
-                  };
-                  const { data: row, error } = await supabase.from("field_submissions" as any).insert(insertPayload).select("id").maybeSingle();
-                  if (error) throw error;
-                  const quoteId = (row as any)?.id || intentId;
-                  const quoteNumber = `SUB-${String(quoteId).slice(0, 8).toUpperCase()}`;
-                  const templateVars = {
-                    client_name: customerName,
-                    first_name: draft.customer.first_name || "Client",
-                    quote_number: quoteNumber, quote_id: quoteId,
-                    order_number: quoteNumber,
-                    complete_url: payerUrl,
-                    payment_url: payerUrl,
+                    customer: draft.customer,
+                    services: draft.services,
+                    equipment: draft.equipment,
+                    custom_adjustments: draft.custom_adjustments || [],
+                    discount: draft.discount,
+                    activation_fee: activationFee,
                     agent_name: agentName,
-                    services: servicesSummary,
-                    services_summary: servicesSummary,
-                    equipment: equipmentSummary,
-                    equipment_summary: equipmentSummary,
-                    subtotal: subtotal.toFixed(2),
-                    discount: (monthlyDiscountAmount + installationDiscountAmount).toFixed(2),
-                    discount_label: discountLabel,
-                    tps: tps.toFixed(2), tvq: tvq.toFixed(2),
-                    activation_fee: activationFee.toFixed(2), total: total.toFixed(2),
-                    valid_until: validUntilLabel,
-                    valid_until_iso: validUntilIso,
-                  };
-                  // Validate before queuing — log any anomalies, never block.
-                  const issues: string[] = [];
-                  if (!templateVars.agent_name || templateVars.agent_name.includes('@')) issues.push('agent_name missing/email');
-                  if (!templateVars.services || templateVars.services === '—') issues.push('services missing');
-                  if (!templateVars.order_number || templateVars.order_number.includes('—')) issues.push('order_number missing');
-                  if (!templateVars.valid_until || templateVars.valid_until.includes('non disponible')) issues.push('valid_until missing');
-                  if (issues.length > 0) console.error('[EMAIL VALIDATION FAILED quote_client]', issues, templateVars);
-                  const payload = {
-                    event_key: `quote_client_${quoteId}_${Date.now()}`,
-                    to_email: draft.customer.email,
-                    template_key: "quote_client",
-                    template_vars: templateVars,
-                    status: "queued",
-                  };
-                  for (let i = 1; i <= 3; i++) {
-                    const { error: e } = await supabase.from("email_queue").insert(payload as any);
-                    if (!e) break;
-                    if (i < 3) await new Promise((r) => setTimeout(r, 2000));
-                  }
-                  toast.success("Soumission envoyée au client (valide 7 jours).");
-                  clearDraft();
-                  navigate(_exitPath);
-                } catch (e: any) {
-                  logger.warn("Convert to quote failed", e);
-                  toast.error(e?.message || "Échec de la conversion en soumission");
+                    client_totals: { subtotal, tps, tvq, total,
+                                     monthly_before_discount: monthlyBeforeDiscount,
+                                     equipment_total: equipmentTotal,
+                                     first_month_credit: firstMonthCredit },
+                  },
+                });
+                if (error || !data?.ok) {
+                  toast.error(data?.error || error?.message || "Échec de la conversion en soumission");
+                  return;
                 }
+                toast.success("Soumission envoyée au client (valide 7 jours).");
+                clearDraft();
+                navigate(_exitPath);
               }}
             />
           )}
