@@ -149,18 +149,24 @@ export default function HrDocuments() {
       });
       if (up.error) throw up.error;
 
-      const { error } = await supabase.from("hr_documents").insert({
-        employee_id: userId,
-        uploaded_by: userId,
-        document_type: docType,
-        title: title.trim(),
-        file_path: path,
-        file_size: file.size,
-        mime_type: file.type || null,
+      const { callDocumentAction } = await import("@/lib/callDocumentAction");
+      const r = await callDocumentAction({
+        action: "register",
+        table: "hr_documents",
+        reason: `Téléversement document RH (${docType})`,
+        payload: {
+          employee_id: userId,
+          document_type: docType,
+          title: title.trim(),
+          file_path: path,
+          file_size: file.size,
+          mime_type: file.type || null,
+          status: "pending",
+        },
       });
-      if (error) {
+      if (!r.ok) {
         await supabase.storage.from("hr-documents").remove([path]);
-        throw error;
+        throw new Error(r.error ?? "register_failed");
       }
     },
     onSuccess: () => {
