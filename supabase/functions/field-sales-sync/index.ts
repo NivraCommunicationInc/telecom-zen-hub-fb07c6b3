@@ -2,6 +2,7 @@
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { reportEdgeError } from "../_shared/sentry.ts";
 import { writePaymentAutoNote } from "../_shared/paymentAutoNote.ts";
+import { ensureFieldCommissionAfterCapture } from "../_shared/ensureFieldCommission.ts";
 
 
 /**
