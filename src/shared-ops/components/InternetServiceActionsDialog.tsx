@@ -569,8 +569,8 @@ export function InternetServiceActionsDialog({
             ) : null}
 
             <div>
-              <Label htmlFor="ip-reason">Raison / Note</Label>
-              <Textarea id="ip-reason" rows={2} value={ipReason} onChange={(e) => setIpReason(e.target.value)} disabled={busy} />
+              <Label htmlFor="ip-reason">Motif (obligatoire, min. 5 caractères)</Label>
+              <Textarea id="ip-reason" rows={2} value={ipReason} onChange={(e) => setIpReason(e.target.value)} disabled={busy} placeholder="Ex: demande client, activation service pro…" />
             </div>
 
             <Button onClick={doStaticIp} disabled={busy} className="w-full">
