@@ -32085,7 +32085,8 @@ export type Database = {
         Args: { p_code: string }
         Returns: {
           code_id: string
-          discount_percent: number
+          discount_amount: number
+          discount_months: number
           is_valid: boolean
         }[]
       }
