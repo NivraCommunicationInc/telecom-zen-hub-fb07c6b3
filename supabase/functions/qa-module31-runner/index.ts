@@ -151,8 +151,12 @@ Deno.serve(async (req) => {
     const convertedOrderIds = Array.from(fsoMap.values()).filter(Boolean) as string[];
 
     // 3) Collect orders: converted from FSOs OR user_id in clients OR order_number pattern
+    //    OR user_id belongs to any qa-m31-% profile (field-sales-sync auto-creates users).
+    const { data: qaProfiles } = await admin.from("profiles")
+      .select("user_id").ilike("email", "qa-m31-%");
+    const qaUserIds = ((qaProfiles || []) as any[]).map((r) => r.user_id);
     const { data: ordersByClient } = await admin.from("orders")
-      .select("id").in("user_id", clientIds);
+      .select("id").in("user_id", qaUserIds.length ? qaUserIds : clientIds);
     const { data: ordersByPattern } = await admin.from("orders")
       .select("id").ilike("order_number", "QA31-%");
     const orderIdSet = new Set<string>([
@@ -161,6 +165,7 @@ Deno.serve(async (req) => {
       ...((ordersByPattern || []) as any[]).map((r) => r.id),
     ]);
     const orderIds = Array.from(orderIdSet);
+
 
     // 4) Delete children first
     if (orderIds.length) {
