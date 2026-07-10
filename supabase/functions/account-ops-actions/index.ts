@@ -106,21 +106,39 @@ serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json(401, { error: "Non autorisé" });
 
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: userErr } = await userClient.auth.getUser();
-  if (userErr || !user) return json(401, { error: "Session invalide" });
-
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { isStaff, callerRole, roles } = await checkStaffAuth(admin, user.id);
-  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
-  // F1 — Module 25: enforce the documented ALLOWED_ROLES matrix (was dead code).
-  if (!roles.some((r) => ALLOWED_ROLES.has(r))) {
-    return json(403, { error: "Rôle non autorisé pour cette action" });
+  // Service-role bypass reserved for the pause-auto-resume cron (auto_resume=true).
+  // Parse body early so we can distinguish this legitimate machine caller.
+  let earlyBody: any = null;
+  try { earlyBody = await req.clone().json(); } catch { /* ignore */ }
+  const isServiceRoleCaller =
+    authHeader === `Bearer ${serviceKey}` &&
+    earlyBody?.action === "unpause_account" &&
+    earlyBody?.auto_resume === true;
+
+  let user: { id: string; email?: string | null } | null = null;
+  let callerRole = "system";
+  let roles: string[] = ["admin"];
+
+  if (isServiceRoleCaller) {
+    user = { id: "00000000-0000-0000-0000-000000000000", email: "system@nivra-telecom.ca" };
+  } else {
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: u }, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !u) return json(401, { error: "Session invalide" });
+    user = u;
+    const staff = await checkStaffAuth(admin, u.id);
+    if (!staff.isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
+    if (!staff.roles.some((r) => ALLOWED_ROLES.has(r))) {
+      return json(403, { error: "Rôle non autorisé pour cette action" });
+    }
+    callerRole = staff.callerRole;
+    roles = staff.roles;
   }
 
   let body: Body;
