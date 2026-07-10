@@ -265,7 +265,7 @@ async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, che
 
 }
 
-async function phase2(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
+async function phase2(rpc: SupabaseClient, db: SupabaseClient, clientA: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // Ensure enough points for redeem
   await rpc.rpc("admin_loyalty_adjust", { p_account_id: ctx.account_a, p_delta_points: 500, p_reason: "QA phase2 seed", p_expires_at: null });
 
