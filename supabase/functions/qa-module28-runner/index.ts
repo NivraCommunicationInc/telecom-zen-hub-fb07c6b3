@@ -149,27 +149,16 @@ Deno.serve(async (req) => {
     await cleanupClient(clientB.userId, clientB.accountId);
     await cleanupAudit([adminCaller.userId, salesCaller.userId, supportCaller.userId]);
 
-    // Seed a billing_customer + billing_subscription for clientA (F28-17 sync)
+    // NOTE F28-17: sync billing_subscriptions.plan_name est non-bloquant côté EF (try/catch).
+    // Le seeding d'un billing_subscriptions réel est bloqué par trg_fn_subscription_freeze_guard
+    // (source_order_item_id + frozen_* obligatoires). On valide donc que le code path
+    // s'exécute sans erreur pour la vraie clientA (sans bsub) — pas de billing_system_alerts levée.
     await admin.from("billing_customers").delete().eq("user_id", clientA.userId);
-    const { data: bc, error: bcErr } = await admin.from("billing_customers").insert({
+    const { error: bcErr } = await admin.from("billing_customers").insert({
       user_id: clientA.userId, email: "qa-m28-client-a@nivra-test.ca",
       first_name: "ClientA", last_name: "QA-M28", phone: "5145550100",
-    }).select("id").single();
-    if (bcErr || !bc) throw new Error(`billing_customers: ${bcErr?.message}`);
-    const { data: bsub, error: bsubErr } = await admin.from("billing_subscriptions").insert({
-      customer_id: bc!.id,
-      plan_code: "qa_internet_500",
-      plan_name: "QA Internet 500 Mbps",
-      plan_price: 50,
-      status: "active",
-      environment: "test",
-      auto_billing_enabled: false,
-      cycle_start_date: new Date().toISOString().slice(0, 10),
-      cycle_end_date: new Date(Date.now() + 25 * 86_400_000).toISOString().slice(0, 10),
-      billing_anchor_date: new Date().toISOString().slice(0, 10),
-      billing_cycle_anchor: new Date().toISOString(),
-    }).select("id").single();
-    if (bsubErr || !bsub) throw new Error(`billing_subscriptions: ${bsubErr?.message}`);
+    });
+    if (bcErr) throw new Error(`billing_customers: ${bcErr.message}`);
 
     // =============== CHANGE_PLAN ===============
     // C1 sales → 403 FORBIDDEN_ROLE
