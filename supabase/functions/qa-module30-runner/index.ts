@@ -196,6 +196,7 @@ Deno.serve(async (req) => {
     const cA = await ensureClient("qa-m30-client-a@nivra-test.ca", "A");
     const cB = await ensureClient("qa-m30-client-b@nivra-test.ca", "B");
 
+    if (phase !== "part2") {
     // ============ RBAC / OWNERSHIP ==================================
     // C1: unauthenticated → 401
     {
