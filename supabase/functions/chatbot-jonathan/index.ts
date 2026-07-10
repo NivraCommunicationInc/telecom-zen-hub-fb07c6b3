@@ -718,13 +718,22 @@ async function handleToolCall(
         if (!effectiveUserId) return { result: fr ? "Connectez-vous pour créer un ticket." : "Log in to create a ticket." };
         const { data: profile } = await supabase.from("profiles").select("email, full_name").eq("id", effectiveUserId).single();
         const pd = profile as any;
-        const { data: ticket, error } = await supabase.from("support_tickets").insert({
-          user_id: effectiveUserId, owner_user_id: effectiveUserId, client_email: pd?.email,
-          subject: args.subject, description: args.description, category: args.category,
-          priority: args.priority || "normal", status: "open"
-        } as any).select("ticket_number").single();
-        if (error) throw error;
-        return { result: fr ? `✅ Ticket créé: ${(ticket as any).ticket_number}. Réponse sous 24-48h.` : `✅ Ticket created: ${(ticket as any).ticket_number}. Response within 24-48h.` };
+        const actor: TicketActor = { user_id: effectiveUserId, role: "client", name: pd?.full_name ?? null, email: pd?.email ?? null };
+        try {
+          const ticket = await createTicket(supabase as any, actor, {
+            owner_user_id: effectiveUserId,
+            subject: args.subject,
+            description: args.description,
+            category: args.category ?? "general",
+            priority: args.priority ?? "normal",
+            source: "chatbot",
+            client_email: pd?.email ?? null,
+            client_name: pd?.full_name ?? null,
+          });
+          return { result: fr ? `✅ Ticket créé: ${ticket.ticket_number}. Réponse sous 24-48h.` : `✅ Ticket created: ${ticket.ticket_number}. Response within 24-48h.` };
+        } catch (e) {
+          throw e;
+        }
       }
 
       case "get_service_info": {
