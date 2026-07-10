@@ -252,9 +252,9 @@ Deno.serve(async (req) => {
     await admin.from("billing_invoices").insert({
       customer_id: billingCustA, account_id: accountA,
       invoice_number: `QA26-INV-${Date.now().toString().slice(-6)}`,
-      type: "subscription",
+      type: "renewal",
       subtotal: 65.45, tps_amount: 3.27, tvq_amount: 6.53, total: 75.25,
-      amount_paid: 0, balance_due: 75.25, status: "issued",
+      amount_paid: 0, balance_due: 75.25, status: "pending",
       cycle_start_date: new Date().toISOString().slice(0, 10),
       cycle_end_date: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
       due_date: new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10),
@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
     });
     const r = await callEF(jwt, {
       action: "cancel_account", client_user_id: clientA, account_id: accountA,
-      reason: `${runTag} solde sans ack`,
+      reason: `${runTag} solde sans ack`, acknowledge_equipment: true,
     });
     push({ id: "2.1", name: "F26-8 balance_due>0 sans ack → 400 UNPAID_BALANCE_ACK_REQUIRED",
       ok: r.status === 400 && r.body?.code === "UNPAID_BALANCE_ACK_REQUIRED", details: r });
