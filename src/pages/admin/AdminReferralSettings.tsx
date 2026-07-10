@@ -60,22 +60,23 @@ const AdminReferralSettings = () => {
     }
   }, [settings]);
 
-  // Save settings mutation
+  // Save settings mutation — routed through admin-referrals-manage (F33-1, F33-19)
   const saveSettings = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase
-        .from("referral_program_settings")
-        .update({
-          discount_percent_first_invoice_monthly: data.discount_percent_first_invoice_monthly,
-          discount_stacks: data.discount_stacks,
-          commission_model_default: data.commission_model_default as any,
-          commission_value_default: data.commission_value_default,
-          cooldown_days: data.cooldown_days,
-          min_cashout_amount: data.min_cashout_amount,
-          allow_self_referrals: data.allow_self_referrals,
-        })
-        .eq("id", settings?.id);
-
+      const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: "settings.update",
+          settings: {
+            discount_percent_first_invoice_monthly: data.discount_percent_first_invoice_monthly,
+            discount_stacks: data.discount_stacks,
+            commission_model_default: data.commission_model_default,
+            commission_value_default: data.commission_value_default,
+            cooldown_days: data.cooldown_days,
+            min_cashout_amount: data.min_cashout_amount,
+            allow_self_referrals: data.allow_self_referrals,
+          },
+        },
+      });
       if (error) throw error;
     },
     onSuccess: () => {
