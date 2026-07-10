@@ -90,13 +90,12 @@ const AdminReferralCodes = () => {
     },
   });
 
-  // Toggle code status mutation
+  // Toggle code status via admin-referrals-manage (F33-1)
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ codeId, newStatus }: { codeId: string; newStatus: string }) => {
-      const { error } = await supabase
-        .from("referral_codes")
-        .update({ status: newStatus })
-        .eq("id", codeId);
+      const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: { action: "code.toggle", code_id: codeId, status: newStatus },
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -108,13 +107,17 @@ const AdminReferralCodes = () => {
     },
   });
 
-  // Update code mutation
+  // Update code limits via admin-referrals-manage
   const updateCodeMutation = useMutation({
-    mutationFn: async ({ codeId, updates }: { codeId: string; updates: any }) => {
-      const { error } = await supabase
-        .from("referral_codes")
-        .update(updates)
-        .eq("id", codeId);
+    mutationFn: async ({ codeId, updates }: { codeId: string; updates: { usage_limit_total: number | null; usage_limit_monthly: number | null } }) => {
+      const { error } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: "code.update",
+          code_id: codeId,
+          usage_limit_total: updates.usage_limit_total,
+          usage_limit_monthly: updates.usage_limit_monthly,
+        },
+      });
       if (error) throw error;
     },
     onSuccess: () => {
