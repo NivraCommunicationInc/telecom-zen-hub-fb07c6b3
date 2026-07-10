@@ -235,15 +235,19 @@ serve(async (req) => {
 
   if (body.service_address_id) {
     const { data: sa } = await admin
-      .from("service_addresses").select("id, account_id, client_id, user_id")
+      .from("service_addresses").select("id, account_id")
       .eq("id", body.service_address_id).maybeSingle();
     if (!sa) return err(404, "NOT_FOUND", "Adresse de service introuvable");
     if (body.account_id && sa.account_id && sa.account_id !== body.account_id) {
       return err(403, "CROSS_CLIENT_TARGET", "Adresse hors compte cible");
     }
-    if (body.client_user_id && sa.client_id && sa.client_id !== body.client_user_id
-        && sa.user_id !== body.client_user_id) {
-      return err(403, "CROSS_CLIENT_TARGET", "Adresse hors client cible");
+    // Client ownership derived via account (service_addresses is scoped by account_id only)
+    if (body.client_user_id && sa.account_id) {
+      const { data: saAcct } = await admin
+        .from("accounts").select("client_id").eq("id", sa.account_id).maybeSingle();
+      if (saAcct && saAcct.client_id !== body.client_user_id) {
+        return err(403, "CROSS_CLIENT_TARGET", "Adresse hors client cible");
+      }
     }
   }
 
