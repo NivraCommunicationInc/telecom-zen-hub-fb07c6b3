@@ -26906,6 +26906,60 @@ export type Database = {
           },
         ]
       }
+      ticket_state_transitions: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          metadata: Json
+          reason: string | null
+          source: string
+          ticket_id: string
+          to_status: string
+        }
+        Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          source?: string
+          ticket_id: string
+          to_status: string
+        }
+        Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          source?: string
+          ticket_id?: string
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_state_transitions_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_state_transitions_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           approved_at: string | null
@@ -31818,6 +31872,236 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_ticket_add_attachment: {
+        Args: {
+          p_file_name: string
+          p_file_path: string
+          p_file_size: number
+          p_file_type: string
+          p_reply_id: string
+          p_storage_bucket: string
+          p_ticket_id: string
+          p_uploader_id: string
+        }
+        Returns: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          reply_id: string | null
+          storage_bucket: string | null
+          ticket_id: string
+          uploader_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ticket_attachments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rpc_ticket_add_participant: {
+        Args: {
+          p_added_by: string
+          p_can_reassign: boolean
+          p_can_reply: boolean
+          p_role: string
+          p_ticket_id: string
+          p_user_email: string
+          p_user_id: string
+          p_user_name: string
+        }
+        Returns: {
+          added_at: string | null
+          added_by: string | null
+          can_reassign: boolean | null
+          can_reply: boolean | null
+          id: string
+          role: string
+          ticket_id: string
+          user_email: string | null
+          user_id: string
+          user_name: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ticket_participants"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rpc_ticket_create: {
+        Args: {
+          p_account_id: string
+          p_category: string
+          p_client_email: string
+          p_client_name: string
+          p_created_by_role: string
+          p_created_by_user_id: string
+          p_description: string
+          p_idempotency_key: string
+          p_metadata?: Json
+          p_owner_user_id: string
+          p_priority: string
+          p_related_order_id: string
+          p_source: string
+          p_subject: string
+        }
+        Returns: {
+          account_id: string | null
+          ai_confidence: number | null
+          ai_responded_at: string | null
+          ai_response: string | null
+          ai_scheduled_at: string | null
+          assigned_department: string | null
+          assigned_to: string | null
+          assigned_to_user_id: string | null
+          attachments: Json | null
+          body: string | null
+          category: string | null
+          cc_user_ids: string[] | null
+          client_email: string | null
+          client_name: string | null
+          created_at: string
+          created_by_role: string | null
+          created_by_user_id: string | null
+          description: string
+          equipment_serial: string | null
+          escalated_at: string | null
+          escalated_reason: string | null
+          id: string
+          id_files: Json | null
+          id_verification_status: string | null
+          internal_notes: string | null
+          is_internal: boolean | null
+          issue_type: string | null
+          owner_user_id: string | null
+          point_of_contact_id: string | null
+          priority: string
+          related_order_id: string | null
+          related_order_reference: string | null
+          requires_id_upload: boolean | null
+          resolved_at: string | null
+          route_to: string | null
+          service_address: string | null
+          service_address_id: string | null
+          service_location_id: string | null
+          source: string | null
+          status: string
+          subject: string
+          ticket_number: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_tickets"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rpc_ticket_reply: {
+        Args: {
+          p_attachments: Json
+          p_author_role: string
+          p_author_user_id: string
+          p_content: string
+          p_email_message_id: string
+          p_idempotency_key: string
+          p_is_internal_note: boolean
+          p_sender_email: string
+          p_sender_name: string
+          p_subject: string
+          p_ticket_id: string
+        }
+        Returns: {
+          attachments: Json | null
+          content: string
+          created_at: string
+          email_message_id: string | null
+          id: string
+          is_admin: boolean
+          is_internal_note: boolean | null
+          sender_email: string | null
+          sender_name: string | null
+          sender_role: string
+          sender_type: string | null
+          subject: string | null
+          ticket_id: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ticket_replies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rpc_ticket_transition: {
+        Args: {
+          p_actor_role: string
+          p_actor_user_id: string
+          p_metadata?: Json
+          p_reason: string
+          p_source?: string
+          p_ticket_id: string
+          p_to_status: string
+        }
+        Returns: {
+          account_id: string | null
+          ai_confidence: number | null
+          ai_responded_at: string | null
+          ai_response: string | null
+          ai_scheduled_at: string | null
+          assigned_department: string | null
+          assigned_to: string | null
+          assigned_to_user_id: string | null
+          attachments: Json | null
+          body: string | null
+          category: string | null
+          cc_user_ids: string[] | null
+          client_email: string | null
+          client_name: string | null
+          created_at: string
+          created_by_role: string | null
+          created_by_user_id: string | null
+          description: string
+          equipment_serial: string | null
+          escalated_at: string | null
+          escalated_reason: string | null
+          id: string
+          id_files: Json | null
+          id_verification_status: string | null
+          internal_notes: string | null
+          is_internal: boolean | null
+          issue_type: string | null
+          owner_user_id: string | null
+          point_of_contact_id: string | null
+          priority: string
+          related_order_id: string | null
+          related_order_reference: string | null
+          requires_id_upload: boolean | null
+          resolved_at: string | null
+          route_to: string | null
+          service_address: string | null
+          service_address_id: string | null
+          service_location_id: string | null
+          source: string | null
+          status: string
+          subject: string
+          ticket_number: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_tickets"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       run_customer_portal_integrity_check: { Args: never; Returns: Json }
       run_subscription_renewals: {
         Args: { p_context?: Json; p_lookahead_days?: number }
@@ -32090,6 +32374,10 @@ export type Database = {
           p_status: string
         }
         Returns: undefined
+      }
+      ticket_status_allowed: {
+        Args: { _from: string; _to: string }
+        Returns: boolean
       }
       transition_order_status: {
         Args: {
