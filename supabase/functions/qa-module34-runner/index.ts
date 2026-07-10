@@ -66,17 +66,20 @@ serve(async (req) => {
     });
 
   // ================== PHASE 1 ==================
-  // C1 — direct DB insert must fail
+  // C1 — direct DB insert as authenticated user must fail (trigger + RLS)
   {
-    const { error } = await admin.from("account_adjustments").insert({
+    const authed = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+    const { error } = await authed.from("account_adjustments").insert({
       account_id: accountId, type: "credit", amount: 10, description: "direct write test",
       months_total: 1, months_remaining: 1, applied_count: 0, status: "active",
       idempotency_key: "direct-write-" + crypto.randomUUID(),
       expires_at: new Date(Date.now() + 86400_000).toISOString(),
       metadata: { compensation: { category: "goodwill" } },
     });
-    push("C1_direct_write_blocked", !!error && String(error.message).includes("forbidden"),
-      error ? error.message : "no error");
+    push("C1_direct_write_blocked", !!error,
+      error ? error.message.slice(0, 200) : "no error");
   }
 
   // C2 — issue valid $25

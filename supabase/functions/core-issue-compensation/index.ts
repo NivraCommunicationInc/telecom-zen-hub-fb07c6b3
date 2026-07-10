@@ -287,7 +287,7 @@ serve(async (req) => {
           entity_id: adjustmentId,
           language: "fr",
           message_type: "compensation",
-          status: "pending",
+          status: "queued",
         });
       }
     } catch (e) {
