@@ -309,8 +309,9 @@ async function phase2(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
 
 async function cleanup(db: SupabaseClient) {
   // Find QA accounts
-  const { data: qaAccounts } = await db.from("accounts").select("id").ilike("account_number", `${QA_PREFIX}%`);
+  const { data: qaAccounts } = await db.from("accounts").select("id,client_id").ilike("account_number", `${QA_PREFIX}%`);
   const ids = (qaAccounts ?? []).map((a) => a.id);
+  const clientIds = (qaAccounts ?? []).map((a: any) => a.client_id).filter(Boolean);
 
   if (ids.length > 0) {
     await db.from("loyalty_transactions").delete().in("account_id", ids);
@@ -324,12 +325,18 @@ async function cleanup(db: SupabaseClient) {
   await db.from("loyalty_redemptions").delete().ilike("idempotency_key", `${QA_PREFIX}%`);
   await db.from("loyalty_rewards").delete().ilike("name_fr", `${QA_PREFIX}%`);
 
-  // Orphan check: transactions/redemptions with QA description or ref to gone accounts
+  // Purge QA auth users
+  for (const uid of clientIds) {
+    try { await db.auth.admin.deleteUser(uid); } catch { /* ignore */ }
+  }
+
+  // Orphan check
   const { data: orphanTx } = await db.from("loyalty_transactions").select("id").ilike("description", `${QA_PREFIX}%`);
   const { data: orphanRed } = await db.from("loyalty_redemptions").select("id").ilike("idempotency_key", `${QA_PREFIX}%`);
   const orphans = (orphanTx?.length ?? 0) + (orphanRed?.length ?? 0);
-  return { deleted_accounts: ids.length, orphans };
+  return { deleted_accounts: ids.length, deleted_users: clientIds.length, orphans };
 }
+
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
