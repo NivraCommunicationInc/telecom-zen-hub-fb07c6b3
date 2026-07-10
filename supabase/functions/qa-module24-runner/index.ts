@@ -117,7 +117,7 @@ serve(async (req) => {
 
     // ---- 2. send_invite (existing) ----
     const r_invite = await callAdminFn(adminJwt, {
-      action: "send_invite", client_email: qaEmail,
+      action: "send_invite", client_user_id: qaClientId,
     });
     record("2_send_invite_existing", r_invite);
 
