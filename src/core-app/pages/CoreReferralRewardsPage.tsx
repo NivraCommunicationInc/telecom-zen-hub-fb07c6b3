@@ -158,69 +158,82 @@ const CoreReferralRewardsPage = () => {
     },
   });
 
-  /* ── Mutations ── */
-  const updateReferralMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
-      const { error } = await supabase
-        .from("client_referrals" as any)
-        .update({ ...updates, updated_at: new Date().toISOString() } as any)
-        .eq("id", id);
+  /* ── Mutations ──
+     F33-1/F33-8/F33-11 — All mutations MUST go through referrals-account-actions.
+     Direct writes on client_referrals are blocked at DB level since Phase A. */
+  const invokeReferralAction = useMutation({
+    mutationFn: async ({
+      action, referralId, referrerUserId, payload,
+    }: {
+      action: string;
+      referralId: string;
+      referrerUserId: string;
+      payload?: Record<string, unknown>;
+    }) => {
+      const idempotency_key = `${action}:${referralId}:${Date.now()}`;
+      const { error } = await supabase.functions.invoke("referrals-account-actions", {
+        body: {
+          action,
+          client_user_id: referrerUserId,
+          referral_id: referralId,
+          idempotency_key,
+          ...(payload || {}),
+        },
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["core-referral-management"] });
-      toast.success("Referral updated");
+      toast.success("Parrainage mis à jour");
     },
-    onError: (e: any) => toast.error(`Update failed: ${e.message}`),
+    onError: (e: any) => toast.error(`Échec: ${e.message}`),
   });
 
   const issueReward = useCallback((referral: any) => {
-    updateReferralMutation.mutate({
-      id: referral.id,
-      updates: {
-        reward_status: "reward_issued",
-        reward_issued_at: new Date().toISOString(),
+    // F33-8 — reward_type limited to credit (default) or points
+    invokeReferralAction.mutate({
+      action: "issue_reward",
+      referralId: referral.id,
+      referrerUserId: referral.referrer_user_id,
+      payload: {
+        reward_type: "credit",
         reward_amount: referral.reward_amount || 25,
-        reward_type: "visa_mastercard_gift_card",
-        status: "reward_issued",
+        reward_reference: `AUTO-${referral.id.slice(0, 8).toUpperCase()}`,
       },
     });
-  }, [updateReferralMutation]);
+  }, [invokeReferralAction]);
 
   const markRewardSent = useCallback(() => {
     if (!selectedReferral) return;
-    updateReferralMutation.mutate({
-      id: selectedReferral.id,
-      updates: {
-        status: "reward_sent",
-        reward_card_provider: rewardForm.card_provider || null,
-        reward_reference: rewardForm.card_reference || null,
-        reward_sent_at: rewardForm.send_date ? new Date(rewardForm.send_date).toISOString() : new Date().toISOString(),
-        notes: rewardForm.notes || selectedReferral.notes,
-      },
+    // Send/deliver flow — canonical action is mark_delivered
+    invokeReferralAction.mutate({
+      action: "mark_delivered",
+      referralId: selectedReferral.id,
+      referrerUserId: selectedReferral.referrer_user_id,
     });
     setDrawerOpen(false);
-  }, [selectedReferral, rewardForm, updateReferralMutation]);
+  }, [selectedReferral, invokeReferralAction]);
 
   const markDelivered = useCallback(() => {
     if (!selectedReferral) return;
-    updateReferralMutation.mutate({
-      id: selectedReferral.id,
-      updates: { reward_delivered_at: new Date().toISOString() },
+    invokeReferralAction.mutate({
+      action: "mark_delivered",
+      referralId: selectedReferral.id,
+      referrerUserId: selectedReferral.referrer_user_id,
     });
     setDrawerOpen(false);
-  }, [selectedReferral, updateReferralMutation]);
+  }, [selectedReferral, invokeReferralAction]);
 
   const flagFraud = useCallback((referral: any) => {
-    updateReferralMutation.mutate({
-      id: referral.id,
-      updates: {
-        fraud_flag: true,
-        status: "fraud_review",
-        fraud_checked_at: new Date().toISOString(),
-      },
+    const reason = window.prompt("Raison de la fraude (obligatoire) :");
+    if (!reason || !reason.trim()) return;
+    invokeReferralAction.mutate({
+      action: "mark_fraud",
+      referralId: referral.id,
+      referrerUserId: referral.referrer_user_id,
+      payload: { reason: reason.trim() },
     });
-  }, [updateReferralMutation]);
+  }, [invokeReferralAction]);
 
   /* ── Filtering ── */
   const filteredData = useMemo(() => {
@@ -585,7 +598,7 @@ const CoreReferralRewardsPage = () => {
                       (selectedReferral.status === "qualified" || selectedReferral.reward_status === "qualified" || selectedReferral.reward_status === "reward_pending") && (
                       <Button
                         onClick={() => issueReward(selectedReferral)}
-                        disabled={updateReferralMutation.isPending}
+                        disabled={invokeReferralAction.isPending}
                         className="w-full"
                         size="sm"
                       >
@@ -624,7 +637,7 @@ const CoreReferralRewardsPage = () => {
                         />
                         <Button
                           onClick={markRewardSent}
-                          disabled={updateReferralMutation.isPending || !rewardForm.card_reference}
+                          disabled={invokeReferralAction.isPending || !rewardForm.card_reference}
                           className="w-full"
                           size="sm"
                         >
@@ -639,7 +652,7 @@ const CoreReferralRewardsPage = () => {
                       <Button
                         variant="outline"
                         onClick={markDelivered}
-                        disabled={updateReferralMutation.isPending}
+                        disabled={invokeReferralAction.isPending}
                         className="w-full"
                         size="sm"
                       >
