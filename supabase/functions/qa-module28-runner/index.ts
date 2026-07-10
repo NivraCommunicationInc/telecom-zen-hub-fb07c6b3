@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
       cycle_start_date: new Date().toISOString().slice(0, 10),
       cycle_end_date: new Date(Date.now() + 25 * 86_400_000).toISOString().slice(0, 10),
       billing_anchor_date: new Date().toISOString().slice(0, 10),
-      billing_cycle_anchor: Math.min(new Date().getDate(), 28),
+      billing_cycle_anchor: new Date().toISOString(),
     }).select("id").single();
     if (bsubErr || !bsub) throw new Error(`billing_subscriptions: ${bsubErr?.message}`);
 
