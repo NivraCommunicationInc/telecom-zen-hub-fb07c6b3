@@ -162,7 +162,7 @@ async function provision(db: SupabaseClient): Promise<TestCtx> {
 }
 
 
-async function phase1(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
+async function phase1(rpc: SupabaseClient, db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // C1: adjust +500
   {
     const { data, error } = await db.rpc("admin_loyalty_adjust", {
