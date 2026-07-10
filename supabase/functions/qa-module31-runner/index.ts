@@ -553,8 +553,8 @@ Deno.serve(async (req) => {
     }).select("id").single();
 
     // trigger sync while payment_status=pending
-    await admin.functions.invoke("field-sales-sync", {
-      body: { action: "sync_single", sale_id: capFso!.id },
+    await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
+      action: "sync_single", sale_id: capFso!.id }),
     }).catch(() => null);
     await new Promise((r) => setTimeout(r, 1200));
 
@@ -578,8 +578,8 @@ Deno.serve(async (req) => {
       await admin.from("field_sales_orders")
         .update({ payment_status: "confirmed", payment_reference: "QA-SQ-CAPTURED" })
         .eq("id", capFso!.id);
-      await admin.functions.invoke("field-sales-sync", {
-        body: { action: "sync_single", sale_id: capFso!.id },
+      await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
+        action: "sync_single", sale_id: capFso!.id }),
       }).catch(() => null);
       await new Promise((r) => setTimeout(r, 1200));
       const orderId = (globalThis as any).__capOrderId as string | undefined;
@@ -595,8 +595,8 @@ Deno.serve(async (req) => {
 
     // C27: double webhook — re-invoke sync → no duplicate
     {
-      await admin.functions.invoke("field-sales-sync", {
-        body: { action: "sync_single", sale_id: capFso!.id },
+      await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
+        action: "sync_single", sale_id: capFso!.id }),
       }).catch(() => null);
       await new Promise((r) => setTimeout(r, 1200));
       const orderId = (globalThis as any).__capOrderId as string | undefined;
