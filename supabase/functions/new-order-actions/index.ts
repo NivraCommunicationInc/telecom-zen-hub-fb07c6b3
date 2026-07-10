@@ -484,9 +484,12 @@ serve(async (req) => {
       server_tvq = Number(d.tvq_amount || 0);
       server_total = Number(d.grand_total || 0);
     } catch (_e) {
-      // Fallback QC — must match src/lib/pricing/serverTaxEngine.ts
-      const raw = cart_items.reduce((s, i) => s + Number(i.amount || 0) * Number(i.quantity || 1), 0);
-      server_subtotal = Math.round(raw * 100) / 100;
+      // fallback below
+    }
+    // Additional safety: if RPC returned 0 but cart has value, use QC fallback
+    const rawSum = cart_items.reduce((s, i) => s + Number(i.amount || 0) * Number(i.quantity || 1), 0);
+    if (server_total < 0.01 && rawSum > 0.01) {
+      server_subtotal = Math.round(rawSum * 100) / 100;
       server_tps = Math.round(server_subtotal * TPS_RATE * 100) / 100;
       server_tvq = Math.round(server_subtotal * TVQ_RATE * 100) / 100;
       server_total = Math.round((server_subtotal + server_tps + server_tvq) * 100) / 100;
