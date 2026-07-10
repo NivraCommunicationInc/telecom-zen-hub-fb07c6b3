@@ -357,8 +357,8 @@ Deno.serve(async (req) => {
       const { data: acc } = await admin.from("accounts").select("status").eq("id", clientA.accountId).maybeSingle();
       const { data: tag } = await admin.from("account_tags").select("*")
         .eq("client_user_id", clientA.userId).eq("tag_key", "full_lock").maybeSingle();
-      push({ id: "C22", name: "apply_lock full_lock admin → 200 + status=blocked + tag présent",
-        ok: r.status === 200 && acc?.status === "blocked" && !!tag,
+      push({ id: "C22", name: "apply_lock full_lock admin → 200 + status=suspended + tag présent",
+        ok: r.status === 200 && acc?.status === "suspended" && !!tag,
         details: { status: r.status, account_status: acc?.status, tag_present: !!tag } });
     }
 
