@@ -52,6 +52,7 @@ import { RecordPaymentModule } from "@/core-app/components/account-360/modules/R
 import { RefundModule } from "@/core-app/components/account-360/modules/RefundModule";
 import { AutopayModule } from "@/core-app/components/account-360/modules/AutopayModule";
 import { PaymentPlanModule } from "@/core-app/components/account-360/modules/PaymentPlanModule";
+import { ReviewDiscountModule } from "@/core-app/components/account-360/modules/ReviewDiscountModule";
 
 
 
@@ -124,6 +125,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [autopayOpen, setAutopayOpen] = useState(false);
+  const [reviewDiscountOpen, setReviewDiscountOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -191,6 +193,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: Award, label: "Récompenses", onClick: () => onNavigateSection("loyalty"), color: "emerald" },
         { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" },
         { icon: Sparkles, label: "Bon de compensation", onClick: () => setVoucherOpen(true), color: "emerald" },
+        { icon: Star, label: "Rabais avis Google (5 $)", onClick: () => setReviewDiscountOpen(true), color: "emerald" },
       ],
     },
     {
@@ -303,6 +306,17 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
           clientName={clientName}
           clientEmail={clientEmail}
           canonicalData={canonicalData}
+        />
+      )}
+
+      {accountId && clientId && (
+        <ReviewDiscountModule
+          open={reviewDiscountOpen}
+          onClose={() => setReviewDiscountOpen(false)}
+          accountId={accountId}
+          clientId={clientId}
+          clientName={clientName}
+          clientEmail={clientEmail}
         />
       )}
 
