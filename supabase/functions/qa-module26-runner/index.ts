@@ -176,20 +176,47 @@ Deno.serve(async (req) => {
     await admin.from("equipment_inventory").delete().in("account_id", [accountA, accountB]);
     await admin.from("equipment_return_requests").delete().in("account_id", [accountA, accountB]);
 
-    // Seed 2 active subs on client A
     const nowIso = new Date().toISOString();
     const inXDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString();
-    const traceBase = { source_type: "qa_module26", source_id: crypto.randomUUID() };
+
+    // Seed helper orders + order_items (is_recurring=true) for traceability guards.
+    async function seedRecurringItem(userId: string, acctId: string, category: "Internet" | "TV") {
+      const { data: ord, error: ordErr } = await admin.from("orders").insert({
+        user_id: userId, account_id: acctId, service_type: category.toLowerCase(),
+        order_number: `QA26-ORD-${crypto.randomUUID().slice(0, 8)}`, status: "completed",
+      }).select("id").single();
+      if (ordErr) throw new Error(`seed_order: ${ordErr.message}`);
+      const { data: it, error: itErr } = await admin.from("order_items").insert({
+        order_id: ord.id, service_type: category.toLowerCase(),
+        plan_code: `QA26-${category}-${Date.now()}`, plan_name: `QA ${category}`,
+        unit_price: 49.99, quantity: 1, line_total: 49.99, is_recurring: true, status: "completed",
+      }).select("id").single();
+      if (itErr) throw new Error(`seed_item: ${itErr.message}`);
+      return it.id as string;
+    }
+    const itemA1 = await seedRecurringItem(clientA, accountA, "Internet");
+    const itemA2 = await seedRecurringItem(clientA, accountA, "TV");
+    const itemB1 = await seedRecurringItem(clientB, accountB, "Internet");
+
+    const frozen = (name: string, code: string, price: number) => ({
+      frozen_name: name, frozen_code: code, frozen_unit_price: price,
+      frozen_currency: "CAD", frozen_cycle: "monthly", frozen_frequency: 1,
+      frozen_anchor_date: nowIso.slice(0, 10),
+    });
+    const traceBase = { source_type: "qa_module26" };
     const { data: subs, error: subsSeedErr } = await admin.from("billing_subscriptions").insert([
-      { customer_id: billingCustA, plan_code: `QA26-INT-${Date.now()}`, plan_name: "QA Internet 50",
+      { customer_id: billingCustA, plan_code: `QA26-INT-${Date.now()}-a`, plan_name: "QA Internet 50",
         plan_price: 49.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "Internet", ...traceBase, source_id: crypto.randomUUID() },
-      { customer_id: billingCustA, plan_code: `QA26-TV-${Date.now()}`, plan_name: "QA TV Base",
+        status: "active", service_category: "Internet",
+        source_order_item_id: itemA1, source_id: itemA1, ...traceBase, ...frozen("QA Internet 50", "QA26-INT", 49.99) },
+      { customer_id: billingCustA, plan_code: `QA26-TV-${Date.now()}-a`, plan_name: "QA TV Base",
         plan_price: 29.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "TV", ...traceBase, source_id: crypto.randomUUID() },
+        status: "active", service_category: "TV",
+        source_order_item_id: itemA2, source_id: itemA2, ...traceBase, ...frozen("QA TV Base", "QA26-TV", 29.99) },
       { customer_id: billingCustB, plan_code: `QA26-INT-B-${Date.now()}`, plan_name: "QA B Internet",
         plan_price: 49.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "Internet", ...traceBase, source_id: crypto.randomUUID() },
+        status: "active", service_category: "Internet",
+        source_order_item_id: itemB1, source_id: itemB1, ...traceBase, ...frozen("QA B Internet", "QA26-INT-B", 49.99) },
     ]).select("id, customer_id");
     if (subsSeedErr) throw new Error(`seed_subs: ${subsSeedErr.message}`);
     (subs ?? []).forEach((s: any) => createdSubIds.push(s.id));
