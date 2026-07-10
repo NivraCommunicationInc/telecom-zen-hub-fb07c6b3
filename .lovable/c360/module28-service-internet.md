@@ -1,6 +1,6 @@
 # Module 28 — Service Internet
 
-Statut : **STATIC FIXES DEPLOYED — WAITING E2E GREENLIGHT** (2026-07-10)
+Statut : **CLOSED ✅** (2026-07-10) — E2E `qa-module28-runner` : **35/35 PASS**
 
 ## Périmètre
 - UI principale : `src/shared-ops/components/InternetServiceActionsDialog.tsx` (Forfait, Modem, Diagnostic, WiFi, IP statique).
