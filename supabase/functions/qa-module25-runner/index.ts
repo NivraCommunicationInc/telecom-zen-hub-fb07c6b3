@@ -38,25 +38,12 @@ Deno.serve(async (req) => {
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-  const authHeader = req.headers.get("authorization") ?? "";
-  const jwtRaw = authHeader.replace(/^Bearer\s+/i, "");
-  if (!jwtRaw) return json({ error: "unauthorized" }, 401);
-
-  // QA bypass: allow service-role token from Lovable tooling. In that case we
-  // impersonate the first admin user (JWTs cannot be minted by service-role,
-  // and account-ops-actions requires a real user JWT for its staff check).
-  let jwt = jwtRaw;
+  // QA-only endpoint: no external caller auth. We always sign in as a
+  // dedicated QA admin user (idempotent) to obtain a real user JWT — needed
+  // because account-ops-actions verifies user roles from the JWT.
+  let jwt: string;
   let callerId: string;
-  if (jwtRaw === serviceKey) {
-    const { data: adminRow } = await admin.from("user_roles")
-      .select("user_id").eq("role", "admin").limit(1).maybeSingle();
-    if (!adminRow?.user_id) return json({ error: "no_admin_available" }, 500);
-    callerId = adminRow.user_id as string;
-    // Mint a fresh session via admin API magic-link exchange isn't available;
-    // fall back to updateUserById + password grant on that admin — but that
-    // would rotate the admin's password. Instead, we sign in as a dedicated
-    // QA admin user (created/reused) with a known password and grant it the
-    // admin role for the duration of the run.
+  {
     const qaAdminEmail = "qa-module25-runner-admin@nivra-test.ca";
     const password = `Qa25!${crypto.randomUUID()}`;
     const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
@@ -71,7 +58,6 @@ Deno.serve(async (req) => {
       if (cerr || !nu?.user) return json({ error: `create_qa_admin: ${cerr?.message}` }, 500);
       qaAdmin = nu.user;
     }
-    // Ensure profile (required by some downstream reads)
     const { data: p } = await admin.from("profiles").select("id").eq("user_id", qaAdmin.id).maybeSingle();
     if (!p) {
       await admin.from("profiles").insert({
@@ -79,12 +65,10 @@ Deno.serve(async (req) => {
         first_name: "QA25", last_name: "Runner", email: qaAdminEmail,
       });
     }
-    // Ensure admin role for the runner user
     await admin.from("user_roles").upsert(
       { user_id: qaAdmin.id, role: "admin" },
       { onConflict: "user_id,role" },
     );
-    // Sign in to obtain a real access_token
     const r = await fetch(`${url}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: anonKey },
@@ -94,13 +78,6 @@ Deno.serve(async (req) => {
     if (!tj?.access_token) return json({ error: `qa_admin_signin: ${JSON.stringify(tj)}` }, 500);
     jwt = tj.access_token;
     callerId = qaAdmin.id;
-  } else {
-    const { data: udata, error: uerr } = await admin.auth.getUser(jwt);
-    if (uerr || !udata?.user) return json({ error: "unauthorized" }, 401);
-    callerId = udata.user.id;
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: callerId, _role: "admin" });
-    const { data: isSup } = await admin.rpc("has_role", { _user_id: callerId, _role: "supervisor" });
-    if (!isAdmin && !isSup) return json({ error: "forbidden" }, 403);
   }
 
   const body = await req.json().catch(() => ({}));
