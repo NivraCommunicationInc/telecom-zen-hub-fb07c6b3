@@ -5978,7 +5978,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     // ===================================================================
     case "review_request_activation": {
       const firstName = esc(v.first_name || clientName);
-      const googleReviewUrl = String(v.google_review_url || "https://share.google/y07QHAdHSZDBDFa9q");
+      const googleReviewUrl = String(v.google_review_url || "https://g.page/r/CXlAG2vT9CgoEAE/review");
       return {
         subject: "Un immense merci — et un petit cadeau de 5 $ pour vous 💙",
         html: shell({
