@@ -16535,6 +16535,54 @@ export type Database = {
           },
         ]
       }
+      mobile_addons_catalog: {
+        Row: {
+          addon_code: string
+          addon_name: string
+          addon_type: string
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          is_active: boolean
+          metadata: Json
+          monthly_price: number
+          one_time_price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          addon_code: string
+          addon_name: string
+          addon_type: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          monthly_price?: number
+          one_time_price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          addon_code?: string
+          addon_name?: string
+          addon_type?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          monthly_price?: number
+          one_time_price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mobile_fulfillment: {
         Row: {
           activated_at: string | null
