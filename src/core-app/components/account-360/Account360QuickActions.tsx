@@ -193,6 +193,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         { icon: Award, label: "Récompenses", onClick: () => onNavigateSection("loyalty"), color: "emerald" },
         { icon: Users, label: "Parrainages", onClick: () => setReferralsOpen(true), color: "violet" },
         { icon: Sparkles, label: "Bon de compensation", onClick: () => setVoucherOpen(true), color: "emerald" },
+        { icon: Star, label: "Rabais avis Google (5 $)", onClick: () => setReviewDiscountOpen(true), color: "emerald" },
       ],
     },
     {
