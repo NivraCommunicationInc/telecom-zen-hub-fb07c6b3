@@ -251,7 +251,11 @@ Deno.serve(async (req) => {
     .select("email, first_name, last_name")
     .eq("id", b.subject_user_id)
     .maybeSingle();
-  const subjectEmail = subjectProfile?.email ?? null;
+  let subjectEmail = subjectProfile?.email ?? null;
+  if (!subjectEmail) {
+    const { data: au } = await admin.auth.admin.getUserById(b.subject_user_id);
+    subjectEmail = au?.user?.email ?? null;
+  }
   const subjectName =
     [subjectProfile?.first_name, subjectProfile?.last_name].filter(Boolean).join(" ").trim() ||
     subjectEmail || "";
