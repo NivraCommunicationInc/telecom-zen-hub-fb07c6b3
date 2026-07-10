@@ -151,10 +151,11 @@ Deno.serve(async (req) => {
 
     // Seed a billing_customer + billing_subscription for clientA (F28-17 sync)
     await admin.from("billing_customers").delete().eq("user_id", clientA.userId);
-    const { data: bc } = await admin.from("billing_customers").insert({
+    const { data: bc, error: bcErr } = await admin.from("billing_customers").insert({
       user_id: clientA.userId, email: "qa-m28-client-a@nivra-test.ca",
-      first_name: "ClientA", last_name: "QA-M28",
+      first_name: "ClientA", last_name: "QA-M28", phone: "5145550100",
     }).select("id").single();
+    if (bcErr || !bc) throw new Error(`billing_customers: ${bcErr?.message}`);
     const { data: bsub } = await admin.from("billing_subscriptions").insert({
       customer_id: bc!.id,
       plan_code: "qa_internet_500",
