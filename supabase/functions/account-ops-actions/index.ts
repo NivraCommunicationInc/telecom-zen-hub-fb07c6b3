@@ -688,7 +688,7 @@ serve(async (req) => {
 
         const { data: acct, error: acctErr } = await admin
           .from("accounts")
-          .select("id, status, client_id, account_number, balance_due, mrr, monthly_total")
+          .select("id, status, client_id, account_number")
           .eq("id", body.account_id)
           .maybeSingle();
         if (acctErr) return json(500, { error: acctErr.message });
@@ -706,16 +706,6 @@ serve(async (req) => {
 
         if (acct.status === "cancelled") return json(409, { error: "Ce compte est déjà résilié", code: "ALREADY_CANCELLED" });
 
-        // F26-8 — garde solde impayé : force acknowledgment explicite si balance_due > 0
-        const balanceDue = Number((acct as any).balance_due ?? 0);
-        if (balanceDue > 0 && !acknowledgeUnpaid) {
-          return json(400, {
-            error: `Solde impayé de ${balanceDue.toFixed(2)} $ — confirmez que la dette reste due (acknowledge_unpaid=true) ou routez vers Recouvrement.`,
-            code: "UNPAID_BALANCE_ACK_REQUIRED",
-            balance_due: balanceDue,
-          });
-        }
-
         // F26-2 — résoudre billing_customers.id (customer_id canonique) à partir du user_id.
         const { data: billingCust } = await admin
           .from("billing_customers")
@@ -723,6 +713,24 @@ serve(async (req) => {
           .eq("user_id", client_user_id)
           .maybeSingle();
         const customerId = billingCust?.id ?? null;
+
+        // F26-8 — Solde impayé : agrégat des factures non réglées liées au customer_id.
+        let balanceDue = 0;
+        if (customerId) {
+          const { data: openInv } = await admin
+            .from("billing_invoices")
+            .select("balance_due, status")
+            .eq("customer_id", customerId)
+            .not("status", "in", "(paid,void,cancelled,refunded)");
+          balanceDue = (openInv ?? []).reduce((s: number, r: any) => s + Number(r?.balance_due ?? 0), 0);
+        }
+        if (balanceDue > 0 && !acknowledgeUnpaid) {
+          return json(400, {
+            error: `Solde impayé de ${balanceDue.toFixed(2)} $ — confirmez que la dette reste due (acknowledge_unpaid=true) ou routez vers Recouvrement.`,
+            code: "UNPAID_BALANCE_ACK_REQUIRED",
+            balance_due: balanceDue,
+          });
+        }
 
         // Snapshot BEFORE (F26-7)
         let subsBefore: any[] = [];
@@ -733,6 +741,7 @@ serve(async (req) => {
             .eq("customer_id", customerId);
           subsBefore = data ?? [];
         }
+
 
         // F26-9 — équipement encore attribué : forcer acknowledgment
         const { data: equipAssigned } = await admin
