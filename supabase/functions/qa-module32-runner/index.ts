@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
 
       if (phase === "1" || phase === "all") await phase1(adminAuthed, admin, ctx, checks);
       if (phase === "2" || phase === "all") await phase2(adminAuthed, admin, clientAClient, ctx, checks);
+
     } finally {
       const c = await cleanup(admin);
       try { await admin.auth.admin.deleteUser(adminUser.user.id); } catch { /* ignore */ }
