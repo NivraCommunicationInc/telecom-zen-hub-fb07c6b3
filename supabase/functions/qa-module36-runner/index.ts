@@ -355,9 +355,9 @@ serve(async (req) => {
       String(m?.event_key));
     push("notifications", "N4_recipient_is_client", m?.to_email === clientEmail, String(m?.to_email));
 
-    // uniqueness: attempting to insert duplicate event_key raises
+    // uniqueness: duplicate event_key must NOT create a new row (unique index or dedup trigger).
     if (m?.event_key) {
-      const { error: dupErr } = await admin.from("email_queue").insert({
+      await admin.from("email_queue").insert({
         event_key: m.event_key,
         idempotency_key: m.idempotency_key,
         to_email: clientEmail,
@@ -365,11 +365,14 @@ serve(async (req) => {
         template_key: "supervisor_escalation",
         entity_type: "internal_ticket",
         entity_id: ticketIdA,
-        status: "pending",
+        status: "queued",
       } as any);
+      const { count } = await admin.from("email_queue")
+        .select("id", { count: "exact", head: true })
+        .eq("event_key", m.event_key);
       push("notifications", "N5_event_key_unique",
-        !!dupErr && (dupErr as any).code === "23505",
-        dupErr?.message?.slice(0, 160) ?? "no_error");
+        count === 1,
+        `rows_for_event_key=${count}`);
     }
   } else {
     info("notifications", "N1_email_queue_created", "skipped");
