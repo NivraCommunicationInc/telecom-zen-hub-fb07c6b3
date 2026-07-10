@@ -190,12 +190,14 @@ Deno.serve(async (req) => {
     // 6) Field submissions (convert_to_quote_sub)
     await admin.from("field_submissions").delete().in("agent_id", callerIds);
 
-    // 7) Client-scoped noise
-    if (clientIds.length) {
-      await admin.from("client_activity_logs").delete().in("client_id", clientIds);
-      await admin.from("client_internal_notes").delete().in("client_id", clientIds);
+    // 7) Client-scoped noise (broad — all QA users)
+    const scopedClientIds = qaUserIds.length ? qaUserIds : clientIds;
+    if (scopedClientIds.length) {
+      await admin.from("client_activity_logs").delete().in("client_id", scopedClientIds);
+      await admin.from("client_internal_notes").delete().in("client_id", scopedClientIds);
     }
     await admin.from("email_queue").delete().ilike("to_email", "qa-m31-%");
+
 
     // 8) Audit
     for (const id of callerIds) {
