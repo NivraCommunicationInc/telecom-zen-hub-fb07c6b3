@@ -74,7 +74,7 @@ async function ensureReferralCode(admin: SupabaseClient, user_id: string) {
     code,
     code_type: "client",
     status: "active",
-    client_user_id: user_id,
+    owner_user_id: user_id,
   }).select("id, code").single();
   if (error) throw new Error(`referral_codes: ${error.message}`);
   return data;
@@ -130,7 +130,7 @@ serve(async (req) => {
       await admin.from("referral_codes").delete().in("id", createdCodeIds.length ? createdCodeIds : ["00000000-0000-0000-0000-000000000000"]);
       await admin.from("email_queue").delete().like("event_key", `referral:%${QA_PREFIX}%`);
       for (const uid of createdUserIds) {
-        await admin.from("accounts").delete().eq("user_id", uid);
+        await admin.from("accounts").delete().eq("client_id", uid);
         await admin.from("profiles").delete().eq("user_id", uid);
         try { await admin.auth.admin.deleteUser(uid); } catch (_) { /* swallow */ }
       }
