@@ -1372,35 +1372,15 @@ Deno.serve(async (req) => {
                 ignoreDuplicates: false,
               });
 
-            // F31-6 — field_commissions is created ONLY after Square capture (payment_status='confirmed').
-            // Card-manual sales stay commission-less until square-charge-invoice re-invokes sync post-capture.
-            // Idempotent: SELECT existing row on order_id to prevent double-webhook duplicates.
-            if (sale.payment_status === "confirmed") {
-              const { data: existingComm } = await supabaseAdmin
-                .from("field_commissions")
-                .select("id")
-                .eq("order_id", canonicalOrder.id)
-                .maybeSingle();
-              if (!existingComm) {
-                const { error: fieldCommissionErr } = await supabaseAdmin
-                  .from("field_commissions")
-                  .insert({
-                    agent_id: sale.salesperson_id,
-                    amount: totalCommission,
-                    status: "pending",
-                    earned_at: new Date().toISOString(),
-                    order_id: canonicalOrder.id,
-                    notes: `field-sales-sync (post-capture): rate=${(commissionRate * 100).toFixed(0)}% bonus=${bonusAmount.toFixed(2)}$`,
-                  });
-                if (fieldCommissionErr) {
-                  console.error("[field-sales-sync] field_commissions insert failed (non-blocking):", fieldCommissionErr.message);
-                }
-              } else {
-                console.log(`[field-sales-sync] F31-6 idempotency — commission already exists for order ${canonicalOrder.id}`);
-              }
-            } else {
-              console.log(`[field-sales-sync] F31-6 — payment_status=${sale.payment_status} — commission deferred until capture`);
-            }
+            // F31-6 — field_commissions creation is delegated to the canonical
+            // idempotent helper. Safe to call on every path (create, update,
+            // resync); no-ops when payment isn't captured or when the row
+            // already exists (unique index on order_id + commission_type).
+            const ensured = await ensureFieldCommissionAfterCapture(supabaseAdmin, {
+              sale_id: sale.id,
+              reason: "field-sales-sync:create-path",
+            });
+            console.log(`[field-sales-sync] F31-6 ensureFieldCommission → ${ensured.status}`);
 
             console.log(`[field-sales-sync] Commission created: ${totalCommission.toFixed(2)}$ (rate: ${(commissionRate * 100).toFixed(0)}%, bonus: ${bonusAmount}) for agent ${sale.salesperson_id}`);
           }
