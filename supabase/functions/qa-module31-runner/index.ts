@@ -132,42 +132,105 @@ Deno.serve(async (req) => {
     return data;
   };
 
-  const cleanupClient = async (userId: string) => {
-    // Orders + related first
+  const cleanupAllQa = async (callerIds: string[], clientIds: string[]) => {
+    // 1) Collect quotes tied to QA emails
     const { data: quotes } = await admin.from("field_quotes")
       .select("id").ilike("client_info->>email", "qa-m31-%");
     const quoteIds = (quotes || []).map((q: any) => q.id);
 
-    const { data: fso } = await admin.from("field_sales_orders")
-      .select("id, converted_order_id").eq("customer_email", (await admin.from("profiles").select("email").eq("user_id", userId).maybeSingle()).data?.email || "");
-    const fsoIds = (fso || []).map((r: any) => r.id);
-    const orderIds = (fso || []).map((r: any) => r.converted_order_id).filter(Boolean);
+    // 2) Collect FSOs: by customer_email pattern OR salesperson caller
+    const { data: fsoByEmail } = await admin.from("field_sales_orders")
+      .select("id, converted_order_id").ilike("customer_email", "qa-m31-%");
+    const { data: fsoBySales } = await admin.from("field_sales_orders")
+      .select("id, converted_order_id").in("salesperson_id", callerIds);
+    const fsoMap = new Map<string, string | null>();
+    for (const r of [...(fsoByEmail || []), ...(fsoBySales || [])]) {
+      fsoMap.set(r.id, r.converted_order_id ?? null);
+    }
+    const fsoIds = Array.from(fsoMap.keys());
+    const convertedOrderIds = Array.from(fsoMap.values()).filter(Boolean) as string[];
 
-    if (fsoIds.length) {
+    // 3) Collect orders: converted from FSOs OR user_id in clients OR order_number pattern
+    //    OR user_id belongs to any qa-m31-% profile (field-sales-sync auto-creates users).
+    const { data: qaProfiles } = await admin.from("profiles")
+      .select("user_id").ilike("email", "qa-m31-%");
+    const qaUserIds = ((qaProfiles || []) as any[]).map((r) => r.user_id);
+    const { data: ordersByClient } = await admin.from("orders")
+      .select("id").in("user_id", qaUserIds.length ? qaUserIds : clientIds);
+    const { data: ordersByPattern } = await admin.from("orders")
+      .select("id").ilike("order_number", "QA31-%");
+    const orderIdSet = new Set<string>([
+      ...convertedOrderIds,
+      ...((ordersByClient || []) as any[]).map((r) => r.id),
+      ...((ordersByPattern || []) as any[]).map((r) => r.id),
+    ]);
+    const orderIds = Array.from(orderIdSet);
+
+
+    // 4) Delete children first
+    if (orderIds.length) {
       await admin.from("field_commissions").delete().in("order_id", orderIds);
+      await admin.from("order_items").delete().in("order_id", orderIds);
+      await admin.from("order_status_history").delete().in("order_id", orderIds);
+      await admin.from("order_internal_notes").delete().in("order_id", orderIds);
+      await admin.from("order_snapshots").delete().in("order_id", orderIds);
+      await admin.from("order_identity_data").delete().in("order_id", orderIds);
+      await admin.from("order_documents").delete().in("order_id", orderIds);
+      await admin.from("billing_invoice_lines").delete().in("invoice_id",
+        ((await admin.from("billing_invoices").select("id").in("order_id", orderIds)).data ?? []).map((r: any) => r.id));
+      await admin.from("billing_invoices").delete().in("order_id", orderIds);
+      await admin.from("billing").delete().in("order_id", orderIds);
+      await admin.from("contracts").delete().in("order_id", orderIds);
+      await admin.from("identity_verification_sessions").delete().in("order_id", orderIds);
+      await admin.from("appointments").delete().in("order_id", orderIds);
+      await admin.from("payments").delete().in("order_id", orderIds);
+      await admin.from("provisioning_jobs").delete().in("order_id", orderIds);
+      await admin.from("subscriptions").delete().in("order_id", orderIds);
+      await admin.from("billing_subscriptions").delete().in("order_id", orderIds);
+      await admin.from("service_instances").delete().in("order_id", orderIds);
+      await admin.from("installations").delete().in("order_id", orderIds);
+      await admin.from("installation_jobs").delete().in("order_id", orderIds);
+      await admin.from("kyc_requests").delete().in("order_id", orderIds);
+      await admin.from("shipments").delete().in("order_id", orderIds);
+      await admin.from("equipment_order_lines").delete().in("order_id", orderIds);
+      await admin.from("equipment_inventory").update({ order_id: null }).in("order_id", orderIds);
+      await admin.from("fulfillment_snapshots").delete().in("order_id", orderIds);
+    }
+    if (fsoIds.length) {
       await admin.from("sales_commissions").delete().in("field_order_id", fsoIds);
       await admin.from("field_sales_orders").delete().in("id", fsoIds);
     }
     if (orderIds.length) {
-      await admin.from("order_items").delete().in("order_id", orderIds);
       await admin.from("orders").delete().in("id", orderIds);
     }
     if (quoteIds.length) {
       await admin.from("field_quotes").delete().in("id", quoteIds);
     }
-    await admin.from("field_payment_intents").delete().eq("user_id", userId);
-    await admin.from("orders").delete().eq("user_id", userId);
-    await admin.from("client_activity_logs").delete().eq("client_id", userId);
-    await admin.from("client_internal_notes").delete().eq("client_id", userId);
-    const email = (await admin.from("profiles").select("email").eq("user_id", userId).maybeSingle()).data?.email;
-    if (email) await admin.from("email_queue").delete().eq("to_email", email);
-  };
 
-  const cleanupAudit = async (callerIds: string[]) => {
+
+    // 5) Field payment intents — by agent OR customer_email pattern
+    await admin.from("field_payment_intents").delete().in("agent_id", callerIds);
+    await admin.from("field_payment_intents").delete().ilike("customer_email", "qa-m31-%");
+
+    // 6) Field submissions (convert_to_quote_sub)
+    await admin.from("field_submissions").delete().in("agent_id", callerIds);
+
+    // 7) Client-scoped noise (broad — all QA users)
+    const scopedClientIds = qaUserIds.length ? qaUserIds : clientIds;
+    if (scopedClientIds.length) {
+      await admin.from("client_activity_logs").delete().in("client_id", scopedClientIds);
+      await admin.from("client_internal_notes").delete().in("client_id", scopedClientIds);
+    }
+    await admin.from("email_queue").delete().ilike("to_email", "qa-m31-%");
+
+
+    // 8) Audit
     for (const id of callerIds) {
-      await admin.from("admin_audit_log").delete().eq("admin_user_id", id).like("action", "order_new.%");
+      await admin.from("admin_audit_log").delete()
+        .eq("admin_user_id", id).like("action", "order_new.%");
     }
   };
+
 
   try {
     const svc = await pickActiveService();
@@ -180,11 +243,13 @@ Deno.serve(async (req) => {
     const cA = await ensureClient("qa-m31-client-a@nivra-test.ca", "A");
     const cB = await ensureClient("qa-m31-client-b@nivra-test.ca", "B");
 
+    const callerIds = [adminCaller.userId, salesCaller.userId, fieldCaller.userId, supportCaller.userId];
+    const clientIds = [cA.userId, cB.userId];
+
     if (phase !== "part2") {
-      await cleanupClient(cA.userId);
-      await cleanupClient(cB.userId);
-      await cleanupAudit([adminCaller.userId, salesCaller.userId, fieldCaller.userId, supportCaller.userId]);
+      await cleanupAllQa(callerIds, clientIds);
     }
+
 
     // Build a canonical valid quote payload (server pricing tolerance 5¢)
     const baseCustomer = (email: string) => ({
@@ -702,28 +767,41 @@ Deno.serve(async (req) => {
 
     // ============ CLEANUP + ORPHAN CHECK =============================
     if (!keep) {
-      await cleanupClient(cA.userId);
-      await cleanupClient(cB.userId);
-      await cleanupAudit([adminCaller.userId, salesCaller.userId, fieldCaller.userId, supportCaller.userId]);
+      await cleanupAllQa(callerIds, clientIds);
 
       const { count: qLeft } = await admin.from("field_quotes")
         .select("id", { count: "exact", head: true }).ilike("client_info->>email", "qa-m31-%");
-      const { count: fsoLeft } = await admin.from("field_sales_orders")
-        .select("id", { count: "exact", head: true })
-        .in("salesperson_id", [fieldCaller.userId, adminCaller.userId]);
-      const { count: intentLeft } = await admin.from("field_payment_intents")
-        .select("id", { count: "exact", head: true })
-        .in("user_id", [cA.userId, cB.userId]);
+      const { count: fsoByEmailLeft } = await admin.from("field_sales_orders")
+        .select("id", { count: "exact", head: true }).ilike("customer_email", "qa-m31-%");
+      const { count: fsoBySalesLeft } = await admin.from("field_sales_orders")
+        .select("id", { count: "exact", head: true }).in("salesperson_id", callerIds);
+      const fsoLeft = (fsoByEmailLeft ?? 0) + (fsoBySalesLeft ?? 0);
+      const { count: intentByAgentLeft } = await admin.from("field_payment_intents")
+        .select("id", { count: "exact", head: true }).in("agent_id", callerIds);
+      const { count: intentByEmailLeft } = await admin.from("field_payment_intents")
+        .select("id", { count: "exact", head: true }).ilike("customer_email", "qa-m31-%");
+      const intentLeft = (intentByAgentLeft ?? 0) + (intentByEmailLeft ?? 0);
       const { count: auditLeft } = await admin.from("admin_audit_log")
         .select("id", { count: "exact", head: true })
-        .in("admin_user_id", [adminCaller.userId, fieldCaller.userId, supportCaller.userId, salesCaller.userId])
-        .like("action", "order_new.%");
-      const { count: ordersLeft } = await admin.from("orders")
-        .select("id", { count: "exact", head: true }).in("user_id", [cA.userId, cB.userId]);
-      const total = (qLeft ?? 0) + (fsoLeft ?? 0) + (intentLeft ?? 0) + (auditLeft ?? 0) + (ordersLeft ?? 0);
-      push({ id: "C36", name: "Cleanup — 0 orphelin (quotes/fso/intents/audits/orders)",
-        ok: total === 0, details: { qLeft, fsoLeft, intentLeft, auditLeft, ordersLeft } });
+        .in("admin_user_id", callerIds).like("action", "order_new.%");
+      const { data: leftProfiles } = await admin.from("profiles")
+        .select("user_id").ilike("email", "qa-m31-%");
+      const leftUserIds = ((leftProfiles || []) as any[]).map((r) => r.user_id);
+      const { count: ordersByClientLeft } = await admin.from("orders")
+        .select("id", { count: "exact", head: true })
+        .in("user_id", leftUserIds.length ? leftUserIds : clientIds);
+      const { count: ordersByPatternLeft } = await admin.from("orders")
+        .select("id", { count: "exact", head: true }).ilike("order_number", "QA31-%");
+      const ordersLeft = (ordersByClientLeft ?? 0) + (ordersByPatternLeft ?? 0);
+
+      const { count: emailQaLeft } = await admin.from("email_queue")
+        .select("id", { count: "exact", head: true }).ilike("to_email", "qa-m31-%");
+      const total = (qLeft ?? 0) + fsoLeft + intentLeft + (auditLeft ?? 0) + ordersLeft + (emailQaLeft ?? 0);
+      push({ id: "C36", name: "Cleanup — 0 orphelin (quotes/fso/intents/audits/orders/email)",
+        ok: total === 0,
+        details: { qLeft, fsoLeft, intentLeft, auditLeft, ordersLeft, emailQaLeft } });
     }
+
     } // end phase !== part1
 
     const pass = checks.filter((c) => c.ok).length;
