@@ -83,10 +83,15 @@ export type Database = {
           description: string
           expires_at: string | null
           id: string
+          idempotency_key: string | null
           is_permanent: boolean
           last_applied_at: string | null
+          metadata: Json
           months_remaining: number
           months_total: number
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
           source_discount_id: string | null
           status: string
           type: string
@@ -102,10 +107,15 @@ export type Database = {
           description: string
           expires_at?: string | null
           id?: string
+          idempotency_key?: string | null
           is_permanent?: boolean
           last_applied_at?: string | null
+          metadata?: Json
           months_remaining: number
           months_total?: number
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
           source_discount_id?: string | null
           status?: string
           type: string
@@ -121,10 +131,15 @@ export type Database = {
           description?: string
           expires_at?: string | null
           id?: string
+          idempotency_key?: string | null
           is_permanent?: boolean
           last_applied_at?: string | null
+          metadata?: Json
           months_remaining?: number
           months_total?: number
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
           source_discount_id?: string | null
           status?: string
           type?: string
@@ -150,6 +165,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["profile_user_id"]
+          },
+          {
+            foreignKeyName: "account_adjustments_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "account_adjustments_source_discount_id_fkey"
@@ -30499,6 +30521,44 @@ export type Database = {
         Returns: string
       }
       commit_order_atomic: { Args: { p_payload: Json }; Returns: Json }
+      compensation_transition: {
+        Args: {
+          _actor_id: string
+          _adjustment_id: string
+          _new_status: string
+          _reason: string
+        }
+        Returns: {
+          account_id: string
+          amount: number
+          applied_count: number
+          applies_to: string | null
+          conditions: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          expires_at: string | null
+          id: string
+          idempotency_key: string | null
+          is_permanent: boolean
+          last_applied_at: string | null
+          metadata: Json
+          months_remaining: number
+          months_total: number
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          source_discount_id: string | null
+          status: string
+          type: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "account_adjustments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       complete_kyc_request_by_token: {
         Args: { p_document_path: string; p_token: string }
         Returns: Json
@@ -30526,6 +30586,13 @@ export type Database = {
       compute_invoice_breakdown: {
         Args: { p_invoice_id: string }
         Returns: Json
+      }
+      compute_month_free_value: {
+        Args: { _account_id: string }
+        Returns: {
+          monthly_amount: number
+          source: string
+        }[]
       }
       compute_prorata_base30: {
         Args: { p_days_remaining: number; p_monthly_price: number }
@@ -30788,6 +30855,12 @@ export type Database = {
         Returns: Json
       }
       crm_unlock_contact: { Args: { p_contact_id: string }; Returns: Json }
+      cron_expire_compensations: {
+        Args: never
+        Returns: {
+          expired_count: number
+        }[]
+      }
       customer_portal_core_domain_presence: {
         Args: { _user_id: string }
         Returns: Json
