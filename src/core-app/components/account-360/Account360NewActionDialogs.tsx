@@ -685,66 +685,102 @@ export function ServiceMoveDialog(props: Base) {
 /* -------------------------------------------------------------------------- */
 /* 9. Escalade superviseur                                                    */
 /* -------------------------------------------------------------------------- */
-export function SupervisorEscalationDialog(props: Base) {
+const ESCALATION_TYPE_OPTIONS = [
+  { value: "billing", label: "Facturation" },
+  { value: "technical", label: "Technique" },
+  { value: "retention", label: "Rétention" },
+  { value: "complaint", label: "Plainte" },
+  { value: "fraud", label: "Fraude" },
+  { value: "other", label: "Autre" },
+] as const;
+
+export function SupervisorEscalationDialog(props: Base & { relatedSupportTicketId?: string | null }) {
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
+  const [escalationType, setEscalationType] = useState<string>("other");
   const [loading, setLoading] = useState(false);
-  const notify = useCoreNotify();
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
   const invalidate = useInvalidateClient(props.clientUserId);
+  const qc = useQueryClient();
+
+  // Reset idempotency key each time the dialog opens (fresh attempt),
+  // but keep it stable across retries within the same open session.
+  useEffect(() => {
+    if (props.open) {
+      setIdempotencyKey(crypto.randomUUID());
+      setSubject("");
+      setDescription("");
+      setEscalationType("other");
+    }
+  }, [props.open]);
 
   async function submit() {
-    if (!subject.trim() || !description.trim()) return toast.error("Sujet et description requis");
+    if (loading) return; // guard double-submit
+    if (!subject.trim() || subject.trim().length < 3) return toast.error("Sujet requis (min. 3 caractères)");
+    if (!description.trim() || description.trim().length < 3) return toast.error("Description requise (min. 3 caractères)");
+    if (!props.accountId) return toast.error("Compte manquant");
     if (!props.clientUserId) return toast.error("Client manquant");
+
     setLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const actor = userData?.user;
-      const { error } = await supabase.from("internal_tickets").insert({
-        created_by_id: actor?.id ?? props.clientUserId,
-        created_by_name: actor?.email ?? "Core",
-        created_by_role: "core_staff",
-        created_by_email: actor?.email ?? null,
-        assigned_to_department: "supervisor",
-        subject: `[ESCALATION] ${subject}`,
-        description,
-        category: "escalation",
-        priority: "urgent",
-        status: "open",
-      } as any);
-      if (error) throw error;
-      if (props.clientEmail) {
-        await notify({
-          clientEmail: props.clientEmail, clientName: props.clientName,
-          subject: "Votre demande a été escaladée",
-          heroTitle: "Escalade prise en charge",
-          bodyHtml: `<p>Votre dossier a été transféré à un superviseur qui vous recontactera rapidement.</p><p><b>Sujet :</b> ${subject}</p>`,
-          actionKey: "supervisor_escalation",
-          accountId: props.accountId ?? undefined,
-          clientUserId: props.clientUserId ?? undefined,
-          reason: description,
-        });
-      }
-      toast.success("Escalade créée");
-      invalidate(); props.onRefresh?.(); props.onClose();
-    } catch (e: any) { toast.error(e?.message ?? "Échec"); }
-    finally { setLoading(false); }
+      const res = await callCoreAction<{ ticket_id: string; ticket_number: string | null; idempotent?: boolean }>(
+        "supervisor-escalation-action",
+        {
+          account_id: props.accountId,
+          client_user_id: props.clientUserId,
+          related_support_ticket_id: props.relatedSupportTicketId ?? null,
+          subject: subject.trim(),
+          description: description.trim(),
+          escalation_type: escalationType,
+          idempotency_key: idempotencyKey,
+        },
+        {
+          reason: description.trim(),
+          successMessage: "Escalade créée",
+          errorMessage: "Échec de l'escalade",
+          queryClient: qc,
+          skipInvalidation: true,
+        },
+      );
+      if (!res.ok) return; // toast already surfaced by callCoreAction
+      invalidate();
+      props.onRefresh?.();
+      props.onClose();
+    } finally {
+      setLoading(false);
+    }
   }
+
   return (
-    <Dialog open={props.open} onOpenChange={(o) => !o && props.onClose()}>
+    <Dialog open={props.open} onOpenChange={(o) => !o && !loading && props.onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>Escalade superviseur</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label>Sujet</Label><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
-          <div><Label>Description</Label><Textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+          <div>
+            <Label>Type d'escalade</Label>
+            <Select value={escalationType} onValueChange={setEscalationType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ESCALATION_TYPE_OPTIONS.map(o => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>Sujet</Label><Input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} /></div>
+          <div><Label>Description</Label><Textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} /></div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={props.onClose}>Annuler</Button>
-          <Button variant="destructive" onClick={submit} disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Escalader</Button>
+          <Button variant="ghost" onClick={props.onClose} disabled={loading}>Annuler</Button>
+          <Button variant="destructive" onClick={submit} disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Escalader
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 /* -------------------------------------------------------------------------- */
 /* 10. Bon de compensation                                                    */
