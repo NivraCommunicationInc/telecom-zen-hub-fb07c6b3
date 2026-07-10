@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { adminClient as supabase } from "@/integrations/backend";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { toast } from "sonner";
 
 async function queueChannelConfirmedEmail(order: any, channels: { name: string; category: string }[], premiumTotal: number) {
@@ -40,16 +41,25 @@ async function createChannelConfirmedTicket(order: any, channels: { name: string
   try {
     if (!order.user_id) return;
     const list = channels.slice(0, 10).map(c => c.name).join(", ") + (channels.length > 10 ? ` … +${channels.length - 10}` : "");
-    await supabase.from("support_tickets").insert({
-      user_id: order.user_id,
-      order_id: order.id,
+    const res = await callSupportAction("create_ticket", {
+      owner_user_id: order.user_id,
+      related_order_id: order.id,
       subject: "Chaînes TV",
-      message: `Sélection de ${channels.length} chaîne(s) confirmée et activée : ${list}`,
-      status: "closed",
+      description: `Sélection de ${channels.length} chaîne(s) confirmée et activée : ${list}`,
       priority: "low",
       category: "tv",
-      source: "system",
+      source: "core",
+      metadata: { auto_closed: true },
+      idempotency_key: `tv-activated-${order.id}`,
     });
+    // Close immediately since it's a record-only ticket
+    if (res.ticket_id) {
+      await callSupportAction("close", {
+        ticket_id: res.ticket_id,
+        reason: "auto_activation_record",
+        source: "core",
+      });
+    }
   } catch (e) {
     console.error("[TVChannels] ticket create error:", e);
   }

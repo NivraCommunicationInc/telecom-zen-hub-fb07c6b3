@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useAuth } from "@/hooks/useAuth";
@@ -507,25 +508,18 @@ export default function ManualOrderWizard({
           
           const clientAuthUserId = clientProfile?.user_id || orderState.clientId;
           
-          const { error: ticketError } = await supabase.from("support_tickets").insert({
-            user_id: clientAuthUserId,
-            owner_user_id: clientAuthUserId, // REQUIRED: Client's auth.uid() for RLS
+          await callSupportAction("create_ticket", {
+            owner_user_id: clientAuthUserId,
             client_email: client?.email,
             subject: `Configuration TV - Commande ${order.order_number}`,
             description: `Configuration des chaînes TV pour la commande ${order.order_number}.\n\nChaînes sélectionnées:\n- Base: ${baseChannels.length} chaînes\n- Choix gratuits: ${orderState.selectedFreeChannels.length}/${freeChannelCount}\n- Premium: ${orderState.selectedPaidChannels.length}`,
-            status: "open",
             priority: "high",
             category: "tv_setup",
-            issue_type: "TV_CONFIGURATION",
+            source: "core",
             related_order_id: order.id,
-            related_order_reference: order.order_number,
-            created_by_role: "admin",
-            created_by_user_id: user?.id,
-            id_verification_status: "not_received",
+            metadata: { issue_type: "TV_CONFIGURATION", related_order_reference: order.order_number },
+            idempotency_key: `tv-setup-manual-${order.id}`,
           });
-          if (ticketError) {
-            console.error("TV ticket creation failed (non-blocking):", ticketError);
-          }
         } catch (ticketErr) {
           console.error("TV ticket creation exception (non-blocking):", ticketErr);
         }

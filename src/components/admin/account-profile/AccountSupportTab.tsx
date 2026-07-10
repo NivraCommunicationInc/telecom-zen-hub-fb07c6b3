@@ -16,6 +16,7 @@ import { Headphones, Calendar, PlusCircle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { adminClient as supabase } from "@/integrations/backend";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -55,19 +56,16 @@ export function AccountSupportTab({ tickets, appointments, clientId }: AccountSu
     if (!subject.trim() || !clientId) return;
     setSaving(true);
     try {
-      const ticketNumber = `NVR-${String(Date.now()).slice(-6)}`;
-      const { error } = await supabase.from("support_tickets").insert({
-        client_id: clientId,
+      const res = await callSupportAction("create_ticket", {
+        owner_user_id: clientId,
         subject: subject.trim(),
         description: desc.trim() || null,
         priority,
         category,
-        status: "open",
-        ticket_number: ticketNumber,
-        created_by: user?.id || null,
+        source: "core",
+        idempotency_key: `core-supporttab-${clientId}-${Date.now()}`,
       });
-      if (error) throw error;
-      toast.success(`Ticket ${ticketNumber} créé`);
+      toast.success(`Ticket ${res.ticket_number ?? ""} créé`);
       setSubject(""); setDesc(""); setCreateOpen(false);
       queryClient.invalidateQueries({ queryKey: ["account-profile-tickets"] });
     } catch (e: any) {

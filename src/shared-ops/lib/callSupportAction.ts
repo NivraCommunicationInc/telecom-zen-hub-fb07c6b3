@@ -32,8 +32,10 @@ export interface SupportActionResult {
 export async function callSupportAction(
   action: SupportAction,
   payload: Record<string, unknown> = {},
+  client?: { functions: { invoke: (name: string, opts: { body: unknown }) => Promise<{ data: unknown; error: unknown }> } },
 ): Promise<SupportActionResult> {
-  const { data, error } = await supabase.functions.invoke("support-account-actions", {
+  const c = client ?? supabase;
+  const { data, error } = await c.functions.invoke("support-account-actions", {
     body: { action, ...payload },
   });
   if (error) {
