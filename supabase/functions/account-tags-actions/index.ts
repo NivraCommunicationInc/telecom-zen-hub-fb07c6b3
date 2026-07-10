@@ -51,7 +51,7 @@ const CATALOG: Preset[] = [
   { key: "churn_risk", label: "Risque de churn", severity: "warning", allowedRoles: STAFF_ANY },
   { key: "watchlist", label: "Surveillance", severity: "warning", allowedRoles: STAFF_ANY },
   { key: "at_risk", label: "À risque", severity: "warning", allowedRoles: STAFF_ANY },
-  { key: "collections", label: "Recouvrement actif", severity: "warning", allowedRoles: ["admin", "super_admin", "billing_admin", "manager"] },
+  { key: "collections", label: "Recouvrement actif", severity: "warning", allowedRoles: ["admin", "super_admin", "billing_admin", "supervisor", "manager"] },
   { key: "escalation_required", label: "Escalade requise", severity: "warning", allowedRoles: STAFF_ANY },
   { key: "satisfaction_risk", label: "Satisfaction à risque", severity: "warning", allowedRoles: STAFF_ANY, system: true },
   { key: "chargeback_history", label: "Historique chargeback", severity: "warning", allowedRoles: ADMIN_ONLY },
