@@ -220,7 +220,7 @@ async function phase1(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // C11: expire_loyalty_points
   {
     const { data: tx } = await db.from("loyalty_transactions").insert({
-      account_id: ctx.account_a, type: "earned_manual", points: 30, description: `${QA_PREFIX}expiring`,
+      account_id: ctx.account_a, type: "adjusted", points: 30, description: `${QA_PREFIX}expiring`,
       balance_after: 0, expires_at: new Date(Date.now() - 3600_000).toISOString(), status: "posted",
     }).select("id").single();
     const before = (await db.from("loyalty_points").select("available_points").eq("account_id", ctx.account_a).single()).data?.available_points ?? 0;
@@ -228,6 +228,7 @@ async function phase1(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
     const after = (await db.from("loyalty_points").select("available_points").eq("account_id", ctx.account_a).single()).data?.available_points ?? 0;
     checks.push({ id: "C11", label: "Expiration automatique appliquée", pass: (data as any)?.expired_count >= 1 && after < before, detail: { data, before, after, tx: tx?.id } });
   }
+
 }
 
 async function phase2(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
