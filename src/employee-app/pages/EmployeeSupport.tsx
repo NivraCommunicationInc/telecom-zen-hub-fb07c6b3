@@ -17,6 +17,7 @@ import { StatusBadge } from "@/employee-app/components/StatusBadge";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { usePortalRealtime } from "@/hooks/usePortalRealtime";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 
 type SupportFilter = "open" | "in_progress" | "resolved" | "all";
 
