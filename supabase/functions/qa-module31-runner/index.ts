@@ -211,11 +211,13 @@ Deno.serve(async (req) => {
     const cA = await ensureClient("qa-m31-client-a@nivra-test.ca", "A");
     const cB = await ensureClient("qa-m31-client-b@nivra-test.ca", "B");
 
+    const callerIds = [adminCaller.userId, salesCaller.userId, fieldCaller.userId, supportCaller.userId];
+    const clientIds = [cA.userId, cB.userId];
+
     if (phase !== "part2") {
-      await cleanupClient(cA.userId);
-      await cleanupClient(cB.userId);
-      await cleanupAudit([adminCaller.userId, salesCaller.userId, fieldCaller.userId, supportCaller.userId]);
+      await cleanupAllQa(callerIds, clientIds);
     }
+
 
     // Build a canonical valid quote payload (server pricing tolerance 5¢)
     const baseCustomer = (email: string) => ({
