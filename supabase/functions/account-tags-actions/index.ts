@@ -35,7 +35,7 @@ const STAFF_ANY = [
   "billing_admin", "sales", "manager", "hr", "field_agent", "field_sales",
 ];
 const ADMIN_ONLY = ["admin", "super_admin"];
-const ADMIN_MANAGER = ["admin", "super_admin", "manager"];
+const ADMIN_MANAGER = ["admin", "super_admin", "supervisor", "manager"];
 
 type Preset = {
   key: string;
@@ -51,7 +51,7 @@ const CATALOG: Preset[] = [
   { key: "churn_risk", label: "Risque de churn", severity: "warning", allowedRoles: STAFF_ANY },
   { key: "watchlist", label: "Surveillance", severity: "warning", allowedRoles: STAFF_ANY },
   { key: "at_risk", label: "À risque", severity: "warning", allowedRoles: STAFF_ANY },
-  { key: "collections", label: "Recouvrement actif", severity: "warning", allowedRoles: ["admin", "super_admin", "billing_admin", "manager"] },
+  { key: "collections", label: "Recouvrement actif", severity: "warning", allowedRoles: ["admin", "super_admin", "billing_admin", "supervisor", "manager"] },
   { key: "escalation_required", label: "Escalade requise", severity: "warning", allowedRoles: STAFF_ANY },
   { key: "satisfaction_risk", label: "Satisfaction à risque", severity: "warning", allowedRoles: STAFF_ANY, system: true },
   { key: "chargeback_history", label: "Historique chargeback", severity: "warning", allowedRoles: ADMIN_ONLY },
@@ -371,7 +371,7 @@ Deno.serve(async (req) => {
         if (body.lock_mode === "full_lock") {
           const { error: upErr } = await admin
             .from("accounts")
-            .update({ status: "blocked", updated_at: new Date().toISOString() } as any)
+            .update({ status: "suspended", updated_at: new Date().toISOString() } as any)
             .eq("id", body.account_id);
           if (upErr) throw upErr;
         }
