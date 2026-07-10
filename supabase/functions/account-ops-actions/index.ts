@@ -738,7 +738,7 @@ serve(async (req) => {
         const { data: equipAssigned } = await admin
           .from("equipment_inventory")
           .select("id, category, serial_number")
-          .eq("assigned_to_client_id", client_user_id)
+          .eq("account_id", body.account_id)
           .in("status", ["assigned", "deployed", "active"]);
         const equipmentCount = equipAssigned?.length ?? 0;
         if (equipmentCount > 0 && !acknowledgeEquipment) {
