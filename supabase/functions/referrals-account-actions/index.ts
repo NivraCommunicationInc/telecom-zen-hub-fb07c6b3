@@ -128,19 +128,12 @@ serve(async (req) => {
     eventKey?: string,
   ) => {
     if (!refEmail) return;
+    // F33-17 — idempotence DB-enforced via UNIQUE index on email_queue.event_key.
+    // We namespace the key with template so two distinct emails for the same
+    // referral action never collide.
+    const key = eventKey ? `referral:${template}:${eventKey}` : null;
     try {
-      // F33-17 idempotence — event_key prevents duplicate emails on retries
-      if (eventKey) {
-        const { data: exists } = await admin
-          .from("email_queue")
-          .select("id")
-          .eq("to_email", refEmail)
-          .eq("template_key", template)
-          .contains("template_vars", { event_key: eventKey })
-          .limit(1);
-        if (exists && exists.length > 0) return;
-      }
-      await admin.from("email_queue").insert({
+      const { error: insErr } = await admin.from("email_queue").insert({
         to_email: refEmail,
         template_key: template,
         template_vars: {
@@ -151,7 +144,12 @@ serve(async (req) => {
         },
         status: "queued",
         priority: 0,
+        event_key: key,
       });
+      if (insErr && insErr.code !== "23505") {
+        // 23505 = duplicate key -> already enqueued, treat as success
+        console.warn("[referrals] enqueueEmail insert failed", insErr);
+      }
     } catch (_e) { /* swallow */ }
   };
 
