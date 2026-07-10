@@ -114,9 +114,9 @@ Deno.serve(async (req) => {
     if (existingSa) serviceAddressId = existingSa.id;
     else {
       const { data: sa, error } = await admin.from("service_addresses").insert({
-        account_id: accountId, client_id: userId, user_id: userId,
-        street: "1 QA St", city: "Laval", province: "QC", postal_code: "H7T 2Y5",
-        is_default: true, status: "active",
+        account_id: accountId,
+        address_line: "1 QA St", city: "Laval", province: "QC", postal_code: "H7T 2Y5",
+        is_default: true, is_primary: true, is_active: true,
       }).select("id").single();
       if (error) throw new Error(`service_address ${label}: ${error.message}`);
       serviceAddressId = sa.id;
