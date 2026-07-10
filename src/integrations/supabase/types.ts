@@ -30855,12 +30855,7 @@ export type Database = {
         Returns: Json
       }
       crm_unlock_contact: { Args: { p_contact_id: string }; Returns: Json }
-      cron_expire_compensations: {
-        Args: never
-        Returns: {
-          expired_count: number
-        }[]
-      }
+      cron_expire_compensations: { Args: never; Returns: number }
       customer_portal_core_domain_presence: {
         Args: { _user_id: string }
         Returns: Json
