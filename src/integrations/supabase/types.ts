@@ -6102,6 +6102,69 @@ export type Database = {
           },
         ]
       }
+      consent_records: {
+        Row: {
+          account_id: string | null
+          channel: Database["public"]["Enums"]["consent_channel_enum"]
+          consent_text_hash: string | null
+          consent_text_version: string | null
+          consent_type: Database["public"]["Enums"]["consent_type_enum"]
+          created_at: string
+          id: string
+          idempotency_key: string
+          ip_address: unknown
+          notes: string | null
+          proof_hash: string | null
+          proof_ref: string | null
+          recorded_by_email: string | null
+          recorded_by_role: string
+          recorded_by_user_id: string | null
+          status: Database["public"]["Enums"]["consent_status_enum"]
+          subject_user_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          channel: Database["public"]["Enums"]["consent_channel_enum"]
+          consent_text_hash?: string | null
+          consent_text_version?: string | null
+          consent_type: Database["public"]["Enums"]["consent_type_enum"]
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          ip_address?: unknown
+          notes?: string | null
+          proof_hash?: string | null
+          proof_ref?: string | null
+          recorded_by_email?: string | null
+          recorded_by_role: string
+          recorded_by_user_id?: string | null
+          status: Database["public"]["Enums"]["consent_status_enum"]
+          subject_user_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          channel?: Database["public"]["Enums"]["consent_channel_enum"]
+          consent_text_hash?: string | null
+          consent_text_version?: string | null
+          consent_type?: Database["public"]["Enums"]["consent_type_enum"]
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          ip_address?: unknown
+          notes?: string | null
+          proof_hash?: string | null
+          proof_ref?: string | null
+          recorded_by_email?: string | null
+          recorded_by_role?: string
+          recorded_by_user_id?: string | null
+          status?: Database["public"]["Enums"]["consent_status_enum"]
+          subject_user_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       contact_requests: {
         Row: {
           address_apartment: string | null
@@ -31876,6 +31939,52 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_create_consent_record: {
+        Args: {
+          p_account_id?: string
+          p_channel: Database["public"]["Enums"]["consent_channel_enum"]
+          p_consent_text_hash?: string
+          p_consent_text_version?: string
+          p_consent_type: Database["public"]["Enums"]["consent_type_enum"]
+          p_idempotency_key: string
+          p_ip_address?: unknown
+          p_notes?: string
+          p_proof_hash?: string
+          p_proof_ref?: string
+          p_recorded_by_email?: string
+          p_recorded_by_role?: string
+          p_recorded_by_user_id?: string
+          p_status: Database["public"]["Enums"]["consent_status_enum"]
+          p_subject_user_id: string
+          p_user_agent?: string
+        }
+        Returns: {
+          account_id: string | null
+          channel: Database["public"]["Enums"]["consent_channel_enum"]
+          consent_text_hash: string | null
+          consent_text_version: string | null
+          consent_type: Database["public"]["Enums"]["consent_type_enum"]
+          created_at: string
+          id: string
+          idempotency_key: string
+          ip_address: unknown
+          notes: string | null
+          proof_hash: string | null
+          proof_ref: string | null
+          recorded_by_email: string | null
+          recorded_by_role: string
+          recorded_by_user_id: string | null
+          status: Database["public"]["Enums"]["consent_status_enum"]
+          subject_user_id: string
+          user_agent: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "consent_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       rpc_create_supervisor_escalation: {
         Args: {
           p_account_id: string
@@ -32735,6 +32844,22 @@ export type Database = {
         | "activation_fee"
         | "fixed_bounty"
         | "percent_first_invoice"
+      consent_channel_enum:
+        | "phone"
+        | "email"
+        | "portal"
+        | "in_person"
+        | "api"
+        | "sms"
+      consent_status_enum: "granted" | "revoked" | "verified"
+      consent_type_enum:
+        | "marketing_email"
+        | "marketing_sms"
+        | "autopay"
+        | "service_changes"
+        | "privacy_request"
+        | "terms_of_use"
+        | "loi25_general"
       dispute_reason_code:
         | "duplicate_charge"
         | "incorrect_amount"
@@ -33234,6 +33359,24 @@ export const Constants = {
         "activation_fee",
         "fixed_bounty",
         "percent_first_invoice",
+      ],
+      consent_channel_enum: [
+        "phone",
+        "email",
+        "portal",
+        "in_person",
+        "api",
+        "sms",
+      ],
+      consent_status_enum: ["granted", "revoked", "verified"],
+      consent_type_enum: [
+        "marketing_email",
+        "marketing_sms",
+        "autopay",
+        "service_changes",
+        "privacy_request",
+        "terms_of_use",
+        "loi25_general",
       ],
       dispute_reason_code: [
         "duplicate_charge",
