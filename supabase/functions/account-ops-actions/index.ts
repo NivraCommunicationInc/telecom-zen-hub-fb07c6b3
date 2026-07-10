@@ -71,10 +71,11 @@ interface Body {
   new_postal?: string;
   old_address?: string;
 
-  // pause_account / unpause_account
+  // pause_account / unpause_account / update_pause
   paused_until?: string;         // ISO date
-  pause_charge_pct?: number;     // 0..100
+  pause_charge_pct?: number;     // 0..100 — F5: ignoré serveur, conservé pour compat
   reason?: string;
+  auto_resume?: boolean;         // set by pause-auto-resume cron (bypasses reason requirement)
 
   // reactivate_account
   resume_suspended?: boolean;    // default true
