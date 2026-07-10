@@ -383,7 +383,11 @@ export function InternetServiceActionsDialog({
                 </Select>
               </div>
             </div>
-            <Button onClick={doChangePlan} disabled={busy} className="w-full">
+            <div>
+              <Label htmlFor="plan-reason">Motif (obligatoire, min. 5 caractères)</Label>
+              <Textarea id="plan-reason" rows={2} value={planReason} onChange={(e) => setPlanReason(e.target.value)} disabled={busy} placeholder="Ex: demande client, upsell, correction contractuelle…" />
+            </div>
+            <Button onClick={doChangePlan} disabled={busy || planReason.trim().length < 5} className="w-full">
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wifi className="h-4 w-4 mr-2" />}
               Appliquer le changement
             </Button>
