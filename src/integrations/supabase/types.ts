@@ -31760,6 +31760,7 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: Json
       }
+      qa_purge_consent_records: { Args: { p_ids: string[] }; Returns: number }
       queue_email: {
         Args: {
           p_event_key: string
