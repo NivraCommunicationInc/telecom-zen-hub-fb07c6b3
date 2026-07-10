@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       first_name: "ClientA", last_name: "QA-M28", phone: "5145550100",
     }).select("id").single();
     if (bcErr || !bc) throw new Error(`billing_customers: ${bcErr?.message}`);
-    const { data: bsub } = await admin.from("billing_subscriptions").insert({
+    const { data: bsub, error: bsubErr } = await admin.from("billing_subscriptions").insert({
       customer_id: bc!.id,
       plan_code: "qa_internet_500",
       plan_name: "QA Internet 500 Mbps",
@@ -169,6 +169,7 @@ Deno.serve(async (req) => {
       billing_anchor_date: new Date().toISOString().slice(0, 10),
       billing_cycle_anchor: Math.min(new Date().getDate(), 28),
     }).select("id").single();
+    if (bsubErr || !bsub) throw new Error(`billing_subscriptions: ${bsubErr?.message}`);
 
     // =============== CHANGE_PLAN ===============
     // C1 sales → 403 FORBIDDEN_ROLE
