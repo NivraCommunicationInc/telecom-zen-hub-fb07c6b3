@@ -1379,6 +1379,15 @@ serve(async (req) => {
             console.warn("[checkout-canonical-sync] referral insert: unable to resolve referrer billing customer", referrerBcErr);
           }
 
+          // F33-7 — required_cycles + F33-8 reward defaults read from settings, no hardcoding
+          const { data: rpSettings } = await admin
+            .from("referral_program_settings")
+            .select("required_cycles, commission_value_default")
+            .limit(1)
+            .maybeSingle();
+          const requiredCycles = Number(rpSettings?.required_cycles ?? 2);
+          const rewardAmount = Number(rpSettings?.commission_value_default ?? 25);
+
           const { error: refInsertError } = await admin
             .from("client_referrals")
             .insert({
@@ -1392,10 +1401,10 @@ serve(async (req) => {
               referrer_billing_customer_id: referrerBillingCustomerId,
               status: "order_created",
               qualifying_cycles_paid: 0,
-              required_cycles: 3,
+              required_cycles: requiredCycles,
               reward_status: "not_eligible",
-              reward_amount: 25,
-              reward_type: "Visa/Mastercard gift card",
+              reward_amount: rewardAmount,
+              reward_type: "credit",
             });
 
           if (refInsertError) {
