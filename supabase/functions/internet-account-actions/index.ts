@@ -6,16 +6,24 @@
 //   - set_wifi          : update SSID / band / guest network configuration
 //   - set_static_ip     : assign or release a static IP add-on
 //
-// Every action:
-//   - validates staff role via user_roles (admin/employee/supervisor/support/billing_admin/sales)
-//   - writes the domain row
-//   - records admin_audit_log entry (best-effort, never blocks)
-//   - queues a branded corporate-shell client email through email_queue (Violet Bold)
+// Module 28 hardening (F28-1 → F28-17):
+//   - Per-action ALLOWED_ROLES (F28-3)
+//   - Ownership assertion client_user_id ↔ profile + account_id ↔ client (F28-2)
+//   - Idempotency replay detection via admin_audit_log (F28-4)
+//   - link_status accepts ok|up|degraded|down|unstable (F28-5)
+//   - Global anti-flood 20 mutations / 60 s per staff user (F28-6)
+//   - Release / assign / critical actions require ≥ 5 (10 for critical) chars motif (F28-7 / F28-9)
+//   - WiFi upsert scoped (user_id, account_id) (F28-8)
+//   - actor_role extracted from user_roles (F28-10)
+//   - Plan validated against public.services (Internet) catalogue (F28-12)
+//   - Diagnostic flagged simulated=true server-side (F28-13)
+//   - Normalized error codes (F28-14)
+//   - Before/after snapshots in activity + audit
+//   - billing_subscriptions.plan_name synced (F28-17)
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
-import { computeTaxes } from "../_shared/tax-constants.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +45,6 @@ interface Body {
   reason?: string | null;
   idempotency_key?: string | null;
 
-  // change_plan
   previous_plan_name?: string;
   previous_monthly_price?: number;
   previous_speed_mbps?: number;
@@ -47,12 +54,10 @@ interface Body {
   change_type?: "upgrade" | "downgrade" | "lateral";
   effective_date?: string;
 
-  // modem
   modem_serial?: string;
   modem_mac?: string;
   action_type?: "reboot" | "identify" | "factory_reset" | "firmware_push" | "deactivate" | "reactivate";
 
-  // diagnostic
   diagnostic_type?: "full" | "link" | "speedtest" | "latency";
   link_status?: string;
   signal_strength_db?: number;
@@ -62,7 +67,6 @@ interface Body {
   packet_loss_pct?: number;
   notes?: string;
 
-  // wifi
   ssid_24?: string;
   ssid_5?: string;
   password_hint?: string;
@@ -73,7 +77,6 @@ interface Body {
   channel_24?: number;
   channel_5?: number;
 
-  // static IP
   static_ip_mode?: "assign" | "release";
   ip_address?: string;
   monthly_price?: number;
@@ -86,8 +89,29 @@ const json = (status: number, payload: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-const ALLOWED_ROLES = new Set([
-  "admin", "employee", "supervisor", "support", "billing_admin", "sales",
+const err = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
+  json(status, { error_code: code, error: message, ...extra });
+
+// F28-3 — per-action ALLOWED_ROLES
+const ROLES_READ_ALL = new Set([
+  "admin", "super_admin", "supervisor", "employee", "support",
+  "billing_admin", "sales", "techops", "manager",
+]);
+const ROLES_CHANGE_PLAN = new Set([
+  "admin", "super_admin", "supervisor", "employee", "billing_admin", "support",
+]);
+const ROLES_MODEM_STD = new Set([
+  "admin", "super_admin", "supervisor", "employee", "support", "techops",
+]);
+const ROLES_MODEM_CRITICAL = new Set([
+  "admin", "super_admin", "supervisor", "techops",
+]);
+const ROLES_DIAGNOSTIC = ROLES_READ_ALL;
+const ROLES_WIFI = new Set([
+  "admin", "super_admin", "supervisor", "employee", "support", "techops",
+]);
+const ROLES_STATIC_IP = new Set([
+  "admin", "super_admin", "supervisor", "techops",
 ]);
 
 const MODEM_LABELS: Record<string, { label: string; critical: boolean }> = {
@@ -110,47 +134,77 @@ const fmtMoney = (n: number, currency = "CAD") => {
 const isValidIp = (s: string) =>
   /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/.test(s);
 
+// F28-5 — accepted link statuses (normalise up→ok, unstable→degraded for storage)
+const LINK_STATUS_INPUT = new Set(["ok", "up", "degraded", "down", "unstable"]);
+const normaliseLinkStatus = (s?: string | null): string | null => {
+  if (!s) return null;
+  const v = s.toLowerCase();
+  if (v === "up") return "ok";
+  if (v === "unstable") return "degraded";
+  return v;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json(405, { error: "Method not allowed" });
+  if (req.method !== "POST") return err(405, "METHOD_NOT_ALLOWED", "Method not allowed");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json(401, { error: "Non autorisé" });
+  if (!authHeader) return err(401, "UNAUTHORIZED", "Non autorisé");
 
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: { user }, error: userErr } = await userClient.auth.getUser();
-  if (userErr || !user) return json(401, { error: "Session invalide" });
+  if (userErr || !user) return err(401, "INVALID_SESSION", "Session invalide");
 
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-    const { isStaff } = await checkStaffAuth(admin, user.id);
-  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
+  const staffResult = await checkStaffAuth(admin, user.id);
+  if (!staffResult.isStaff) return err(403, "FORBIDDEN_ROLE", "Action réservée au personnel autorisé");
+
+  // F28-10 — actor_role réel
+  const callerRoles = staffResult.roles || [];
+  const primaryRole = staffResult.callerRole || callerRoles[0] || "staff";
+  const hasAnyRole = (allowed: Set<string>) => callerRoles.some((r) => allowed.has(r));
 
   let body: Body;
   try { body = await req.json(); }
-  catch { return json(400, { error: "Corps JSON invalide" }); }
+  catch { return err(400, "INVALID_INPUT", "Corps JSON invalide"); }
 
   const { action, client_user_id } = body;
   if (!action || !client_user_id) {
-    return json(400, { error: "Champs requis: action, client_user_id" });
+    return err(400, "INVALID_INPUT", "Champs requis: action, client_user_id");
   }
 
+  // F28-2 — Ownership: client_user_id must resolve to a profile
   const { data: profile } = await admin
     .from("profiles")
     .select("id, user_id, email, first_name, last_name, account_number")
     .eq("user_id", client_user_id)
     .maybeSingle();
+  if (!profile) return err(404, "NOT_FOUND", "Client introuvable");
 
-  const clientEmail = profile?.email || null;
-  const firstName = profile?.first_name || "Client";
+  // F28-2 — If account_id supplied, it must belong to this client
+  if (body.account_id) {
+    const { data: acct } = await admin
+      .from("accounts")
+      .select("id, client_id")
+      .eq("id", body.account_id)
+      .maybeSingle();
+    if (!acct) return err(404, "NOT_FOUND", "Compte introuvable");
+    if (acct.client_id !== client_user_id) {
+      return err(403, "CROSS_CLIENT_TARGET", "Compte n'appartient pas à ce client");
+    }
+  }
+
+  const clientEmail = profile.email || null;
+  const firstName = profile.first_name || "Client";
 
   const { data: callerProfile } = await admin
     .from("profiles")
@@ -166,7 +220,45 @@ serve(async (req) => {
     req.headers.get("cf-connecting-ip") ||
     "unknown";
 
-  const audit = async (label: string, payload: Record<string, unknown>) => {
+  // F28-6 — Global anti-flood: 20 internet.* mutations / 60 s per staff user
+  {
+    const since60 = new Date(Date.now() - 60_000).toISOString();
+    const { count } = await admin
+      .from("admin_audit_log")
+      .select("id", { count: "exact", head: true })
+      .eq("admin_user_id", user.id)
+      .like("action", "internet.%")
+      .gte("created_at", since60);
+    if ((count ?? 0) >= 20) {
+      return err(429, "RATE_LIMIT", "Trop de requêtes — patientez 60 s");
+    }
+  }
+
+  // F28-4 — Idempotency replay: same key seen in last 5 min → return prior result
+  if (body.idempotency_key) {
+    const since5 = new Date(Date.now() - 5 * 60_000).toISOString();
+    const { data: prior } = await admin
+      .from("admin_audit_log")
+      .select("id, action, details, created_at")
+      .eq("admin_user_id", user.id)
+      .like("action", "internet.%")
+      .gte("created_at", since5)
+      .contains("details", { idempotency_key: body.idempotency_key })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (prior) {
+      return json(200, {
+        ok: true,
+        replayed: true,
+        idempotency_key: body.idempotency_key,
+        original_action: prior.action,
+        original_details: prior.details,
+      });
+    }
+  }
+
+  const audit = async (label: string, payload: Record<string, unknown>, before: Record<string, unknown> | null = null) => {
     try {
       await admin.from("admin_audit_log").insert({
         action: `internet.${label}`,
@@ -175,7 +267,15 @@ serve(async (req) => {
         target_id: client_user_id,
         target_type: "client",
         ip_address: ip,
-        details: payload,
+        details: {
+          ...payload,
+          idempotency_key: body.idempotency_key ?? null,
+          module_tag: "module28_internet",
+          actor_role: primaryRole,
+          before_state: before,
+          client_id: client_user_id,
+          account_id: body.account_id ?? null,
+        },
       });
     } catch (_e) { /* swallow */ }
   };
@@ -186,18 +286,19 @@ serve(async (req) => {
     entity_type: string,
     summary: string,
     after_data: Record<string, unknown> | null = null,
+    before_data: Record<string, unknown> | null = null,
   ) => {
     try {
       await admin.from("client_activity_logs").insert({
         client_id: client_user_id,
         actor_user_id: user.id,
         actor_name: callerName,
-        actor_role: "staff",
+        actor_role: primaryRole,
         action_type,
         entity_type,
         entity_id,
         summary,
-        before_data: null,
+        before_data,
         after_data,
       });
     } catch (_e) { /* swallow */ }
@@ -210,13 +311,17 @@ serve(async (req) => {
         note_type: "system",
         body: body_text,
         created_by_user_id: user.id,
-        created_by_role: "staff",
+        created_by_role: primaryRole,
         created_by_name: callerName,
       });
     } catch (_e) { /* swallow */ }
   };
 
-  const enqueueEmail = async (template: string, vars: Record<string, unknown>, attachments?: Array<{ filename: string; content: string; contentType: string }> | null) => {
+  const enqueueEmail = async (
+    template: string,
+    vars: Record<string, unknown>,
+    attachments?: Array<{ filename: string; content: string; contentType: string }> | null,
+  ) => {
     if (!clientEmail) return;
     try {
       await admin.from("email_queue").insert({
@@ -234,16 +339,46 @@ serve(async (req) => {
     switch (action) {
       // ============================================================
       case "change_plan": {
+        if (!hasAnyRole(ROLES_CHANGE_PLAN)) {
+          return err(403, "FORBIDDEN_ROLE", "Rôle insuffisant pour changer un forfait Internet");
+        }
         const new_plan_name = (body.new_plan_name || "").trim();
         const new_monthly_price = Number(body.new_monthly_price ?? 0);
-        if (!new_plan_name) return json(400, { error: "new_plan_name requis" });
+        if (!new_plan_name) return err(400, "INVALID_INPUT", "new_plan_name requis");
         if (!Number.isFinite(new_monthly_price) || new_monthly_price < 0) {
-          return json(400, { error: "new_monthly_price invalide" });
+          return err(400, "INVALID_INPUT", "new_monthly_price invalide");
         }
+        const reasonStr = typeof body.reason === "string" ? body.reason.trim() : "";
+        if (reasonStr.length < 5) {
+          return err(400, "REASON_REQUIRED", "Motif requis (min. 5 caractères)");
+        }
+
+        // F28-12 — Validate against catalogue (public.services, category=Internet)
+        const { data: catalogue } = await admin
+          .from("services")
+          .select("id, name, price")
+          .eq("category", "Internet")
+          .or("status.eq.active,is_active.eq.true");
+        const catalogueMatch = (catalogue || []).find(
+          (s: any) => String(s.name).toLowerCase().trim() === new_plan_name.toLowerCase(),
+        );
+        if (!catalogueMatch) {
+          return err(400, "UNKNOWN_PLAN", `Forfait "${new_plan_name}" introuvable au catalogue Internet`);
+        }
+
         const change_type = body.change_type || "upgrade";
+        if (!["upgrade", "downgrade", "lateral"].includes(change_type)) {
+          return err(400, "INVALID_INPUT", "change_type invalide");
+        }
         const effective_date = body.effective_date || new Date().toISOString().slice(0, 10);
 
-        const { data, error } = await admin
+        const before = {
+          plan_name: body.previous_plan_name ?? null,
+          monthly_price: body.previous_monthly_price ?? null,
+          speed_mbps: body.previous_speed_mbps ?? null,
+        };
+
+        const { data, error: insErr } = await admin
           .from("internet_plan_changes")
           .insert({
             user_id: client_user_id,
@@ -258,17 +393,19 @@ serve(async (req) => {
             change_type,
             effective_date,
             status: "completed",
-            reason: body.reason ?? null,
+            reason: reasonStr,
             performed_by: user.id,
-            metadata: { idempotency_key: body.idempotency_key },
+            metadata: {
+              idempotency_key: body.idempotency_key ?? null,
+              actor_role: primaryRole,
+              simulated: true,
+            },
           })
           .select("id")
           .single();
-        if (error) return json(500, { error: error.message });
+        if (insErr) return err(500, "DB_ERROR", insErr.message);
 
-        // Track subscription update result. If it fails, audit it so ops can
-        // reconcile the inconsistent state (plan_change row exists but the
-        // subscription itself still shows the old plan/price).
+        // F28-17 — sync subscriptions AND billing_subscriptions
         let subscriptionUpdateOk = true;
         let subscriptionUpdateError: string | null = null;
         if (body.subscription_id) {
@@ -283,41 +420,55 @@ serve(async (req) => {
           if (subErr) {
             subscriptionUpdateOk = false;
             subscriptionUpdateError = subErr.message;
-            // Raise a system alert so ops can manually reconcile
-            await admin.from("billing_system_alerts").insert({
-              alert_type: "internet_plan_change_orphaned",
-              entity_type: "internet_plan_changes",
-              entity_id: data.id,
-              details: {
-                plan_change_id: data.id,
-                subscription_id: body.subscription_id,
-                error: subErr.message,
-                client_user_id,
-              },
-            });
           }
         }
+        // Sync billing_subscription plan_name (Phase 3 canonical)
+        try {
+          const { data: bc } = await admin
+            .from("billing_customers")
+            .select("id")
+            .eq("user_id", client_user_id)
+            .maybeSingle();
+          if (bc?.id) {
+            await admin
+              .from("billing_subscriptions")
+              .update({ plan_name: new_plan_name })
+              .eq("customer_id", bc.id)
+              .eq("status", "active");
+          }
+        } catch (_e) { /* non-blocking */ }
 
-        await audit("change_plan", {
-          plan_change_id: data.id, new_plan_name, new_monthly_price,
-          new_speed_mbps: body.new_speed_mbps, change_type,
-          subscription_update_ok: subscriptionUpdateOk,
-          subscription_update_error: subscriptionUpdateError,
-        });
+        if (!subscriptionUpdateOk) {
+          await admin.from("billing_system_alerts").insert({
+            alert_type: "internet_plan_change_orphaned",
+            entity_type: "internet_plan_changes",
+            entity_id: data.id,
+            details: {
+              plan_change_id: data.id,
+              subscription_id: body.subscription_id,
+              error: subscriptionUpdateError,
+              client_user_id,
+            },
+          });
+        }
+
+        const after = {
+          plan_change_id: data.id,
+          plan_name: new_plan_name,
+          monthly_price: new_monthly_price,
+          speed_mbps: body.new_speed_mbps ?? null,
+          change_type,
+          effective_date,
+        };
+
+        await audit("change_plan", after, before);
         await activity(
           "internet_plan_change",
           data.id,
           "internet_plan_change",
           `Forfait Internet: ${body.previous_plan_name ?? "—"} → ${new_plan_name} (${fmtMoney(new_monthly_price)}/mois, ${change_type})`,
-          {
-            plan_change_id: data.id,
-            previous_plan_name: body.previous_plan_name ?? null,
-            new_plan_name,
-            new_monthly_price,
-            new_speed_mbps: body.new_speed_mbps ?? null,
-            change_type,
-            effective_date,
-          },
+          after,
+          before,
         );
         await sysNote(
           `[INTERNET] Forfait changé — ${body.previous_plan_name ?? "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}` +
@@ -332,7 +483,7 @@ serve(async (req) => {
           change_type,
         });
 
-        // ── Prorated charge on monthly invoice (never a separate invoice) ────
+        // Prorata (upgrade only) — server-side, DB RPC recalculates taxes
         const prevPrice = Number(body.previous_monthly_price ?? 0);
         const priceDiff = new_monthly_price - prevPrice;
         if (change_type === "upgrade" && priceDiff > 0 && prevPrice > 0) {
@@ -364,7 +515,6 @@ serve(async (req) => {
                 if (prorationSubtotal >= 0.01) {
                   const lineDesc = `Ajustement proratisé — ${body.previous_plan_name ?? "ancien forfait"} → ${new_plan_name} (${daysRemaining}/30 jours)`;
 
-                  // Try to find a current pending/issued invoice for this subscription
                   const { data: currentInvoice } = await admin
                     .from("billing_invoices")
                     .select("id, invoice_number, cycle_start_date, cycle_end_date")
@@ -375,10 +525,6 @@ serve(async (req) => {
                     .maybeSingle();
 
                   if (currentInvoice) {
-                    // ── Case A: add line via canonical RPC ────────────────
-                    // Phase 3 V2: aucun calcul fiscal côté Edge — la RPC
-                    // add_prorata_line_to_invoice insère la ligne ET recalcule
-                    // TPS/TVQ/total/balance_due côté DB dans une transaction.
                     const { data: proRes, error: proErr2 } = await admin.rpc(
                       "add_prorata_line_to_invoice",
                       {
@@ -396,10 +542,7 @@ serve(async (req) => {
                         },
                       },
                     );
-                    if (proErr2) {
-                      console.error("[internet-account-actions] add_prorata_line_to_invoice error:", proErr2);
-                      throw proErr2;
-                    }
+                    if (proErr2) throw proErr2;
 
                     const proTotalWithTax = Number((proRes as any)?.line_total_with_tax ?? 0);
                     const newInvoiceTotal = Number((proRes as any)?.new_invoice_total ?? 0);
@@ -415,7 +558,6 @@ serve(async (req) => {
                       cycle_end: bSub.cycle_end_date,
                     }, invoicePdf ? [invoicePdf] : null);
                   } else {
-                    // ── Case B: defer to next renewal via account_adjustments ─
                     const { data: acct } = await admin
                       .from("accounts")
                       .select("id")
@@ -426,7 +568,7 @@ serve(async (req) => {
                       await admin.from("account_adjustments").insert({
                         account_id: acct.id,
                         type: "fee",
-                        amount: prorationSubtotal, // pré-taxes; billing-generate-renewals recalcule TPS+TVQ
+                        amount: prorationSubtotal,
                         description: lineDesc,
                         months_total: 1,
                         months_remaining: 1,
@@ -450,14 +592,26 @@ serve(async (req) => {
       case "modem_action": {
         const action_type = body.action_type;
         if (!action_type || !MODEM_LABELS[action_type]) {
-          return json(400, { error: "action_type invalide" });
+          return err(400, "INVALID_INPUT", "action_type invalide");
         }
         const meta = MODEM_LABELS[action_type];
-        const reasonStr = typeof body.reason === "string" ? body.reason.trim() : "";
-        if ((meta.critical || action_type === "reboot") && reasonStr.length < 3) {
-          return json(400, { error: "Motif requis (min. 3 caractères)" });
+
+        // F28-3 — critical modem actions restricted
+        const requiredRoles = meta.critical ? ROLES_MODEM_CRITICAL : ROLES_MODEM_STD;
+        if (!hasAnyRole(requiredRoles)) {
+          return err(403, "FORBIDDEN_ROLE", `Rôle insuffisant pour: ${meta.label}`);
         }
-        // Cooldown / idempotence — block a second reboot of the same target within 120s
+
+        // F28-9 — motif ≥ 10 chars for critical, ≥ 5 for reboot, none required otherwise
+        const reasonStr = typeof body.reason === "string" ? body.reason.trim() : "";
+        if (meta.critical && reasonStr.length < 10) {
+          return err(400, "REASON_REQUIRED", "Motif requis (min. 10 caractères) pour cette action critique");
+        }
+        if (action_type === "reboot" && reasonStr.length < 5) {
+          return err(400, "REASON_REQUIRED", "Motif requis (min. 5 caractères)");
+        }
+
+        // Cooldown reboot 120s
         if (action_type === "reboot") {
           const since = new Date(Date.now() - 120_000).toISOString();
           let q = admin
@@ -470,11 +624,11 @@ serve(async (req) => {
           if (body.modem_serial) q = q.eq("modem_serial", body.modem_serial);
           const { data: recent } = await q;
           if (recent && recent.length > 0) {
-            return json(429, { error: "Un reboot vient d'être demandé pour cet équipement. Réessayez dans quelques instants." });
+            return err(429, "RATE_LIMIT", "Un reboot vient d'être demandé pour cet équipement. Réessayez dans quelques instants.");
           }
         }
 
-        const { data, error } = await admin
+        const { data, error: insErr } = await admin
           .from("internet_modem_actions")
           .insert({
             user_id: client_user_id,
@@ -486,29 +640,37 @@ serve(async (req) => {
             reason: reasonStr || null,
             status: "completed",
             performed_by: user.id,
-            metadata: { idempotency_key: body.idempotency_key, simulated: true },
+            metadata: {
+              idempotency_key: body.idempotency_key ?? null,
+              simulated: true,
+              actor_role: primaryRole,
+            },
           })
           .select("id")
           .single();
-        if (error) return json(500, { error: error.message });
+        if (insErr) return err(500, "DB_ERROR", insErr.message);
 
-        await audit("modem_action", {
-          modem_action_id: data.id, action_type,
-          modem_serial: body.modem_serial, modem_mac: body.modem_mac,
-        });
+        const after = {
+          modem_action_id: data.id,
+          action_type,
+          modem_serial: body.modem_serial ?? null,
+          modem_mac: body.modem_mac ?? null,
+          reason: reasonStr || null,
+        };
+        await audit("modem_action", after);
         await activity(
           "internet_modem_action",
           data.id,
           "internet_modem_action",
           `Modem: ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}`,
-          { modem_action_id: data.id, action_type, modem_serial: body.modem_serial ?? null, modem_mac: body.modem_mac ?? null, reason: body.reason ?? null },
+          after,
         );
-        await sysNote(`[INTERNET] ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}${body.reason ? ` · Raison: ${body.reason}` : ""}`);
+        await sysNote(`[INTERNET] ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}${reasonStr ? ` · Raison: ${reasonStr}` : ""}`);
         await enqueueEmail("client_internet_modem_action", {
           action_label: meta.label,
           modem_serial: body.modem_serial || "—",
           modem_mac: body.modem_mac || "—",
-          reason: body.reason || "—",
+          reason: reasonStr || "—",
           is_critical: meta.critical ? "true" : "false",
         });
 
@@ -517,27 +679,32 @@ serve(async (req) => {
 
       // ============================================================
       case "run_diagnostic": {
+        if (!hasAnyRole(ROLES_DIAGNOSTIC)) {
+          return err(403, "FORBIDDEN_ROLE", "Rôle insuffisant pour un diagnostic");
+        }
         const diagnostic_type = body.diagnostic_type || "full";
         if (!["full", "link", "speedtest", "latency"].includes(diagnostic_type)) {
-          return json(400, { error: "diagnostic_type invalide" });
+          return err(400, "INVALID_INPUT", "diagnostic_type invalide");
         }
         const inRange = (v: unknown, min: number, max: number) =>
           v == null || (typeof v === "number" && Number.isFinite(v) && v >= min && v <= max);
-        if (!inRange(body.download_mbps, 0, 100000)) return json(400, { error: "download_mbps hors bornes" });
-        if (!inRange(body.upload_mbps, 0, 100000)) return json(400, { error: "upload_mbps hors bornes" });
-        if (!inRange(body.latency_ms, 0, 60000)) return json(400, { error: "latency_ms hors bornes" });
-        if (!inRange(body.packet_loss_pct, 0, 100)) return json(400, { error: "packet_loss_pct hors bornes" });
-        if (body.link_status && !["ok", "degraded", "down"].includes(body.link_status)) {
-          return json(400, { error: "link_status invalide" });
+        if (!inRange(body.download_mbps, 0, 100000)) return err(400, "INVALID_INPUT", "download_mbps hors bornes");
+        if (!inRange(body.upload_mbps, 0, 100000)) return err(400, "INVALID_INPUT", "upload_mbps hors bornes");
+        if (!inRange(body.latency_ms, 0, 60000)) return err(400, "INVALID_INPUT", "latency_ms hors bornes");
+        if (!inRange(body.packet_loss_pct, 0, 100)) return err(400, "INVALID_INPUT", "packet_loss_pct hors bornes");
+        if (body.link_status && !LINK_STATUS_INPUT.has(body.link_status.toLowerCase())) {
+          return err(400, "INVALID_INPUT", "link_status invalide");
         }
-        const { data, error } = await admin
+        const link_status = normaliseLinkStatus(body.link_status ?? null);
+
+        const { data, error: insErr } = await admin
           .from("internet_diagnostics")
           .insert({
             user_id: client_user_id,
             account_id: body.account_id ?? null,
             subscription_id: body.subscription_id ?? null,
             diagnostic_type,
-            link_status: body.link_status ?? null,
+            link_status,
             signal_strength_db: body.signal_strength_db ?? null,
             download_mbps: body.download_mbps ?? null,
             upload_mbps: body.upload_mbps ?? null,
@@ -548,36 +715,35 @@ serve(async (req) => {
           })
           .select("id")
           .single();
-        if (error) return json(500, { error: error.message });
+        if (insErr) return err(500, "DB_ERROR", insErr.message);
 
-        await audit("run_diagnostic", {
-          diagnostic_id: data.id, diagnostic_type, link_status: body.link_status,
-          download_mbps: body.download_mbps, upload_mbps: body.upload_mbps,
-        });
+        const after = {
+          diagnostic_id: data.id,
+          diagnostic_type,
+          link_status,
+          download_mbps: body.download_mbps ?? null,
+          upload_mbps: body.upload_mbps ?? null,
+          latency_ms: body.latency_ms ?? null,
+          packet_loss_pct: body.packet_loss_pct ?? null,
+          simulated: true, // F28-13
+        };
+        await audit("run_diagnostic", after);
         await activity(
           "internet_diagnostic",
           data.id,
           "internet_diagnostic",
-          `Diagnostic Internet (${diagnostic_type}) — lien ${body.link_status ?? "—"}`,
-          {
-            diagnostic_id: data.id,
-            diagnostic_type,
-            link_status: body.link_status ?? null,
-            download_mbps: body.download_mbps ?? null,
-            upload_mbps: body.upload_mbps ?? null,
-            latency_ms: body.latency_ms ?? null,
-            packet_loss_pct: body.packet_loss_pct ?? null,
-          },
+          `Diagnostic Internet (${diagnostic_type}) — lien ${link_status ?? "—"}`,
+          after,
         );
         await sysNote(
-          `[INTERNET] Diagnostic ${diagnostic_type} — lien: ${body.link_status ?? "—"}` +
+          `[INTERNET] Diagnostic ${diagnostic_type} — lien: ${link_status ?? "—"}` +
           ` · DL ${body.download_mbps ?? "—"} Mbps · UL ${body.upload_mbps ?? "—"} Mbps` +
           ` · latence ${body.latency_ms ?? "—"} ms · perte ${body.packet_loss_pct ?? "—"}%` +
           (body.notes ? ` · ${body.notes}` : ""),
         );
         await enqueueEmail("client_internet_diagnostic", {
           diagnostic_type,
-          link_status: body.link_status || "—",
+          link_status: link_status || "—",
           download_mbps: body.download_mbps != null ? String(body.download_mbps) : "—",
           upload_mbps: body.upload_mbps != null ? String(body.upload_mbps) : "—",
           latency_ms: body.latency_ms != null ? String(body.latency_ms) : "—",
@@ -590,10 +756,15 @@ serve(async (req) => {
 
       // ============================================================
       case "set_wifi": {
+        if (!hasAnyRole(ROLES_WIFI)) {
+          return err(403, "FORBIDDEN_ROLE", "Rôle insuffisant pour la config WiFi");
+        }
         const band_mode = body.band_mode || "dual";
         if (!["2.4", "5", "dual"].includes(band_mode)) {
-          return json(400, { error: "band_mode invalide" });
+          return err(400, "INVALID_INPUT", "band_mode invalide");
         }
+
+        // F28-8 — scope by (user_id, account_id): select existing then update, else insert
         const payload: Record<string, unknown> = {
           user_id: client_user_id,
           account_id: body.account_id ?? null,
@@ -609,21 +780,51 @@ serve(async (req) => {
           updated_by: user.id,
         };
 
-        const { error } = await admin
+        let existingQ = admin
           .from("internet_wifi_settings")
-          .upsert(payload, { onConflict: "user_id" });
-        if (error) return json(500, { error: error.message });
+          .select("id, ssid_24, ssid_5, band_mode, guest_enabled, guest_ssid")
+          .eq("user_id", client_user_id);
+        existingQ = body.account_id
+          ? existingQ.eq("account_id", body.account_id)
+          : existingQ.is("account_id", null);
+        const { data: existing } = await existingQ.maybeSingle();
 
-        await audit("set_wifi", {
-          band_mode, guest_enabled: !!body.guest_enabled,
-          ssid_24: body.ssid_24, ssid_5: body.ssid_5,
-        });
+        let before: Record<string, unknown> | null = null;
+        if (existing) {
+          before = {
+            ssid_24: existing.ssid_24,
+            ssid_5: existing.ssid_5,
+            band_mode: existing.band_mode,
+            guest_enabled: existing.guest_enabled,
+            guest_ssid: existing.guest_ssid,
+          };
+          const { error: uErr } = await admin
+            .from("internet_wifi_settings")
+            .update(payload)
+            .eq("id", existing.id);
+          if (uErr) return err(500, "DB_ERROR", uErr.message);
+        } else {
+          const { error: iErr } = await admin
+            .from("internet_wifi_settings")
+            .insert(payload);
+          if (iErr) return err(500, "DB_ERROR", iErr.message);
+        }
+
+        const after = {
+          band_mode,
+          ssid_24: body.ssid_24 ?? null,
+          ssid_5: body.ssid_5 ?? null,
+          guest_enabled: !!body.guest_enabled,
+          guest_ssid: body.guest_ssid ?? null,
+        };
+        await audit("set_wifi", after, before);
         await activity(
           "internet_wifi_change",
           null,
           "internet_wifi_settings",
           `WiFi mis à jour — bande ${band_mode}${body.guest_enabled ? ` · invité activé (${body.guest_ssid || "—"})` : " · invité désactivé"}`,
-          { band_mode, ssid_24: body.ssid_24 ?? null, ssid_5: body.ssid_5 ?? null, guest_enabled: !!body.guest_enabled, guest_ssid: body.guest_ssid ?? null },
+          after,
+          before,
         );
         await sysNote(
           `[INTERNET] WiFi mis à jour — bande ${band_mode}` +
@@ -643,72 +844,89 @@ serve(async (req) => {
 
       // ============================================================
       case "set_static_ip": {
+        if (!hasAnyRole(ROLES_STATIC_IP)) {
+          return err(403, "FORBIDDEN_ROLE", "Rôle insuffisant pour la gestion d'IP statique");
+        }
         const mode = body.static_ip_mode || "assign";
+        const reasonStr = typeof body.reason === "string" ? body.reason.trim() : "";
 
         if (mode === "release") {
+          // F28-7 — motif obligatoire ≥ 5 chars
+          if (reasonStr.length < 5) {
+            return err(400, "REASON_REQUIRED", "Motif requis (min. 5 caractères) pour libérer une IP");
+          }
           const id = body.assignment_id;
-          if (!id) return json(400, { error: "assignment_id requis" });
+          if (!id) return err(400, "INVALID_INPUT", "assignment_id requis");
           const { data: existing, error: fErr } = await admin
             .from("internet_static_ip_assignments")
-            .select("id, status, user_id, ip_address")
+            .select("id, status, user_id, ip_address, monthly_price")
             .eq("id", id)
             .maybeSingle();
-          if (fErr) return json(500, { error: fErr.message });
-          if (!existing) return json(404, { error: "Attribution introuvable" });
-          if (existing.user_id !== client_user_id) return json(403, { error: "Cible invalide" });
-          if (existing.status === "released") return json(409, { error: "Déjà libérée" });
+          if (fErr) return err(500, "DB_ERROR", fErr.message);
+          if (!existing) return err(404, "NOT_FOUND", "Attribution introuvable");
+          if (existing.user_id !== client_user_id) {
+            return err(403, "CROSS_CLIENT_TARGET", "IP n'appartient pas à ce client");
+          }
+          if (existing.status === "released") return err(409, "DUPLICATE_ACTIVE", "Déjà libérée");
 
           const { error: uErr } = await admin
             .from("internet_static_ip_assignments")
             .update({
               status: "released",
               released_at: new Date().toISOString(),
-              released_reason: body.reason ?? null,
+              released_reason: reasonStr,
             })
             .eq("id", id);
-          if (uErr) return json(500, { error: uErr.message });
+          if (uErr) return err(500, "DB_ERROR", uErr.message);
 
+          const before = { status: "active", ip_address: existing.ip_address, monthly_price: existing.monthly_price };
+          const after = { status: "released", ip_address: existing.ip_address, released_reason: reasonStr };
 
-          await audit("static_ip_release", { assignment_id: id, ip_address: existing.ip_address });
+          await audit("static_ip_release", { assignment_id: id, ...after }, before);
           await activity(
             "internet_static_ip_release",
             id,
             "internet_static_ip",
             `IP statique libérée — ${existing.ip_address ?? "—"}`,
-            { assignment_id: id, ip_address: existing.ip_address ?? null, reason: body.reason ?? null },
+            after,
+            before,
           );
-          await sysNote(`[INTERNET] IP statique libérée — ${existing.ip_address ?? "—"}${body.reason ? ` · Raison: ${body.reason}` : ""}`);
+          await sysNote(`[INTERNET] IP statique libérée — ${existing.ip_address ?? "—"} · Raison: ${reasonStr}`);
           await enqueueEmail("client_internet_static_ip", {
             mode: "released",
             ip_address: existing.ip_address || "—",
             monthly_price: fmtMoney(0),
-            reason: body.reason || "—",
+            reason: reasonStr,
           });
 
           return json(200, { ok: true });
         }
 
         // assign
+        if (reasonStr.length < 5) {
+          return err(400, "REASON_REQUIRED", "Motif requis (min. 5 caractères) pour attribuer une IP");
+        }
         const ip_address = (body.ip_address || "").trim();
         if (!ip_address || !isValidIp(ip_address)) {
-          return json(400, { error: "ip_address IPv4 valide requise" });
+          return err(400, "INVALID_INPUT", "ip_address IPv4 valide requise");
         }
         const monthly_price = Number(body.monthly_price ?? 0);
         if (!Number.isFinite(monthly_price) || monthly_price < 0) {
-          return json(400, { error: "monthly_price invalide" });
+          return err(400, "INVALID_INPUT", "monthly_price invalide");
         }
 
-        // F13-3: Reject if this IP is already actively assigned (any client).
         const { data: dupRows, error: dupErr } = await admin
           .from("internet_static_ip_assignments")
           .select("id, user_id")
           .eq("ip_address", ip_address)
           .eq("status", "active")
           .limit(1);
-        if (dupErr) return json(500, { error: dupErr.message });
-        if (dupRows && dupRows.length > 0) return json(409, { error: `IP ${ip_address} déjà attribuée` });
+        if (dupErr) return err(500, "DB_ERROR", dupErr.message);
+        if (dupRows && dupRows.length > 0) {
+          return err(409, "DUPLICATE_ACTIVE", `IP ${ip_address} déjà attribuée`);
+        }
 
-        const { data, error } = await admin
+        const { data, error: insErr } = await admin
           .from("internet_static_ip_assignments")
           .insert({
             user_id: client_user_id,
@@ -719,37 +937,36 @@ serve(async (req) => {
             status: "active",
             activated_at: new Date().toISOString(),
             performed_by: user.id,
-            metadata: { idempotency_key: body.idempotency_key },
+            metadata: { idempotency_key: body.idempotency_key ?? null, actor_role: primaryRole },
           })
           .select("id")
           .single();
-        if (error) return json(500, { error: error.message });
+        if (insErr) return err(500, "DB_ERROR", insErr.message);
 
-        await audit("static_ip_assign", {
-          assignment_id: data.id, ip_address, monthly_price,
-        });
+        const after = { assignment_id: data.id, ip_address, monthly_price, status: "active" };
+        await audit("static_ip_assign", after);
         await activity(
           "internet_static_ip_assign",
           data.id,
           "internet_static_ip",
           `IP statique attribuée — ${ip_address} (${fmtMoney(monthly_price)}/mois)`,
-          { assignment_id: data.id, ip_address, monthly_price, reason: body.reason ?? null },
+          after,
         );
-        await sysNote(`[INTERNET] IP statique attribuée — ${ip_address} · ${fmtMoney(monthly_price)}/mois${body.reason ? ` · Raison: ${body.reason}` : ""}`);
+        await sysNote(`[INTERNET] IP statique attribuée — ${ip_address} · ${fmtMoney(monthly_price)}/mois · Raison: ${reasonStr}`);
         await enqueueEmail("client_internet_static_ip", {
           mode: "assigned",
           ip_address,
           monthly_price: fmtMoney(monthly_price),
-          reason: body.reason || "—",
+          reason: reasonStr,
         });
 
         return json(200, { ok: true, assignment_id: data.id });
       }
 
       default:
-        return json(400, { error: "Action inconnue" });
+        return err(400, "UNKNOWN_ACTION", "Action inconnue");
     }
   } catch (e) {
-    return json(500, { error: (e as Error).message || "Erreur serveur" });
+    return err(500, "INTERNAL_ERROR", (e as Error).message || "Erreur serveur");
   }
 });
