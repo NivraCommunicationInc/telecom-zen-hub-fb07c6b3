@@ -278,7 +278,7 @@ Deno.serve(async (req) => {
   {
     // Seed unpaid invoice (75.25) on client A via billing_invoices
     const { error: invSeedErr } = await admin.from("billing_invoices").insert({
-      customer_id: billingCustA, account_id: accountA,
+      customer_id: billingCustA, account_id: accountA, subscription_id: createdSubIds[0],
       invoice_number: `QA26-INV-${Date.now().toString().slice(-6)}`,
       type: "renewal",
       subtotal: 65.45, tps_amount: 3.27, tvq_amount: 6.53, total: 75.25,
