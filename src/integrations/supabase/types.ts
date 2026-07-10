@@ -618,6 +618,11 @@ export type Database = {
           primary_service_postal_code: string | null
           primary_service_province: string | null
           recouvrement_reminder_sent_at: string | null
+          review_discount_amount_cents: number | null
+          review_discount_applied_at: string | null
+          review_discount_pending: boolean
+          review_email_sent: boolean
+          review_email_sent_at: string | null
           status: string | null
           updated_at: string
         }
@@ -658,6 +663,11 @@ export type Database = {
           primary_service_postal_code?: string | null
           primary_service_province?: string | null
           recouvrement_reminder_sent_at?: string | null
+          review_discount_amount_cents?: number | null
+          review_discount_applied_at?: string | null
+          review_discount_pending?: boolean
+          review_email_sent?: boolean
+          review_email_sent_at?: string | null
           status?: string | null
           updated_at?: string
         }
@@ -698,6 +708,11 @@ export type Database = {
           primary_service_postal_code?: string | null
           primary_service_province?: string | null
           recouvrement_reminder_sent_at?: string | null
+          review_discount_amount_cents?: number | null
+          review_discount_applied_at?: string | null
+          review_discount_pending?: boolean
+          review_email_sent?: boolean
+          review_email_sent_at?: string | null
           status?: string | null
           updated_at?: string
         }
