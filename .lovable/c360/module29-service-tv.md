@@ -1,6 +1,55 @@
 # Module 29 — Service TV
 
-Statut : **AUDIT STATIQUE LIVRÉ** (2026-07-10) — En attente du feu vert avant corrections.
+Statut : **STATIC FIXES APPLIED** (2026-07-10) — En attente du feu vert avant campagne E2E QA.
+
+## Correctifs appliqués (F29-1 → F29-19)
+
+### Migration DB
+- `channel_selections` : ajout colonne `account_id uuid NULL` + index `idx_channel_selections_user_account`.
+- `tv_parental_controls` : suppression de l'unicité legacy sur `user_id` seul, remplacée par un index unique `(user_id, account_id) NULLS NOT DISTINCT` (`uniq_tv_parental_controls_user_account`). Débloque le scoping multi-comptes (F29-10).
+
+### Edge Function `tv-account-actions` (réécrite, parité M28)
+- **F29-1** Ownership serveur : `profiles.user_id = client_user_id` obligatoire, `accounts.id = account_id → client_id = client_user_id` obligatoire. Erreurs `NOT_FOUND` / `CROSS_CLIENT_TARGET`.
+- **F29-2** RBAC granulaire par action :
+  - `change_plan` / packs → admin, super_admin, supervisor, employee, billing_admin, support
+  - `purchase_vod` → admin, super_admin, supervisor, employee, billing_admin (exclut support/sales)
+  - `terminal_action` standard → admin/super_admin/supervisor/employee/support/techops
+  - `terminal_action` **critique** (factory_reset, deactivate) → admin/super_admin/supervisor/techops uniquement
+  - `set_parental` / `set_channels` → admin/super_admin/supervisor/employee/support (exclut sales)
+- **F29-3 / F29-4** Deux nouvelles actions `approve_channel_selection` / `reject_channel_selection` — toutes les mutations `channel_selections` transitent désormais par l'EF (audit complet). Scope `account_id` appliqué systématiquement.
+- **F29-5** Idempotency replay via `admin_audit_log` (fenêtre 5 min), retourne `{ ok:true, replayed:true }`.
+- **F29-6** Anti-flood global : 20 mutations `tv.*` / 60 s / staff → `429 RATE_LIMIT`. Anti-flood spécifique `reboot` conservé (120 s / terminal).
+- **F29-7** `change_plan` synchronise `subscriptions` + `billing_subscriptions.plan_name`. Divergence → `billing_system_alerts` (`tv_plan_change_orphaned`).
+- **F29-8** `change_plan` valide `new_plan_name` contre `public.services` (category=TV, actif). Sinon `UNKNOWN_PLAN`.
+- **F29-9** `add_themed_pack` :
+  - Résolution canonique via `pack_id` (préféré) → lecture `tv_packs` puis `channel_packages`.
+  - Rejet doublon actif (`DUPLICATE_ACTIVE`).
+  - Legacy `addon_code` accepté seulement si un pack correspondant existe (par nom).
+- **F29-10** `set_parental` upsert manuel scopé `(user_id, account_id)` (SELECT-then-UPDATE-or-INSERT). Contrainte DB alignée.
+- **F29-11** Idempotency keys UI stables : UUID par ouverture de dialog + préfixe `tv-<action>-<client>-<session>`.
+- **F29-12** Motifs obligatoires côté serveur et UI :
+  - `change_plan` / packs / VOD / parental / channels : min. **5** char (code `REASON_REQUIRED`).
+  - `terminal_action` standard : min. **5** char.
+  - `terminal_action` critique : min. **10** char.
+  - `reject_channel_selection` : min. **10** char.
+- **F29-13** `actor_role` extrait de `user_roles` et propagé dans `admin_audit_log.details.actor_role`, `client_activity_logs.actor_role`, `client_internal_notes.created_by_role`.
+- **F29-14** `metadata.simulated=true` posé sur **toutes** les tables domaine (`tv_plan_changes`, `tv_addon_subscriptions`, `tv_vod_purchases`, `tv_terminal_actions`) + `admin_audit_log.details.simulated=true`.
+- **F29-15** Lectures dialog scopées par `account_id` (bouquets actifs, sélection courante, contrôle parental) lorsqu'un compte est fourni.
+- **F29-16** Codes d'erreur normalisés : `UNAUTHORIZED`, `INVALID_SESSION`, `FORBIDDEN_ROLE`, `CROSS_CLIENT_TARGET`, `NOT_FOUND`, `INVALID_INPUT`, `REASON_REQUIRED`, `UNKNOWN_PLAN`, `UNKNOWN_ADDON`, `DUPLICATE_ACTIVE`, `ALREADY_CANCELLED`, `INVALID_STATE`, `RATE_LIMIT`, `DB_ERROR`, `INTERNAL_ERROR`, `METHOD_NOT_ALLOWED`.
+- **F29-17** PIN parental : SHA-256 (`salt:hash`) avec sel aléatoire 128 bits par enregistrement + pepper env `PARENTAL_PIN_PEPPER`. Stocké au format `${salt}:${hash}`.
+- **F29-18** `purchase_vod` : `payment_reference` **toujours** généré serveur (`VOD-<t36>-<rand>`), body client ne peut plus le fournir.
+- **F29-19** `remove_themed_pack` : ownership `user_id` + scope `account_id` obligatoires si fourni.
+
+### Frontend
+- `src/shared-ops/components/TVServiceActionsDialog.tsx` — motifs obligatoires ajoutés sur chaque onglet, idempotency stable, envoi de `pack_id` canonique, reads scopés par `account_id`.
+- `src/core-app/pages/CoreChannelsPage.tsx` — suppression des `update channel_selections` directs, routage via `tv-account-actions` (`approve_channel_selection` / `reject_channel_selection`) avec motif obligatoire.
+- `Account360NewActionDialogs.tsx` — inchangé (déjà routé via EF, motif ≥ 3 char côté UI, ≥ 5 côté EF ; l'EF fait autorité).
+
+### Aucun provisioning réel
+`tv_*` uniquement (mutations DB). Aucun appel opérateur. `metadata.simulated=true` universel.
+
+---
+
 
 ## Cartographie
 
