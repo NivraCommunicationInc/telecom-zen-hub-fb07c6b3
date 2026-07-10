@@ -213,6 +213,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, sale_id } = body;
     const internalCall = isServiceRoleCall && body.internal === true;
+    console.log('[field-sales-sync DIAG]', { isServiceRoleCall, bodyInternal: body.internal, internalCall, tokenLen: token.length, srkLen: serviceRoleKey.length });
 
     // For internal calls, synthesize claims from the sale's salesperson_id (resolved later).
     if (internalCall && !claims.user) {
