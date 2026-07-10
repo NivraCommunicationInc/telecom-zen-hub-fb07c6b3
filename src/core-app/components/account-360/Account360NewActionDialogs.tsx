@@ -941,17 +941,22 @@ export function NpsSatisfactionDialog(props: Base) {
         details: { score: n, segment, channel, followUp },
       });
       if (n <= 6) {
-        const { data: userData } = await supabase.auth.getUser();
-        await supabase.from("account_tags").upsert({
-          client_user_id: props.clientUserId,
-          account_id: props.accountId ?? null,
-          tag_key: "satisfaction_risk",
-          tag_label: "Satisfaction à risque",
-          severity: "warning",
-          note: `NPS ${n}/10 — ${feedback}`,
-          created_by: userData?.user?.id ?? null,
-          created_by_email: userData?.user?.email ?? null,
-        } as any, { onConflict: "client_user_id,tag_key" });
+        const { data: resp, error: efErr } = await supabase.functions.invoke("account-tags-actions", {
+          body: {
+            action: "add",
+            client_user_id: props.clientUserId,
+            account_id: props.accountId ?? null,
+            tag_key: "satisfaction_risk",
+            note: `NPS ${n}/10 — ${feedback}`,
+            reason: `NPS ${n}/10 — segment ${segment}`,
+            idempotency_key: `nps-${props.clientUserId}-${Date.now()}`,
+          },
+        });
+        // Ignore duplicate-active silently; surface other errors.
+        if (efErr) throw efErr;
+        if (resp && (resp as any).ok === false && (resp as any).code !== "DUPLICATE_ACTIVE") {
+          throw new Error((resp as any).error || "Échec tag satisfaction_risk");
+        }
       }
       if (followUp && props.clientEmail) {
         await notify({
