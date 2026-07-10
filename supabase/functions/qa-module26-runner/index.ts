@@ -368,8 +368,8 @@ Deno.serve(async (req) => {
     const { data: rets } = await admin.from("equipment_return_requests")
       .select("id, equipment_inventory_id, reason, status, client_user_id").eq("account_id", accountA);
     const okReturns = (rets?.length ?? 0) >= 2
-      && rets!.every((r: any) => r.reason === "account_cancelled" && r.status === "requested" && r.client_user_id === clientA);
-    push({ id: "6.2", name: "F26-9 demandes de retour créées (≥ 2, reason=account_cancelled, status=requested)",
+      && rets!.every((r: any) => r.reason === "account_cancelled" && r.status === "pending" && r.client_user_id === clientA);
+    push({ id: "6.2", name: "F26-9 demandes de retour créées (≥ 2, reason=account_cancelled, status=pending)",
       ok: okReturns, details: rets });
     push({ id: "6.3", name: "EF a retourné equipment_return_requests ≥ 2",
       ok: Number(firstResp?.equipment_return_requests ?? 0) >= 2, details: firstResp?.equipment_return_requests });
