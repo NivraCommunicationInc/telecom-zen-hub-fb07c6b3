@@ -626,8 +626,14 @@ const AdminClients = () => {
 
   const deleteDocumentMutation = useMutation({
     mutationFn: async ({ docId, reason }: { docId: string; reason: string }) => {
-      const { error } = await supabase.from("client_documents").delete().eq("id", docId);
-      if (error) throw error;
+      const { callDocumentAction } = await import("@/lib/callDocumentAction");
+      const r = await callDocumentAction({
+        action: "soft_delete",
+        table: "client_documents",
+        document_id: docId,
+        reason: reason || "Suppression document (admin)",
+      });
+      if (!r.ok) throw new Error(r.error ?? "delete_failed");
       return reason;
     },
     onSuccess: (reason) => {
