@@ -294,13 +294,17 @@ Deno.serve(async (req) => {
     });
     firstResp = r.body;
     const { data: acc } = await admin.from("accounts")
-      .select("status, cancelled_at, cancellation_reason, balance_due").eq("id", accountA).maybeSingle();
+      .select("status, cancelled_at, cancellation_reason").eq("id", accountA).maybeSingle();
     push({ id: "4.1", name: "cancel_account nominal 200 + accounts.status=cancelled + cancelled_at set",
       ok: r.status === 200 && acc?.status === "cancelled" && !!acc?.cancelled_at, details: { http: r.status, acc, resp: r.body } });
     push({ id: "4.2", name: "Motif persisté dans accounts.cancellation_reason",
       ok: (acc?.cancellation_reason ?? "").includes(runTag), details: acc?.cancellation_reason });
-    push({ id: "4.3", name: "Solde impayé préservé (reste dû après annulation)",
-      ok: Number(acc?.balance_due ?? 0) === 75.25, details: { balance_due: acc?.balance_due } });
+    const { data: invAfter } = await admin.from("billing_invoices")
+      .select("balance_due, status").eq("customer_id", billingCustA)
+      .not("status", "in", "(paid,void,cancelled,refunded)");
+    const stillDue = (invAfter ?? []).reduce((s: number, r: any) => s + Number(r?.balance_due ?? 0), 0);
+    push({ id: "4.3", name: "Solde impayé préservé (facture ouverte reste due après annulation)",
+      ok: Math.abs(stillDue - 75.25) < 0.01, details: { stillDue, invAfter } });
   }
 
   // ------------------------------------------------------------------
