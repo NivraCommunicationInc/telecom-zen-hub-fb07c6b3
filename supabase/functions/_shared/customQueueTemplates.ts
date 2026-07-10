@@ -5980,21 +5980,21 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const firstName = esc(v.first_name || clientName);
       const googleReviewUrl = String(v.google_review_url || "https://g.page/r/CXlAG2vT9CgoEAE/review");
       return {
-        subject: "🎁 5 $ de rabais pour vous — merci d'être avec Nivra",
+        subject: "Votre service Nivra est actif — votre avis vaut 5 $ 😊",
         html: shell({
-          preheader: "Partagez votre expérience en 2 minutes et obtenez 5 $ de rabais sur votre prochaine facture.",
-          badge: "🎁 RABAIS DE 5 $ INCLUS",
-          heroTitle: "Un cadeau de 5 $ pour votre prochaine facture 💙",
+          preheader: "Bienvenue chez Nivra! Laissez un avis Google honnête et recevez 5 $ sur votre prochaine facture.",
+          badge: "🎉 BIENVENUE DANS LA FAMILLE NIVRA",
+          heroTitle: "Votre service est actif — votre avis vaut 5 $ 💙",
           icon: "star",
           greeting: `Bonjour ${firstName},`,
           bodyText:
-            "Chez Nivra, chaque client compte vraiment — et vous en faites partie. Merci sincèrement de nous avoir choisis pour vous connecter au monde.<br/><br/>" +
-            "<div style=\"background:#f0f7ff;border-left:4px solid #0066CC;padding:16px 20px;border-radius:8px;margin:8px 0 20px;\"><strong style=\"color:#0066CC;font-size:17px;\">🎁 Notre cadeau : 5 $ de rabais sur votre prochaine facture</strong><br/><span style=\"color:#333;\">Laissez-nous un avis Google (moins de 2 minutes) et nous appliquons automatiquement <strong>5 $ de crédit</strong> sur votre prochaine facture Nivra.</span></div>" +
-            "Notre mission, c'est d'offrir un service simple, humain et fiable aux Québécois. Votre avis vaut de l'or : il aide d'autres familles d'ici à découvrir Nivra, et il nous pousse à nous améliorer chaque jour.<br/><br/>" +
-            "Bonne ou perfectible, votre honnêteté est ce qui nous rend meilleurs. On a hâte de vous lire ⭐",
+            "Votre service <strong>Nivra Telecom</strong> est maintenant activé et installé — bienvenue dans la famille! 🎉<br/><br/>" +
+            "On est une jeune entreprise de télécommunications d'ici, et on veut constamment améliorer nos services. C'est pourquoi votre avis compte énormément pour nous — <strong>qu'il soit bon ou mauvais</strong>.<br/><br/>" +
+            "<div style=\"background:#f0f7ff;border-left:4px solid #0066CC;padding:16px 20px;border-radius:8px;margin:8px 0 20px;\"><strong style=\"color:#0066CC;font-size:17px;\">🎁 5 $ de rabais sur votre prochaine facture</strong><br/><span style=\"color:#333;\">En guise de remerciement, on vous offre <strong>5 $ de rabais</strong> simplement pour avoir pris le temps de laisser un avis Google honnête. Bon ou mauvais avis, vous recevez le 5 $ pareil — ce qu'on veut, c'est la vérité pour s'améliorer.</span></div>" +
+            "Ça prend 2 minutes :",
           ctaPrimaryUrl: googleReviewUrl,
-          ctaPrimaryLabel: "⭐ Laisser mon avis + obtenir mon 5 $",
-          helpHtml: "<strong>Comment récupérer votre rabais de 5 $ :</strong> après avoir publié votre avis Google, répondez simplement à ce courriel avec une capture d'écran. Nous appliquons le crédit de 5 $ directement sur votre prochaine facture. Merci du fond du cœur — l'équipe Nivra 💙",
+          ctaPrimaryLabel: "👉 Laisser mon avis Google",
+          helpHtml: "Une fois votre avis publié, <strong>répondez à ce courriel</strong> (ou envoyez-nous une capture d'écran) et on applique automatiquement votre rabais de 5 $ sur la prochaine facture.<br/><br/>Merci de nous aider à grandir et à nous améliorer,<br/><strong>L'équipe Nivra Telecom</strong> 💙",
         }),
       };
     }
