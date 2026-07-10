@@ -555,7 +555,7 @@ Deno.serve(async (req) => {
     // trigger sync while payment_status=pending
     await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
       action: "sync_single", sale_id: capFso!.id }),
-    }).catch(() => null);
+    }).then(r => r.text().then(t => console.log("[runner] fss:", r.status, t.slice(0,200)))).catch(e => console.log("[runner] fss ERR:", e.message));
     await new Promise((r) => setTimeout(r, 1200));
 
     {
@@ -580,7 +580,7 @@ Deno.serve(async (req) => {
         .eq("id", capFso!.id);
       await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
         action: "sync_single", sale_id: capFso!.id }),
-      }).catch(() => null);
+      }).then(r => r.text().then(t => console.log("[runner] fss:", r.status, t.slice(0,200)))).catch(e => console.log("[runner] fss ERR:", e.message));
       await new Promise((r) => setTimeout(r, 1200));
       const { data: fso2 } = await admin.from("field_sales_orders")
         .select("converted_order_id").eq("id", capFso!.id).maybeSingle();
@@ -600,7 +600,7 @@ Deno.serve(async (req) => {
     {
       await fetch(`${url}/functions/v1/field-sales-sync`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}`, apikey: anonKey }, body: JSON.stringify({ internal: true,
         action: "sync_single", sale_id: capFso!.id }),
-      }).catch(() => null);
+      }).then(r => r.text().then(t => console.log("[runner] fss:", r.status, t.slice(0,200)))).catch(e => console.log("[runner] fss ERR:", e.message));
       await new Promise((r) => setTimeout(r, 1200));
       const orderId = (globalThis as any).__capOrderId as string | undefined;
       let commCount = 0;
