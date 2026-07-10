@@ -360,20 +360,25 @@ export function CancelAccountDialog({ accountId, clientId, accountStatus, open, 
     if (!accountId || !clientId) return;
     (async () => {
       const [acctRes, bcRes, equipRes] = await Promise.all([
-        supabase.from("accounts").select("account_number, balance_due").eq("id", accountId).maybeSingle(),
+        supabase.from("accounts").select("account_number").eq("id", accountId).maybeSingle(),
         supabase.from("billing_customers").select("id, autopay_enabled").eq("user_id", clientId).maybeSingle(),
         supabase.from("equipment_inventory").select("id", { count: "exact", head: true })
           .eq("account_id", accountId).in("status", ["assigned", "deployed", "active"]),
       ]);
       let activeSubs = 0;
+      let balanceDue = 0;
       if (bcRes.data?.id) {
         const { count } = await supabase.from("billing_subscriptions").select("id", { count: "exact", head: true })
           .eq("customer_id", bcRes.data.id).in("status", ["active", "pending", "suspended"]);
         activeSubs = count ?? 0;
+        const { data: invs } = await supabase.from("billing_invoices")
+          .select("balance_due, status").eq("customer_id", bcRes.data.id)
+          .not("status", "in", "(paid,void,cancelled,refunded)");
+        balanceDue = (invs ?? []).reduce((s: number, r: any) => s + Number(r?.balance_due ?? 0), 0);
       }
       setImpact({
         accountNumber: (acctRes.data as any)?.account_number ?? null,
-        balanceDue: Number((acctRes.data as any)?.balance_due ?? 0),
+        balanceDue,
         activeSubs,
         equipmentCount: equipRes.count ?? 0,
         autopayOn: !!(bcRes.data as any)?.autopay_enabled,
