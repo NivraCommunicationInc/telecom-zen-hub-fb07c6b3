@@ -323,8 +323,8 @@ serve(async (req) => {
           .update({
             status: nextStatus,
             admin_note: body.admin_note ?? null,
-            [body.action === "cashout.pay" ? "paid_at" : body.action === "cashout.approve" ? "approved_at" : "rejected_at"]: new Date().toISOString(),
-            [body.action === "cashout.pay" ? "paid_by" : body.action === "cashout.approve" ? "approved_by" : "rejected_by"]: user.id,
+            reviewed_by: user.id,
+            reviewed_at: new Date().toISOString(),
           })
           .eq("id", body.cashout_id);
         if (upErr) return json(500, { error: upErr.message });
