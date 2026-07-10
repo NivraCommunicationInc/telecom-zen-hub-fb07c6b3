@@ -132,42 +132,73 @@ Deno.serve(async (req) => {
     return data;
   };
 
-  const cleanupClient = async (userId: string) => {
-    // Orders + related first
+  const cleanupAllQa = async (callerIds: string[], clientIds: string[]) => {
+    // 1) Collect quotes tied to QA emails
     const { data: quotes } = await admin.from("field_quotes")
       .select("id").ilike("client_info->>email", "qa-m31-%");
     const quoteIds = (quotes || []).map((q: any) => q.id);
 
-    const { data: fso } = await admin.from("field_sales_orders")
-      .select("id, converted_order_id").eq("customer_email", (await admin.from("profiles").select("email").eq("user_id", userId).maybeSingle()).data?.email || "");
-    const fsoIds = (fso || []).map((r: any) => r.id);
-    const orderIds = (fso || []).map((r: any) => r.converted_order_id).filter(Boolean);
+    // 2) Collect FSOs: by customer_email pattern OR salesperson caller
+    const { data: fsoByEmail } = await admin.from("field_sales_orders")
+      .select("id, converted_order_id").ilike("customer_email", "qa-m31-%");
+    const { data: fsoBySales } = await admin.from("field_sales_orders")
+      .select("id, converted_order_id").in("salesperson_id", callerIds);
+    const fsoMap = new Map<string, string | null>();
+    for (const r of [...(fsoByEmail || []), ...(fsoBySales || [])]) {
+      fsoMap.set(r.id, r.converted_order_id ?? null);
+    }
+    const fsoIds = Array.from(fsoMap.keys());
+    const convertedOrderIds = Array.from(fsoMap.values()).filter(Boolean) as string[];
 
-    if (fsoIds.length) {
+    // 3) Collect orders: converted from FSOs OR user_id in clients OR order_number pattern
+    const { data: ordersByClient } = await admin.from("orders")
+      .select("id").in("user_id", clientIds);
+    const { data: ordersByPattern } = await admin.from("orders")
+      .select("id").ilike("order_number", "QA31-%");
+    const orderIdSet = new Set<string>([
+      ...convertedOrderIds,
+      ...((ordersByClient || []) as any[]).map((r) => r.id),
+      ...((ordersByPattern || []) as any[]).map((r) => r.id),
+    ]);
+    const orderIds = Array.from(orderIdSet);
+
+    // 4) Delete children first
+    if (orderIds.length) {
       await admin.from("field_commissions").delete().in("order_id", orderIds);
+      await admin.from("order_items").delete().in("order_id", orderIds);
+    }
+    if (fsoIds.length) {
       await admin.from("sales_commissions").delete().in("field_order_id", fsoIds);
       await admin.from("field_sales_orders").delete().in("id", fsoIds);
     }
     if (orderIds.length) {
-      await admin.from("order_items").delete().in("order_id", orderIds);
       await admin.from("orders").delete().in("id", orderIds);
     }
     if (quoteIds.length) {
       await admin.from("field_quotes").delete().in("id", quoteIds);
     }
-    await admin.from("field_payment_intents").delete().eq("user_id", userId);
-    await admin.from("orders").delete().eq("user_id", userId);
-    await admin.from("client_activity_logs").delete().eq("client_id", userId);
-    await admin.from("client_internal_notes").delete().eq("client_id", userId);
-    const email = (await admin.from("profiles").select("email").eq("user_id", userId).maybeSingle()).data?.email;
-    if (email) await admin.from("email_queue").delete().eq("to_email", email);
-  };
 
-  const cleanupAudit = async (callerIds: string[]) => {
+    // 5) Field payment intents — by agent OR customer_email pattern
+    await admin.from("field_payment_intents").delete().in("agent_id", callerIds);
+    await admin.from("field_payment_intents").delete().ilike("customer_email", "qa-m31-%");
+
+    // 6) Field submissions (convert_to_quote_sub)
+    await admin.from("field_submissions").delete().in("agent_id", callerIds);
+
+    // 7) Client-scoped noise
+    if (clientIds.length) {
+      await admin.from("client_activity_logs").delete().in("client_id", clientIds);
+      await admin.from("client_internal_notes").delete().in("client_id", clientIds);
+    }
+    await admin.from("email_queue").delete().ilike("to_email", "qa-m31-%");
+
+    // 8) Audit
     for (const id of callerIds) {
-      await admin.from("admin_audit_log").delete().eq("admin_user_id", id).like("action", "order_new.%");
+      await admin.from("admin_audit_log").delete()
+        .eq("admin_user_id", id).like("action", "order_new.%");
     }
   };
+
 
   try {
     const svc = await pickActiveService();
