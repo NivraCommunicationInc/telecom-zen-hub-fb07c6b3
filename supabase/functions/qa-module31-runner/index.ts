@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
 
     const adminCaller = await ensureCaller("qa-m31-admin@nivra-test.ca", "admin");
     const salesCaller = await ensureCaller("qa-m31-sales@nivra-test.ca", "sales");
-    const fieldCaller = await ensureCaller("qa-m31-field@nivra-test.ca", "field_agent");
+    const fieldCaller = await ensureCaller("qa-m31-field@nivra-test.ca", "field_sales");
     const supportCaller = await ensureCaller("qa-m31-support@nivra-test.ca", "support");
 
     const cA = await ensureClient("qa-m31-client-a@nivra-test.ca", "A");
