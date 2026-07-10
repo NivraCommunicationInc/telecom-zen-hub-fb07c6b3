@@ -112,6 +112,8 @@ type TestCtx = {
   account_b: string;
   reward_id: string;
   reward_limited_id: string;
+  email_a: string;
+  pass_a: string;
 };
 
 async function provision(db: SupabaseClient): Promise<TestCtx> {
@@ -132,11 +134,11 @@ async function provision(db: SupabaseClient): Promise<TestCtx> {
     await db.from("loyalty_points").insert({
       account_id: data.id, total_points: 0, available_points: 0, lifetime_points: 0,
     });
-    return data.id as string;
+    return { id: data.id as string, email, password };
   };
 
-  const account_a = await mk("A");
-  const account_b = await mk("B");
+  const a = await mk("A");
+  const b = await mk("B");
 
   const { data: rw, error: eR } = await db.from("loyalty_rewards").insert({
     name_fr: `${QA_PREFIX}Reward`, name_en: `${QA_PREFIX}Reward`,
@@ -151,8 +153,13 @@ async function provision(db: SupabaseClient): Promise<TestCtx> {
   }).select("id").single();
   if (eRL) throw eRL;
 
-  return { account_a, account_b, reward_id: rw.id, reward_limited_id: rwL.id };
+  return {
+    account_a: a.id, account_b: b.id,
+    reward_id: rw.id, reward_limited_id: rwL.id,
+    email_a: a.email, pass_a: a.password,
+  };
 }
+
 
 async function phase1(db: SupabaseClient, ctx: TestCtx, checks: Check[]) {
   // C1: adjust +500
