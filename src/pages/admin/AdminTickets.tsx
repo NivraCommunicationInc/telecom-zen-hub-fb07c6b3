@@ -327,59 +327,35 @@ const AdminTickets = () => {
   // Update ticket mutation
   const updateTicketMutation = useMutation({
     mutationFn: async (updates: { ticketId: string; [key: string]: any }) => {
-      const { ticketId, ...updateData } = updates;
-      updateData.updated_at = new Date().toISOString();
+      const { ticketId, status, assigned_to, assigned_to_user_id, priority, category, ...rest } = updates as any;
 
-      // Get the current ticket data for comparison
-      const { data: currentTicket } = await supabase
-        .from("support_tickets")
-        .select("status, ticket_number, subject, client_email, user_id")
-        .eq("id", ticketId)
-        .single();
-
-      const oldStatus = currentTicket?.status;
-      const newStatus = updateData.status;
-
-      const { error } = await supabase
-        .from("support_tickets")
-        .update(updateData)
-        .eq("id", ticketId);
-
-      if (error) throw error;
-
-      // Send SMS notification for status changes (non-blocking)
-      if (newStatus && newStatus !== oldStatus && currentTicket) {
-        // Fetch client profile for phone and name
-        const { data: clientProfile } = await supabase
-          .from("profiles")
-          .select("full_name, phone")
-          .eq("id", currentTicket.user_id)
-          .maybeSingle();
-
-        const eventType = ["resolved", "closed"].includes(newStatus) 
-          ? "ticket_resolved" 
-          : "ticket_status_update";
-
-        supabase.functions.invoke("send-ticket-notification", {
-          body: {
-            event_type: eventType,
-            ticket_id: ticketId,
-            ticket_number: currentTicket.ticket_number,
-            subject: currentTicket.subject,
-            client_email: currentTicket.client_email,
-            client_name: clientProfile?.full_name || "Client",
-            client_phone: clientProfile?.phone,
-            client_id: currentTicket.user_id,
-            new_status: newStatus,
-            old_status: oldStatus,
-          },
-        }).catch((err) => console.error("[SMS] Ticket notification failed:", err));
+      if (status) {
+        await callSupportAction("transition_status", {
+          ticket_id: ticketId,
+          to_status: status,
+          reason: `admin_status_change_${status}`,
+          source: "admin_tickets",
+        });
       }
-
-      return { ticketId, ...updateData };
+      if (assigned_to !== undefined || assigned_to_user_id !== undefined) {
+        await callSupportAction("assign_ticket", {
+          ticket_id: ticketId,
+          assigned_to: assigned_to ?? null,
+          assigned_to_user_id: assigned_to_user_id ?? null,
+          reason: "admin_reassign",
+        });
+      }
+      if (priority !== undefined || category !== undefined || Object.keys(rest).length > 0) {
+        await callSupportAction("update_ticket_meta", {
+          ticket_id: ticketId,
+          priority,
+          category,
+          ...rest,
+        });
+      }
+      return { ticketId, ...updates };
     },
     onSuccess: (data) => {
-      // Update local state immediately
       if (selectedTicket?.id === data.ticketId) {
         setSelectedTicket((prev: any) => ({ ...prev, ...data }));
       }
@@ -387,8 +363,8 @@ const AdminTickets = () => {
       logActivity("update", "ticket", data.ticketId, data);
       toast({ title: "Ticket mis à jour", description: "Les modifications ont été enregistrées" });
     },
-    onError: () => {
-      toast({ title: "Erreur", description: "Impossible de mettre à jour le ticket", variant: "destructive" });
+    onError: (e: any) => {
+      toast({ title: "Erreur", description: e?.message || "Impossible de mettre à jour le ticket", variant: "destructive" });
     },
   });
 
@@ -398,29 +374,20 @@ const AdminTickets = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase
-        .from("ticket_replies")
-        .insert({
-          ticket_id: selectedTicket?.id,
-          user_id: user.id,
-          content,
-          is_admin: true,
-          sender_role: "admin",
-        })
-        .select()
-        .single();
+      await callSupportAction("reply_ticket", {
+        ticket_id: selectedTicket?.id,
+        content,
+        idempotency_key: `admin-reply-${user.id}-${selectedTicket?.id}-${Date.now()}`,
+      });
 
-      if (error) throw error;
-
-      // Update ticket status to in_progress if it was open or pending
       if (["open", "pending"].includes(selectedTicket?.status)) {
-        await supabase
-          .from("support_tickets")
-          .update({ status: "in_progress", updated_at: new Date().toISOString() })
-          .eq("id", selectedTicket.id);
+        await callSupportAction("transition_status", {
+          ticket_id: selectedTicket.id,
+          to_status: "in_progress",
+          reason: "admin_reply_auto_progress",
+          source: "admin_tickets",
+        });
       }
-
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-ticket-replies"] });
@@ -431,10 +398,10 @@ const AdminTickets = () => {
     },
     onError: (error: any) => {
       console.error("[AdminTickets] Reply error:", error);
-      toast({ 
-        title: "Erreur", 
-        description: error?.message || "Impossible d'envoyer la réponse", 
-        variant: "destructive" 
+      toast({
+        title: "Erreur",
+        description: error?.message || "Impossible d'envoyer la réponse",
+        variant: "destructive",
       });
     },
   });
@@ -445,7 +412,6 @@ const AdminTickets = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Find client by email
       const { data: profile } = await supabase
         .from("profiles")
         .select("user_id, email, full_name")
@@ -454,7 +420,6 @@ const AdminTickets = () => {
 
       if (!profile) throw new Error("Client non trouvé avec cet email");
 
-      // Get related order reference if order is selected
       let relatedOrderReference = null;
       if (ticketData.related_order_id) {
         const { data: orderData } = await supabase
@@ -465,44 +430,35 @@ const AdminTickets = () => {
         relatedOrderReference = orderData?.order_number || ticketData.related_order_id;
       }
 
-      const { data, error } = await supabase
-        .from("support_tickets")
-        .insert({
-          user_id: profile.user_id,
-          owner_user_id: profile.user_id, // REQUIRED: Client's auth.uid() for RLS
-          client_email: profile.email,
-          subject: ticketData.subject,
-          description: ticketData.description,
-          priority: ticketData.priority,
-          category: ticketData.category,
-          requires_id_upload: ticketData.requires_id_upload,
-          id_verification_status: ticketData.requires_id_upload ? 'not_received' : undefined,
-          created_by_user_id: user.id,
-          created_by_role: "admin",
-          status: 'open',
-          related_order_id: ticketData.related_order_id || null,
-          related_order_reference: relatedOrderReference,
-          issue_type: ticketData.issue_type || null,
-        })
-        .select()
-        .single();
+      const res = await callSupportAction("create_ticket", {
+        owner_user_id: profile.user_id,
+        client_email: profile.email,
+        subject: ticketData.subject,
+        description: ticketData.description,
+        priority: ticketData.priority,
+        category: ticketData.category,
+        requires_id_upload: ticketData.requires_id_upload,
+        related_order_id: ticketData.related_order_id || null,
+        related_order_reference: relatedOrderReference,
+        issue_type: ticketData.issue_type || null,
+        source: "admin_tickets",
+        idempotency_key: `admin-create-${user.id}-${profile.user_id}-${Date.now()}`,
+      });
 
-      if (error) throw error;
+      const ticketId = res.ticket_id!;
 
-      // Add CC participants if any
-      if (ticketData.cc_participants && ticketData.cc_participants.length > 0 && data?.id) {
-        const participantsToInsert = ticketData.cc_participants.map(userId => ({
-          ticket_id: data.id,
-          user_id: userId,
-          role: 'cc',
-          can_reply: true,
-          added_by: user.id,
-        }));
-        
-        await supabase.from("ticket_participants").insert(participantsToInsert);
+      if (ticketData.cc_participants && ticketData.cc_participants.length > 0) {
+        for (const participantUserId of ticketData.cc_participants) {
+          await callSupportAction("add_participant", {
+            ticket_id: ticketId,
+            participant_user_id: participantUserId,
+            role: "cc",
+            can_reply: true,
+          });
+        }
       }
 
-      return data;
+      return { id: ticketId, subject: ticketData.subject };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
