@@ -87,7 +87,7 @@ export function InternetServiceActionsDialog({
 
   // Diagnostic
   const [diagType, setDiagType] = useState<"full" | "link" | "speedtest" | "latency">("full");
-  const [linkStatus, setLinkStatus] = useState<typeof LINK_STATUSES[number]>("up");
+  const [linkStatus, setLinkStatus] = useState<typeof LINK_STATUSES[number]>("ok");
   const [download, setDownload] = useState("");
   const [upload, setUpload] = useState("");
   const [latency, setLatency] = useState("");
@@ -114,7 +114,7 @@ export function InternetServiceActionsDialog({
     setTab("plan");
     setPlanName(""); setPlanPrice(""); setPlanSpeed(""); setPlanChangeType("upgrade");
     setModemAction(""); setModemSerial(""); setModemMac(""); setModemReason("");
-    setDiagType("full"); setLinkStatus("up"); setDownload(""); setUpload("");
+    setDiagType("full"); setLinkStatus("ok"); setDownload(""); setUpload("");
     setLatency(""); setLoss(""); setDiagNotes("");
     setIpAddr(""); setIpPrice("9.99"); setIpReason(""); setIpMode("assign");
   }, [open]);
