@@ -1082,7 +1082,7 @@ const GuestCheckout = () => {
               referral_code: appliedReferral.code,
               order_id: response.order_id,
               referred_user_id: userId,
-              referred_email: (formData?.email || "").toLowerCase() || undefined,
+              referred_email: (email || "").toLowerCase() || undefined,
               idempotency_key: `guest:${response.order_id}:${appliedReferral.code}`,
             },
           });
