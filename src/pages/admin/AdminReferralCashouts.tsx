@@ -61,7 +61,7 @@ const AdminReferralCashouts = () => {
     },
   });
 
-  // Process cashout mutation
+  // Process cashout mutation — Module 33 Phase D: canonical route via admin-referrals-manage
   const processCashout = useMutation({
     mutationFn: async ({
       cashoutId,
@@ -72,64 +72,25 @@ const AdminReferralCashouts = () => {
       action: "approve" | "reject" | "pay";
       note: string;
     }) => {
-      const cashout = cashouts?.find((c) => c.id === cashoutId);
-      if (!cashout) throw new Error("Cashout not found");
-
       const adminUserId = user?.id;
       if (!adminUserId) {
         throw new Error("Session admin manquante. Veuillez vous reconnecter.");
       }
 
-      const updateCashoutStatus = async (nextStatus: "approved" | "rejected" | "paid") => {
-        const { data, error } = await supabase
-          .from("cashout_requests")
-          .update({
-            status: nextStatus,
-            admin_note: nextStatus === "rejected" ? note : note || null,
-            reviewed_by: adminUserId,
-            reviewed_at: new Date().toISOString(),
-          })
-          .eq("id", cashoutId)
-          .select("id,status")
-          .single();
+      const efAction =
+        action === "approve" ? "cashout.approve" :
+        action === "reject"  ? "cashout.reject"  : "cashout.pay";
 
-        if (error) throw error;
-
-        // RLS can result in "0 rows updated" with no error unless we force .single()
-        if (!data || data.status !== nextStatus) {
-          throw new Error("La mise à jour n'a pas été enregistrée (permissions/session).");
-        }
-      };
-
-      if (action === "approve") {
-        await updateCashoutStatus("approved");
-      } else if (action === "reject") {
-        await updateCashoutStatus("rejected");
-      } else if (action === "pay") {
-        // Update cashout status
-        await updateCashoutStatus("paid");
-
-        // Create payout record
-        const { error: payoutError } = await supabase.from("influencer_payouts").insert({
-          influencer_id: cashout.influencer_id,
-          cashout_request_id: cashoutId,
-          amount: cashout.amount,
-          method: cashout.method,
-          paid_by: adminUserId,
-        });
-        if (payoutError) throw payoutError;
-
-        // Create ledger debit entry
-        const { error: ledgerError } = await supabase.from("commission_ledger_entries").insert({
-          influencer_id: cashout.influencer_id,
-          type: "payout_debit",
-          amount: -Math.abs(Number(cashout.amount)),
-          status: "paid",
-          notes: `Paiement ${cashout.request_number}`,
-          created_by: adminUserId,
-        });
-        if (ledgerError) throw ledgerError;
-      }
+      const { data, error } = await supabase.functions.invoke("admin-referrals-manage", {
+        body: {
+          action: efAction,
+          cashout_id: cashoutId,
+          admin_note: note || null,
+          idempotency_key: `${efAction}:${cashoutId}`,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["cashout-requests"] });
