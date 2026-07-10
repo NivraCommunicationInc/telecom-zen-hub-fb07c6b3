@@ -31932,6 +31932,69 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rpc_ticket_apply_ai_result: {
+        Args: {
+          p_ai_confidence: number
+          p_ai_response: string
+          p_category: string
+          p_escalated_reason?: string
+          p_internal_notes?: string
+          p_outcome: string
+          p_ticket_id: string
+        }
+        Returns: {
+          account_id: string | null
+          ai_confidence: number | null
+          ai_responded_at: string | null
+          ai_response: string | null
+          ai_scheduled_at: string | null
+          assigned_department: string | null
+          assigned_to: string | null
+          assigned_to_user_id: string | null
+          attachments: Json | null
+          body: string | null
+          category: string | null
+          cc_user_ids: string[] | null
+          client_email: string | null
+          client_name: string | null
+          created_at: string
+          created_by_role: string | null
+          created_by_user_id: string | null
+          description: string
+          equipment_serial: string | null
+          escalated_at: string | null
+          escalated_reason: string | null
+          id: string
+          id_files: Json | null
+          id_verification_status: string | null
+          internal_notes: string | null
+          is_internal: boolean | null
+          issue_type: string | null
+          owner_user_id: string | null
+          point_of_contact_id: string | null
+          priority: string
+          related_order_id: string | null
+          related_order_reference: string | null
+          requires_id_upload: boolean | null
+          resolved_at: string | null
+          route_to: string | null
+          service_address: string | null
+          service_address_id: string | null
+          service_location_id: string | null
+          source: string | null
+          status: string
+          subject: string
+          ticket_number: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_tickets"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       rpc_ticket_create: {
         Args: {
           p_account_id: string
@@ -32035,6 +32098,61 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "ticket_replies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rpc_ticket_set_ai_schedule: {
+        Args: { p_ai_scheduled_at: string; p_ticket_id: string }
+        Returns: {
+          account_id: string | null
+          ai_confidence: number | null
+          ai_responded_at: string | null
+          ai_response: string | null
+          ai_scheduled_at: string | null
+          assigned_department: string | null
+          assigned_to: string | null
+          assigned_to_user_id: string | null
+          attachments: Json | null
+          body: string | null
+          category: string | null
+          cc_user_ids: string[] | null
+          client_email: string | null
+          client_name: string | null
+          created_at: string
+          created_by_role: string | null
+          created_by_user_id: string | null
+          description: string
+          equipment_serial: string | null
+          escalated_at: string | null
+          escalated_reason: string | null
+          id: string
+          id_files: Json | null
+          id_verification_status: string | null
+          internal_notes: string | null
+          is_internal: boolean | null
+          issue_type: string | null
+          owner_user_id: string | null
+          point_of_contact_id: string | null
+          priority: string
+          related_order_id: string | null
+          related_order_reference: string | null
+          requires_id_upload: boolean | null
+          resolved_at: string | null
+          route_to: string | null
+          service_address: string | null
+          service_address_id: string | null
+          service_location_id: string | null
+          source: string | null
+          status: string
+          subject: string
+          ticket_number: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_tickets"
           isOneToOne: true
           isSetofReturn: false
         }
