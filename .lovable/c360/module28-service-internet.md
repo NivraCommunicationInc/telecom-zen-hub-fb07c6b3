@@ -1,55 +1,49 @@
 # Module 28 — Service Internet
 
-Statut : **OPEN — STATIC AUDIT** (2026-07-10)
+Statut : **STATIC FIXES DEPLOYED — WAITING E2E GREENLIGHT** (2026-07-10)
 
 ## Périmètre
-Gestion complète du service Internet depuis Client 360 :
-- **UI principale** : `src/shared-ops/components/InternetServiceActionsDialog.tsx` (5 onglets — Forfait, Modem, Diagnostic, WiFi, IP statique). Ouverte depuis `Account360QuickActions.tsx` bouton « Service Internet ».
-- **UI secondaires (raccourcis QuickActions)** dans `src/core-app/components/account-360/Account360NewActionDialogs.tsx` : `LineDiagnosticDialog` (diagnostic rapide), `ModemRebootDialog` (reboot), `QuickPlanChangeDialog` (changement de forfait Internet/TV).
-- **Edge Function canonique** : `supabase/functions/internet-account-actions/index.ts` (actions : `change_plan`, `modem_action`, `run_diagnostic`, `set_wifi`, `set_static_ip`).
-- **Tables** : `internet_plan_changes`, `internet_modem_actions`, `internet_diagnostics`, `internet_wifi_settings`, `internet_static_ip_assignments`, `subscriptions`, `billing_subscriptions`, `billing_invoices`, `account_adjustments`, `billing_system_alerts`.
-- **Emails** : `client_internet_plan_change`, `client_internet_modem_action`, `client_internet_diagnostic`, `client_internet_wifi_change`, `client_internet_static_ip`, `invoice_created` (si prorata).
-- **Audit** : `admin_audit_log`, `client_activity_logs`, `client_internal_notes`.
+- UI principale : `src/shared-ops/components/InternetServiceActionsDialog.tsx` (Forfait, Modem, Diagnostic, WiFi, IP statique).
+- UI raccourcis Client 360 : `LineDiagnosticDialog`, `ModemRebootDialog`, `QuickPlanChangeDialog` (`Account360NewActionDialogs.tsx`).
+- Edge Function canonique : `supabase/functions/internet-account-actions/index.ts`.
+- Tables domaine : `internet_plan_changes`, `internet_modem_actions`, `internet_diagnostics`, `internet_wifi_settings`, `internet_static_ip_assignments`, `subscriptions`, `billing_subscriptions`, `billing_invoices`, `account_adjustments`, `billing_system_alerts`.
 
-## Findings
+## Corrections statiques (F28-1 → F28-17)
 
 ### P1 — Critiques
-
-- **F28-1 — Écriture directe frontend `internet_plan_changes` / `tv_plan_changes`** (`QuickPlanChangeDialog`, lignes 561-572). Contourne totalement `internet-account-actions` : pas d'`admin_audit_log`, pas de synchro `subscriptions`, pas de prorata, pas de motif validé serveur, `change_type="core_manual"` inconnu du catalogue EF. **Rupture du principe "toutes mutations via EF canonique"**.
-- **F28-2 — Absence de validation d'ownership** dans `internet-account-actions`. L'EF vérifie `checkStaffAuth` mais n'exige jamais que `client_user_id` corresponde à un compte réel ni que `account_id` fourni appartienne au même client. Un membre du personnel peut deviner un UUID et agir sur n'importe quel compte (parité M24/M25/M26/M27 non respectée).
-- **F28-3 — `ALLOWED_ROLES` trop permissif pour actions destructives** (`admin, employee, supervisor, support, billing_admin, sales`). `factory_reset` et `deactivate` (modem) et `assign/release` d'IP statique devraient être restreintes à `admin / super_admin / supervisor / techops`. `sales` et `billing_admin` ne devraient pas pouvoir factory-reset un modem.
-- **F28-17 — Split-brain `subscriptions` vs `billing_subscriptions`** dans `change_plan`. L'EF met à jour `subscriptions.plan_name/monthly_price/amount` mais jamais `billing_subscriptions.plan_name`. Le prorata puise pourtant dans `billing_subscriptions`. Divergence garantie entre le module Abonnements Core et Facturation.
+- **F28-1** — `QuickPlanChangeDialog` ne fait plus **aucune** écriture directe dans `internet_plan_changes`/`tv_plan_changes`. Toute mutation route via `internet-account-actions` (`action=change_plan`) avec motif obligatoire ≥ 5 char. Le branchement TV renvoie explicitement vers Module 14.
+- **F28-2** — `assertOwnership()` serveur :
+  - `profiles.user_id = client_user_id` vérifié (sinon 404 `NOT_FOUND`).
+  - `accounts.id = account_id` vérifié appartenir à `client_user_id` (sinon 403 `CROSS_CLIENT_TARGET`).
+- **F28-3** — `ALLOWED_ROLES` par action (retire `sales` des mutations, restreint `factory_reset`/`deactivate`/`static_ip` à admin/super_admin/supervisor/techops).
+- **F28-17** — `change_plan` synchronise `subscriptions` **et** `billing_subscriptions.plan_name` (compte actif). Alerte `billing_system_alerts` levée si divergence.
 
 ### P2 — Élevées
-
-- **F28-4 — Idempotency non-enforcée**. Les clés `idempotency_key` sont générées avec `Date.now()` côté UI (donc uniques à chaque clic) et ne sont **jamais vérifiées côté EF** (aucun `select` sur `admin_audit_log`/`metadata` pour détecter un replay). Un double-clic = double action / double email / double prorata.
-- **F28-5 — Incohérence des `link_status` UI ↔ EF**. L'UI (`InternetServiceActionsDialog`) propose `up | degraded | down | unstable` mais l'EF n'accepte que `ok | degraded | down` → toute valeur `up` ou `unstable` renvoie 400. Diagnostic cassé pour deux options sur quatre.
-- **F28-6 — Anti-flood partiel**. Cooldown seulement sur `reboot` (120 s même S/N). Aucune limite sur `factory_reset`, `deactivate`, `run_diagnostic`, `set_wifi`, `set_static_ip` → risque flood. Parité M27 (20 mutations/60 s) non respectée.
-- **F28-7 — `set_static_ip` release sans motif obligatoire**. `body.reason` reste optionnel côté serveur alors que l'action a un impact tarifaire et technique. Devrait exiger ≥ 5 caractères.
-- **F28-8 — `set_wifi` upsert scoped par `user_id` uniquement**. `internet_wifi_settings.user_id` est utilisé comme conflict key ; un client multi-adresses/multi-comptes voit ses réglages écrasés d'un compte à l'autre. Devrait être scopé `(user_id, account_id)`.
+- **F28-4** — Idempotence enforcée serveur : replay détecté via `admin_audit_log.details.idempotency_key` (fenêtre 5 min) → retour `{ ok: true, replayed: true }` sans re-exécution. Clés stables `crypto.randomUUID()` côté UI (F28-15).
+- **F28-5** — `link_status` accepte désormais `ok | up | degraded | down | unstable` (`up`→`ok`, `unstable`→`degraded` en base). Plus aucun 400 sur les valeurs UI.
+- **F28-6** — Anti-flood global : 20 mutations `internet.*` / 60 s par staff → 429 `RATE_LIMIT` (parité M27).
+- **F28-7** — `set_static_ip` (assign & release) exige motif ≥ 5 caractères.
+- **F28-8** — `set_wifi` upsert scopé `(user_id, account_id)` via SELECT-then-UPDATE-or-INSERT (aucune migration schéma). Fin du bleed multi-comptes.
 
 ### P3 — Moyennes
-
-- **F28-9 — Motif minimum trop court pour actions critiques**. `factory_reset`/`deactivate` acceptent 3 caractères ; devrait être ≥ 10 (parité locks M27).
-- **F28-10 — `actor_role` hardcodé "staff"** dans `client_activity_logs` et `client_internal_notes` (au lieu du rôle réel extrait de `user_roles`). Parité F27-12 non respectée.
-- **F28-11 — Lecture directe frontend sans scope `account_id`**. `InternetServiceActionsDialog` lignes 124-138 et 143-155 lit `internet_wifi_settings` et `internet_static_ip_assignments` filtré uniquement par `user_id`. Multi-comptes → fuite cross-account côté UI.
-- **F28-12 — Absence de catalogue serveur pour les forfaits**. `change_plan` accepte n'importe quel `new_plan_name`/`new_monthly_price` — pas de contrôle contre `public.services` (catégorie `Internet`). Un forfait fantaisiste peut être poussé.
+- **F28-9** — Modem : motif ≥ 10 char pour `factory_reset`/`deactivate`, ≥ 5 pour `reboot`. UI et EF alignés.
+- **F28-10** — `actor_role` extrait de `user_roles` (staffResult.callerRole) et injecté dans `admin_audit_log.details.actor_role`, `client_activity_logs.actor_role`, `client_internal_notes.created_by_role`.
+- **F28-11** — Lectures directes `internet_wifi_settings` / `internet_static_ip_assignments` scopées par `(user_id, account_id)` (ou `account_id IS NULL`).
+- **F28-12** — `change_plan` valide `new_plan_name` contre `public.services` (category=Internet, active). Renvoie `UNKNOWN_PLAN` si absent du catalogue.
 
 ### P4 — Cosmétiques / Hygiène
+- **F28-13** — `run_diagnostic` stamp serveur `metadata.simulated=true` + `admin_audit_log.details.simulated=true`. Modem idem. Piste d'audit non-ambiguë pour distinguer QA vs prod (aucun provisioning réel encore branché — voir périmètre Module 28.5).
+- **F28-14** — Toutes les erreurs normalisées : `{ error_code, error }` avec codes stables — `UNAUTHORIZED`, `INVALID_SESSION`, `FORBIDDEN_ROLE`, `CROSS_CLIENT_TARGET`, `NOT_FOUND`, `INVALID_INPUT`, `REASON_REQUIRED`, `UNKNOWN_PLAN`, `UNKNOWN_ACTION`, `DUPLICATE_ACTIVE`, `RATE_LIMIT`, `DB_ERROR`, `INTERNAL_ERROR`, `METHOD_NOT_ALLOWED`.
+- **F28-15** — Préfixes idempotency alignés (`inetplan-`, `inetmodem-`, `inetdiag-`, `inetwifi-`, `inetip-`) avec suffixe UUID stable par ouverture de dialog.
+- **F28-16** — Runner `qa-module28-runner` à produire lors du feu vert E2E.
 
-- **F28-13 — Diagnostic simulé côté client** (`LineDiagnosticDialog`, `Math.random()` lignes 468-472). Génère des valeurs aléatoires côté UI puis les envoie à l'EF. Devrait être générée serveur (ou marquée `simulated=true` par l'EF, jamais fabriquée en front) pour préserver l'intégrité de la piste d'audit.
-- **F28-14 — Erreurs non-normalisées**. L'EF renvoie des `error: "…"` en clair sans codes stables (`UNKNOWN_ACTION`, `REASON_REQUIRED`, `FORBIDDEN_ROLE`, `CROSS_CLIENT_TARGET`, `DUPLICATE_ACTIVE`, `NOT_FOUND`, `INVALID_INPUT`, `RATE_LIMIT`) — rend le E2E fragile. Parité F27-9.
-- **F28-15 — Préfixes `idempotency_key` incohérents** (`inetplan-`, `inetmodem-`, `inetdiag-`, `inetip-` ; pas de préfixe pour `set_wifi`).
-- **F28-16 — Runner E2E dédié absent** (`qa-module28-runner`).
+## Simulation / QA
+Aucun provisioning réel n'est déclenché : chaque écriture domaine (modem/diagnostic/plan) porte `metadata.simulated=true` côté serveur. Les emails partent via `email_queue` normalement, l'audit est complet — mais aucune API opérateur/CPE n'est appelée.
 
-## Récapitulatif priorités
-| Priorité | Findings |
-|---|---|
-| P1 | F28-1, F28-2, F28-3, F28-17 |
-| P2 | F28-4, F28-5, F28-6, F28-7, F28-8 |
-| P3 | F28-9, F28-10, F28-11, F28-12 |
-| P4 | F28-13, F28-14, F28-15, F28-16 |
+## Fichiers modifiés
+- `supabase/functions/internet-account-actions/index.ts` — réécriture ciblée (ownership, rôles, anti-flood, idempotence, snapshots, codes d'erreur, catalogue).
+- `src/shared-ops/components/InternetServiceActionsDialog.tsx` — motif plan obligatoire, motif IP obligatoire, `link_status` normalisé, reads scopés par `account_id`, idempotency keys stables.
+- `src/core-app/components/account-360/Account360NewActionDialogs.tsx` — `QuickPlanChangeDialog` route via EF, `LineDiagnosticDialog` motif ≥ 5 char.
 
 ## Attente
-Statut : **OPEN — STATIC AUDIT**.
-Aucune modification appliquée. En attente du feu vert pour corriger F28-1 → F28-17 avant la campagne E2E QA.
+Statut : **STATIC FIXES DEPLOYED**. Aucun test E2E lancé — en attente du feu vert utilisateur pour livrer le runner `qa-module28-runner` et la campagne 25+ checks (C1 catalogue, C2 UNKNOWN_PLAN, C3 REASON_REQUIRED, C4 sales+change_plan 403, C5 support+factory_reset 403, C6 cross-client 403, C7 ownership account 403, C8 idempotency replay, C9 anti-flood 429, C10 wifi scope multi-compte, C11 link_status up→ok, C12 static_ip release motif <5, C13 static_ip dup 409, C14 audit unifié, C15 activity+notes+email, etc.).

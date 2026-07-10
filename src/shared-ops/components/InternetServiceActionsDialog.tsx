@@ -52,7 +52,7 @@ const MODEM_ACTIONS: Array<{ value: string; label: string; danger?: boolean }> =
   { value: "reactivate",     label: "Réactiver le modem" },
 ];
 
-const LINK_STATUSES = ["up", "degraded", "down", "unstable"] as const;
+const LINK_STATUSES = ["ok", "degraded", "down"] as const;
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
@@ -78,6 +78,7 @@ export function InternetServiceActionsDialog({
   const [planPrice, setPlanPrice] = useState("");
   const [planSpeed, setPlanSpeed] = useState("");
   const [planChangeType, setPlanChangeType] = useState<"upgrade" | "downgrade" | "lateral">("upgrade");
+  const [planReason, setPlanReason] = useState(""); // F28-1 / F27 motif
 
   // Modem
   const [modemAction, setModemAction] = useState("");
@@ -87,7 +88,7 @@ export function InternetServiceActionsDialog({
 
   // Diagnostic
   const [diagType, setDiagType] = useState<"full" | "link" | "speedtest" | "latency">("full");
-  const [linkStatus, setLinkStatus] = useState<typeof LINK_STATUSES[number]>("up");
+  const [linkStatus, setLinkStatus] = useState<typeof LINK_STATUSES[number]>("ok");
   const [download, setDownload] = useState("");
   const [upload, setUpload] = useState("");
   const [latency, setLatency] = useState("");
@@ -109,50 +110,64 @@ export function InternetServiceActionsDialog({
   const [ipReason, setIpReason] = useState("");
   const [activeIp, setActiveIp] = useState<StaticIp | null>(null);
 
+  // F28-15 — stable idempotency keys per dialog open
+  const [idemPlan, setIdemPlan] = useState("");
+  const [idemModem, setIdemModem] = useState("");
+  const [idemDiag, setIdemDiag] = useState("");
+  const [idemWifi, setIdemWifi] = useState("");
+  const [idemIp, setIdemIp] = useState("");
+
   useEffect(() => {
     if (!open) return;
     setTab("plan");
-    setPlanName(""); setPlanPrice(""); setPlanSpeed(""); setPlanChangeType("upgrade");
+    setPlanName(""); setPlanPrice(""); setPlanSpeed(""); setPlanChangeType("upgrade"); setPlanReason("");
     setModemAction(""); setModemSerial(""); setModemMac(""); setModemReason("");
-    setDiagType("full"); setLinkStatus("up"); setDownload(""); setUpload("");
+    setDiagType("full"); setLinkStatus("ok"); setDownload(""); setUpload("");
     setLatency(""); setLoss(""); setDiagNotes("");
     setIpAddr(""); setIpPrice("9.99"); setIpReason(""); setIpMode("assign");
+    setIdemPlan(`inetplan-${crypto.randomUUID()}`);
+    setIdemModem(`inetmodem-${crypto.randomUUID()}`);
+    setIdemDiag(`inetdiag-${crypto.randomUUID()}`);
+    setIdemWifi(`inetwifi-${crypto.randomUUID()}`);
+    setIdemIp(`inetip-${crypto.randomUUID()}`);
   }, [open]);
 
   // Load WiFi current
   useEffect(() => {
     if (!open || tab !== "wifi" || !clientUserId) return;
-    supabase
+    // F28-11 — scope by (user_id, account_id) so multi-compte ne bavent pas
+    let q = supabase
       .from("internet_wifi_settings")
       .select("ssid_24,ssid_5,band_mode,guest_enabled,guest_ssid")
-      .eq("user_id", clientUserId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) return;
-        setSsid24(data.ssid_24 || "");
-        setSsid5(data.ssid_5 || "");
-        setBandMode((data.band_mode as "2.4" | "5" | "dual") || "dual");
-        setGuestEnabled(!!data.guest_enabled);
-        setGuestSsid(data.guest_ssid || "");
-      });
-  }, [open, tab, clientUserId]);
+      .eq("user_id", clientUserId);
+    q = accountId ? q.eq("account_id", accountId) : q.is("account_id", null);
+    q.maybeSingle().then(({ data }) => {
+      if (!data) return;
+      setSsid24(data.ssid_24 || "");
+      setSsid5(data.ssid_5 || "");
+      setBandMode((data.band_mode as "2.4" | "5" | "dual") || "dual");
+      setGuestEnabled(!!data.guest_enabled);
+      setGuestSsid(data.guest_ssid || "");
+    });
+  }, [open, tab, clientUserId, accountId]);
 
-  // Load static IP
+  // Load static IP (scoped by account_id)
   useEffect(() => {
     if (!open || tab !== "ip" || !clientUserId) return;
-    supabase
+    let q = supabase
       .from("internet_static_ip_assignments")
       .select("id,ip_address,monthly_price,status,created_at")
       .eq("user_id", clientUserId)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
+      .eq("status", "active");
+    q = accountId ? q.eq("account_id", accountId) : q.is("account_id", null);
+    q.order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
       .then(({ data }) => {
         setActiveIp((data as StaticIp) || null);
         if (data) setIpMode("release");
       });
-  }, [open, tab, clientUserId, busy]);
+  }, [open, tab, clientUserId, accountId, busy]);
 
   const invoke = async (body: Record<string, unknown>) => {
     setBusy(true);
@@ -166,7 +181,8 @@ export function InternetServiceActionsDialog({
         },
       });
       if (error) throw error;
-      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      const anyData = data as { error?: string; error_code?: string };
+      if (anyData?.error) throw new Error(anyData.error);
       return data;
     } finally {
       setBusy(false);
@@ -177,6 +193,7 @@ export function InternetServiceActionsDialog({
     if (!planName) { toast.error("Choisissez un forfait"); return; }
     const price = parseFloat(planPrice);
     if (!Number.isFinite(price) || price < 0) { toast.error("Prix invalide"); return; }
+    if (planReason.trim().length < 5) { toast.error("Motif requis (min. 5 caractères)"); return; }
     const speed = parseInt(planSpeed || "0", 10) || undefined;
     try {
       await invoke({
@@ -188,7 +205,8 @@ export function InternetServiceActionsDialog({
         new_monthly_price: price,
         new_speed_mbps: speed,
         change_type: planChangeType,
-        idempotency_key: `inetplan-${clientUserId}-${Date.now()}`,
+        reason: planReason.trim(),
+        idempotency_key: idemPlan,
       });
       toast.success("Forfait Internet mis à jour — courriel envoyé");
       onClose();
@@ -198,8 +216,10 @@ export function InternetServiceActionsDialog({
   const doModem = async () => {
     if (!modemAction) { toast.error("Choisissez une action"); return; }
     const meta = MODEM_ACTIONS.find((m) => m.value === modemAction);
-    if (meta?.danger && !modemReason) {
-      toast.error("Raison obligatoire pour les actions sensibles");
+    // F28-9 — critical actions require 10 chars, others (reboot) 5
+    const minChars = meta?.danger ? 10 : (modemAction === "reboot" ? 5 : 0);
+    if (minChars > 0 && modemReason.trim().length < minChars) {
+      toast.error(`Motif requis (min. ${minChars} caractères)`);
       return;
     }
     try {
@@ -209,7 +229,7 @@ export function InternetServiceActionsDialog({
         modem_serial: modemSerial || undefined,
         modem_mac: modemMac || undefined,
         reason: modemReason || undefined,
-        idempotency_key: `inetmodem-${clientUserId}-${modemAction}-${Date.now()}`,
+        idempotency_key: idemModem,
       });
       toast.success("Action modem appliquée — courriel envoyé");
       onClose();
@@ -228,7 +248,7 @@ export function InternetServiceActionsDialog({
         latency_ms: num(latency),
         packet_loss_pct: num(loss),
         notes: diagNotes || undefined,
-        idempotency_key: `inetdiag-${clientUserId}-${Date.now()}`,
+        idempotency_key: idemDiag,
       });
       toast.success("Diagnostic enregistré — courriel envoyé");
       onClose();
@@ -245,7 +265,7 @@ export function InternetServiceActionsDialog({
         guest_enabled: guestEnabled,
         guest_ssid: guestEnabled ? (guestSsid || undefined) : undefined,
         guest_password_hint: guestEnabled ? (guestPwd || undefined) : undefined,
-        idempotency_key: `inetwifi-${clientUserId}-${Date.now()}`,
+        idempotency_key: idemWifi,
       });
       toast.success("Configuration WiFi enregistrée — courriel envoyé");
       onClose();
@@ -253,6 +273,7 @@ export function InternetServiceActionsDialog({
   };
 
   const doStaticIp = async () => {
+    if (ipReason.trim().length < 5) { toast.error("Motif requis (min. 5 caractères)"); return; }
     try {
       if (ipMode === "release") {
         if (!activeIp) { toast.error("Aucune IP active à libérer"); return; }
@@ -260,7 +281,8 @@ export function InternetServiceActionsDialog({
           action: "set_static_ip",
           static_ip_mode: "release",
           assignment_id: activeIp.id,
-          reason: ipReason || undefined,
+          reason: ipReason.trim(),
+          idempotency_key: idemIp,
         });
         toast.success("IP statique libérée — courriel envoyé");
       } else {
@@ -271,8 +293,8 @@ export function InternetServiceActionsDialog({
           static_ip_mode: "assign",
           ip_address: ipAddr.trim(),
           monthly_price: price,
-          reason: ipReason || undefined,
-          idempotency_key: `inetip-${clientUserId}-${Date.now()}`,
+          reason: ipReason.trim(),
+          idempotency_key: idemIp,
         });
         toast.success("IP statique attribuée — courriel envoyé");
       }
@@ -361,7 +383,11 @@ export function InternetServiceActionsDialog({
                 </Select>
               </div>
             </div>
-            <Button onClick={doChangePlan} disabled={busy} className="w-full">
+            <div>
+              <Label htmlFor="plan-reason">Motif (obligatoire, min. 5 caractères)</Label>
+              <Textarea id="plan-reason" rows={2} value={planReason} onChange={(e) => setPlanReason(e.target.value)} disabled={busy} placeholder="Ex: demande client, upsell, correction contractuelle…" />
+            </div>
+            <Button onClick={doChangePlan} disabled={busy || planReason.trim().length < 5} className="w-full">
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wifi className="h-4 w-4 mr-2" />}
               Appliquer le changement
             </Button>
@@ -543,8 +569,8 @@ export function InternetServiceActionsDialog({
             ) : null}
 
             <div>
-              <Label htmlFor="ip-reason">Raison / Note</Label>
-              <Textarea id="ip-reason" rows={2} value={ipReason} onChange={(e) => setIpReason(e.target.value)} disabled={busy} />
+              <Label htmlFor="ip-reason">Motif (obligatoire, min. 5 caractères)</Label>
+              <Textarea id="ip-reason" rows={2} value={ipReason} onChange={(e) => setIpReason(e.target.value)} disabled={busy} placeholder="Ex: demande client, activation service pro…" />
             </div>
 
             <Button onClick={doStaticIp} disabled={busy} className="w-full">
