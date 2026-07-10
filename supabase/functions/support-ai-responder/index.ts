@@ -320,32 +320,35 @@ ${messageBody}`;
     ["refund", "complaint"].includes(parsed.category) ||
     (parsed.response ?? "").toLowerCase().includes("[escalade]");
 
+  const botActor: TicketActor = {
+    user_id: null,
+    role: "bot",
+    name: "Nivra AI",
+    email: null,
+  };
+
   if (shouldEscalate) {
     const reason = parsed.escalation_reason || `Confiance: ${parsed.confidence}% | Catégorie: ${parsed.category}`;
 
-    await supabase
-      .from("support_tickets")
-      .update({
-        status: "escalated",
-        escalated_at: new Date().toISOString(),
-        escalated_reason: reason,
-        ai_confidence: (parsed.confidence ?? 0) / 100,
-        ai_responded_at: new Date().toISOString(),
-        ai_response: parsed.response || aiRaw,
-        category: parsed.category ?? "general",
-        internal_notes: `[IA] Escalade automatique — ${reason}`,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", ticket_id);
-
-    // Internal note in ticket_replies
-    await supabase.from("ticket_replies").insert({
+    await applyAiResult(supabase, {
       ticket_id,
-      content: `🔴 Escalade automatique IA\nConfiance: ${parsed.confidence}%\nCatégorie: ${parsed.category}\nRaison: ${reason}`,
-      is_admin: true,
-      sender_type: "system",
-      sender_role: "admin",
+      outcome: "escalated",
+      ai_response: parsed.response || aiRaw,
+      ai_confidence: (parsed.confidence ?? 0) / 100,
+      category: parsed.category ?? "general",
+      escalated_reason: reason,
+      internal_notes: `[IA] Escalade automatique — ${reason}`,
     });
+
+    // Internal note via canonical door
+    try {
+      await replyTicket(supabase, botActor, {
+        ticket_id,
+        content: `🔴 Escalade automatique IA\nConfiance: ${parsed.confidence}%\nCatégorie: ${parsed.category}\nRaison: ${reason}`,
+        is_internal_note: true,
+        idempotency_key: `ai_escalate_${ticket_id}`,
+      });
+    } catch (e) { console.error("[support-ai-responder] internal note failed", e); }
 
     // Notify team
     await supabase.from("email_queue").insert({
@@ -375,26 +378,21 @@ ${messageBody}`;
   // Auto-respond to client
   const responseText = parsed.response || aiRaw;
 
-  await supabase
-    .from("support_tickets")
-    .update({
-      status: "ai_replied",
-      ai_response: responseText,
-      ai_responded_at: new Date().toISOString(),
-      ai_confidence: (parsed.confidence ?? 85) / 100,
-      category: parsed.category ?? "general",
-      first_response_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", ticket_id);
-
-  await supabase.from("ticket_replies").insert({
+  await applyAiResult(supabase, {
     ticket_id,
-    content: responseText,
-    is_admin: true,
-    sender_type: "ai",
-    sender_role: "admin",
+    outcome: "ai_replied",
+    ai_response: responseText,
+    ai_confidence: (parsed.confidence ?? 85) / 100,
+    category: parsed.category ?? "general",
   });
+
+  try {
+    await replyTicket(supabase, botActor, {
+      ticket_id,
+      content: responseText,
+      idempotency_key: `ai_reply_${ticket_id}`,
+    });
+  } catch (e) { console.error("[support-ai-responder] reply failed", e); }
 
   await supabase.from("email_queue").insert({
     event_key: `ai_reply_${ticket.ticket_number}_${Date.now()}`,
