@@ -285,6 +285,5 @@ Deno.serve(async (req) => {
   return json(200, {
     ok: true,
     consent_id: consentId,
-    idempotent: wasIdempotent,
   });
 });
