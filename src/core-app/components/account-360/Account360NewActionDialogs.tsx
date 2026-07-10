@@ -460,7 +460,7 @@ export function LineDiagnosticDialog(props: Base) {
 
   async function submit() {
     if (!props.clientUserId) return toast.error("Client manquant");
-    if (reason.trim().length < 3) return toast.error("Motif requis (min. 3 caractères)");
+    if (reason.trim().length < 5) return toast.error("Motif requis (min. 5 caractères)");
     setLoading(true);
     try {
       // Simulated probe snapshot — replace with real probe integration later.
@@ -531,7 +531,7 @@ export function LineDiagnosticDialog(props: Base) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={props.onClose}>Fermer</Button>
-          <Button onClick={submit} disabled={loading || reason.trim().length < 3}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Lancer le diagnostic</Button>
+          <Button onClick={submit} disabled={loading || reason.trim().length < 5}>{loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Lancer le diagnostic</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
