@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
     });
     push({
       id: "6.2", name: "Audit contient before/after",
-      ok: !!details.before_data && !!details.after_data,
+      ok: !!details.before_state && !!details.after_state,
       details,
     });
   }
