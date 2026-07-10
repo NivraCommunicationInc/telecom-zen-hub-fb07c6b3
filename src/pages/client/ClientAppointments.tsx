@@ -33,6 +33,7 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
+import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Calendar, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle, Edit, Wrench, CalendarClock, Info, History, MapPin, User, Phone, Mail, Package } from "lucide-react";
 import { format, isPast, isFuture, isToday, differenceInHours, addDays } from "date-fns";
@@ -171,24 +172,20 @@ const ClientAppointments = () => {
         .eq("id", aptId);
       if (error) throw error;
 
-      // Create notification ticket for admin (non-blocking)
+      // Create notification ticket for admin via canonical single-door EF (non-blocking)
       if (user?.id) {
         try {
-          const { error: ticketError } = await portalSupabase.from("support_tickets").insert({
-            user_id: user.id,
-            owner_user_id: user.id, // REQUIRED: Must match auth.uid() for RLS
+          await callSupportAction("create_ticket", {
+            owner_user_id: user.id,
             client_email: profile?.email || user?.email,
             subject: `Installation reprogrammée - ${selectedAppointment?.title}`,
             description: `**Reprogrammation de rendez-vous d'installation**\n\n**Client:** ${profile?.full_name || user?.email}\n**Ancienne date:** ${format(new Date(oldDate), "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n**Nouvelle date:** ${format(newScheduledAt, "d MMMM yyyy 'à' HH:mm", { locale: fr })}\n\nLe client a reprogrammé son rendez-vous d'installation.`,
             priority: "high",
-            status: "open",
             category: "appointment",
-            issue_type: "APPOINTMENT_RESCHEDULED",
-            id_verification_status: "not_received",
-          });
-          if (ticketError) {
-            console.error("Reschedule appointment ticket creation failed (non-blocking):", ticketError);
-          }
+            source: "portal",
+            metadata: { issue_type: "APPOINTMENT_RESCHEDULED", appointment_id: aptId },
+            idempotency_key: `apt-resch-${aptId}-${newScheduledAt.getTime()}`,
+          }, portalSupabase);
         } catch (ticketErr) {
           console.error("Reschedule appointment ticket creation failed (non-blocking):", ticketErr);
         }
