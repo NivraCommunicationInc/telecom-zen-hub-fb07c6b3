@@ -131,83 +131,44 @@ Deno.serve(async (req) => {
     userEmail ||
     "Core";
 
-  // --- Idempotency: return existing if present ---
-  const { data: existing, error: existingErr } = await admin
-    .from("internal_tickets")
-    .select("id, ticket_number")
-    .eq("idempotency_key", b.idempotency_key)
-    .maybeSingle();
-  if (existingErr && existingErr.code !== "PGRST116") {
-    return json(500, { error: "idempotency_lookup_failed", detail: existingErr.message });
+  // --- Atomic idempotent insert via SECURITY DEFINER RPC ---
+  // The RPC sets app.escalation_write_ok in the same transaction as the INSERT,
+  // which is required to bypass INVARIANT-ESCALATION-SINGLE-DOOR.
+  const { data: rpcRows, error: rpcErr } = await admin.rpc(
+    "rpc_create_supervisor_escalation" as any,
+    {
+      p_account_id: b.account_id,
+      p_client_user_id: b.client_user_id,
+      p_related_support_ticket_id: b.related_support_ticket_id ?? null,
+      p_idempotency_key: b.idempotency_key,
+      p_escalation_type: b.escalation_type,
+      p_subject: `[ESCALATION] ${b.subject}`,
+      p_description: b.description,
+      p_created_by_id: userId,
+      p_created_by_name: authorName,
+      p_created_by_role: authorRole,
+      p_created_by_email: userEmail,
+    },
+  );
+
+  if (rpcErr) {
+    return json(500, { error: "insert_failed", detail: rpcErr.message });
   }
-  if (existing) {
+  const row = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+  if (!row?.id) return json(500, { error: "insert_failed", detail: "no_row_returned" });
+
+  const ticketId = row.id as string;
+  const ticketNumber = (row.ticket_number ?? null) as string | null;
+  const wasIdempotent = Boolean(row.idempotent);
+
+  if (wasIdempotent) {
     return json(200, {
       ok: true,
       idempotent: true,
-      ticket_id: (existing as any).id,
-      ticket_number: (existing as any).ticket_number,
+      ticket_id: ticketId,
+      ticket_number: ticketNumber,
     });
   }
-
-  // --- Set session bypass flag for INVARIANT-ESCALATION-SINGLE-DOOR trigger ---
-  const { error: flagErr } = await admin.rpc("set_config" as any, {
-    setting_name: "app.escalation_write_ok",
-    setting_value: "on",
-    is_local: true,
-  });
-  // Fallback: some deployments expose set_config only via raw SQL; try inline
-  if (flagErr) {
-    // Not fatal — attempt insert; if trigger blocks, we return the error.
-    console.warn("[supervisor-escalation-action] set_config warn:", flagErr.message);
-  }
-
-  // --- Insert ticket (server-controlled fields) ---
-  const insertPayload = {
-    account_id: b.account_id,
-    client_user_id: b.client_user_id,
-    related_support_ticket_id: b.related_support_ticket_id ?? null,
-    idempotency_key: b.idempotency_key,
-    escalation_type: b.escalation_type,
-    subject: `[ESCALATION] ${b.subject}`,
-    description: b.description,
-    category: "escalation",
-    assigned_to_department: "supervisor",
-    priority: "urgent",
-    status: "open",
-    created_by_id: userId,
-    created_by_name: authorName,
-    created_by_role: authorRole,
-    created_by_email: userEmail,
-  };
-
-  const { data: inserted, error: insErr } = await admin
-    .from("internal_tickets")
-    .insert(insertPayload as any)
-    .select("id, ticket_number")
-    .single();
-
-  if (insErr) {
-    // Race: another concurrent request inserted with same idempotency_key
-    if ((insErr as any).code === "23505") {
-      const { data: race } = await admin
-        .from("internal_tickets")
-        .select("id, ticket_number")
-        .eq("idempotency_key", b.idempotency_key)
-        .maybeSingle();
-      if (race) {
-        return json(200, {
-          ok: true,
-          idempotent: true,
-          ticket_id: (race as any).id,
-          ticket_number: (race as any).ticket_number,
-        });
-      }
-    }
-    return json(500, { error: "insert_failed", detail: insErr.message });
-  }
-
-  const ticketId = (inserted as any).id as string;
-  const ticketNumber = (inserted as any).ticket_number as string | null;
 
   // --- Audit (best-effort but logged) ---
   const { error: auditErr } = await admin.from("admin_audit_log").insert({
