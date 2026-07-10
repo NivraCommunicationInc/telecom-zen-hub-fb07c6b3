@@ -518,11 +518,18 @@ Deno.serve(async (req) => {
     }
 
     // ============ CONVERT TO QUOTE SUB ================================
-    // C24: convert happy
+    // C24: convert happy — needs a real field_payment_intents row (FK)
     {
+      const { data: intent } = await admin.from("field_payment_intents").insert({
+        agent_id: fieldCaller.userId,
+        amount: total, currency: "CAD", status: "pending",
+        payment_method: "card", customer_email: "qa-m31-conv@nivra-test.ca",
+        customer_name: "Prospect Convert",
+        expires_at: new Date(Date.now() + 3600_000).toISOString(),
+      }).select("id").single();
       const r = await callEF(fieldCaller.jwt, {
         action: "convert_to_quote_sub", simulated: true,
-        intent_id: crypto.randomUUID(),
+        intent_id: intent!.id,
         customer: baseCustomer("qa-m31-conv@nivra-test.ca"),
         services, equipment: [], client_totals: clientTotals,
         payment_url: "https://nivra-telecom.ca/payer/qa31-conv",
