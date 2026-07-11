@@ -134,6 +134,14 @@ Deno.serve(async (req) => {
         return json({ error: "forbidden: self-only action" }, 403);
       }
       const value = !!body.changes?.sms_master;
+      // Read "before" for a proper before/after diff in the timeline.
+      const beforeRow = await admin
+        .from("profiles")
+        .select("sms_opt_in")
+        .eq("user_id", body.client_user_id)
+        .maybeSingle();
+      const before = { sms_opt_in: beforeRow.data?.sms_opt_in ?? null };
+
       const { error: updErr } = await admin
         .from("profiles")
         .update({ sms_opt_in: value })
@@ -150,14 +158,33 @@ Deno.serve(async (req) => {
         user_agent: req.headers.get("user-agent"),
       }).catch(() => {});
 
+      const correlationId = crypto.randomUUID();
       await admin.from("admin_audit_log").insert({
         admin_user_id: userData.user.id,
         admin_email: userData.user.email,
         action: "client_self.sms_master_toggle",
         target_type: "user",
         target_id: body.client_user_id,
-        details: { sms_master: value, reason: body.reason ?? null },
+        details: {
+          sms_master: value,
+          reason: body.reason ?? null,
+          correlation_id: correlationId,
+          module_tag: "module_51",
+        },
       }).catch(() => {});
+
+      await journalPrefsChange(admin, {
+        clientId: body.client_user_id,
+        accountId: body.account_id ?? null,
+        action: "sms_master_toggle",
+        before,
+        after: { sms_opt_in: value },
+        reason: body.reason ?? null,
+        actorId: userData.user.id,
+        actorEmail: userData.user.email ?? null,
+        actorRole: "client",
+        correlationId,
+      });
 
       return json({ ok: true, sms_master: value });
     }
