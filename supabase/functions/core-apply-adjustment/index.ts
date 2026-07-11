@@ -14,6 +14,7 @@
 // ============================================================================
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -130,29 +131,45 @@ serve(async (req) => {
       // Traceability parity (Modules 5-8): activity + system note
       if (client_id) {
         try {
-          await admin.from("client_activity_logs").insert({
-            client_id,
-            actor_user_id: user.id,
-            actor_name: user.email ?? "Admin Core",
-            actor_role: "admin_core",
-            action_type: "adjustment_writeoff",
-            entity_type: "billing_invoice",
-            entity_id: invoice_id,
-            summary: `Radiation de facture ${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$`,
-            before_data: { invoice: invBefore ?? null },
-            after_data: {
-              module_tag: "adjustments",
-              collections_action_id: collJson?.id ?? null,
-              reason,
+          const actor = {
+            userId: user.id,
+            role: "admin_core",
+            name: user.email ?? "Admin Core",
+            email: user.email ?? null,
+          };
+          await writeAccountJournal(admin, {
+            targetTable: "client_activity_logs",
+            eventKey: `adjustment:writeoff:${invoice_id}:activity`,
+            payload: {
+              client_id,
+              actor_user_id: user.id,
+              actor_name: user.email ?? "Admin Core",
+              actor_role: "admin_core",
+              action_type: "adjustment_writeoff",
+              entity_type: "billing_invoice",
+              entity_id: invoice_id,
+              summary: `Radiation de facture ${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$`,
+              before_data: { invoice: invBefore ?? null },
+              after_data: {
+                module_tag: "adjustments",
+                collections_action_id: collJson?.id ?? null,
+                reason,
+              },
             },
+            actor,
           });
-          await admin.from("client_internal_notes").insert({
-            client_id,
-            note_type: "system",
-            body: `Radiation de facture — Facture #${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$ — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: "admin_core",
-            created_by_name: user.email ?? "Admin Core",
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `adjustment:writeoff:${invoice_id}:note`,
+            payload: {
+              client_id,
+              note_type: "system",
+              body: `Radiation de facture — Facture #${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$ — motif: ${reason}`,
+              created_by_user_id: user.id,
+              created_by_role: "admin_core",
+              created_by_name: user.email ?? "Admin Core",
+            },
+            actor,
           });
         } catch (e) {
           console.warn("[core-apply-adjustment] writeoff traceability failed:", (e as any)?.message);
@@ -250,40 +267,57 @@ serve(async (req) => {
         const summaryLabel = kind === "credit" ? "Crédit récurrent"
           : kind === "fee" ? "Frais récurrent"
           : "Promotion durée";
-        await admin.from("client_activity_logs").insert({
-          client_id,
-          actor_user_id: user.id,
-          actor_name: user.email ?? "Admin Core",
-          actor_role: "admin_core",
-          action_type: `adjustment_${kind}`,
-          entity_type: target_table,
-          entity_id: inserted_id,
-          summary: `${summaryLabel} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} »`,
-          before_data: {
-            adjustments: adjBefore ?? [],
-            promotions: promoBefore ?? [],
+        const actor = {
+          userId: user.id,
+          role: "admin_core",
+          name: user.email ?? "Admin Core",
+          email: user.email ?? null,
+        };
+        const journalEntityId = inserted_id ?? account_id;
+        await writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          eventKey: `adjustment:${kind}:${journalEntityId}:activity`,
+          payload: {
+            client_id,
+            actor_user_id: user.id,
+            actor_name: user.email ?? "Admin Core",
+            actor_role: "admin_core",
+            action_type: `adjustment_${kind}`,
+            entity_type: target_table,
+            entity_id: inserted_id,
+            summary: `${summaryLabel} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} »`,
+            before_data: {
+              adjustments: adjBefore ?? [],
+              promotions: promoBefore ?? [],
+            },
+            after_data: {
+              module_tag: "adjustments",
+              kind,
+              account_id,
+              amount: amt,
+              months: m,
+              description: desc,
+              promotion_type: kind === "promotion" ? (promotion_type ?? "monthly_discount") : null,
+              target_id: inserted_id,
+              reason,
+            },
           },
-          after_data: {
-            module_tag: "adjustments",
-            kind,
-            account_id,
-            amount: amt,
-            months: m,
-            description: desc,
-            promotion_type: kind === "promotion" ? (promotion_type ?? "monthly_discount") : null,
-            target_id: inserted_id,
-            reason,
-          },
+          actor,
         });
         if (kind !== "promotion") {
           const label = kind === "credit" ? "Crédit récurrent" : "Frais récurrent";
-          await admin.from("client_internal_notes").insert({
-            client_id,
-            note_type: "system",
-            body: `${label} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} » — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: "admin_core",
-            created_by_name: user.email ?? "Admin Core",
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `adjustment:${kind}:${journalEntityId}:note`,
+            payload: {
+              client_id,
+              note_type: "system",
+              body: `${label} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} » — motif: ${reason}`,
+              created_by_user_id: user.id,
+              created_by_role: "admin_core",
+              created_by_name: user.email ?? "Admin Core",
+            },
+            actor,
           });
         }
       } catch (e) {
