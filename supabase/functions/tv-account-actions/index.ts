@@ -520,7 +520,8 @@ serve(async (req) => {
           change_type, effective_date,
         };
         await audit("change_plan", after, before);
-        await activity("plan_change", data.id, "subscription",
+        await activity(`tv:plan_change:${data.id}:activity`, "plan_change", data.id, "subscription",
+
           `Forfait TV: ${body.previous_plan_name || "—"} → ${new_plan_name} (${fmtMoney(new_monthly_price)})`,
           after, before);
         await sysNote(`[TV] Changement forfait — ${body.previous_plan_name || "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}. Motif: ${reasonStr}`);
