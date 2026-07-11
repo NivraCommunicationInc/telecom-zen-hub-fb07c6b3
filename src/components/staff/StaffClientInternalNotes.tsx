@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -52,16 +53,18 @@ export default function StaffClientInternalNotes({
   // Add note mutation
   const addNoteMutation = useMutation({
     mutationFn: async (body: string) => {
-      const { error } = await supabase.from("client_internal_notes").insert({
-        client_id: clientId,
-        note_type: "employee",
-        body: body.trim(),
-        created_by_user_id: staffUserId,
-        created_by_role: "employee",
-        created_by_name: staffUserName || "Employé",
+      const trimmed = body.trim();
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `note:${clientId}:employee:${staffUserId}:${minuteBucket}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          note_type: "employee",
+          body: trimmed,
+        },
       });
-
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Note ajoutée");

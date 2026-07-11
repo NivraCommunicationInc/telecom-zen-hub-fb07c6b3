@@ -1652,14 +1652,18 @@ export function useOrderProcessing(orderId: string | undefined) {
       const clientId = data?.order?.user_id;
       if (clientId) {
         try {
-          await supabase.from("client_internal_notes").insert({
-            client_id: clientId,
-            note_type: "admin",
-            body: `[Commande #${data?.order?.order_number || orderId?.slice(0, 8) || "—"}] ${trimmed}`,
-            created_by_user_id: user?.id || "00000000-0000-0000-0000-000000000000",
-            created_by_role: "admin",
-            created_by_name: user?.email || "Agent",
-          } as any);
+          const { writeAccountJournal } = await import("@/lib/writeAccountJournal");
+          const minuteBucket = new Date().toISOString().slice(0, 16);
+          await writeAccountJournal({
+            targetTable: "client_internal_notes",
+            eventKey: `note:order:${orderId}:${user?.id ?? "anon"}:${minuteBucket}`,
+            visibility: "staff",
+            payload: {
+              client_id: clientId,
+              note_type: "admin",
+              body: `[Commande #${data?.order?.order_number || orderId?.slice(0, 8) || "—"}] ${trimmed}`,
+            },
+          });
         } catch (e: any) {
           console.warn("[addNote] client_internal_notes mirror failed:", e?.message);
         }

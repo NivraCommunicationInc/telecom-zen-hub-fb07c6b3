@@ -27,6 +27,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { adminClient as supabase } from "@/integrations/backend";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -197,12 +198,15 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
       });
 
       // Activity log
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        action_type: `service_${actionType}`,
-        summary: `Service "${actionSub.plan_name}" ${actionType === "suspend" ? "suspendu" : actionType === "resume" ? "réactivé" : "annulé"}. Raison: ${actionReason || "N/A"}`,
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `service:${actionSub.id}:${actionType}:${new Date().toISOString().slice(0, 16)}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: `service_${actionType}`,
+          summary: `Service "${actionSub.plan_name}" ${actionType === "suspend" ? "suspendu" : actionType === "resume" ? "réactivé" : "annulé"}. Raison: ${actionReason || "N/A"}`,
+        },
       });
 
       toast.success(
@@ -261,12 +265,15 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
         },
       });
 
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        action_type: "plan_change",
-        summary: `Changement de forfait: "${oldPlan.name}" → "${newPlanName.trim()}" (${priceNum.toFixed(2)} $/mois). Raison: ${changePlanReason || "N/A"}`,
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `service:${changePlanSub.id}:plan_change:${newPlanCode.trim()}:${new Date().toISOString().slice(0, 16)}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: "plan_change",
+          summary: `Changement de forfait: "${oldPlan.name}" → "${newPlanName.trim()}" (${priceNum.toFixed(2)} $/mois). Raison: ${changePlanReason || "N/A"}`,
+        },
       });
 
       toast.success("Forfait modifié avec succès");

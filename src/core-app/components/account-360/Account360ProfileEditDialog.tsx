@@ -206,19 +206,21 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
       const beforeData = Object.fromEntries(changedFields.map((f) => [f, changed[f].before]));
       const afterData = Object.fromEntries(changedFields.map((f) => [f, changed[f].after]));
 
-      const { error: auditError } = await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: authData.user.id,
-        actor_role: "admin",
-        actor_name: authData.user.email || "admin",
-        action_type: "profile_update",
-        summary: `Mise à jour profil client (${changedFields.join(", ")})`,
-        entity_type: "account_profile",
-        entity_id: account.id,
-        before_data: beforeData,
-        after_data: afterData,
+      const { writeAccountJournal } = await import("@/lib/writeAccountJournal");
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `account:${account.id}:profile_update:${authData.user.id}:${new Date().toISOString().slice(0, 16)}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: "profile_update",
+          summary: `Mise à jour profil client (${changedFields.join(", ")})`,
+          entity_type: "account_profile",
+          entity_id: account.id,
+          before_data: beforeData,
+          after_data: afterData,
+        },
       });
-      if (auditError) throw auditError;
 
       // Admin audit log (required by Client 360 DoD)
       await supabase.from("admin_audit_log").insert({

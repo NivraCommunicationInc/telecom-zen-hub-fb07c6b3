@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { adminClient as supabase } from "@/integrations/backend";
 import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { toast } from "sonner";
 
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
@@ -93,15 +94,17 @@ export function AccountProfileHeader({
     if (!noteBody.trim()) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("client_internal_notes").insert({
-        client_id: clientId,
-        body: noteBody.trim(),
-        note_type: noteType,
-        created_by_user_id: user?.id || "",
-        created_by_role: "admin",
-        created_by_name: user?.email || "Admin",
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `note:${clientId}:${noteType}:${user?.id ?? "anon"}:${minuteBucket}`,
+        visibility: noteType === "admin" ? "admin" : "staff",
+        payload: {
+          client_id: clientId,
+          body: noteBody.trim(),
+          note_type: noteType,
+        },
       });
-      if (error) throw error;
       toast.success("Note ajoutée");
       setNoteBody("");
       setNoteOpen(false);
@@ -119,16 +122,18 @@ export function AccountProfileHeader({
       const newStatus = account.status === "suspended" ? "active" : "suspended";
       const { error } = await supabase.from("accounts").update({ status: newStatus }).eq("id", account.id);
       if (error) throw error;
-      // Log activity
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        actor_name: user?.email || "Admin",
-        action_type: newStatus === "suspended" ? "account_suspended" : "account_reactivated",
-        summary: newStatus === "suspended" 
-          ? `Compte suspendu. Raison: ${suspendReason || "Non spécifiée"}`
-          : "Compte réactivé",
+      // Log activity via canonical gateway
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `account:${account.id}:${newStatus}:${new Date().toISOString().slice(0, 16)}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: newStatus === "suspended" ? "account_suspended" : "account_reactivated",
+          summary: newStatus === "suspended"
+            ? `Compte suspendu. Raison: ${suspendReason || "Non spécifiée"}`
+            : "Compte réactivé",
+        },
       });
       toast.success(newStatus === "suspended" ? "Compte suspendu" : "Compte réactivé");
       setSuspendOpen(false);

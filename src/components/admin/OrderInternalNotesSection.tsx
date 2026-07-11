@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Plus, User, Clock } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -58,14 +59,16 @@ export const OrderInternalNotesSection = ({
   // Add note mutation
   const addNoteMutation = useMutation({
     mutationFn: async (body: string) => {
-      const { error } = await supabase.from("order_internal_notes").insert({
-        order_id: orderId,
-        body: body.trim(),
-        created_by_user_id: currentUserId,
-        created_by_role: currentUserRole,
-        created_by_name: currentUserName || "Inconnu",
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "order_internal_notes",
+        eventKey: `note:order:${orderId}:${currentUserId}:${minuteBucket}`,
+        visibility: "staff",
+        payload: {
+          order_id: orderId,
+          body: body.trim(),
+        },
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Note ajoutée" });

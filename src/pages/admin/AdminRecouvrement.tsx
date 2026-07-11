@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
@@ -290,13 +291,16 @@ const AdminRecouvrement = () => {
       if (updateError) throw updateError;
 
       // Log the reminder in internal notes
-      await supabase.from("client_internal_notes").insert({
-        client_id: account.client_id,
-        body: `Rappel de recouvrement envoyé par email. Montant dû: ${account.latest_invoice_amount?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}. Jours depuis échéance: ${account.days_since_suspension}`,
-        note_type: "recouvrement",
-        created_by_role: "admin",
-        created_by_user_id: user?.id || "",
-        created_by_name: "Système (Rappel automatique)",
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `recouvrement:reminder:${account.id}:${new Date().toISOString().slice(0, 10)}`,
+        visibility: "staff",
+        payload: {
+          client_id: account.client_id,
+          account_id: account.id,
+          note_type: "recouvrement",
+          body: `Rappel de recouvrement envoyé par email. Montant dû: ${account.latest_invoice_amount?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}. Jours depuis échéance: ${account.days_since_suspension}`,
+        },
       });
     },
     onSuccess: () => {
@@ -326,13 +330,16 @@ const AdminRecouvrement = () => {
       if (error) throw error;
 
       // Log in internal notes
-      await supabase.from("client_internal_notes").insert({
-        client_id: clientId,
-        body: `⚠️ NUMÉRO MARQUÉ COMME PERDU - Après 90+ jours sans renouvellement, un nouveau numéro sera requis pour réactiver. Raison: ${reason}`,
-        note_type: "recouvrement",
-        created_by_role: "admin",
-        created_by_user_id: user?.id || "",
-        created_by_name: "Admin",
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `recouvrement:number-lost:${accountId}`,
+        visibility: "admin",
+        payload: {
+          client_id: clientId,
+          account_id: accountId,
+          note_type: "recouvrement",
+          body: `⚠️ NUMÉRO MARQUÉ COMME PERDU - Après 90+ jours sans renouvellement, un nouveau numéro sera requis pour réactiver. Raison: ${reason}`,
+        },
       });
     },
     onSuccess: () => {

@@ -22,6 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import {
   Router, Tv, Smartphone, HardDrive, Loader2, PlusCircle, MoreHorizontal,
   Unlink, MapPin, RefreshCw, ArrowRightLeft, Edit,
@@ -167,12 +168,15 @@ export function AccountEquipmentTab({ accountId, clientId }: AccountEquipmentTab
       });
       if (error) throw error;
 
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        action_type: "equipment_assigned",
-        summary: `Équipement "${eqName}" (${equipmentTypeLabels[eqType] || eqType}) assigné. S/N: ${eqSerial || "N/A"}${eqIccid ? `, ICCID: ${eqIccid}` : ""}${eqImei ? `, IMEI: ${eqImei}` : ""}`,
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `equipment:${clientId}:assigned:${eqSerial || eqIccid || eqImei || eqName}:${new Date().toISOString().slice(0, 16)}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: "equipment_assigned",
+          summary: `Équipement "${eqName}" (${equipmentTypeLabels[eqType] || eqType}) assigné. S/N: ${eqSerial || "N/A"}${eqIccid ? `, ICCID: ${eqIccid}` : ""}${eqImei ? `, IMEI: ${eqImei}` : ""}`,
+        },
       });
 
       toast.success("Équipement assigné");
@@ -199,12 +203,15 @@ export function AccountEquipmentTab({ accountId, clientId }: AccountEquipmentTab
       }).eq("id", editEq.id);
       if (error) throw error;
 
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        action_type: "equipment_updated",
-        summary: `Équipement "${eqName || editEq.name}" modifié. S/N: ${eqSerial || "N/A"}`,
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `equipment:${clientId}:updated:${editEq.id}:${new Date().toISOString().slice(0, 16)}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: "equipment_updated",
+          summary: `Équipement "${eqName || editEq.name}" modifié. S/N: ${eqSerial || "N/A"}`,
+        },
       });
 
       toast.success("Équipement mis à jour");
@@ -229,12 +236,15 @@ export function AccountEquipmentTab({ accountId, clientId }: AccountEquipmentTab
       const { error } = await supabase.from("equipment_order_lines").delete().eq("id", removeEq.id);
       if (error) throw error;
 
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        action_type: "equipment_removed",
-        summary: `Équipement "${removeEq.name}" retiré du compte`,
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `equipment:${clientId}:removed:${removeEq.id}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: "equipment_removed",
+          summary: `Équipement "${removeEq.name}" retiré du compte`,
+        },
       });
 
       toast.success("Équipement retiré");

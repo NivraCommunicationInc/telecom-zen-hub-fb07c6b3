@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Loader2, UserPen } from "lucide-react";
 import { adminClient as supabase } from "@/integrations/backend";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -185,17 +186,21 @@ export function AccountProfileEditDialog({ open, onOpenChange, profile, account,
       }
 
       // 3. Audit log — one entry per field changed
-      const auditEntries = changes.map(c => ({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        actor_name: user?.email || "Admin",
-        action_type: "profile_edit",
-        summary: `Champ "${c.field}" modifié`,
-        before_data: { [c.field]: c.old_value },
-        after_data: { [c.field]: c.new_value },
-      }));
-      await supabase.from("client_activity_logs").insert(auditEntries);
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      for (const c of changes) {
+        await writeAccountJournal({
+          targetTable: "client_activity_logs",
+          eventKey: `profile_edit:${clientId}:${c.field}:${user?.id ?? "anon"}:${minuteBucket}`,
+          visibility: "staff",
+          payload: {
+            client_id: clientId,
+            action_type: "profile_edit",
+            summary: `Champ "${c.field}" modifié`,
+            before_data: { [c.field]: c.old_value },
+            after_data: { [c.field]: c.new_value },
+          },
+        });
+      }
 
       toast.success(`${changes.length} champ(s) mis à jour`);
       onOpenChange(false);
