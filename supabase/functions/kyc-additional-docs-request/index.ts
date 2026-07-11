@@ -163,12 +163,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    await supabase.from("activity_logs").insert({
-      user_id: staffId,
-      entity_type: "order_identity_data",
-      entity_id: rec.id,
-      action: "kyc_additional_docs_requested",
-      reason: `Document demandé: ${body.document_requested}${body.note ? " â€” " + body.note : ""}`,
+    const minuteBucket = Math.floor(Date.now() / 60000).toString(36);
+    await writeAccountJournal(supabase, {
+      targetTable: "activity_logs",
+      eventKey: `kyc:oid:${rec.id}:additional_docs:${docSlug(body.document_requested)}:${minuteBucket}`,
+      payload: {
+        user_id: staffId,
+        entity_type: "order_identity_data",
+        entity_id: rec.id,
+        action: "kyc_additional_docs_requested",
+        reason: `Document demandé: ${body.document_requested}${body.note ? " â€” " + body.note : ""}`,
+      },
+      actor: { userId: staffId, role: "staff" },
     });
 
     return new Response(JSON.stringify({ success: true, status: "additional_docs_required" }), {
