@@ -209,28 +209,59 @@ serve(async (req) => {
         : "Interac / Virement";
       const invNum = invBefore.invoice_number ?? invoice_id.slice(0, 8);
 
-      await admin.from("client_activity_logs").insert({
-        client_id:     cust.user_id,
-        actor_user_id: user.id,
-        actor_name:    user.email ?? null,
-        actor_role:    "admin",
-        action_type:   "payment_recorded",
-        entity_type:   "billing_invoice",
-        entity_id:     invoice_id,
-        summary:       `Paiement ${amountLabel} enregistré sur facture ${invNum} — ${methodLabel} — motif: ${reason}`,
-        before_data:   { balance_due: invBefore.balance_due, status: invBefore.status },
-        after_data:    { balance_due: invAfter?.balance_due, status: invAfter?.status },
-      });
+      // Anchor: prefer payment_id (cash/cheque/interac paths), fallback to line_id
+      // (credit_account path). Both are stable business IDs returned by the
+      // financial RPCs above — no random UUIDs, no Date.now() bucket needed.
+      const journalAnchor = payment_id ?? line_id ?? `invoice:${invoice_id}:credit:${credit_id ?? "n/a"}`;
+      const actor = {
+        userId: user.id,
+        role: "admin",
+        name: user.email ?? "core-admin",
+        email: user.email ?? null,
+      };
 
-      await admin.from("client_internal_notes").insert({
-        client_id:          cust.user_id,
-        account_id:         account_id ?? null,
-        note_type:          "system",
-        body:               `Paiement ${amountLabel} enregistré (${methodLabel}) sur facture ${invNum} — par ${user.email ?? user.id} — motif: ${reason}${reference ? ` — ref ${reference}` : ""}`,
-        created_by_user_id: user.id,
-        created_by_role:    "admin",
-        created_by_name:    user.email ?? null,
-      });
+      try {
+        await writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          eventKey: `payment:${journalAnchor}:recorded:activity`,
+          correlationId: reason ?? null,
+          actor,
+          payload: {
+            client_id:     cust.user_id,
+            actor_user_id: user.id,
+            actor_name:    user.email ?? null,
+            actor_role:    "admin",
+            action_type:   "payment_recorded",
+            entity_type:   "billing_invoice",
+            entity_id:     invoice_id,
+            summary:       `Paiement ${amountLabel} enregistré sur facture ${invNum} — ${methodLabel} — motif: ${reason}`,
+            before_data:   { balance_due: invBefore.balance_due, status: invBefore.status },
+            after_data:    { balance_due: invAfter?.balance_due, status: invAfter?.status },
+          },
+        });
+      } catch (e) {
+        console.warn("[core-record-payment] client_activity_logs failed:", (e as Error)?.message);
+      }
+
+      try {
+        await writeAccountJournal(admin, {
+          targetTable: "client_internal_notes",
+          eventKey: `payment:${journalAnchor}:recorded:note`,
+          correlationId: reason ?? null,
+          actor,
+          payload: {
+            client_id:          cust.user_id,
+            account_id:         account_id ?? null,
+            note_type:          "system",
+            body:               `Paiement ${amountLabel} enregistré (${methodLabel}) sur facture ${invNum} — par ${user.email ?? user.id} — motif: ${reason}${reference ? ` — ref ${reference}` : ""}`,
+            created_by_user_id: user.id,
+            created_by_role:    "admin",
+            created_by_name:    user.email ?? null,
+          },
+        });
+      } catch (e) {
+        console.warn("[core-record-payment] client_internal_notes failed:", (e as Error)?.message);
+      }
     }
 
     return json({
