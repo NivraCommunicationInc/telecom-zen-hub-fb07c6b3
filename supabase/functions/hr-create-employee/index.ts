@@ -355,21 +355,26 @@ Deno.serve(async (req) => {
     }
 
     // ── Step 6: Audit log ──
-    await adminClient.from("activity_logs").insert({
-      user_id: caller.id,
-      entity_type: "employee",
-      entity_id: empRecord.id,
-      action: "create_employee",
-      new_value: JSON.stringify({
-        employee_number: empRecord.employee_number,
-        email: body.work_email,
-        name: `${body.first_name} ${body.last_name}`,
-        roles: body.roles,
-        linked_existing_user: !isNewAuthUser,
-      }),
-      reason: "Nouvel employé créé via HR & Payroll",
-      actor_email: caller.email,
-      actor_role: "admin",
+    await writeAccountJournal(adminClient, {
+      targetTable: "activity_logs",
+      payload: {
+        user_id: caller.id,
+        entity_type: "employee",
+        entity_id: empRecord.id,
+        action: "create_employee",
+        new_value: JSON.stringify({
+          employee_number: empRecord.employee_number,
+          email: body.work_email,
+          name: `${body.first_name} ${body.last_name}`,
+          roles: body.roles,
+          linked_existing_user: !isNewAuthUser,
+        }),
+        reason: "Nouvel employé créé via HR & Payroll",
+        actor_email: caller.email,
+        actor_role: "admin",
+      },
+      eventKey: `employee:${empRecord.id}:created`,
+      actor: { userId: caller.id, role: "admin", name: caller.email ?? "admin", email: caller.email ?? null },
     });
 
     return new Response(
