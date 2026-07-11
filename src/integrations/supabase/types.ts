@@ -22076,6 +22076,33 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_module47_e2e_log: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          run_id: string
+          status: string
+          step_name: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          run_id: string
+          status: string
+          step_name: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          run_id?: string
+          status?: string
+          step_name?: string
+        }
+        Relationships: []
+      }
       quote_adjustments: {
         Row: {
           adjustment_type: Database["public"]["Enums"]["quote_adjustment_type"]
@@ -30742,6 +30769,32 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "service_addresses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_account_nps_score: {
+        Row: {
+          account_id: string | null
+          avg_score_12m: number | null
+          avg_score_all: number | null
+          client_id: string | null
+          detractor_count: number | null
+          first_response_at: string | null
+          last_category: string | null
+          last_comment: string | null
+          last_response_at: string | null
+          last_score: number | null
+          passive_count: number | null
+          promoter_count: number | null
+          response_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nps_surveys_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
