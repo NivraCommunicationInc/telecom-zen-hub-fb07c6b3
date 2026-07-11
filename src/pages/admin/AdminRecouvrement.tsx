@@ -330,13 +330,16 @@ const AdminRecouvrement = () => {
       if (error) throw error;
 
       // Log in internal notes
-      await supabase.from("client_internal_notes").insert({
-        client_id: clientId,
-        body: `⚠️ NUMÉRO MARQUÉ COMME PERDU - Après 90+ jours sans renouvellement, un nouveau numéro sera requis pour réactiver. Raison: ${reason}`,
-        note_type: "recouvrement",
-        created_by_role: "admin",
-        created_by_user_id: user?.id || "",
-        created_by_name: "Admin",
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `recouvrement:number-lost:${accountId}`,
+        visibility: "admin",
+        payload: {
+          client_id: clientId,
+          account_id: accountId,
+          note_type: "recouvrement",
+          body: `⚠️ NUMÉRO MARQUÉ COMME PERDU - Après 90+ jours sans renouvellement, un nouveau numéro sera requis pour réactiver. Raison: ${reason}`,
+        },
       });
     },
     onSuccess: () => {
