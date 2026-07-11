@@ -992,12 +992,12 @@ serve(async (req) => {
         const label = approve ? "approve_channel_selection" : "reject_channel_selection";
         const after = { selection_id, status: newStatus, total_price: sel.total_price };
         await audit(label, after, { status: "pending" });
-        await activity("channels_change", selection_id, "service",
+        await activity(`tv:channel_selection:${selection_id}:${approve ? "approved" : "rejected"}:activity`, "channels_change", selection_id, "service",
           approve
             ? `Sélection chaînes confirmée par ${callerName}`
             : `Sélection chaînes refusée par ${callerName}`,
           after, { status: "pending" });
-        await sysNote(`[TV] Sélection chaînes ${approve ? "confirmée" : "refusée"} — ${Array.isArray(sel.channels) ? sel.channels.length : 0} chaîne(s). Motif: ${reasonStr}`);
+        await sysNote(`tv:channel_selection:${selection_id}:${approve ? "approved" : "rejected"}:note`, `[TV] Sélection chaînes ${approve ? "confirmée" : "refusée"} — ${Array.isArray(sel.channels) ? sel.channels.length : 0} chaîne(s). Motif: ${reasonStr}`);
         await enqueueEmail(
           approve ? "client_tv_channels_updated" : "client_tv_channels_rejected",
           {
