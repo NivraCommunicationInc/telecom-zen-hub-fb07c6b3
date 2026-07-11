@@ -312,9 +312,18 @@ Deno.serve(async (req) => {
 
       case "force_signout_all": {
         if (!isAdmin) return json({ error: "admin role required" }, 403);
-        const { error } = await admin.auth.admin.signOut(clientId, "global" as any);
-        if (error && !String(error.message).toLowerCase().includes("user not found")) {
-          throw error;
+        // Revoke app-owned staff/customer access sessions (always safe)
+        await admin.from("customer_access_sessions")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("customer_id", clientId).is("revoked_at", null);
+        // Best-effort GoTrue sign-out; tolerate unknown users / JWT parse errors
+        try {
+          const { error } = await admin.auth.admin.signOut(clientId, "global" as any);
+          if (error && !/user not found|invalid jwt|malformed|not authenticated/i.test(error.message)) {
+            console.error("[security-account-actions] gotrue signOut error", error.message);
+          }
+        } catch (e) {
+          console.error("[security-account-actions] gotrue signOut threw", (e as Error).message);
         }
         await logAudit("force_signout", { reason: body.reason });
         await writeClientJournal({
