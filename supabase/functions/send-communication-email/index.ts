@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { enqueueEmail } from "../_shared/ResendProxy.ts";
+// Module 46 (D46-D): route every outbound email through the canonical
+// gateway (rpc_communication_enqueue). No direct email_queue inserts, no
+// direct Resend calls — the sms/email drainers are the sole senders.
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
 
 interface Recipient {
