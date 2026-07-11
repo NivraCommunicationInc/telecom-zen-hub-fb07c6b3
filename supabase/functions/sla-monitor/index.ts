@@ -131,23 +131,29 @@ Action requise : vérifier et relancer les techniciens assignés.
 
 — Système automatisé Nivra Telecom`;
 
-    // --- Insert into email_queue ---
-    const { error: emailError } = await admin.from("email_queue").insert({
-      to: "support@nivra-telecom.ca",
-      subject: `[SLA] ${violations.length} violation(s) détectée(s) — ${now.toLocaleDateString("fr-CA")}`,
-      body: emailBody,
-      status: "pending",
-      created_at: now.toISOString(),
-      metadata: {
-        source: "sla-monitor",
-        violation_count: violations.length,
-        work_order_ids: violations.map((v) => v.work_order_id),
-      },
-    });
-
-    if (emailError) {
+    // --- Canonical gateway (Module 40 SINGLE DOOR) ---
+    // Deterministic key = day + sorted work_order_ids fingerprint.
+    const woFingerprint = violations.map((v) => v.work_order_id).sort().join(",");
+    const dayKey = now.toISOString().slice(0, 10);
+    try {
+      await enqueueCommunication(admin, {
+        channel: "email",
+        recipient: "support@nivra-telecom.ca",
+        templateKey: "custom_html",
+        subject: `[SLA] ${violations.length} violation(s) détectée(s) — ${now.toLocaleDateString("fr-CA")}`,
+        templateVars: {
+          subject: `[SLA] ${violations.length} violation(s)`,
+          body_text: emailBody,
+          body_html: emailBody.replace(/\n/g, "<br/>"),
+          source: "sla-monitor",
+          violation_count: violations.length,
+          work_order_ids: violations.map((v) => v.work_order_id),
+        },
+        idempotencyKey: `sla-monitor:${dayKey}:${woFingerprint}`,
+      });
+    } catch (emailError) {
       // Non-fatal: violations are already recorded, log the email failure
-      console.error("[sla-monitor] email_queue insert error:", emailError);
+      console.error("[sla-monitor] enqueue failed:", emailError);
     }
 
     console.log(
