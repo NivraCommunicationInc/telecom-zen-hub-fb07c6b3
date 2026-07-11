@@ -144,6 +144,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
 
   type Action = { icon: any; label: string; onClick: () => void; color?: "default"|"emerald"|"warning"|"success"|"danger"|"violet" };
 
+  const openOwnershipTransfer = () => setOwnershipTransferOpen(true);
+
   const groups: { title: string; actions: Action[] }[] = [
     {
       title: "Compte",
@@ -158,7 +160,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         ...(accountStatus !== "cancelled"
           ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
           : []),
-        { icon: ArrowRightLeft, label: "Transfert de propriété", onClick: () => setOwnershipTransferOpen(true), color: "violet" as const },
+        { icon: ArrowRightLeft, label: "Transférer responsabilité", onClick: openOwnershipTransfer, color: "violet" as const },
       ],
     },
     {
@@ -246,12 +248,22 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
     <>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[10px] uppercase tracking-wider text-core-text-disabled font-semibold">Actions rapides</p>
-        <button
-          onClick={() => setNotesDrawerOpen(true)}
-          className="flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] px-2.5 py-1 text-[10px] font-medium text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/5 transition-colors"
-        >
-          <StickyNote className="h-3 w-3" /> Notes internes
-        </button>
+        <div className="flex items-center gap-2">
+          {accountId && clientId && (
+            <button
+              onClick={openOwnershipTransfer}
+              className="flex items-center gap-1.5 rounded-md border border-violet-500/40 px-2.5 py-1 text-[10px] font-medium text-violet-200 hover:text-violet-100 hover:border-violet-400/60 bg-violet-500/15 transition-colors"
+            >
+              <ArrowRightLeft className="h-3 w-3" /> Transférer responsabilité
+            </button>
+          )}
+          <button
+            onClick={() => setNotesDrawerOpen(true)}
+            className="flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,18%)] px-2.5 py-1 text-[10px] font-medium text-violet-300 hover:text-violet-200 hover:border-violet-500/40 bg-violet-500/5 transition-colors"
+          >
+            <StickyNote className="h-3 w-3" /> Notes internes
+          </button>
+        </div>
       </div>
       <div className="space-y-3">
         {groups.map((group) => (

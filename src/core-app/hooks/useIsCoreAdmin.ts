@@ -22,3 +22,28 @@ export function useIsCoreAdmin() {
   });
   return { isAdmin: Boolean(data), isLoading };
 }
+
+export function useIsCoreAdminOrSupervisor() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["is-core-admin-or-supervisor"],
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return false;
+
+      const [adminResult, supervisorResult] = await Promise.all([
+        supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "admin",
+        }),
+        supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "supervisor",
+        }),
+      ]);
+
+      return adminResult.data === true || supervisorResult.data === true;
+    },
+  });
+  return { canManageAccountTransfer: Boolean(data), isLoading };
+}
