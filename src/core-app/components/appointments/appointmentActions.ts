@@ -6,6 +6,7 @@
  *   reschedule / cancel are delivered by the queue — no ad-hoc send here.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 
 async function currentUser() {
   const { data } = await supabase.auth.getUser();
