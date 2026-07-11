@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { employeeWelcome } from "../_shared/emailTemplates/onboarding.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface CreateEmployeeRequest {
   first_name: string;
