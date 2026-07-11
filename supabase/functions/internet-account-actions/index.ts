@@ -767,6 +767,7 @@ serve(async (req) => {
         };
         await audit("run_diagnostic", after);
         await activity(
+          `internet:diagnostic:${data.id}:activity`,
           "internet_diagnostic",
           data.id,
           "internet_diagnostic",
@@ -774,6 +775,7 @@ serve(async (req) => {
           after,
         );
         await sysNote(
+          `internet:diagnostic:${data.id}:note`,
           `[INTERNET] Diagnostic ${diagnostic_type} — lien: ${link_status ?? "—"}` +
           ` · DL ${body.download_mbps ?? "—"} Mbps · UL ${body.upload_mbps ?? "—"} Mbps` +
           ` · latence ${body.latency_ms ?? "—"} ms · perte ${body.packet_loss_pct ?? "—"}%` +
