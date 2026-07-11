@@ -542,7 +542,7 @@ serve(async (req) => {
           inventory_id: body.inventory_id,
           reason: body.reason || null,
         });
-        await addSystemNote("EQUIPMENT.DEFECTIVE", `${row.catalog_name || "Équipement"} marqué défectueux${body.reason ? ` — ${body.reason}` : ""}`);
+        await addSystemNote("EQUIPMENT.DEFECTIVE", `${row.catalog_name || "Équipement"} marqué défectueux${body.reason ? ` — ${body.reason}` : ""}`, { action_type: "equipment_defective", inventory_id: body.inventory_id });
         return json(200, { ok: true });
       }
 
