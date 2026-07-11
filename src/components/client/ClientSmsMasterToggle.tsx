@@ -1,12 +1,17 @@
 /**
  * ClientSmsMasterToggle — master opt-in switch for transactional SMS.
- * Writes to profiles.sms_opt_in and shows the registered phone.
+ *
+ * Module 46 (D46-C): All preference writes now go through the canonical
+ * `communication-preferences-actions` Edge Function. The previous direct
+ * `UPDATE profiles.sms_opt_in` bypassed audit + Loi 25 tracking and has
+ * been removed.
  */
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { MessageSquare, Loader2 } from "lucide-react";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Props {
@@ -39,12 +44,20 @@ export default function ClientSmsMasterToggle({ userId }: Props) {
 
   const toggle = async (value: boolean) => {
     setSaving(true);
-    const { error } = await portalSupabase
-      .from("profiles")
-      .update({ sms_opt_in: value })
-      .eq("user_id", userId);
+    // D46-C: canonical gateway (audited, Loi 25 compliant).
+    const { data, error } = await supabase.functions.invoke(
+      "communication-preferences-actions",
+      {
+        body: {
+          action: "client_self_sms_master",
+          client_user_id: userId,
+          changes: { sms_master: value },
+          reason: value ? "Client opt-in (master)" : "Client opt-out (master)",
+        },
+      },
+    );
     setSaving(false);
-    if (error) {
+    if (error || (data as any)?.error) {
       toast.error("Erreur lors de l'enregistrement");
       return;
     }
