@@ -76,12 +76,12 @@ Deno.serve(async (req) => {
       if (!acct) {
         push('T09', 'v_customer_timeline includes account_transfer', false, 'no account to probe');
       } else {
-        const requester = acct.user_id ?? '00000000-0000-0000-0000-000000000001';
+        const requester = acct.client_id;
         const { data: ins, error: insErr } = await admin
           .from('account_ownership_transfers')
           .insert({
             account_id: acct.id,
-            old_client_id: acct.user_id ?? requester,
+            old_client_id: requester,
             requested_by: requester,
             billing_transfer_option: 'new_owner_all',
             new_client_email: 'qa+m48@nivra-telecom.ca',
