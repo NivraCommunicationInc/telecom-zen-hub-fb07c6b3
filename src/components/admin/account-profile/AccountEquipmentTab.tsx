@@ -168,12 +168,15 @@ export function AccountEquipmentTab({ accountId, clientId }: AccountEquipmentTab
       });
       if (error) throw error;
 
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        action_type: "equipment_assigned",
-        summary: `Équipement "${eqName}" (${equipmentTypeLabels[eqType] || eqType}) assigné. S/N: ${eqSerial || "N/A"}${eqIccid ? `, ICCID: ${eqIccid}` : ""}${eqImei ? `, IMEI: ${eqImei}` : ""}`,
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `equipment:${clientId}:assigned:${eqSerial || eqIccid || eqImei || eqName}:${new Date().toISOString().slice(0, 16)}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: "equipment_assigned",
+          summary: `Équipement "${eqName}" (${equipmentTypeLabels[eqType] || eqType}) assigné. S/N: ${eqSerial || "N/A"}${eqIccid ? `, ICCID: ${eqIccid}` : ""}${eqImei ? `, IMEI: ${eqImei}` : ""}`,
+        },
       });
 
       toast.success("Équipement assigné");
