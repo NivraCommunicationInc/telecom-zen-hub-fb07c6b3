@@ -33,6 +33,7 @@ import Anthropic from "npm:@anthropic-ai/sdk";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
