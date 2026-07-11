@@ -23,6 +23,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -210,13 +211,12 @@ Deno.serve(async (req) => {
 
   if (clientEmail) {
     const eventKey = `supervisor_escalation:${b.idempotency_key}`;
-    const { error: mailErr } = await admin.from("email_queue").insert({
-      event_key: eventKey,
-      idempotency_key: b.idempotency_key,
-      to_email: clientEmail,
-      subject: "Votre demande a été escaladée",
-      template_key: "supervisor_escalation",
-      template_vars: {
+    const { error: mailErr } = await enqueueCommunication({
+      channel: "email",
+      templateKey: "supervisor_escalation",
+      recipient: clientEmail,
+      idempotencyKey: b.idempotency_key,
+      templateVars: {
         client_name: clientName,
         subject: b.subject,
         description: b.description,
@@ -224,10 +224,10 @@ Deno.serve(async (req) => {
         escalation_type: b.escalation_type,
         language: "fr",
       },
-      entity_type: "internal_ticket",
-      entity_id: ticketId,
-      status: "queued",
-    } as any);
+      subject: "Votre demande a été escaladée",
+      entityType: "internal_ticket",
+      entityId: ticketId,
+    });
     if (mailErr && (mailErr as any).code !== "23505") {
       console.error("[supervisor-escalation-action] email_queue failed:", mailErr.message);
     }

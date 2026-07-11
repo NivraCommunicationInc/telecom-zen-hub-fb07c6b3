@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -123,35 +124,29 @@ Deno.serve(async (req) => {
     }
 
     // Notify admin
-    await supabase.from("email_queue").insert({
-      event_key: `onboarding_submit_admin_${existing.id}_${Date.now()}`,
-      to_email: "support@nivra-telecom.ca",
-      template_key: "onboarding_form_submitted_admin",
-      template_vars: {
-        full_legal_name: payload.full_legal_name,
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: "onboarding_form_submitted_admin",
+      recipient: "support@nivra-telecom.ca",
+      idempotencyKey: `onboarding_submit_admin_${existing.id}_${Date.now()}`,
+      templateVars: { full_legal_name: payload.full_legal_name,
         email: payload.email,
         phone: payload.phone,
         address_street: payload.address_street,
         address_city: payload.address_city,
         address_province: payload.address_province,
         address_postal: payload.address_postal,
-        residential_status: payload.residential_status,
-      },
-      language: "fr",
-      status: "queued",
+        residential_status: payload.residential_status, language: "fr" },
     });
 
     // Confirmation to employee
     if (payload.email) {
-      await supabase.from("email_queue").insert({
-        event_key: `onboarding_confirm_${existing.id}_${Date.now()}`,
-        to_email: payload.email,
-        template_key: "onboarding_form_confirmation_employee",
-        template_vars: {
-          first_name: (payload.full_legal_name || "").split(" ")[0] || "",
-        },
-        language: payload.language || "fr",
-        status: "queued",
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "onboarding_form_confirmation_employee",
+        recipient: payload.email,
+        idempotencyKey: `onboarding_confirm_${existing.id}_${Date.now()}`,
+        templateVars: { first_name: (payload.full_legal_name || "").split(" ")[0] || "", language: payload.language || "fr" },
       });
       await supabase.from("applicant_emails").insert({
         applicant_id: existing.applicant_id,

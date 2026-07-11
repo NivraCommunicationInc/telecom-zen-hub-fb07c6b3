@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -87,14 +88,12 @@ serve(async (req) => {
         .maybeSingle();
       if (existing) continue;
 
-      await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        idempotency_key: eventKey,
-        to_email: recipient,
-        from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-        subject: `Rapport quotidien — ${list.length} compte${list.length > 1 ? "s" : ""} en retard`,
-        template_key: "admin_overdue_daily_digest",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "admin_overdue_daily_digest",
+        recipient: recipient,
+        idempotencyKey: eventKey,
+        templateVars: {
           report_date: today,
           total_overdue_count: list.length,
           warning_count: warning,
@@ -102,9 +101,7 @@ serve(async (req) => {
           suspended_count: suspended,
           total_amount_overdue: totalAmount.toFixed(2),
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
+        subject: `Rapport quotidien — ${list.length} compte${list.length > 1 ? "s" : ""} en retard`,
       });
       queued++;
     }

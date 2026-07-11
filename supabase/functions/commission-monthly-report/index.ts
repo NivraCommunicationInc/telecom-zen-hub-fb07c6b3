@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // @deno-types="npm:@types/exceljs"
 import ExcelJS from "npm:exceljs@4.4.0";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -668,11 +669,12 @@ Deno.serve(async (req) => {
   const adminEmail = Deno.env.get("ADMIN_EMAIL") ?? "support@nivra-telecom.ca";
   const totalPaid  = [...payrollByAgent.values()].reduce((s, v) => s + v.total, 0);
 
-  await supabase.from("email_queue").insert({
-    event_key:     `commission_report_${fileKey}`,
-    to_email:      adminEmail,
-    template_key:  "admin_commission_report",
-    template_vars: {
+  await enqueueCommunication({
+    channel: "email",
+    templateKey: "admin_commission_report",
+    recipient: adminEmail,
+    idempotencyKey: `commission_report_${fileKey}`,
+    templateVars: {
       client_name:    "Admin Nivra",
       report_month:   label,
       nb_agents:      rankedAgents.length,
@@ -680,11 +682,9 @@ Deno.serve(async (req) => {
       download_url:   signedUrl ?? "Voir Supabase Storage › reports/commissions",
       file_name:      fileName,
     },
-    message_type:  "admin_commission_report",
-    entity_type:   "commission_report",
-    entity_id:     fileKey,
-    status:        "queued",
-  } as any);
+    entityType: "commission_report",
+    entityId: fileKey,
+  });
 
   // ── Return JSON ───────────────────────────────────────────────────────────
   return new Response(

@@ -25,6 +25,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -195,21 +196,19 @@ serve(async (req) => {
         .sort((a, b) => b.discrepancy - a.discrepancy)
         .slice(0, 10);
 
-      await supabase.from("email_queue").insert({
-        event_key: `reconciliation_digest_${new Date().toISOString().split("T")[0]}`,
-        to_email: ALERT_EMAIL,
-        template_key: "reconciliation_digest",
-        subject: `[Nivra Billing] ${discrepanciesFound} reconciliation discrepancy(ies) detected`,
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "reconciliation_digest",
+        recipient: ALERT_EMAIL,
+        idempotencyKey: `reconciliation_digest_${new Date().toISOString().split("T")[0]}`,
+        templateVars: {
           run_date: new Date().toISOString(),
           accounts_checked: totalChecked,
           discrepancies_found: discrepanciesFound,
           alerts_created: alertsCreated,
           top_offenders: topOffenders,
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
+        subject: `[Nivra Billing] ${discrepanciesFound} reconciliation discrepancy(ies) detected`,
       });
     }
 

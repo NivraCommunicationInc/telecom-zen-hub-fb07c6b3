@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 /**
  * ============================================================================
  * billing-create-subscription — Phase 3.A REWRITE
@@ -243,11 +244,12 @@ serve(async (req) => {
       const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
       const pdfAttachment = await buildInvoicePdfAttachment(invoiceId, "facture");
 
-      await supabase.from("email_queue").insert({
-        event_key: `billing_sub_${subscriptionId}_${invoice.invoice_number}`,
-        to_email: customer.email,
-        template_key: "invoice_created",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "invoice_created",
+        recipient: customer.email,
+        idempotencyKey: `billing_sub_${subscriptionId}_${invoice.invoice_number}`,
+        templateVars: {
           client_name: `${customer.first_name} ${customer.last_name}`,
           invoice_number: invoice.invoice_number,
           plan_name: body.plan_name,
@@ -261,9 +263,6 @@ serve(async (req) => {
           cycle_end: cycleEnd,
         },
         attachments: pdfAttachment ? [pdfAttachment] : null,
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
       });
     }
 

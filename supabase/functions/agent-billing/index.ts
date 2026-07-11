@@ -5,6 +5,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -306,17 +307,17 @@ Deno.serve(async (req) => {
       const r = await reconcile(supabase);
       if (Math.abs(r.discrepancy) > expectedTolerance(r.expected_mrr)) {
         const todayKey = new Date().toISOString().slice(0, 10);
-        await supabase.from("email_queue").insert({
-          event_key: `billing_reconcile_mrr_${todayKey}`,
-          to_email: ALERT_EMAIL,
-          template_key: "site_health_alert",
-          subject: "Écart de réconciliation MRR détecté",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "site_health_alert",
+          recipient: ALERT_EMAIL,
+          idempotencyKey: `billing_reconcile_mrr_${todayKey}`,
+          templateVars: {
             client_name: "Équipe Nivra", health_score: 60, critical_count: 1, total_issues: 1,
             summary: `Écart de ${r.discrepancy.toFixed(2)}$ entre MRR attendu (${r.expected_mrr.toFixed(2)}$) et paiements réels 30j (${r.actual_30d.toFixed(2)}$).`,
             issues: [],
           },
-          status: "queued",
+          subject: "Écart de réconciliation MRR détecté",
         });
       }
       await logAudit(supabase, "reconcile", "success", r, Date.now() - startedAt);

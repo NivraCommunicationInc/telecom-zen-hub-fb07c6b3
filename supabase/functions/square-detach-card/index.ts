@@ -10,6 +10,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -110,20 +111,18 @@ Deno.serve(async (req) => {
 
     if (bc.email) {
       try {
-        await supabase.from("email_queue").insert({
-          event_key: `autopay-cancelled-${customer_id}-${Date.now()}`,
-          to_email: bc.email,
-          template_key: "autopay_cancelled",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "autopay_cancelled",
+          recipient: bc.email,
+          idempotencyKey: `autopay-cancelled-${customer_id}-${Date.now()}`,
+          templateVars: {
             client_name: `${bc.first_name || ""} ${bc.last_name || ""}`.trim() || bc.email,
             card_brand: priorBrand,
             card_last4: priorLast4,
             cancelled_at: new Date().toISOString(),
             channel: channelLabel,
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 5,
         });
       } catch (emailErr) {
         console.warn("[square-detach-card] email enqueue failed:", emailErr);

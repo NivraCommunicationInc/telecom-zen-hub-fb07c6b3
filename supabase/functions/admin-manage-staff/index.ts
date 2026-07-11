@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 // Loose Supabase client type — the generated Database type isn't available
 // in edge-function context, so we use `any` for schema generics. Without this,
 // `ReturnType<typeof createClient>` collapses to `never` for table rows.
@@ -1093,19 +1094,19 @@ serve(async (req: Request) => {
                 const agentNumber = (agentProfile as any)?.agent_number || "En cours d'attribution";
                 const proEmail = (agentProfile as any)?.professional_email || "À venir";
 
-                const { error: queueErr } = await adminClient.from("email_queue").insert({
-                  event_key: `staff_invite_field_sales_${userId}`,
-                  to_email: email,
-                  template_key: "staff_invitation_field_sales",
-                  template_vars: {
+                const { error: queueErr } = await enqueueCommunication({
+                  channel: "email",
+                  templateKey: "staff_invitation_field_sales",
+                  recipient: email,
+                  idempotencyKey: `staff_invite_field_sales_${userId}`,
+                  templateVars: {
                     first_name: firstName,
                     invite_url: setupLink,
                     role: "field_sales",
                     agent_number: agentNumber,
                     professional_email: proEmail,
                   },
-                  status: "queued",
-                } as any);
+                });
                 if (queueErr) {
                   console.error("[admin-manage-staff] field_sales email_queue insert error:", queueErr);
                   throw new Error(`Email queue insert failed: ${queueErr.message}`);
@@ -1113,19 +1114,19 @@ serve(async (req: Request) => {
                 console.log(`[admin-manage-staff] Field Sales invitation queued: to=${email} user=${userId}`);
 
                 // BCC copy to support@nivra-telecom.ca (email_queue has no bcc column → duplicate row)
-                await adminClient.from("email_queue").insert({
-                  event_key: `staff_invite_field_sales_${userId}_bcc_support`,
-                  to_email: "support@nivra-telecom.ca",
-                  template_key: "staff_invitation_field_sales",
-                  template_vars: {
+                await enqueueCommunication({
+                  channel: "email",
+                  templateKey: "staff_invitation_field_sales",
+                  recipient: "support@nivra-telecom.ca",
+                  idempotencyKey: `staff_invite_field_sales_${userId}_bcc_support`,
+                  templateVars: {
                     first_name: firstName,
                     invite_url: setupLink,
                     role: "field_sales",
                     agent_number: agentNumber,
                     professional_email: proEmail,
                   },
-                  status: "queued",
-                } as any);
+                });
 
               } else {
                 await sendStaffEmail(adminClient, {
@@ -1414,36 +1415,36 @@ serve(async (req: Request) => {
             : "staff_invitation";
 
           try {
-            const { error: queueErr } = await adminClient.from("email_queue").insert({
-              event_key: `staff_invite_resend_${user_id}_${Date.now()}`,
-              to_email: targetEmail,
-              template_key: templateKey,
-              template_vars: {
+            const { error: queueErr } = await enqueueCommunication({
+              channel: "email",
+              templateKey: templateKey,
+              recipient: targetEmail,
+              idempotencyKey: `staff_invite_resend_${user_id}_${Date.now()}`,
+              templateVars: {
                 first_name: firstName,
                 invite_url: setupLink,
                 role: roleData.role,
                 role_label: roleLabels[roleData.role] || roleData.role,
               },
-              status: "queued",
-            } as any);
+            });
             if (queueErr) {
               throw new Error(`Email queue insert failed: ${queueErr.message}`);
             }
             console.log(`[admin-manage-staff] ${stepBase} queued via ${templateKey}: to=${targetEmail} user=${user_id}`);
 
             // BCC copy to support@nivra-telecom.ca (duplicate row — email_queue has no bcc column)
-            await adminClient.from("email_queue").insert({
-              event_key: `staff_invite_resend_${user_id}_${Date.now()}_bcc_support`,
-              to_email: "support@nivra-telecom.ca",
-              template_key: templateKey,
-              template_vars: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: templateKey,
+              recipient: "support@nivra-telecom.ca",
+              idempotencyKey: `staff_invite_resend_${user_id}_${Date.now()}_bcc_support`,
+              templateVars: {
                 first_name: firstName,
                 invite_url: setupLink,
                 role: roleData.role,
                 role_label: roleLabels[roleData.role] || roleData.role,
               },
-              status: "queued",
-            } as any);
+            });
 
           } catch (e) {
             const err = e as Error;
@@ -1993,18 +1994,18 @@ serve(async (req: Request) => {
           const resetLink = linkData.properties.action_link;
 
           // CANONICAL — route through email_queue + customQueueTemplates Violet Bold shell.
-          const { error: queueErr } = await adminClient.from("email_queue").insert({
-            event_key: `staff_reset_admin_${email}_${Date.now()}`,
-            to_email: email,
-            template_key: "staff_password_reset",
-            template_vars: {
+          const { error: queueErr } = await enqueueCommunication({
+            channel: "email",
+            templateKey: "staff_password_reset",
+            recipient: email,
+            idempotencyKey: `staff_reset_admin_${email}_${Date.now()}`,
+            templateVars: {
               reset_link: resetLink,
               email,
               audience: "staff",
               portal_label: "votre portail Administrateur Nivra",
             },
-            status: "queued",
-          } as any);
+          });
           if (queueErr) {
             console.error("[admin-manage-staff] send_reset email_queue insert error:", queueErr);
             throw new Error(`Email queue insert failed: ${queueErr.message}`);
@@ -2796,18 +2797,18 @@ serve(async (req: Request) => {
               notifyProfile?.first_name ||
               (notifyProfile?.full_name ? String(notifyProfile.full_name).split(" ")[0] : "");
             const portalUrl = `${getAppBaseUrl()}/hub/login`;
-            await adminClient.from("email_queue").insert({
-              event_key: `staff_profile_updated_${user_id}_${Date.now()}`,
-              to_email: notifyEmail,
-              template_key: "profile_updated_notification",
-              template_vars: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: "profile_updated_notification",
+              recipient: notifyEmail,
+              idempotencyKey: `staff_profile_updated_${user_id}_${Date.now()}`,
+              templateVars: {
                 first_name: firstName,
                 updated_fields: updatedFieldKeys,
                 updated_at: new Date().toISOString().slice(0, 10),
                 portal_url: portalUrl,
               },
-              status: "queued",
-            } as any);
+            });
           } catch (e) {
             console.error(`[admin-manage-staff] ${stepBase} profile_updated_notification queue failed:`, e);
           }
@@ -3504,18 +3505,18 @@ serve(async (req: Request) => {
                 : "Technicien";
 
           // CANONICAL — Violet Bold shell via email_queue + customQueueTemplates
-          const { error: queueErr } = await adminClient.from("email_queue").insert({
-            event_key: `staff_reset_${profile.user_id}_${Date.now()}`,
-            to_email: normalizedEmail,
-            template_key: "staff_password_reset",
-            template_vars: {
+          const { error: queueErr } = await enqueueCommunication({
+            channel: "email",
+            templateKey: "staff_password_reset",
+            recipient: normalizedEmail,
+            idempotencyKey: `staff_reset_${profile.user_id}_${Date.now()}`,
+            templateVars: {
               reset_link: resetLink,
               email: normalizedEmail,
               audience: "staff",
               portal_label: `votre portail ${portalName} Nivra`,
             },
-            status: "queued",
-          } as any);
+          });
           if (queueErr) {
             console.error(`[admin-manage-staff] ${stepBase} email_queue insert error:`, queueErr);
             throw new Error(`Email queue insert failed: ${queueErr.message}`);

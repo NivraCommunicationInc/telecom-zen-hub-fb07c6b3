@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -76,20 +77,18 @@ serve(async (req) => {
 
       if (existing) { skipped++; continue; }
 
-      await supabase.from("email_queue").insert({
-        event_key: `square_migration_${sub.customer_id}`,
-        to_email: email,
-        template_key: "paypal_migration_to_square",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "paypal_migration_to_square",
+        recipient: email,
+        idempotencyKey: `square_migration_${sub.customer_id}`,
+        templateVars: {
           client_name: clientName,
           first_name: firstName,
           plan_name: sub.plan_name || "Forfait Nivra",
           monthly_amount: Number(sub.plan_price || 0).toFixed(2),
           setup_url: SETUP_URL,
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
       });
 
       sent++;

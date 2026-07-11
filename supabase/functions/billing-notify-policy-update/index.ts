@@ -17,6 +17,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -57,15 +58,12 @@ serve(async (req) => {
       const testKey = `${EVENT_KEY}:test:${testEmail}`;
       // Remove any previous test entry so it can be re-sent
       await supabase.from("email_queue").delete().eq("event_key", testKey);
-      const { error: testInsertErr } = await supabase.from("email_queue").insert({
-        event_key: testKey,
-        to_email: testEmail,
-        template_key: EVENT_KEY,
-        template_vars: { client_name: "Test", first_name: "Test" },
-        message_type: "transactional",
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
+      const { error: testInsertErr } = await enqueueCommunication({
+        channel: "email",
+        templateKey: EVENT_KEY,
+        recipient: testEmail,
+        idempotencyKey: testKey,
+        templateVars: { client_name: "Test", first_name: "Test" },
       });
       if (testInsertErr) throw new Error(`Test email insert failed: ${testInsertErr.message}`);
       return new Response(
@@ -131,18 +129,15 @@ serve(async (req) => {
         continue;
       }
 
-      const { error: insertErr } = await supabase.from("email_queue").insert({
-        event_key: key,
-        to_email: client.email,
-        template_key: EVENT_KEY,
-        template_vars: {
+      const { error: insertErr } = await enqueueCommunication({
+        channel: "email",
+        templateKey: EVENT_KEY,
+        recipient: client.email,
+        idempotencyKey: key,
+        templateVars: {
           client_name: client.firstName,
           first_name: client.firstName,
         },
-        message_type: "transactional",
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
       });
 
       if (insertErr) {

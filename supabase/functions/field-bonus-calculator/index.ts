@@ -13,6 +13,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -166,21 +167,20 @@ Deno.serve(async (req) => {
         [(profile as any)?.first_name, (profile as any)?.last_name].filter(Boolean).join(" ") ||
         "Collègue";
 
-      await supabase.from("email_queue").insert({
-        event_key: `field_bonus_${agentId}_${tag}`,
-        to_email: email,
-        template_key: "hr_commission_generated",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "hr_commission_generated",
+        recipient: email,
+        idempotencyKey: `field_bonus_${agentId}_${tag}`,
+        templateVars: {
           client_name: clientName,
           amount: bonus,
           period_label: tag,
           portal_url: "https://nivra-telecom.ca/rh/commissions",
           context: `Bonus mensuel — ${count} ventes activées`,
         },
-        message_type: "hr_commission_generated",
-        entity_type: "field_bonus",
-        entity_id: agentId,
-        status: "queued",
+        entityType: "field_bonus",
+        entityId: agentId,
       });
     }
 

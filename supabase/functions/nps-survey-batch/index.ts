@@ -10,6 +10,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -79,18 +80,15 @@ serve(async (req) => {
       const token = crypto.randomUUID();
       const npsLink = `https://nivra-telecom.ca/feedback?token=${token}`;
 
-      const { error: queueErr } = await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        to_email: email,
-        template_key: "nps_survey",
-        template_vars: {
+      const { error: queueErr } = await enqueueCommunication({
+        channel: "email",
+        templateKey: "nps_survey",
+        recipient: email,
+        idempotencyKey: eventKey,
+        templateVars: {
           first_name: cust.first_name || "Client",
           nps_link: npsLink,
         },
-        message_type: "transactional",
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
       });
 
       if (queueErr) {

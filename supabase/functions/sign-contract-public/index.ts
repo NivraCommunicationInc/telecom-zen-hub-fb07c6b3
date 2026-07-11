@@ -14,6 +14,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -230,29 +231,30 @@ serve(async (req: Request) => {
             const contractPdf = payload.order_id
               ? await buildContractPdfAttachment(payload.order_id).catch(() => null)
               : null;
-            await supabase.from("email_queue").insert({
-              event_key: `contract_signed_client_${payload.contract_id}`,
-              to_email: clientEmail,
-              template_key: "contract_signed_confirmation",
-              template_vars: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: "contract_signed_confirmation",
+              recipient: clientEmail,
+              idempotencyKey: `contract_signed_client_${payload.contract_id}`,
+              templateVars: {
                 client_name: clientName,
                 order_number: order?.order_number || "",
                 signed_at: payload.signed_at,
               } as any,
               attachments: contractPdf ? [contractPdf] : null,
               priority: 0,
-              status: "queued",
-            } as any).then(({ error: e }) => {
+            }).then(({ error: e }) => {
               if (e) console.warn("[sign-contract-public] client email enqueue failed:", e.message);
             });
           }
 
           // Admin notification
-          await supabase.from("email_queue").insert({
-            event_key: `contract_signed_admin_${payload.contract_id}`,
-            to_email: "support@nivra-telecom.ca",
-            template_key: "contract_signed_admin_alert",
-            template_vars: {
+          await enqueueCommunication({
+            channel: "email",
+            templateKey: "contract_signed_admin_alert",
+            recipient: "support@nivra-telecom.ca",
+            idempotencyKey: `contract_signed_admin_${payload.contract_id}`,
+            templateVars: {
               client_full_name: clientName,
               client_name: clientName,
               order_id: payload.order_id,
@@ -262,8 +264,7 @@ serve(async (req: Request) => {
               ip: clientIp,
             } as any,
             priority: 10,
-            status: "queued",
-          } as any).then(({ error: e }) => {
+          }).then(({ error: e }) => {
             if (e) console.warn("[sign-contract-public] admin email enqueue failed:", e.message);
           });
         }

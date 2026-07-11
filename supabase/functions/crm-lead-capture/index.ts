@@ -21,6 +21,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -193,19 +194,19 @@ Deno.serve(async (req) => {
   const today = new Date().toISOString().slice(0, 10);
   const eventKey = `lead_capture_welcome_${contactId ?? email}_${today}`;
   try {
-    await admin.from("email_queue").insert({
-      event_key: eventKey,
-      to_email: email,
-      template_key: "crm_lead_welcome",
-      subject: `Bienvenue chez Nivra Telecom, ${firstName}!`,
-      template_vars: {
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: "crm_lead_welcome",
+      recipient: email,
+      idempotencyKey: eventKey,
+      templateVars: {
         crm_contact_id: contactId,
         first_name: firstName,
         city: city || "",
         subject: `Bienvenue chez Nivra Telecom, ${firstName}!`,
         hero_title: "Merci pour votre intérêt",
       },
-      status: "queued",
+      subject: `Bienvenue chez Nivra Telecom, ${firstName}!`,
       priority: 10,
     });
   } catch (e) {
@@ -233,13 +234,13 @@ Deno.serve(async (req) => {
       </table>
       <p style="font-family:sans-serif;font-size:12px;color:#9ca3af;margin-top:16px;">Le lead recevra automatiquement l'email de bienvenue + entrera dans la séquence 4-touches CASL.</p>
     `;
-    await admin.from("email_queue").insert({
-      event_key: `${eventKey}_admin`,
-      to_email: "support@nivra-telecom.ca",
-      template_key: "custom_html",
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: "custom_html",
+      recipient: "support@nivra-telecom.ca",
+      idempotencyKey: `${eventKey}_admin`,
+      templateVars: { subject: adminSubject, html: adminHtml },
       subject: adminSubject,
-      template_vars: { subject: adminSubject, html: adminHtml },
-      status: "queued",
       priority: 0,
     });
   } catch (_e) {/* non-blocking */}

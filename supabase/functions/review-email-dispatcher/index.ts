@@ -8,6 +8,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -103,16 +104,14 @@ Deno.serve(async (req) => {
     }
 
     const idempotencyKey = `review-request-${acct.id}`;
-    const { error: qErr } = await supabase.from("email_queue").insert({
-      to_email: recipient,
-      template_key: "review_request_activation",
-      template_vars: { firstName: profile?.first_name ?? "" },
+    const { error: qErr } = await enqueueCommunication({
+      channel: "email",
+      templateKey: "review_request_activation",
+      recipient: recipient,
+      idempotencyKey: idempotencyKey,
+      templateVars: { firstName: profile?.first_name ?? "", language: profile?.preferred_language ?? "fr" },
       subject: "Votre service Nivra est actif — votre avis vaut 5 $ 😊",
-      status: "queued",
       priority: 2,
-      event_key: idempotencyKey,
-      idempotency_key: idempotencyKey,
-      language: profile?.preferred_language ?? "fr",
     });
 
     if (qErr) {

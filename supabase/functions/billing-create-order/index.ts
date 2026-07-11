@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceBillingRateLimit } from "../_shared/billingRateLimit.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 /**
  * ============================================================================
  * BILLING V3 - CREATE ORDER — Phase 3.A REWRITE (cause 58953)
@@ -438,11 +439,12 @@ async function queueOrderEmail(supabase: any, args: {
     ? await buildReceiptPdfAttachment(args.invoiceId, "recu-paiement")
     : await buildInvoicePdfAttachment(args.invoiceId, "facture");
 
-  await supabase.from("email_queue").insert({
-    event_key: `billing_order_${args.invoiceId}_${Date.now()}`,
-    to_email: args.customerEmail,
-    template_key: templateKey,
-    template_vars: {
+  await enqueueCommunication({
+    channel: "email",
+    templateKey: templateKey,
+    recipient: args.customerEmail,
+    idempotencyKey: `billing_order_${args.invoiceId}_${Date.now()}`,
+    templateVars: {
       client_name: args.customerName,
       invoice_number: args.invoiceNumber,
       plan_name: args.planNames,
@@ -459,9 +461,6 @@ async function queueOrderEmail(supabase: any, args: {
       reference: args.paymentReference,
     },
     attachments: pdfAttachment ? [pdfAttachment] : null,
-    status: "queued",
-    attempts: 0,
-    max_attempts: 5,
   });
 }
 

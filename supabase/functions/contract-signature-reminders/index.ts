@@ -12,6 +12,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, apikey",
@@ -85,11 +86,12 @@ serve(async (req) => {
         // ─── J+7: final reminder ───
         if (age >= 7 && (c.reminder_count ?? 0) < 2 && daysSinceLast >= 3) {
           if (email) {
-            await supabase.from("email_queue").insert({
-              event_key: `contract_reminder_j7_${c.id}`,
-              to_email: email,
-              template_key: "contract_ready",
-              template_vars: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: "contract_ready",
+              recipient: email,
+              idempotencyKey: `contract_reminder_j7_${c.id}`,
+              templateVars: {
                 client_name: name,
                 contract_name: c.contract_name || "Contrat de service",
                 contract_number: c.contract_number || "",
@@ -99,8 +101,7 @@ serve(async (req) => {
                 subject_override: "⏰ Dernier rappel — Signature de contrat requise",
               } as any,
               priority: 5,
-              status: "queued",
-            } as any);
+            });
           }
           await supabase.from("contracts").update({
             last_reminder_at: now.toISOString(),
@@ -119,11 +120,12 @@ serve(async (req) => {
         // ─── J+3: first reminder ───
         if (age >= 3 && (c.reminder_count ?? 0) < 1 && daysSinceLast >= 3) {
           if (email) {
-            await supabase.from("email_queue").insert({
-              event_key: `contract_reminder_j3_${c.id}`,
-              to_email: email,
-              template_key: "contract_ready",
-              template_vars: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: "contract_ready",
+              recipient: email,
+              idempotencyKey: `contract_reminder_j3_${c.id}`,
+              templateVars: {
                 client_name: name,
                 contract_name: c.contract_name || "Contrat de service",
                 contract_number: c.contract_number || "",
@@ -133,8 +135,7 @@ serve(async (req) => {
                 subject_override: "Rappel — Signature de contrat en attente",
               } as any,
               priority: 5,
-              status: "queued",
-            } as any);
+            });
           }
           await supabase.from("contracts").update({
             last_reminder_at: now.toISOString(),

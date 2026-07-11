@@ -6,6 +6,7 @@ import { reportEdgeError } from "../_shared/sentry.ts";
 // Phase 3.C.3: PayPal decommissioned — Square exclusive. No provider-side sub state calls here.
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 // Test isolation: when set, all client emails are redirected to this address.
 // Set via body.test_email — never persists across requests.
 let _testEmailOverride: string | null = null;
@@ -179,14 +180,12 @@ async function processExpirations(
             .or(`event_key.eq.${voidKey},idempotency_key.eq.${voidKey}`)
             .maybeSingle();
           if (!existingVoid) {
-            await supabase.from("email_queue").insert({
-              event_key: voidKey,
-              idempotency_key: voidKey,
-              to_email: toEmail(inv.customer.email),
-              from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-              subject: `Nivra — Facture annulée (#${inv.invoice_number})`,
-              template_key: "invoice_voided",
-              template_vars: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: "invoice_voided",
+              recipient: toEmail(inv.customer.email),
+              idempotencyKey: voidKey,
+              templateVars: {
                 client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
                 invoice_number: inv.invoice_number,
                 plan_name: sub.plan_name || "Service Nivra",
@@ -194,9 +193,7 @@ async function processExpirations(
                 due_date: inv.due_date,
                 void_reason: "Fenêtre de réactivation expirée (J+10)",
               },
-              status: "queued",
-              attempts: 0,
-              max_attempts: 3,
+              subject: `Nivra — Facture annulée (#${inv.invoice_number})`,
             });
             stats.reminders_queued++;
           }
@@ -278,14 +275,12 @@ async function processExpirations(
               invoice_numbers: [inv.invoice_number],
               reason: "Solde impayé",
             });
-            await supabase.from("email_queue").insert({
-              event_key: suspKey,
-              idempotency_key: suspKey,
-              to_email: toEmail(inv.customer.email),
-              from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-              subject: `Nivra — Service suspendu (#${inv.invoice_number})`,
-              template_key: "service_suspended",
-              template_vars: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: "service_suspended",
+              recipient: toEmail(inv.customer.email),
+              idempotencyKey: suspKey,
+              templateVars: {
                 client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
                 invoice_number: inv.invoice_number,
                 plan_name: sub.plan_name || "Service Nivra",
@@ -297,10 +292,8 @@ async function processExpirations(
                 reactivation_window: "5 jours",
                 payment_link: "https://nivra-telecom.ca/portail/facturation",
               },
+              subject: `Nivra — Service suspendu (#${inv.invoice_number})`,
               attachments: suspPdf ? [suspPdf] : null,
-              status: "queued",
-              attempts: 0,
-              max_attempts: 3,
             });
             stats.reminders_queued++;
           }
@@ -358,20 +351,15 @@ async function queueAdminAlert(
         .maybeSingle();
       if (existing) continue;
 
-      await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        idempotency_key: eventKey,
-        to_email: recipient,
-        from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-        subject:
-          templateKey === "admin_alert_suspended"
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: templateKey,
+        recipient: recipient,
+        idempotencyKey: eventKey,
+        templateVars: vars,
+        subject: templateKey === "admin_alert_suspended"
             ? `🔴 Service suspendu — ${vars.client_full_name || "Client"}`
             : `⚫ Abonnement annulé — ${vars.client_full_name || "Client"}`,
-        template_key: templateKey,
-        template_vars: vars,
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
       });
     } catch (e) {
       console.error(`[lifecycle] queueAdminAlert error (${recipient}):`, e);
@@ -422,14 +410,12 @@ async function processSuspensionWarningJ3(
     if (existing) continue;
 
     const suspensionDate = addDays(inv.due_date as string, 5);
-    const { error: queueErr } = await supabase.from("email_queue").insert({
-      event_key: eventKey,
-      idempotency_key: eventKey,
-      to_email: inv.customer.email,
-      from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-      subject: `Rappel: votre facture Nivra (#${inv.invoice_number})`,
-      template_key: "invoice_suspension_warning",
-      template_vars: {
+    const { error: queueErr } = await enqueueCommunication({
+      channel: "email",
+      templateKey: "invoice_suspension_warning",
+      recipient: inv.customer.email,
+      idempotencyKey: eventKey,
+      templateVars: {
         client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
         invoice_number: inv.invoice_number,
         total: (inv.total as number)?.toFixed(2),
@@ -438,9 +424,7 @@ async function processSuspensionWarningJ3(
         suspension_date: suspensionDate,
         payment_link: "https://nivra-telecom.ca/portail/facturation",
       },
-      status: "queued",
-      attempts: 0,
-      max_attempts: 3,
+      subject: `Rappel: votre facture Nivra (#${inv.invoice_number})`,
     });
 
     if (queueErr) {
@@ -511,14 +495,12 @@ async function processReminders(
         "J0": `Nivra — Action requise aujourd'hui: renouvelez votre service (#${inv.invoice_number})`,
       };
 
-      const { error: queueErr } = await supabase.from("email_queue").insert({
-        event_key: idempotencyKey,
-        idempotency_key: idempotencyKey,
-        to_email: inv.customer.email,
-        from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-        subject: subjectMap[offset.label] || `Nivra — Rappel de paiement (#${inv.invoice_number})`,
-        template_key: offset.template,
-        template_vars: {
+      const { error: queueErr } = await enqueueCommunication({
+        channel: "email",
+        templateKey: offset.template,
+        recipient: inv.customer.email,
+        idempotencyKey: idempotencyKey,
+        templateVars: {
           client_name: clientName,
           invoice_number: inv.invoice_number,
           plan_name: planName,
@@ -531,9 +513,7 @@ async function processReminders(
           cycle_end: inv.cycle_end_date,
           payment_link: "https://nivra-telecom.ca/portail/facturation",
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
+        subject: subjectMap[offset.label] || `Nivra — Rappel de paiement (#${inv.invoice_number})`,
       });
 
       if (queueErr) {
@@ -612,14 +592,12 @@ async function processOverdue(
           .maybeSingle();
 
         if (!existingEmail) {
-          await supabase.from("email_queue").insert({
-            event_key: idempotencyKey,
-            idempotency_key: idempotencyKey,
-            to_email: inv.customer.email,
-            from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-            subject: `Nivra — Paiement en retard (#${inv.invoice_number})`,
-            template_key: "payment_overdue",
-            template_vars: {
+          await enqueueCommunication({
+            channel: "email",
+            templateKey: "payment_overdue",
+            recipient: inv.customer.email,
+            idempotencyKey: idempotencyKey,
+            templateVars: {
               client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
               invoice_number: inv.invoice_number,
               total: inv.total?.toFixed(2),
@@ -629,10 +607,8 @@ async function processOverdue(
               void_date: addDays(inv.due_date, 10),
               payment_link: "https://nivra-telecom.ca/portail/facturation",
             },
-            status: "queued",
-            attempts: 0,
-            max_attempts: 3,
-              });
+            subject: `Nivra — Paiement en retard (#${inv.invoice_number})`,
+          });
           stats.reminders_queued++;
         }
       }
@@ -761,19 +737,17 @@ async function advanceReferralCycles(
               if (referrerProfile?.email) {
                 const rewardAmt = Number(ref.reward_amount ?? 25);
                 const referredName = [referredProfile?.first_name, referredProfile?.last_name].filter(Boolean).join(" ") || "votre filleul";
-                await supabase.from("email_queue").insert({
-                  event_key: eventKey,
-                  to_email: toEmail(referrerProfile.email),
-                  template_key: "client_referral_qualified",
-                  template_vars: {
+                await enqueueCommunication({
+                  channel: "email",
+                  templateKey: "client_referral_qualified",
+                  recipient: toEmail(referrerProfile.email),
+                  idempotencyKey: eventKey,
+                  templateVars: {
                     first_name: referrerProfile.first_name || "Client",
                     to_email: referrerProfile.email,
                     referred_name: referredName,
                     reward_amount: new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(rewardAmt),
                   },
-                  status: "queued",
-                  attempts: 0,
-                  max_attempts: 3,
                 });
                 console.log(`[lifecycle] Referral ${ref.id}: qualified email queued for ${referrerProfile.email}`);
               }
@@ -1080,10 +1054,12 @@ async function processFormalDemandJ7(
         void_date: voidDate,
       }).catch(() => null);
 
-      await supabase.from("email_queue").insert({
-        to_email: toEmail(customer.email),
-        template_key: "formal_demand_notice",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "formal_demand_notice",
+        recipient: toEmail(customer.email),
+        idempotencyKey: eventKey,
+        templateVars: {
           first_name: customer.first_name || "Client",
           to_email: customer.email,
           invoice_number: inv.invoice_number,
@@ -1092,8 +1068,6 @@ async function processFormalDemandJ7(
           void_date: voidDate,
         },
         attachments: demandPdf ? [demandPdf] : null,
-        event_key: eventKey,
-        status: "queued",
         priority: 1,
       });
 
