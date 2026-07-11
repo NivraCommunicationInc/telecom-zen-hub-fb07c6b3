@@ -1,148 +1,101 @@
-# Passe complète Client 360 — plan d'exécution
 
-## Principe directeur
+# Module 48 — Account Ownership Transfer
 
-Un seul standard, appliqué à tous les modules, identique à Upgrade/Downgrade et KYC :
+Nouveau module Client 360 pour transférer la responsabilité d'un compte télécom d'un client vers un autre, avec workflow de consentement, audit complet et notifications.
 
-1. **Contexte complet** dans `ClientModuleShell` (état, historique, entités liées, impacts).
-2. **Workflow réel** : consultation → simulation (si applicable) → confirmation → exécution → audit → realtime.
-3. **Réutilisation stricte** des tables, RPC, Edge Functions, triggers, templates existants. Zéro système parallèle.
-4. **Preuve technique** livrée à chaque fermeture de module (fichiers, tables, RPC, EF, triggers, emails, audit, realtime, tests).
-5. **UI unifiée** : dialog `max-w-6xl`, onglets Etat/Historique/Actions, contraste AA, aucun élément caché.
+## Livrables
 
-Un module reste ouvert tant qu'un agent ne peut pas terminer une opération réelle de bout en bout.
+### 1. Base de données (migration)
 
-## Phase 0 — Audit + fondations (préalable, non skippable)
+**Table `public.account_ownership_transfers`** (avec GRANT + RLS)
+- Colonnes : `id`, `account_id`, `old_client_id`, `new_client_id`, `requested_by`, `status` (enum), `transfer_type` (`personal_transfer` | `business_transfer`), `services_transferred jsonb`, `billing_transfer_option` (`new_owner_all` | `old_keeps_debt` | `full_transfer`), `equipment_transfer_option`, `service_address_option` (`keep` | `new`), `new_service_address jsonb`, `old_owner_confirmed_at`, `new_owner_confirmed_at`, `completed_at`, `cancelled_at`, `expires_at`, `reason`, `correlation_id`, `created_at`, `updated_at`.
+- Enum `account_transfer_status`: `pending_review`, `awaiting_old_owner_confirmation`, `awaiting_new_owner_confirmation`, `approved`, `processing`, `completed`, `cancelled`, `rejected`, `expired`, `failed`.
+- RLS : admin/supervisor SELECT ; write via service_role uniquement.
 
-Avant de toucher un module, produire deux livrables :
+**Table `public.account_transfer_idempotency`**
+- `idempotency_key` unique, `request_hash`, `result jsonb`, `status`, `created_at`.
+- Retour du résultat existant sur même clé ; 409 sur hash différent.
 
-**0.1 Inventaire technique** (`.lovable/c360/inventory.md`)
-Pour chaque bouton listé, mapper :
-- État actuel : "stub UI" / "partiel" / "connecté" / "conforme standard"
-- Tables canoniques
-- RPC / Edge Function officielle
-- Template email associé
-- Trigger / audit table
-- Gaps identifiés
+**RPC** `rpc_account_transfer_transition(p_transfer_id, p_next_status, p_actor)` : machine à états stricte (aucun retour arrière hors `cancelled`/`rejected`/`failed`).
 
-**0.2 Renforcement `ClientModuleShell`**
-- Bannière contexte compte (nom, #, statut, MRR, cycle, tags)
-- Slot `impactedTables` + `plannedEmails` toujours visible en mode Actions
-- Slot `auditTrail` unifié via `useModuleAudit`
-- Slot `realtimeChannels` via `useModuleRealtime`
-- Boutons d'action collants en bas (jamais coupés)
-- États : idle / loading / simulating / confirming / executing / success / error / warning-critical
+**Vue** `v_customer_timeline` : étendre pour inclure `account_ownership_transfers` avec `visibility='staff'`.
 
-Sortie Phase 0 : inventaire + shell durci + confirmation du prochain lot avec toi.
+**Trigger** : `updated_at`.
 
-## Phase 1 — Lots par ordre de risque métier
+### 2. Edge Function `account-transfer-actions`
 
-Chaque lot = 2 à 4 modules maximum, fermé avec preuve avant le suivant.
+Actions (Zod validées) :
+- `create_transfer` — recherche/création nouveau propriétaire, écrit ligne + envoie 2 emails de consentement.
+- `approve_old_owner` / `approve_new_owner` — token signé dans l'URL email.
+- `cancel_transfer` / `reject_transfer`
+- `execute_transfer` — transaction atomique :
+  1. Réaffecter `accounts.client_id`, `orders.user_id` (services sélectionnés), `billing_subscriptions`, `equipment_inventory`.
+  2. Selon `billing_transfer_option` : garder ou transférer `billing_invoices` impayées.
+  3. Purger `client_payment_methods` du nouveau (ne pas transférer cartes).
+  4. Écrire `admin_audit_log`, `writeAccountJournal` (ancien + nouveau), timeline.
+  5. Notifs via `rpc_communication_enqueue` (`transfer_completed_*`).
+- `rollback_transfer` — réversion tant que `completed_at` < 24h.
 
-**Lot A — Facturation critique** (impact $ direct)
-1. Enregistrer paiement
-2. Crédit / Promotion + Crédit / Frais facture (fusionnés en un centre "Ajustements")
-3. Remboursement rapide
-4. Write-off / Ajustement
-5. Plan de paiement
-6. Force AutoPay + Méthode de paiement (fusionnés)
+Guards :
+- Balance impayée > 0 → exige `admin_override=true` + `reason`.
+- Compte suspendu → autorisé mais conserve état.
+- RBAC serveur : `has_role('admin')` ou `has_role('supervisor')`.
+- Idempotency obligatoire (`account_transfer:{account_id}:{nonce}`).
 
-**Lot B — Services & équipements** (opérationnel)
-7. Service Internet (état ligne, actions modem)
-8. Service TV (packs, terminaux)
-9. Ligne mobile (SIM, addons, topup)
-10. Reboot équipement
-11. Diagnostic ligne
-12. Gestion équipement (RMA, remplacements)
-13. Geler cycle / essai
-14. Transfert déménagement
+### 3. Templates email (React Email, `_shared/transactional-email-templates/`)
 
-**Lot C — Conformité & sécurité** (risque légal)
-15. Restrictions
-16. Verrouiller compte fraude
-17. Réinitialiser NIP
-18. Étiquettes & alertes
-19. Journal consentements
-20. Sécurité & sessions
-21. Demandes Loi 25
-22. Risque & fraude
+- `transfer-requested-old-owner.tsx` — bouton "Confirmer/Refuser".
+- `transfer-requested-new-owner.tsx` — bouton "Accepter les responsabilités" + création de mot de passe.
+- `transfer-completed-old-owner.tsx`
+- `transfer-completed-new-owner.tsx`
+- `transfer-cancelled.tsx`
 
-**Lot D — Compte & lifecycle**
-23. Modifier le profil
-24. Accès en ligne
-25. VIP / Churn risk
-26. Pause temporaire
-27. Annuler le compte
-28. Cas recouvrement
-29. Litige facturation
+Design : template bleu #0066CC. Enregistrer dans `registry.ts`. Deploy.
 
-**Lot E — Commandes & fidélité**
-30. Nouvelle commande (deep-link vers workflow commande existant + pré-remplissage)
-31. Récompenses (déjà partiellement fait — mise au standard shell)
-32. Parrainages (idem)
-33. Bon de compensation
+### 4. UI Nivra Core (`src/core-app/`)
 
-**Lot F — Communication & suivi**
-34. Ticket support
-35. Escalade superviseur
-36. Envoyer un message / SMS / rappel (fusionnés en centre "Communications")
-37. Appels & téléphonie
-38. Planifier RDV
-39. NPS / Satisfaction
-40. Note interne
-41. Préférences communication
-42. Tâches & suivis
-43. Documents
-44. Historique & activité
+Wizard 4 étapes dans `AccountOwnershipTransferDialog.tsx`, ouvert depuis `Account360QuickActions.tsx` (visible admin/supervisor seulement via `useIsCoreAdmin` + rôle supervisor).
 
-Modules déjà conformes (ne pas retoucher) : **Voir comme client**, **Upgrade/Downgrade**, **Vérification KYC**.
+- **Étape 1** — Recherche via `search_clients_unified` OU onglet "Nouveau client" (form complet).
+- **Étape 2** — Résumé compte actuel (services, équipements, factures, balance, tickets) + résumé nouveau propriétaire.
+- **Étape 3** — Options : checkboxes services, radio billing (3 options), équipements, adresse.
+- **Étape 4** — Confirmation + envoi.
 
-## Definition of Done par module
+Page publique `/account-transfer/confirm/:token` pour la confirmation des deux parties (client portal ou public).
 
-Un module est fermé uniquement quand tous les critères sont vrais :
+### 5. Journal & Timeline
 
-```text
-[ ] Contexte affiché : état actuel + entités liées + historique
-[ ] Simulation dispo si l'action a un impact $ / service / légal
-[ ] Exécution passe par une RPC ou Edge Function officielle existante
-[ ] admin_audit_log écrit (avant/après)
-[ ] Email officiel envoyé si applicable (via templates registry)
-[ ] Realtime : le portail client + Core reflètent le changement < 3s
-[ ] UI : dialog max-w-6xl, aucun bouton caché, contraste AA
-[ ] Preuve technique livrée dans le chat
-[ ] Test QA validé (compte test-c360-planchange@nivra-test.ca)
-```
+`writeAccountJournal` avec eventKeys :
+- `account_transfer:{account_id}:created`
+- `account_transfer:{account_id}:old_owner_confirmed`
+- `account_transfer:{account_id}:new_owner_confirmed`
+- `account_transfer:{account_id}:completed`
+- `account_transfer:{account_id}:cancelled`
 
-## Livrable par module (format standard)
+Visibility `admin` pour événements, `staff` pour timeline.
 
-```text
-Module: <nom>
-Fichiers: <liste>
-Tables: <liste canonique>
-RPC: <liste>
-Edge Functions: <liste>
-Triggers: <liste>
-Emails: <template_name → destinataire>
-Audit: admin_audit_log entry avec action_type=<x>
-Realtime: <channels>
-Test QA: <résultat + IDs>
-```
+### 6. QA — `qa-module48-runner`
 
-## Cadence de validation
+Cas couverts : succès complet, client inexistant, email invalide, double clic (idempotency), refus ancien/nouveau, dette, suspension, transfert partiel, RLS anon, employee non autorisé, timeline présente, emails enfilés, rollback.
 
-- Je livre lot par lot, module par module à l'intérieur du lot.
-- Après chaque module : preuve + attente de ton feu vert.
-- Après chaque lot : rétrospective courte (ce qui a changé au shell, patterns réutilisables).
-- Aucun saut de lot sans validation explicite.
+Sortie : Run ID + PASS count consigné dans `.lovable/module48-report.md`.
 
-## Prérequis à débloquer une seule fois
+## Ordre d'exécution
 
-- **Compte QA** : `qa-provision-test-account` doit être invoqué une fois avec ta session admin (blocage actuel). Sans ça, la validation E2E ne peut pas tourner et aucun module ne peut être fermé formellement.
+1. Migration DB (table, enum, RPC, idempotency, timeline view, GRANTs, RLS).
+2. Edge Function `account-transfer-actions` + secrets si besoin.
+3. Templates email + `registry.ts` + deploy.
+4. UI Core (dialog + wizard + entrypoint action).
+5. Page publique de confirmation.
+6. QA runner + rapport.
+7. Preuves : migration appliquée, EF déployée, tests QA, screenshots UI, liste fichiers modifiés.
 
-## Ce que je démarre dès que tu approuves
+## Notes techniques
 
-1. Phase 0.1 — inventaire technique complet des 44 modules (lecture code + DB, aucune écriture).
-2. Phase 0.2 — durcissement `ClientModuleShell` + hooks partagés.
-3. Retour vers toi avec l'inventaire + proposition d'ordre définitif pour Lot A.
+- Aucun INSERT/UPDATE direct frontend sur `accounts`, `orders`, `billing_*`, `equipment_inventory`.
+- Toutes les communications via `rpc_communication_enqueue` + `communication_idempotency`.
+- Cartes de paiement (`client_payment_methods`) : jamais transférées, purgées côté nouveau propriétaire.
+- Machine à états : transitions unidirectionnelles sauf `cancelled`/`rejected`/`failed` terminaux.
+- Expiration automatique après 7 jours sans confirmation (cron optionnel — hors périmètre initial, marqué en tâche de fond).
 
-Aucun module métier n'est modifié avant que tu aies validé l'inventaire et l'ordre du Lot A.
+Confirme pour lancer la Phase 1 (migration DB).
