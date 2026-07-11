@@ -37,6 +37,12 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Deterministic minute bucket (UTC) — used for idempotent event keys
+function isoMinuteBucket(d: Date = new Date()): string {
+  return d.toISOString().slice(0, 16).replace(/[-:T]/g, "");
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -326,22 +332,30 @@ serve(async (req) => {
   ) => {
     if (!body.client_user_id) return;
     try {
-      const { error } = await admin.from("client_activity_logs").insert({
-        client_id: body.client_user_id,
-        actor_user_id: user.id,
-        actor_name: callerName ?? callerProfile?.email ?? "system",
-        actor_role: primaryRole,
-        action_type,
-        entity_id,
-        entity_type,
-        summary,
-        after_data: {
-          ...(after ?? {}),
-          module_tag: "module31_new_order",
-          simulated: !!body.simulated,
+      // Deterministic event key — one activity row per (client, action, entity, minute)
+      const eventKey = `order:${entity_id ?? body.order_id ?? body.client_user_id}:activity:${action_type}:${isoMinuteBucket()}`;
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey,
+        payload: {
+          client_id: body.client_user_id,
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          after_data: {
+            ...(after ?? {}),
+            module_tag: "module31_new_order",
+            simulated: !!body.simulated,
+          },
+        },
+        actor: {
+          userId: user.id,
+          role: primaryRole,
+          name: callerName ?? callerProfile?.email ?? "system",
+          email: callerProfile?.email ?? null,
         },
       });
-      if (error) await raiseAlert("order_new_activity_failed", { action_type, error: error.message });
     } catch (e) {
       await raiseAlert("order_new_activity_failed", { action_type, error: String(e) });
     }
@@ -351,16 +365,24 @@ serve(async (req) => {
   const clientInternalNote = async (title: string, content: string, tag: string) => {
     if (!body.client_user_id) return;
     try {
-      const { error } = await admin.from("client_internal_notes").insert({
-        client_id: body.client_user_id,
-        account_id: body.account_id ?? null,
-        note_type: primaryRole === "admin" ? "admin" : "employee",
-        body: `[${tag}] ${title}\n${content}`,
-        created_by_user_id: user.id,
-        created_by_role: primaryRole,
-        created_by_name: callerName ?? callerProfile?.email ?? "system",
+      // Deterministic event key — one note per (client, order/tag, minute)
+      const eventKey = `note:${body.client_user_id}:${body.order_id ?? "new_order"}:${tag}:${isoMinuteBucket()}`;
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey,
+        payload: {
+          client_id: body.client_user_id,
+          account_id: body.account_id ?? null,
+          note_type: primaryRole === "admin" ? "admin" : "employee",
+          body: `[${tag}] ${title}\n${content}`,
+        },
+        actor: {
+          userId: user.id,
+          role: primaryRole,
+          name: callerName ?? callerProfile?.email ?? "system",
+          email: callerProfile?.email ?? null,
+        },
       });
-      if (error) await raiseAlert("order_new_note_failed", { error: error.message });
     } catch (e) {
       await raiseAlert("order_new_note_failed", { error: String(e) });
     }
@@ -820,11 +842,23 @@ serve(async (req) => {
       }
       if (body.order_id) {
         await admin.from("orders").update({ status: "cancelled" } as any).eq("id", body.order_id);
-        await admin.from("activity_logs").insert({
-          user_id: user.id, entity_type: "order", entity_id: body.order_id,
-          action: "order_cancelled", reason,
-          details: { source: "new_order_actions", actor_role: primaryRole,
-                     simulated: !!body.simulated },
+        await writeAccountJournal(admin, {
+          targetTable: "activity_logs",
+          eventKey: `order:${body.order_id}:status:cancelled`,
+          payload: {
+            entity_type: "order",
+            entity_id: body.order_id,
+            action: "order_cancelled",
+            reason,
+            details: { source: "new_order_actions", actor_role: primaryRole,
+                       simulated: !!body.simulated },
+          },
+          actor: {
+            userId: user.id,
+            role: primaryRole,
+            name: callerName ?? callerProfile?.email ?? "system",
+            email: callerProfile?.email ?? null,
+          },
         });
       }
       if (body.customer?.email) {
@@ -863,11 +897,23 @@ serve(async (req) => {
         .update({ status: "on_hold" } as any).eq("id", body.order_id);
       if (uErr) return err(500, "DB_UPDATE_FAILED", uErr.message);
 
-      await admin.from("activity_logs").insert({
-        user_id: user.id, entity_type: "order", entity_id: body.order_id,
-        action: "order_on_hold", reason,
-        details: { source: "new_order_actions", actor_role: primaryRole,
-                   simulated: !!body.simulated },
+      await writeAccountJournal(admin, {
+        targetTable: "activity_logs",
+        eventKey: `order:${body.order_id}:status:on_hold`,
+        payload: {
+          entity_type: "order",
+          entity_id: body.order_id,
+          action: "order_on_hold",
+          reason,
+          details: { source: "new_order_actions", actor_role: primaryRole,
+                     simulated: !!body.simulated },
+        },
+        actor: {
+          userId: user.id,
+          role: primaryRole,
+          name: callerName ?? callerProfile?.email ?? "system",
+          email: callerProfile?.email ?? null,
+        },
       });
       await audit("hold_transaction", { order_id: body.order_id, reason }, "warning");
       await clientActivity("order_on_hold", body.order_id, "order",
