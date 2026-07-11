@@ -291,13 +291,16 @@ const AdminRecouvrement = () => {
       if (updateError) throw updateError;
 
       // Log the reminder in internal notes
-      await supabase.from("client_internal_notes").insert({
-        client_id: account.client_id,
-        body: `Rappel de recouvrement envoyé par email. Montant dû: ${account.latest_invoice_amount?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}. Jours depuis échéance: ${account.days_since_suspension}`,
-        note_type: "recouvrement",
-        created_by_role: "admin",
-        created_by_user_id: user?.id || "",
-        created_by_name: "Système (Rappel automatique)",
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `recouvrement:reminder:${account.id}:${new Date().toISOString().slice(0, 10)}`,
+        visibility: "staff",
+        payload: {
+          client_id: account.client_id,
+          account_id: account.id,
+          note_type: "recouvrement",
+          body: `Rappel de recouvrement envoyé par email. Montant dû: ${account.latest_invoice_amount?.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}. Jours depuis échéance: ${account.days_since_suspension}`,
+        },
       });
     },
     onSuccess: () => {
