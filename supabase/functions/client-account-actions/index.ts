@@ -818,6 +818,10 @@ Deno.serve(async (req) => {
     if (!actor) return j({ error: 'unauthorized' }, 401);
 
     const raw = await req.json();
+    // Accept `reason` at top level OR `__audit_reason` (callCoreAction wrapper).
+    if (raw && typeof raw === 'object' && raw.__audit_reason && !raw.reason) {
+      raw.reason = raw.__audit_reason;
+    }
     const parsed = InputSchema.safeParse(raw);
     if (!parsed.success) return j({ error: 'validation_failed', details: parsed.error.flatten() }, 400);
     const input = parsed.data;
