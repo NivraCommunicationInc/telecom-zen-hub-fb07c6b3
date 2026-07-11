@@ -23,6 +23,13 @@
 // ============================================================================
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Minute bucket in base36 — used only when no stable business identity
+// exists to anchor idempotency (e.g. record_replace_card, non-scoped retry).
+function isoMinuteBucket36(d: Date = new Date()): string {
+  return Math.floor(d.getTime() / 60_000).toString(36);
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -125,28 +132,47 @@ serve(async (req) => {
       summary: string,
       actionType: string,
       afterData: Record<string, unknown>,
+      eventScope: string,
     ) => {
       if (!effectiveClientId) return;
+      const actor = {
+        userId: user.id,
+        role: "admin",
+        name: user.email ?? "core-admin",
+        email: user.email ?? null,
+      };
       try {
-        await admin.from("client_activity_logs").insert({
-          client_id:     effectiveClientId,
-          actor_user_id: user.id,
-          actor_name:    user.email ?? null,
-          actor_role:    "admin",
-          action_type:   actionType,
-          entity_type:   "billing_customer",
-          entity_id:     customer_id,
-          summary,
-          after_data:    afterData,
+        await writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          eventKey: `autopay:${customer_id}:${eventScope}:activity`,
+          correlationId: reason ?? null,
+          actor,
+          payload: {
+            client_id:     effectiveClientId,
+            actor_user_id: user.id,
+            actor_name:    user.email ?? null,
+            actor_role:    "admin",
+            action_type:   actionType,
+            entity_type:   "billing_customer",
+            entity_id:     customer_id,
+            summary,
+            after_data:    afterData,
+          },
         });
-        await admin.from("client_internal_notes").insert({
-          client_id:          effectiveClientId,
-          account_id:         account_id ?? null,
-          note_type:          "system",
-          body:               `${summary} — par ${user.email ?? user.id}`,
-          created_by_user_id: user.id,
-          created_by_role:    "admin",
-          created_by_name:    user.email ?? null,
+        await writeAccountJournal(admin, {
+          targetTable: "client_internal_notes",
+          eventKey: `autopay:${customer_id}:${eventScope}:note`,
+          correlationId: reason ?? null,
+          actor,
+          payload: {
+            client_id:          effectiveClientId,
+            account_id:         account_id ?? null,
+            note_type:          "system",
+            body:               `${summary} — par ${user.email ?? user.id}`,
+            created_by_user_id: user.id,
+            created_by_role:    "admin",
+            created_by_name:    user.email ?? null,
+          },
         });
       } catch (e) { console.error("[autopay-activity-note]", e); }
     };
@@ -172,6 +198,7 @@ serve(async (req) => {
         `AutoPay activé sur la carte ${bcBefore.square_card_brand} •••• ${bcBefore.square_card_last4} — motif: ${reason}`,
         "autopay_enabled",
         { autopay_enabled: true, card_last4: bcBefore.square_card_last4 },
+        `enabled:${isoMinuteBucket36()}`,
       );
       return json({ ok: true });
     }
@@ -190,6 +217,7 @@ serve(async (req) => {
         `AutoPay suspendu (carte conservée) — motif: ${reason}`,
         "autopay_disabled",
         { autopay_enabled: false },
+        `disabled:${isoMinuteBucket36()}`,
       );
       return json({ ok: true });
     }
@@ -210,6 +238,7 @@ serve(async (req) => {
         `Carte Square retirée (•••• ${bcBefore.square_card_last4 ?? "?"}) + AutoPay désactivé — motif: ${reason}`,
         "autopay_card_detached",
         { square_card_id: null, autopay_enabled: false },
+        `card_detached:${isoMinuteBucket36()}`,
       );
       return json({ ok: true });
     }
@@ -249,6 +278,7 @@ serve(async (req) => {
         `Relance AutoPay forcée — ${updated?.length ?? 0} facture(s) reprogrammée(s) — motif: ${reason}`,
         "autopay_retry_forced",
         { invoices_rescheduled_count: updated?.length ?? 0, invoice_id: invoice_id ?? null },
+        `retry:${invoice_id ?? "all"}:${isoMinuteBucket36()}`,
       );
       return json({ ok: true, invoices_rescheduled: updated ?? [], executor });
     }
@@ -267,6 +297,7 @@ serve(async (req) => {
         `Méthode de paiement remplacée — ${brand} •••• ${last4} — motif: ${reason}`,
         "autopay_card_replaced",
         { square_card_brand: brand, square_card_last4: last4 },
+        `card_replaced:${last4}:${isoMinuteBucket36()}`,
       );
       return json({ ok: true });
     }
