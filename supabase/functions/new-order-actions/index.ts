@@ -36,6 +36,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -366,11 +367,24 @@ serve(async (req) => {
   };
 
 
-  const enqueueEmail = async (payload: Record<string, unknown>) => {
+  const enqueueEmail = async (payload: Record<string, any>) => {
     try {
-      const r = await admin.from("email_queue").insert(payload as any);
-      if (r.error) await raiseAlert("order_new_email_failed", { error: r.error.message });
-      return r;
+      await enqueueCommunication(admin, {
+        channel: "email",
+        templateKey: payload.template_key,
+        recipient: payload.to_email,
+        idempotencyKey: payload.event_key ?? payload.idempotency_key ?? `new-order:${payload.template_key}:${payload.to_email}`,
+        templateVars: payload.template_vars ?? {},
+        subject: payload.subject ?? null,
+        cc: payload.cc ?? null,
+        bcc: payload.bcc ?? null,
+        replyTo: payload.reply_to ?? null,
+        attachments: payload.attachments ?? null,
+        priority: typeof payload.priority === "number" ? payload.priority : 0,
+        entityType: payload.entity_type ?? "order",
+        entityId: payload.entity_id ?? null,
+      });
+      return { error: null };
     } catch (e) {
       await raiseAlert("order_new_email_failed", { error: String(e) });
       return { error: e } as any;
