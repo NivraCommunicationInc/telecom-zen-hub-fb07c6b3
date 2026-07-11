@@ -437,6 +437,7 @@ serve(async (req) => {
           `Méthode de paiement retirée — ${METHOD_LABELS[existing.method_type] || existing.method_type}${existing.last4 ? ` ••${existing.last4}` : ""}${body.reason ? ` — motif: ${body.reason}` : ""}`,
           { status: existing.status, method_type: existing.method_type, last4: existing.last4 },
           { status: "removed", removed_reason: body.reason ?? null },
+          `billing:pm:${id}:removed`,
         );
         await enqueuePaymentMethodEmail("removed", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
