@@ -151,43 +151,61 @@ Deno.serve(async (req) => {
       accountId: string | null,
       details: Record<string, unknown>,
       reason: string,
+      anchorId: string,
     ) => {
+      const baseKey = `account_tag:${anchorId}:${op}`;
+      const journalActor = { userId: actor.id, role: callerRole, name: actor.email || callerRole, email: actor.email ?? null };
       try {
-        await admin.from("client_activity_logs").insert({
-          client_id: body.client_user_id,
-          actor_user_id: actor.id,
-          actor_role: callerRole,
-          actor_name: actor.email || callerRole,
-          action_type: "account_tag",
-          summary: ACTION_LABELS[op],
-          entity_type: "account_tag",
-          entity_id: accountId ?? body.client_user_id,
-          after_data: { ...details, reason },
+        await writeAccountJournal(admin as any, {
+          targetTable: "client_activity_logs",
+          eventKey: `${baseKey}:activity`,
+          actor: journalActor,
+          payload: {
+            client_id: body.client_user_id,
+            actor_user_id: actor.id,
+            actor_role: callerRole,
+            actor_name: actor.email || callerRole,
+            action_type: "account_tag",
+            summary: ACTION_LABELS[op],
+            entity_type: "account_tag",
+            entity_id: accountId ?? body.client_user_id,
+            after_data: { ...details, reason },
+          },
         });
       } catch (_e) { /* best-effort */ }
       try {
-        await admin.from("activity_logs").insert({
-          user_id: body.client_user_id,
-          entity_type: "account_tag",
-          entity_id: accountId ?? body.client_user_id,
-          action: op,
-          reason,
-          actor_email: actor.email ?? null,
-          actor_name: actor.email ?? callerRole,
-          actor_role: callerRole,
-          details: { source: "account-tags-actions", ...details },
-        } as any);
+        await writeAccountJournal(admin as any, {
+          targetTable: "activity_logs",
+          eventKey: `${baseKey}:activity_logs`,
+          actor: journalActor,
+          payload: {
+            user_id: body.client_user_id,
+            entity_type: "account_tag",
+            entity_id: accountId ?? body.client_user_id,
+            action: op,
+            reason,
+            actor_email: actor.email ?? null,
+            actor_name: actor.email ?? callerRole,
+            actor_role: callerRole,
+            details: { source: "account-tags-actions", ...details },
+          },
+        });
       } catch (_e) { /* best-effort */ }
       try {
         if (accountId) {
-          await admin.from("client_internal_notes").insert({
-            account_id: accountId,
-            client_id: body.client_user_id,
-            note_type: "system",
-            body: `${ACTION_LABELS[op]} — par ${actor.email || actor.id} (${callerRole}) — motif: ${reason}`,
-            created_by_user_id: actor.id,
-            created_by_name: actor.email || callerRole,
-            created_by_role: callerRole,
+          await writeAccountJournal(admin as any, {
+            targetTable: "client_internal_notes",
+            eventKey: `${baseKey}:note`,
+            actor: journalActor,
+            payload: {
+              account_id: accountId,
+              client_id: body.client_user_id,
+              note_type: "system",
+              body: `${ACTION_LABELS[op]} — par ${actor.email || actor.id} (${callerRole}) — motif: ${reason}`,
+              created_by_user_id: actor.id,
+              created_by_name: actor.email || callerRole,
+              created_by_role: callerRole,
+            },
           });
         }
       } catch (_e) { /* best-effort */ }
