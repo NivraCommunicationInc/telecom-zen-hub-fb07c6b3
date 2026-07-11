@@ -15,6 +15,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -269,41 +270,69 @@ serve(async (req) => {
 
   // ── 7. client_activity_logs (traçabilité client — canonical schema) ─
   {
-    const { error: calErr } = await admin.from("client_activity_logs").insert({
-      client_id: clientId,
-      actor_user_id: user.id,
-      actor_name: user.email ?? "core-admin",
-      actor_role: "admin",
-      action_type: "plan_change",
-      entity_type: "subscription",
-      entity_id: subscription_id || null,
-      summary: `Changement de forfait ${change_type}: ${bSub?.frozen_name || bSub?.plan_name || "—"} → ${new_plan_name} (${new_plan_price}$)`,
-      before_data: {
-        plan_name: bSub?.frozen_name ?? bSub?.plan_name ?? null,
-        plan_price: bSub?.frozen_unit_price ?? bSub?.plan_price ?? null,
-      },
-      after_data: {
-        plan_name: new_plan_name,
-        plan_price: new_plan_price,
-        change_type,
-        timing: isImmediate ? "immediate" : "next_cycle",
-        scr_id: scr.id,
-      },
-    });
-    if (calErr) console.warn("[core-apply-plan-change] client_activity_logs failed:", calErr.message);
+    try {
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `plan_change:${scr.id}:applied:activity`,
+        correlationId: body.__audit_reason ?? null,
+        actor: {
+          userId: user.id,
+          role: "admin",
+          name: user.email ?? "core-admin",
+          email: user.email ?? null,
+        },
+        payload: {
+          client_id: clientId,
+          actor_user_id: user.id,
+          actor_name: user.email ?? "core-admin",
+          actor_role: "admin",
+          action_type: "plan_change",
+          entity_type: "subscription",
+          entity_id: subscription_id || null,
+          summary: `Changement de forfait ${change_type}: ${bSub?.frozen_name || bSub?.plan_name || "—"} → ${new_plan_name} (${new_plan_price}$)`,
+          before_data: {
+            plan_name: bSub?.frozen_name ?? bSub?.plan_name ?? null,
+            plan_price: bSub?.frozen_unit_price ?? bSub?.plan_price ?? null,
+          },
+          after_data: {
+            plan_name: new_plan_name,
+            plan_price: new_plan_price,
+            change_type,
+            timing: isImmediate ? "immediate" : "next_cycle",
+            scr_id: scr.id,
+          },
+        },
+      });
+    } catch (e) {
+      console.warn("[core-apply-plan-change] client_activity_logs failed:", (e as Error)?.message);
+    }
   }
 
-  // ── 8. client_internal_notes (note admin visible Core — canonical schema) ─
+  // ── 8. client_internal_notes (note admin visible Core — via single door) ─
   {
-    const { error: cinErr } = await admin.from("client_internal_notes").insert({
-      client_id: clientId,
-      note_type: "admin",
-      body: `[PLAN_CHANGE — ${change_type}] ${bSub?.frozen_name || bSub?.plan_name || "—"} → ${new_plan_name} (${new_plan_price}$). Motif: ${reason}. Par: ${user.email || user.id}.`,
-      created_by_user_id: user.id,
-      created_by_role: "admin",
-      created_by_name: user.email ?? "core-admin",
-    });
-    if (cinErr) console.warn("[core-apply-plan-change] client_internal_notes failed:", cinErr.message);
+    try {
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `plan_change:${scr.id}:applied:note`,
+        correlationId: body.__audit_reason ?? null,
+        actor: {
+          userId: user.id,
+          role: "admin",
+          name: user.email ?? "core-admin",
+          email: user.email ?? null,
+        },
+        payload: {
+          client_id: clientId,
+          note_type: "admin",
+          body: `[PLAN_CHANGE — ${change_type}] ${bSub?.frozen_name || bSub?.plan_name || "—"} → ${new_plan_name} (${new_plan_price}$). Motif: ${reason}. Par: ${user.email || user.id}.`,
+          created_by_user_id: user.id,
+          created_by_role: "admin",
+          created_by_name: user.email ?? "core-admin",
+        },
+      });
+    } catch (e) {
+      console.warn("[core-apply-plan-change] client_internal_notes failed:", (e as Error)?.message);
+    }
   }
 
   return json(200, { ok: true, ...results });
