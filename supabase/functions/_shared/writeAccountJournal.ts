@@ -111,7 +111,17 @@ export async function writeAccountJournal(
   }
   assertDeterministicEventKey(input.eventKey);
 
-  const payload: Record<string, unknown> = { ...(input.payload ?? {}) };
+  const DEFAULT_VISIBILITY: Record<AccountJournalTable, AccountJournalVisibility> = {
+    client_activity_logs: "client",
+    activity_logs: "admin",
+    client_internal_notes: "staff",
+    account_followups: "staff",
+    order_status_history: "client",
+    order_internal_notes: "staff",
+  };
+  const visibility = input.visibility ?? DEFAULT_VISIBILITY[input.targetTable];
+
+  const payload: Record<string, unknown> = { ...(input.payload ?? {}), visibility };
   if (input.actor && input.actor.userId) {
     payload._actor = {
       user_id: input.actor.userId,
