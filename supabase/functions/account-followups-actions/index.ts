@@ -99,23 +99,37 @@ Deno.serve(async (req) => {
           assignedEmail = p?.email ?? null;
         }
 
-        const row = {
-          client_user_id: body.client_user_id,
-          account_id: body.account_id ?? null,
-          title: body.title.trim().slice(0, 240),
-          description: body.description?.trim().slice(0, 4000) || null,
-          category,
-          priority,
-          status: "open",
-          due_at: body.due_at || null,
-          assigned_to: body.assigned_to ?? userData.user.id,
-          assigned_to_email: assignedEmail ?? userData.user.email ?? null,
-          created_by: userData.user.id,
-          created_by_email: userData.user.email ?? null,
-        };
+        const titleTrim = body.title.trim().slice(0, 240);
+        const descTrim = body.description?.trim().slice(0, 4000) || null;
+
+        // Deterministic event key — one create per (client, minute, title hash)
+        const eventKey = `followup:${body.client_user_id}:create:${isoMinuteBucket()}:${shortHash(titleTrim)}`;
+
+        const jr = await writeAccountJournal(admin, {
+          targetTable: "account_followups",
+          eventKey,
+          payload: {
+            client_id: body.client_user_id,
+            account_id: body.account_id ?? null,
+            title: titleTrim,
+            description: descTrim,
+            category,
+            priority,
+            status: "open",
+            due_at: body.due_at || null,
+            assigned_to: body.assigned_to ?? userData.user.id,
+            assigned_to_email: assignedEmail ?? userData.user.email ?? null,
+          },
+          actor: {
+            userId: userData.user.id,
+            role: isAdmin ? "admin" : "staff",
+            name: userData.user.email ?? "system",
+            email: userData.user.email ?? null,
+          },
+        });
 
         const { data, error } = await admin
-          .from("account_followups").insert(row).select("*").single();
+          .from("account_followups").select("*").eq("id", jr.id!).maybeSingle();
         if (error) throw error;
 
         await admin.from("admin_audit_log").insert({
@@ -124,7 +138,7 @@ Deno.serve(async (req) => {
           action: "account_ops.followup_create",
           target_type: "user",
           target_id: body.client_user_id,
-          details: { followup_id: data.id, row, reason: body.reason.trim() },
+          details: { followup_id: data?.id, event_key: eventKey, idempotent: jr.idempotent, reason: body.reason.trim() },
         });
         return json({ ok: true, followup: data });
       }
