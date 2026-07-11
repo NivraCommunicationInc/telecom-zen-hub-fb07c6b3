@@ -21,15 +21,30 @@ import { enqueueCommunication } from "@/lib/enqueueCommunication";
 async function enqueueOrderEmail(row: Record<string, any> | null | undefined) {
   if (!row || !row.to_email || !row.entity_id) return;
   try {
-    const { error } = await supabase.from("email_queue").insert(row as any);
-    if (error) {
-      console.error("[orderEmails] enqueue failed:", error.message, {
-        template: row.template_key,
-        entity: row.entity_id,
-      });
-    }
+    const idempotencyKey: string = row.idempotency_key
+      ?? row.event_key
+      ?? `order-email:${row.template_key ?? "generic"}:${row.entity_id}`;
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: row.template_key,
+      recipient: row.to_email,
+      idempotencyKey,
+      templateVars: row.template_vars ?? row.variables ?? {},
+      entityType: row.entity_type ?? "order",
+      entityId: row.entity_id,
+      subject: row.subject ?? null,
+      priority: typeof row.priority === "number" ? row.priority : 0,
+      toName: row.to_name ?? null,
+      cc: row.cc ?? null,
+      bcc: row.bcc ?? null,
+      replyTo: row.reply_to ?? null,
+      attachments: row.attachments ?? null,
+    });
   } catch (err: any) {
-    console.error("[orderEmails] enqueue exception:", err?.message);
+    console.error("[orderEmails] enqueue exception:", err?.message, {
+      template: row.template_key,
+      entity: row.entity_id,
+    });
   }
 }
 
