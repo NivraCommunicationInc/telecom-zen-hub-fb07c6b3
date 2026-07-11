@@ -3,6 +3,7 @@
  * Also handles monthly winback campaigns for churned clients.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,21 +101,22 @@ async function runDaily(supabase: any) {
       action_type: score >= 80 ? "personal_outreach" : "email_offer",
       offer_details: ai ?? {}, status: "sent", sent_at: new Date().toISOString(),
     });
-    await supabase.from("email_queue").insert({
-      to_email: p.email,
-      template_key: "retention_offer",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: p.email,
+      templateKey: "retention_offer",
       subject: ai?.hero_title ?? "Offre personnalisée Nivra Telecom",
-      template_vars: {
-        client_name: p.full_name, first_name: p.first_name ?? "Client",
-        hero_title: ai?.hero_title ?? "Une offre rien que pour vous",
-        body_html: (ai?.body ?? "Nous tenons à vous garder dans la famille Nivra.").replace(/\n/g, "<br/>"),
-        offer_type: ai?.offer_type ?? "discount_percent",
-        offer_value: ai?.offer_value ?? 10,
-        cta_label: ai?.cta ?? "Voir mon offre",
-        urgency_days: ai?.urgency_days ?? 7,
-        account_id: a.id,
-      },
-      status: "queued",
+      idempotencyKey: `retention:offer:${a.id}:${new Date().toISOString().slice(0,10)}`,
+      templateVars: {
+    client_name: p.full_name, first_name: p.first_name ?? "Client",
+    hero_title: ai?.hero_title ?? "Une offre rien que pour vous",
+    body_html: (ai?.body ?? "Nous tenons à vous garder dans la famille Nivra.").replace(/\n/g, "<br/>"),
+    offer_type: ai?.offer_type ?? "discount_percent",
+    offer_value: ai?.offer_value ?? 10,
+    cta_label: ai?.cta ?? "Voir mon offre",
+    urgency_days: ai?.urgency_days ?? 7,
+    account_id: a.id,
+  },
     });
     offersSent++;
   }
@@ -132,14 +134,15 @@ async function runWinback(supabase: any) {
   for (const a of (accounts ?? []) as any[]) {
     const { data: p } = await supabase.from("profiles").select("email, first_name, full_name").eq("user_id", a.client_id).maybeSingle();
     if (!p?.email) continue;
-    await supabase.from("email_queue").insert({
-      to_email: p.email,
-      template_key: "winback_offer",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: p.email,
+      templateKey: "winback_offer",
       subject: "On vous manque — Revenez chez Nivra",
-      template_vars: {
-        client_name: p.full_name, first_name: p.first_name ?? "Client", account_id: a.id,
-      },
-      status: "queued",
+      idempotencyKey: `retention:winback:${a.id}:${new Date().toISOString().slice(0,10)}`,
+      templateVars: {
+    client_name: p.full_name, first_name: p.first_name ?? "Client", account_id: a.id,
+  },
     });
     sent++;
   }

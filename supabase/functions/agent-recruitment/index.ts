@@ -3,6 +3,7 @@
  * follow-ups, auto-rejection, and daily pipeline summary.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,12 +59,15 @@ async function inviteNew(supabase: any) {
     }
 
     const interviewUrl = `${APP_URL}/interview/${a.interview_token}`;
-    await supabase.from("email_queue").insert({
-      to_email: a.email,
-      template_key: "interview_invitation",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: a.email,
+      templateKey: "interview_invitation",
       subject: "Invitation à votre entrevue Nivra Telecom",
-      template_vars: {
-        client_name: `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim(),
+      idempotencyKey: `recruit:invitation:${a.id}`,
+      templateVars: {
+    client_name: `${a.first_name ?? ""} ${a.last_name ?? "",
+    }),
         first_name: a.first_name ?? "Candidat",
         interview_url: interviewUrl,
         days_valid: 7,
@@ -89,12 +93,15 @@ async function followUp(supabase: any) {
   for (const a of (pending ?? []) as any[]) {
     const interviewUrl = `${APP_URL}/interview/${a.interview_token}`;
     const daysLeft = Math.max(1, 7 - Math.floor((Date.now() - new Date(a.invitation_sent_at).getTime()) / 86400_000));
-    await supabase.from("email_queue").insert({
-      to_email: a.email,
-      template_key: "interview_reminder",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: a.email,
+      templateKey: "interview_reminder",
       subject: "Rappel — Votre entrevue Nivra vous attend",
-      template_vars: {
-        client_name: `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim(),
+      idempotencyKey: `recruit:reminder:${a.id}:${new Date().toISOString().slice(0,10)}`,
+      templateVars: {
+    client_name: `${a.first_name ?? ""} ${a.last_name ?? "",
+    }),
         first_name: a.first_name ?? "Candidat",
         interview_url: interviewUrl,
         days_valid: daysLeft,
@@ -118,15 +125,16 @@ async function autoReject(supabase: any) {
       status: "rejected", rejected_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq("id", a.id);
-    await supabase.from("email_queue").insert({
-      to_email: a.email,
-      template_key: "interview_rejection_polite",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: a.email,
+      templateKey: "interview_rejection_polite",
       subject: "Suivi de votre candidature Nivra Telecom",
-      template_vars: {
-        first_name: a.first_name ?? "Candidat",
-        client_name: a.first_name ?? "Candidat",
-      },
-      status: "queued",
+      idempotencyKey: `recruit:reject:${a.id}`,
+      templateVars: {
+    first_name: a.first_name ?? "Candidat",
+    client_name: a.first_name ?? "Candidat",
+  },
     });
     rejected++;
   }
@@ -145,12 +153,14 @@ async function pipelineSummary(supabase: any) {
   const { count: hiredWeek } = await supabase.from("job_applicants").select("*", { count: "exact", head: true })
     .gte("hired_at", weekAgo);
 
-  await supabase.from("email_queue").insert({
-    to_email: INTERNAL_EMAIL,
-    template_key: "recruitment_pipeline_summary",
-    subject: `Pipeline recrutement — ${today.toLocaleDateString("fr-CA")}`,
-    template_vars: {
-      pipeline_date: today.toISOString(),
+  await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: INTERNAL_EMAIL,
+      templateKey: "recruitment_pipeline_summary",
+      subject: `Pipeline recrutement — ${today.toLocaleDateString("fr-CA"),
+      idempotencyKey: `recruit:pipeline:${today.toISOString().slice(0,10)}`,
+      templateVars: {},
+    }),
       new_count: newCount ?? 0,
       invited_count: invitedCount ?? 0,
       completed_count: completedCount ?? 0,

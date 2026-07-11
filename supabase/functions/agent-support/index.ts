@@ -4,6 +4,7 @@
  * escalates complex cases to Core.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -127,38 +128,25 @@ async function processTicket(supabase: any, ticket: any) {
     update.escalation_reason = analysis.escalation_reason ?? "Confiance insuffisante ou cas sensible";
     update.status = "escalated";
 
-    await supabase.from("email_queue").insert({
-      to_email: INTERNAL_EMAIL,
-      template_key: "support_escalation_alert",
-      subject: `[ESCALADE] Ticket ${ticket.ticket_number} — ${update.category}`,
-      template_vars: {
-        ticket_number: ticket.ticket_number,
-        from_name: ticket.from_name ?? "Client",
-        from_email: ticket.from_email,
-        category: update.category,
-        priority: update.priority,
-        sentiment: update.sentiment,
-        escalation_reason: update.escalation_reason,
-        original_subject: ticket.subject ?? "",
-        original_body: ticket.body,
-      },
-      status: "queued",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: INTERNAL_EMAIL,
+      templateKey: "support_escalation_alert",
+      subject: `[ESCALADE] Ticket ${ticket.ticket_number,
+      idempotencyKey: `support:escalation:${ticket.id}`,
+      templateVars: {},
     });
   } else {
     update.ai_response_sent = true;
     update.status = "ai_responded";
 
-    await supabase.from("email_queue").insert({
-      to_email: ticket.from_email,
-      template_key: "support_ai_response",
-      subject: `Réponse — Ticket ${ticket.ticket_number}`,
-      template_vars: {
-        client_name: ticket.from_name ?? "Client",
-        first_name: ctx.profile?.first_name ?? ticket.from_name ?? "Client",
-        ticket_number: ticket.ticket_number,
-        ai_response: analysis.ai_response,
-      },
-      status: "queued",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: ticket.from_email,
+      templateKey: "support_ai_response",
+      subject: `Réponse — Ticket ${ticket.ticket_number,
+      idempotencyKey: `support:ai_response:${ticket.id}`,
+      templateVars: {},
     });
   }
 

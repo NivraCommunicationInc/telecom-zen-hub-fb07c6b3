@@ -7,6 +7,7 @@
  * Payload: { account_id, order_id, client_email, first_name, days_since_activation }
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,15 +80,16 @@ Deno.serve(async (req) => {
     const npsLink = `https://nivra-telecom.ca/feedback?token=${token}`;
 
     // Insert into email_queue
-    const { error: queueError } = await supabase.from("email_queue").insert({
-      to_email: client_email.toLowerCase(),
-      template_key: "nps_survey",
-      template_vars: {
-        first_name,
-        nps_link: npsLink,
-        order_id: order_id ?? null,
-      },
-      status: "queued",
+    const { error: queueError } = await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: client_email.toLowerCase(),
+      templateKey: "nps_survey",
+      idempotencyKey: `nps-survey:${token}`,
+      templateVars: {
+    first_name,
+    nps_link: npsLink,
+    order_id: order_id ?? null,
+  },
     });
 
     if (queueError) {

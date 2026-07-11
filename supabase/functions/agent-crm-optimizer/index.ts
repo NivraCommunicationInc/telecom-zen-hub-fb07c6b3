@@ -7,6 +7,7 @@
  *   Fast (< 5s) — no scoring work.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,23 +172,13 @@ async function runBriefing(supabase: any) {
 
   let sent = 0;
   for (const e of (emps ?? [])) {
-    await supabase.from("email_queue").insert({
-      to_email: e.email,
-      template_key: "crm_morning_briefing",
-      subject: `Briefing CRM du matin — ${new Date().toLocaleDateString("fr-CA")}`,
-      template_vars: {
-        client_name: e.full_name ?? e.first_name ?? "Agent",
-        first_name: e.first_name ?? "Agent",
-        available: available ?? 0,
-        callbacks: callbacks ?? 0,
-        objectives: ai.objectives ?? "30 appels — 3 ventes",
-        summary: ai.summary ?? "Bonne journée!",
-        strategy: ai.strategy ?? "",
-        scripts: ai.scripts ?? [],
-        top_priorities: ai.top_priorities ?? [],
-        top_contacts: top10 ?? [],
-      },
-      status: "queued",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: e.email,
+      templateKey: "crm_morning_briefing",
+      subject: `Briefing CRM du matin — ${new Date().toLocaleDateString("fr-CA"),
+      idempotencyKey: `crm-optimizer:briefing:${e.id ?? e.email}:${new Date().toISOString().slice(0,10)}`,
+      templateVars: {},
     });
     sent++;
   }

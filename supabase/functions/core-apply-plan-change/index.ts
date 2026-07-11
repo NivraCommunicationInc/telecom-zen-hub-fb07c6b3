@@ -14,6 +14,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -197,32 +198,35 @@ serve(async (req) => {
 
   // ── 5. Communications via canonical email_queue (official template) ─────
   if (clientEmail) {
-    await admin.from("email_queue").insert({
-      to_email: clientEmail,
-      template_key: isImmediate ? "plan_change_approved" : "plan_change_requested",
-      template_vars: {
-        first_name: firstName,
-        client_name: firstName,
-        to_email: clientEmail,
-        current_plan_name: bSub?.frozen_name || bSub?.plan_name || "—",
-        requested_plan_name: new_plan_name,
-        effective_date: isImmediate ? "immédiatement" : "au prochain renouvellement",
-        change_type,
-        account_number: accountNumber,
-      },
-      status: "queued",
+    await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: clientEmail,
+      templateKey: isImmediate ? "plan_change_approved" : "plan_change_requested",
       priority: 0,
+      idempotencyKey: `core-plan-change:client:${account_id}:${new_plan_name}:${change_type}:${body.idempotency_key ?? body.__audit_reason ?? "default"}`,
+      templateVars: {
+    first_name: firstName,
+    client_name: firstName,
+    to_email: clientEmail,
+    current_plan_name: bSub?.frozen_name || bSub?.plan_name || "—",
+    requested_plan_name: new_plan_name,
+    effective_date: isImmediate ? "immédiatement" : "au prochain renouvellement",
+    change_type,
+    account_number: accountNumber,
+  },
     }).catch((e) => console.warn("[core-apply-plan-change] email_queue failed:", e));
-    await admin.from("email_queue").insert({
-      to_email: "support@nivra-telecom.ca",
-      template_key: "plan_change_admin_alert",
-      template_vars: {
-        client_name: firstName, account_number: accountNumber,
-        current_plan_name: bSub?.frozen_name || bSub?.plan_name || "—",
-        requested_plan_name: new_plan_name, change_type,
-        core_actor: user.email, reason,
-      },
-      status: "queued", priority: 0,
+    await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: "support@nivra-telecom.ca",
+      templateKey: "plan_change_admin_alert",
+      priority: 0,
+      idempotencyKey: `core-plan-change:admin:${account_id}:${new_plan_name}:${change_type}:${body.idempotency_key ?? body.__audit_reason ?? "default"}`,
+      templateVars: {
+    client_name: firstName, account_number: accountNumber,
+    current_plan_name: bSub?.frozen_name || bSub?.plan_name || "—",
+    requested_plan_name: new_plan_name, change_type,
+    core_actor: user.email, reason,
+  },
     }).catch(() => {});
   }
 

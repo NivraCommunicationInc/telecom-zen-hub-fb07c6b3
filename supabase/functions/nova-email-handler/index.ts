@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportEdgeError } from "../_shared/sentry.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const AGENT = "nova-email-handler";
 
@@ -83,18 +84,17 @@ Retourne UNIQUEMENT un JSON:
 
       if (aiResp && confidence >= 0.9 && !isSensitive) {
         // Auto-respond
-        await admin.from("email_queue").insert({
-          to_email: t.from_email,
-          template_key: "nova_support_response",
-          template_vars: {
-            first_name: t.from_name ?? "Client",
-            subject: aiResp.subject ?? `Re: ${t.subject ?? ""}`,
-            body: aiResp.body ?? "",
-            ticket_number: t.ticket_number,
-          },
-          status: "queued",
-          language: "fr",
-        });
+        await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: t.from_email,
+      templateKey: "nova_support_response",
+      idempotencyKey: `nova-email:auto_response:${t.id}`,
+      templateVars: {
+        first_name: t.from_name ?? "Client",
+        subject: aiResp.subject ?? `Re: ${t.subject ?? ""}`,
+        body: aiResp.body ?? "",
+        ticket_number: t.ticket_number,,
+    });
         await admin.from("support_tickets_ai").update({
           ai_response: aiResp.body,
           ai_confidence: confidence,

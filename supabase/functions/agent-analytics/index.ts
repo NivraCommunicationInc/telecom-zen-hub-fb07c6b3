@@ -6,6 +6,7 @@
  * Body: { report_type: "daily" | "weekly" | "monthly" }
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -133,27 +134,15 @@ Deno.serve(async (req) => {
     // Queue email for weekly + daily
     if (reportType === "weekly" || reportType === "daily") {
       const tplKey = reportType === "weekly" ? "weekly_analytics_report" : "daily_analytics_report";
-      await supabase.from("email_queue").insert({
-        to_email: ALERT_EMAIL,
-        template_key: tplKey,
-        subject: reportType === "weekly"
-          ? `Rapport hebdomadaire Nivra — ${period.end}`
-          : `Rapport quotidien Nivra — ${period.end}`,
-        template_vars: {
-          client_name: "Équipe Nivra",
-          period_start: period.start,
-          period_end: period.end,
-          mrr: metrics.mrr,
-          revenue: metrics.revenue_period,
-          active_clients: metrics.active_clients,
-          new_clients: metrics.new_clients,
-          new_orders: metrics.new_orders,
-          total_complaints: metrics.total_complaints,
-          ai_summary: ai?.summary ?? "Rapport généré.",
-          recommendations: ai?.recommendations ?? [],
-        },
-        status: "queued",
-      });
+      await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: ALERT_EMAIL,
+      templateKey: tplKey,
+      subject: reportType === "weekly"
+      ? `Rapport hebdomadaire Nivra — ${period.end,
+      idempotencyKey: `agent-analytics:${reportType}:${period.end}`,
+      templateVars: {},
+    });
     }
 
     await supabase.from("agent_audit_log").insert({
