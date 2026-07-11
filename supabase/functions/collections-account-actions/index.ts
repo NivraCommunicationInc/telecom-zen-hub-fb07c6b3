@@ -283,11 +283,12 @@ serve(async (req) => {
         const note = `Plan: ${installments} versements de ${fmtMoney(each)} (total ${fmtMoney(total)}). ${body.notes || ""}`.trim();
         const { data, error } = await insertAction("payment_plan", { notes: note });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:payment_plan:${installments}x${each}`;
         await audit("payment_plan", { installments, each, total });
         await activity("collections_payment_plan", invoice_id,
           `Plan de paiement ${installments}×${fmtMoney(each)} sur facture ${invRef}`,
-          { installments, installment_amount: each, total });
-        await internalNote(`Recouvrement — plan ${installments}×${fmtMoney(each)} (total ${fmtMoney(total)}) sur facture ${invRef}.`);
+          { installments, installment_amount: each, total }, aid);
+        await internalNote(`Recouvrement — plan ${installments}×${fmtMoney(each)} (total ${fmtMoney(total)}) sur facture ${invRef}.`, aid);
         await enqueueEmail("client_collections_payment_plan", {
           installments: String(installments),
           installment_amount: fmtMoney(each),
