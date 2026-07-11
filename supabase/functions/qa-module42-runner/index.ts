@@ -52,13 +52,35 @@ Deno.serve(async (req) => {
   const fakeClientA = crypto.randomUUID();
   const fakeClientB = crypto.randomUUID();
 
+  // If invoked via service_role, mint a temp admin auth user and sign in
+  // to get a real JWT that the target EF's auth.getUser() will accept.
+  let callerAuth = auth;
+  let tempAdminId: string | null = null;
+  if (isServiceRole) {
+    const tempEmail = `qa-m42-${runId}@qa.local`;
+    const tempPass = crypto.randomUUID() + "Aa1!";
+    const { data: created, error: cErr } = await admin.auth.admin.createUser({
+      email: tempEmail, password: tempPass, email_confirm: true,
+    });
+    if (cErr || !created?.user) return json({ error: "temp admin create failed: " + cErr?.message }, 500);
+    tempAdminId = created.user.id;
+    await admin.from("user_roles").insert({ user_id: tempAdminId, role: "admin" });
+    const anonForLogin = createClient(SUPABASE_URL, ANON_KEY);
+    const { data: sess, error: sErr } = await anonForLogin.auth.signInWithPassword({
+      email: tempEmail, password: tempPass,
+    });
+    if (sErr || !sess?.session) return json({ error: "temp admin login failed: " + sErr?.message }, 500);
+    callerAuth = `Bearer ${sess.session.access_token}`;
+    actor = { id: tempAdminId, email: tempEmail };
+  }
+
   const cleanup: { table: string; column: string; value: string }[] = [];
   const auditReasonTag = `QA_M42_${runId}`;
 
   const invoke = (payload: any) =>
     fetch(`${SUPABASE_URL}/functions/v1/security-account-actions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: auth },
+      headers: { "Content-Type": "application/json", Authorization: callerAuth },
       body: JSON.stringify(payload),
     });
 
