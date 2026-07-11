@@ -6,6 +6,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Mail, Send, X, Loader2, Search } from "lucide-react";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 
 interface RecipientOption { user_id: string; full_name: string | null; email: string; }
 

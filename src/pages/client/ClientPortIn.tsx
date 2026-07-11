@@ -22,6 +22,7 @@ import {
   Building2, Hash, Lock, Clock, Info,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 
 const CARRIERS = [
   "Rogers", "Bell", "Telus", "Fido", "Koodo",

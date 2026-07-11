@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { useState } from "react";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 
 const STATUS_BADGE: Record<string, { label: string; classes: string }> = {
   pending_client: { label: "En attente client", classes: "bg-amber-50 text-amber-700 border-amber-200" },
