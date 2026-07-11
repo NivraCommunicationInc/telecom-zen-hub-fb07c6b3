@@ -301,9 +301,10 @@ serve(async (req) => {
       case "escalate": {
         const { data, error } = await insertAction("escalation", { notes: body.reason || body.notes || "Escalade interne" });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:escalation`;
         await audit("escalate", { reason: body.reason || null });
-        await activity("collections_escalated", invoice_id, `Escalade — facture ${invRef}`, { reason: body.reason ?? null });
-        await internalNote(`Recouvrement — ESCALADE sur facture ${invRef} par ${callerName}. Motif: ${(body.reason || "—").slice(0, 200)}`);
+        await activity("collections_escalated", invoice_id, `Escalade — facture ${invRef}`, { reason: body.reason ?? null }, aid);
+        await internalNote(`Recouvrement — ESCALADE sur facture ${invRef} par ${callerName}. Motif: ${(body.reason || "—").slice(0, 200)}`, aid);
 
         // Notify client of collections transfer
         try {
