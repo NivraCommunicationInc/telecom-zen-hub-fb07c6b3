@@ -53,6 +53,7 @@ import { RefundModule } from "@/core-app/components/account-360/modules/RefundMo
 import { AutopayModule } from "@/core-app/components/account-360/modules/AutopayModule";
 import { PaymentPlanModule } from "@/core-app/components/account-360/modules/PaymentPlanModule";
 import { ReviewDiscountModule } from "@/core-app/components/account-360/modules/ReviewDiscountModule";
+import { AccountOwnershipTransferDialog } from "@/core-app/components/account-360/AccountOwnershipTransferDialog";
 
 
 
