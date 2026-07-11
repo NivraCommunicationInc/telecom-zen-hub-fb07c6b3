@@ -8,6 +8,7 @@ import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 const PUBLIC_BASE = "https://nivra-telecom.ca";
 
