@@ -843,6 +843,10 @@ Deno.serve(async (req) => {
       case 'billing_address.set_same_as_service': result = await handleBillingSameAsService(svc, actor, rbac.role, input, correlationId); break;
       case 'billing_address.set_custom': result = await handleBillingSetCustom(svc, actor, rbac.role, input, correlationId); break;
       case 'billing_address.link_to_service_address': result = await handleBillingLinkToServiceAddress(svc, actor, rbac.role, input, correlationId); break;
+      case 'email.request_change': result = await handleEmailRequestChange(svc, actor, rbac.role, input, correlationId); break;
+      case 'email.confirm_change': result = await handleEmailConfirmChange(svc, actor, rbac.role, input, correlationId); break;
+      case 'phone.request_change': result = await handlePhoneRequestChange(svc, actor, rbac.role, input, correlationId); break;
+      case 'phone.verify_otp': result = await handlePhoneVerifyOtp(svc, actor, rbac.role, input, correlationId); break;
     }
 
     const response = { ...result, correlation_id: correlationId };
