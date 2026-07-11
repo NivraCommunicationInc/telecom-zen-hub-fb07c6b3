@@ -10,6 +10,71 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Module 51 — Phase B1: canonical timeline write for every client-scoped
+// communication preference change. Mirror every admin_audit_log insert
+// with a client_activity_logs entry so `v_customer_timeline` surfaces it.
+function minuteBucket(): string {
+  return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+}
+async function journalPrefsChange(
+  admin: any,
+  args: {
+    clientId: string;
+    accountId: string | null;
+    action: "preferences_update" | "preferences_unsubscribe_all" | "sms_master_toggle";
+    before: Record<string, unknown> | null;
+    after: Record<string, unknown> | null;
+    reason: string | null;
+    actorId: string;
+    actorEmail: string | null;
+    actorRole: "staff" | "client";
+    correlationId: string;
+  },
+) {
+  try {
+    await writeAccountJournal(admin, {
+      targetTable: "client_activity_logs",
+      eventKey: `account:${args.clientId}:communication.${args.action}:${args.correlationId}`,
+      correlationId: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.correlationId)
+        ? args.correlationId
+        : null,
+      visibility: "staff",
+      actor: {
+        userId: args.actorId,
+        role: args.actorRole,
+        email: args.actorEmail,
+        name: args.actorEmail ?? args.actorRole,
+      },
+      payload: {
+        client_id: args.clientId,
+        account_id: args.accountId,
+        action_type: `account.communication.${args.action}`,
+        entity_type: "account",
+        entity_id: args.accountId ?? args.clientId,
+        summary: args.reason
+          ? `communication.${args.action} — ${args.reason}`
+          : `communication.${args.action}`,
+        before_data: args.before,
+        after_data: args.after,
+        metadata: {
+          before: args.before,
+          after: args.after,
+          reason: args.reason,
+          correlation_id: args.correlationId,
+          module_tag: "module_51",
+        },
+      },
+    });
+  } catch (err) {
+    // Loud, but non-fatal — the admin_audit_log write is authoritative.
+    console.error(
+      "communication-preferences-actions: timeline journal write failed",
+      { action: args.action, clientId: args.clientId, error: (err as Error).message },
+    );
+  }
+}
 
 type BoolKey =
   | "marketing_emails"
