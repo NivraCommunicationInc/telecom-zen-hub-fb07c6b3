@@ -302,6 +302,10 @@ Deno.serve(async (req) => {
       .filter("details->>reason", "eq", auditReasonTag);
     await admin.from("security_action_idempotency").delete()
       .eq("actor_id", actor.id).lt("created_at", new Date(Date.now() + 60_000).toISOString());
+    if (tempAdminId) {
+      await admin.from("user_roles").delete().eq("user_id", tempAdminId);
+      await admin.auth.admin.deleteUser(tempAdminId);
+    }
   } catch (e) {
     console.error("cleanup error", e);
   }
