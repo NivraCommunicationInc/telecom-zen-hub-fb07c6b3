@@ -6,6 +6,7 @@
 // 24h before a planned maintenance via notify_upcoming_maintenance() cron.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -103,14 +104,13 @@ Deno.serve(async (req) => {
 
       // 1) Email — idempotent via event_key unique constraint
       const eventKey = `maintenance_${incident.id}_${p.user_id}`;
-      const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        to_email: p.email,
-        template_key: "maintenance_notification",
-        language: lang,
-        entity_type: "service_incident",
-        entity_id: incident.id,
-        template_vars: {
+      let qErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "maintenance_notification",
+        recipient: p.email,
+        idempotencyKey: eventKey,
+        templateVars: {
           client_name: p.first_name || "",
           scheduled_start_at: start,
           estimated_duration: duration,
@@ -120,8 +120,9 @@ Deno.serve(async (req) => {
           incident_message: messageBody,
           language: lang,
         },
-        status: "queued",
-      });
+        entityType: "service_incident",
+        entityId: incident.id,
+      }); } catch (__e) { qErr = __e; }
       if (!qErr) queued++;
       else if (!String(qErr.message || "").includes("duplicate")) {
         skippedEmails.push(p.email);

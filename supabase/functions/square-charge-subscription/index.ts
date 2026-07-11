@@ -10,6 +10,7 @@
 // ============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -171,11 +172,12 @@ Deno.serve(async (req) => {
       try {
         const { buildReceiptPdfAttachment } = await import("../_shared/pdfFromDb.ts");
         const pdf = await buildReceiptPdfAttachment(invoice_id, "recu-paiement").catch(() => null);
-        await supabase.from("email_queue").insert({
-          event_key: `square-receipt-${squarePaymentId}`,
-          to_email: bc.email,
-          template_key: "payment_receipt",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "payment_receipt",
+          recipient: bc.email,
+          idempotencyKey: `square-receipt-${squarePaymentId}`,
+          templateVars: {
             client_name: `${bc.first_name || ""} ${bc.last_name || ""}`.trim() || bc.email,
             amount: Number(amount).toFixed(2),
             amount_paid_today: Number(amount).toFixed(2),
@@ -186,7 +188,6 @@ Deno.serve(async (req) => {
             receipt_url: receiptUrl,
           },
           attachments: pdf ? [pdf] : null,
-          status: "queued", attempts: 0, max_attempts: 5,
         });
       } catch (e) {
         console.warn("[square-charge-subscription] email failed:", e);

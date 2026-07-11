@@ -27,6 +27,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -262,13 +263,13 @@ Deno.serve(async (req) => {
 
   if (subjectEmail) {
     const eventKey = `consent_recorded:${b.idempotency_key}`;
-    const { error: mailErr } = await admin.from("email_queue").insert({
-      event_key: eventKey,
-      idempotency_key: b.idempotency_key,
-      to_email: subjectEmail,
-      subject: "Confirmation d'enregistrement de consentement (Loi 25)",
-      template_key: "consent_recorded",
-      template_vars: {
+    let mailErr: any = null;
+    try { await enqueueCommunication({
+      channel: "email",
+      templateKey: "consent_recorded",
+      recipient: subjectEmail,
+      idempotencyKey: b.idempotency_key,
+      templateVars: {
         client_name: subjectName,
         consent_type: b.consent_type,
         status: b.status,
@@ -277,10 +278,10 @@ Deno.serve(async (req) => {
         consent_text_version: b.consent_text_version ?? null,
         language: "fr",
       },
-      entity_type: "consent_record",
-      entity_id: consentId,
-      status: "queued",
-    } as any);
+      subject: "Confirmation d'enregistrement de consentement (Loi 25)",
+      entityType: "consent_record",
+      entityId: consentId,
+    }); } catch (__e) { mailErr = __e; }
     if (mailErr && (mailErr as any).code !== "23505") {
       console.error("[consent-journal-action] email_queue failed:", mailErr.message);
     }

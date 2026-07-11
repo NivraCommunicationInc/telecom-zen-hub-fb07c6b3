@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -65,36 +66,32 @@ serve(async (req) => {
           : `https://nivra-telecom.ca/plainte/suivi`;
 
         // Client email
-        await supabase.from("email_queue").insert({
-          event_key: eventKey,
-          to_email: c.submitted_by_email,
-          template_key: "complaint_ccts_escalation",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "complaint_ccts_escalation",
+          recipient: c.submitted_by_email,
+          idempotencyKey: eventKey,
+          templateVars: {
             first_name: (c.submitted_by_name || "Client").split(" ")[0],
             client_name: c.submitted_by_name || "Client",
             ticket_number: c.ticket_number,
             tracking_url: trackingUrl,
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 3,
         });
 
         // Admin alert
-        await supabase.from("email_queue").insert({
-          event_key: `${eventKey}_admin`,
-          to_email: ADMIN_EMAIL,
-          template_key: "complaint_ccts_admin_alert",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "complaint_ccts_admin_alert",
+          recipient: ADMIN_EMAIL,
+          idempotencyKey: `${eventKey}_admin`,
+          templateVars: {
             ticket_number: c.ticket_number,
             client_name: c.submitted_by_name || "—",
             submitted_by_email: c.submitted_by_email,
             subject: c.subject,
             core_complaint_url: `https://nivra-telecom.ca/core/complaints`,
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 3,
         });
 
         escalated++;

@@ -14,6 +14,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -218,18 +219,18 @@ Deno.serve(async (req) => {
       .eq("event_key", `supervisor_alert_${todayKey}`)
       .maybeSingle();
     if (!existingAlert) {
-      await supabase.from("email_queue").insert({
-        event_key: `supervisor_alert_${todayKey}`,
-        to_email: ALERT_EMAIL,
-        template_key: "agent_supervisor_alert",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "agent_supervisor_alert",
+        recipient: ALERT_EMAIL,
+        idempotencyKey: `supervisor_alert_${todayKey}`,
+        templateVars: {
           global_health: globalHealth,
           active_count: activeCount,
           error_count: errorCount,
           failing_agents: failing,
           gemini_summary: geminiSummary,
         },
-        status: "queued",
       });
       await logEvent(supabase, AGENT, "email_sent", `Alerte superviseur envoyée à ${ALERT_EMAIL}`);
     }

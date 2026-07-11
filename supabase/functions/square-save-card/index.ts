@@ -15,6 +15,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -196,20 +197,18 @@ Deno.serve(async (req) => {
     // Confirmation email (template officiel bleu)
     if (bc.email) {
       try {
-        await supabase.from("email_queue").insert({
-          event_key: `autopay-activated-${bc.id}-${Date.now()}`,
-          to_email: bc.email,
-          template_key: "autopay_activated",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "autopay_activated",
+          recipient: bc.email,
+          idempotencyKey: `autopay-activated-${bc.id}-${Date.now()}`,
+          templateVars: {
             client_name: `${bc.first_name || ""} ${bc.last_name || ""}`.trim() || bc.email,
             card_brand: cardBrand,
             card_last4: last4,
             activated_at: new Date().toISOString(),
             channel: channelLabel,
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 5,
         });
       } catch (emailErr) {
         console.warn("[square-save-card] email enqueue failed:", emailErr);

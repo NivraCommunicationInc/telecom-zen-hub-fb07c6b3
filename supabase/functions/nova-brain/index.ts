@@ -32,6 +32,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -408,14 +409,15 @@ async function executeTool(
         const subject = input.subject as string;
         const body = input.body_text as string;
         if (!subject || !body) return { ok: false, error: "Missing subject or body" };
-        const { error } = await supabase.from("email_queue").insert({
-          event_key: `nova_internal_${Date.now()}`,
-          to_email: "support@nivra-telecom.ca",
-          template_key: "generic_internal_note",
+        let error: any = null;
+        try { await enqueueCommunication({
+          channel: "email",
+          templateKey: "generic_internal_note",
+          recipient: "support@nivra-telecom.ca",
+          idempotencyKey: `nova_internal_${Date.now()}`,
+          templateVars: { body_text: body, sender: "NOVA Digital Brain" },
           subject: `[NOVA] ${subject}`,
-          template_vars: { body_text: body, sender: "NOVA Digital Brain" },
-          status: "queued",
-        });
+        }); } catch (__e) { error = __e; }
         if (error) return { ok: false, error: error.message };
         return { ok: true, result: { queued: true, subject } };
       }
@@ -669,20 +671,19 @@ async function executeTool(
           .from("profiles").select("email, full_name").eq("user_id", account?.client_id).maybeSingle();
         if (!profile?.email) return { ok: false, error: "Customer has no email on file" };
 
-        const { data, error } = await supabase
-          .from("email_queue")
-          .insert({
-            event_key: `nova_customer_${Date.now()}`,
-            to_email: profile.email,
-            template_key: "generic_customer_message",
-            subject: input.subject,
-            template_vars: {
+        let error: any = null;
+        try { await enqueueCommunication({
+          channel: "email",
+          templateKey: "generic_customer_message",
+          recipient: profile.email,
+          idempotencyKey: `nova_customer_${Date.now()}`,
+          templateVars: {
               client_name: profile.full_name ?? "Client",
               body_text: input.body_text,
               sender: "NOVA via " + (account?.client_id ?? "system"),
             },
-            status: "queued",
-          })
+          subject: input.subject,
+        }); } catch (__e) { error = __e; }
           .select("id")
           .maybeSingle();
         if (error) return { ok: false, error: error.message };
@@ -714,16 +715,16 @@ async function executeTool(
         }
 
         // Send email alert to support team
-        await supabase.from("email_queue").insert({
-          event_key: `nova_handoff_${Date.now()}`,
-          to_email: "support@nivra-telecom.ca",
-          template_key: "generic_internal_note",
-          subject: `[NOVA Handoff] ${urgency.toUpperCase()} — ${reason}`,
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "generic_internal_note",
+          recipient: "support@nivra-telecom.ca",
+          idempotencyKey: `nova_handoff_${Date.now()}`,
+          templateVars: {
             body_text: `NOVA a transféré une conversation vers un agent humain.\n\nTicket: ${ticket?.ticket_number ?? "—"}\nUrgence: ${urgency}\nRaison: ${reason}\n\nRésumé:\n${summary}`,
             sender: "NOVA Digital Brain",
           },
-          status: "queued",
+          subject: `[NOVA Handoff] ${urgency.toUpperCase()} — ${reason}`,
         }).then(() => undefined, () => undefined);
 
         return {

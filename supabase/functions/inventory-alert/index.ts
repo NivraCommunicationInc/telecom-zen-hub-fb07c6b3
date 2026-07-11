@@ -6,6 +6,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -77,11 +78,13 @@ Deno.serve(async (req) => {
       const stock_status = grp.available === 0 ? "out_of_stock" : "critical";
       const eventKey = `inv_low_${grp.sku}_${new Date().toISOString().slice(0, 10)}`;
 
-      const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        to_email: ADMIN_EMAIL,
-        template_key: "inventory_low_stock",
-        template_vars: {
+      let qErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "inventory_low_stock",
+        recipient: ADMIN_EMAIL,
+        idempotencyKey: eventKey,
+        templateVars: {
           item_name: `${grp.brand} ${grp.model}`.trim() || grp.sku,
           sku: grp.sku,
           available_count: grp.available,
@@ -91,8 +94,7 @@ Deno.serve(async (req) => {
           stock_status,
           language: "fr",
         },
-        status: "queued",
-      });
+      }); } catch (__e) { qErr = __e; }
 
       if (!qErr) {
         queued++;

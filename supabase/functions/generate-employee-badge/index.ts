@@ -4,6 +4,7 @@
 // "employee_badge_ready" email.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -185,23 +186,21 @@ Deno.serve(async (req) => {
     if (sendEmail) {
       const recipient = profile.professional_email || profile.email;
       if (recipient) {
-        const { error: qErr } = await admin.from("email_queue").insert({
-          event_key: `employee_badge_${targetUserId}_${Date.now()}`,
-          to_email: recipient,
-          template_key: "employee_badge_ready",
-          template_vars: {
-            client_name: fullName,
+        let qErr: any = null;
+        try { await enqueueCommunication({
+          channel: "email",
+          templateKey: "employee_badge_ready",
+          recipient: recipient,
+          idempotencyKey: `employee_badge_${targetUserId}_${Date.now()}`,
+          templateVars: { client_name: fullName,
             full_name: fullName,
             agent_number: agentNumber,
             role_title: info.title_fr,
             role_title_en: info.title_en,
             dept: info.dept_fr,
             color: info.color,
-            portal_url: primaryRole === "field_sales" ? "https://nivra-telecom.ca/field" : "https://nivra-telecom.ca/hr",
-          },
-          language: profile.preferred_language || "fr",
-          status: "queued",
-        });
+            portal_url: primaryRole === "field_sales" ? "https://nivra-telecom.ca/field" : "https://nivra-telecom.ca/hr", language: profile.preferred_language || "fr" },
+        }); } catch (__e) { qErr = __e; }
         emailQueued = !qErr;
       }
     }

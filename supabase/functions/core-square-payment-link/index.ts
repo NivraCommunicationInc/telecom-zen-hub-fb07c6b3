@@ -9,6 +9,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -180,11 +181,12 @@ serve(async (req) => {
     // Send email if mode = 'email' and we have an email address
     if (mode === "email" && resolvedEmail) {
       try {
-        await supabase.from("email_queue").insert({
-          event_key: `payment_link_${intent.id}`,
-          to_email: resolvedEmail,
-          template_key: "invoice_payment_link",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "invoice_payment_link",
+          recipient: resolvedEmail,
+          idempotencyKey: `payment_link_${intent.id}`,
+          templateVars: {
             client_name: resolvedName || "Client",
             first_name: order?.client_first_name || (inv?.customer as any)?.first_name || resolvedName || "Client",
             invoice_number: inv?.invoice_number || orderNumber,
@@ -192,9 +194,6 @@ serve(async (req) => {
             amount: balance.toFixed(2),
             payment_url: paymentUrl,
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 5,
         });
         emailSent = true;
       } catch (e) {

@@ -5,6 +5,7 @@
 // and marks the linked quote as cancelled.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -63,11 +64,13 @@ Deno.serve(async (req) => {
       const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000)
         .toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" });
 
-      const { error: insErr } = await supabase.from("email_queue").insert({
-        event_key: `payment_reminder_${(it as any).id}_${Date.now()}`,
-        to_email: email,
-        template_key: "field_payment_reminder",
-        template_vars: {
+      let insErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "field_payment_reminder",
+        recipient: email,
+        idempotencyKey: `payment_reminder_${(it as any).id}_${Date.now()}`,
+        templateVars: {
           client_name: fullName,
           first_name: ci.first_name || "Client",
           order_number: (it as any).id,
@@ -80,8 +83,7 @@ Deno.serve(async (req) => {
           agent_name: (q as any)?.agent_name || "Nivra Telecom",
           reminder_index: (count ?? 0) + 1,
         },
-        status: "queued",
-      } as any);
+      }); } catch (__e) { insErr = __e; }
       if (!insErr) sent++;
     }
 

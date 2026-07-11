@@ -17,6 +17,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { replyTicket, applyAiResult, type TicketActor } from "../_shared/ticketService.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -351,12 +352,12 @@ ${messageBody}`;
     } catch (e) { console.error("[support-ai-responder] internal note failed", e); }
 
     // Notify team
-    await supabase.from("email_queue").insert({
-      event_key: `escalation_${ticket.ticket_number}_${Date.now()}`,
-      to_email: ADMIN_ESCALATION_EMAIL,
-      template_key: "support_escalation",
-      template_vars: {
-        ticket_number: ticket.ticket_number,
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: "support_escalation",
+      recipient: ADMIN_ESCALATION_EMAIL,
+      idempotencyKey: `escalation_${ticket.ticket_number}_${Date.now()}`,
+      templateVars: { ticket_number: ticket.ticket_number,
         client_name: ticket.client_name ?? ctx.profile?.full_name ?? ticket.client_email,
         client_email: ticket.client_email,
         subject: ticket.subject,
@@ -365,11 +366,8 @@ ${messageBody}`;
         account_number: ctx.account?.account_number ?? "Inconnu",
         confidence: parsed.confidence,
         category: parsed.category,
-        portal_url: PORTAL_URL,
-      },
-      status: "queued",
+        portal_url: PORTAL_URL, language: lang },
       priority: "high",
-      language: lang,
     });
 
     return `escalated:${parsed.category}:${parsed.confidence}%`;
@@ -394,21 +392,18 @@ ${messageBody}`;
     });
   } catch (e) { console.error("[support-ai-responder] reply failed", e); }
 
-  await supabase.from("email_queue").insert({
-    event_key: `ai_reply_${ticket.ticket_number}_${Date.now()}`,
-    to_email: ticket.client_email,
-    template_key: "support_ai_reply",
-    template_vars: {
-      client_name: ticket.client_name ?? ctx.profile?.full_name ?? ticket.client_email,
+  await enqueueCommunication({
+    channel: "email",
+    templateKey: "support_ai_reply",
+    recipient: ticket.client_email,
+    idempotencyKey: `ai_reply_${ticket.ticket_number}_${Date.now()}`,
+    templateVars: { client_name: ticket.client_name ?? ctx.profile?.full_name ?? ticket.client_email,
       ticket_number: ticket.ticket_number,
       subject: `RE: ${ticket.subject}`,
       original_subject: ticket.subject,
       ai_response: responseText,
       account_number: ctx.account?.account_number ?? "Inconnu",
-      portal_url: PORTAL_URL,
-    },
-    status: "queued",
-    language: lang,
+      portal_url: PORTAL_URL, language: lang },
   });
 
   return `ai_replied:${parsed.category}:${parsed.confidence}%`;

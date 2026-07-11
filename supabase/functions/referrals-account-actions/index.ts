@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -133,19 +134,20 @@ serve(async (req) => {
     // referral action never collide.
     const key = eventKey ? `referral:${template}:${eventKey}` : null;
     try {
-      const { error: insErr } = await admin.from("email_queue").insert({
-        to_email: refEmail,
-        template_key: template,
-        template_vars: {
+      let insErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: template,
+        recipient: refEmail,
+        idempotencyKey: key,
+        templateVars: {
           ...vars,
           first_name: refFirst,
           to_email: refEmail,
           event_key: eventKey,
         },
-        status: "queued",
         priority: 0,
-        event_key: key,
-      });
+      }); } catch (__e) { insErr = __e; }
       if (insErr && insErr.code !== "23505") {
         // 23505 = duplicate key -> already enqueued, treat as success
         console.warn("[referrals] enqueueEmail insert failed", insErr);

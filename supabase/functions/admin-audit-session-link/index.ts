@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -163,11 +164,12 @@ serve(async (req: Request) => {
     });
 
     // Queue notification email
-    await adminClient.from("email_queue").insert({
-      event_key: `audit_magiclink_${sessionId}`,
-      to_email: targetEmail,
-      template_key: "audit_magiclink",
-      template_vars: {
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: "audit_magiclink",
+      recipient: targetEmail,
+      idempotencyKey: `audit_magiclink_${sessionId}`,
+      templateVars: {
         action_link: actionLink,
         actor_admin_id: actor.id,
         target_user_id: targetUserId,
@@ -177,7 +179,6 @@ serve(async (req: Request) => {
         expires_at: expiresAt,
         created_at: issuedAt,
       },
-      status: "queued",
     });
 
     // Audit log (existing)

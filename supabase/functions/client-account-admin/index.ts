@@ -19,6 +19,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -380,13 +381,14 @@ serve(async (req) => {
   const origin = resolveOrigin(body.redirect_origin);
 
   const queueEmail = async (templateKey: string, toEmail: string, vars: Record<string, any>) => {
-    const { error } = await admin.from("email_queue").insert({
-      event_key: `${templateKey}_${toEmail}_${Date.now()}`,
-      to_email: toEmail,
-      template_key: templateKey,
-      template_vars: { first_name: firstName, ...vars },
-      status: "queued",
-    });
+    let error: any = null;
+    try { await enqueueCommunication({
+      channel: "email",
+      templateKey: templateKey,
+      recipient: toEmail,
+      idempotencyKey: `${templateKey}_${toEmail}_${Date.now()}`,
+      templateVars: { first_name: firstName, ...vars },
+    }); } catch (__e) { error = __e; }
     if (error) throw new Error(`Échec mise en file courriel: ${error.message}`);
   };
 

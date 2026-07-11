@@ -19,6 +19,7 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { prorateWindow } from "./prorationMath.ts";
 
+import { enqueueCommunication } from "./enqueueCommunication.ts";
 export interface ReactivationResult {
   reactivated: boolean;
   previousStatus: string | null;
@@ -158,11 +159,12 @@ export async function reactivateIfSuspended(
         service_name: sub.plan_name,
         reactivation_date: now,
       }).catch(() => null);
-      await supabase.from("email_queue").insert({
-        event_key: `svc_reactivated_${subscriptionId}_${Date.now()}`,
-        to_email: customer.email,
-        template_key: "service_reactivated",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "service_reactivated",
+        recipient: customer.email,
+        idempotencyKey: `svc_reactivated_${subscriptionId}_${Date.now()}`,
+        templateVars: {
           first_name: customer.first_name || "Client",
           client_name: [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Client",
           plan_name: sub.plan_name || "votre forfait",
@@ -170,7 +172,6 @@ export async function reactivateIfSuspended(
           trigger,
         },
         attachments: reactPdf ? [reactPdf] : null,
-        status: "queued",
       }).catch((e: unknown) => console.error("[reactivation] email_queue insert failed:", e));
     }
 

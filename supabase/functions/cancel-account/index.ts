@@ -35,6 +35,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportEdgeError } from "../_shared/sentry.ts";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -479,11 +480,13 @@ serve(async (req) => {
           cancellation_date: new Date().toISOString(),
           reason: reason || "—",
         }).catch(() => null);
-        const { error: emailErr } = await supabase.from("email_queue").insert({
-          event_key: `cancel_account_${runId}`,
-          to_email: profile.email,
-          template_key: "subscription_cancellation_confirmation",
-          template_vars: {
+        let emailErr: any = null;
+        try { await enqueueCommunication({
+          channel: "email",
+          templateKey: "subscription_cancellation_confirmation",
+          recipient: profile.email,
+          idempotencyKey: `cancel_account_${runId}`,
+          templateVars: {
             client_name: profile.full_name || `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || "Client",
             account_number: account.account_number,
             reason,
@@ -493,10 +496,7 @@ serve(async (req) => {
             cancellation_date: new Date().toLocaleDateString("fr-CA"),
           },
           attachments: cancelPdf ? [cancelPdf] : null,
-          status: "queued",
-          attempts: 0,
-          max_attempts: 5,
-        });
+        }); } catch (__e) { emailErr = __e; }
         if (!emailErr) emailQueued = true;
         recordStep("email_queued", !emailErr, emailErr ? { error: emailErr.message } : { to: profile.email });
       } else {

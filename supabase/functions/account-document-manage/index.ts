@@ -9,6 +9,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -67,11 +68,12 @@ serve(async (req) => {
         .from("profiles").select("email, full_name").eq("user_id", contract.user_id).maybeSingle();
       if (!profile?.email) throw new Error("Client email missing");
 
-      await supabase.from("email_queue").insert({
-        event_key: `contract_resent_${contractId}_${Date.now()}`,
-        to_email: profile.email,
-        template_key: "contract_ready",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "contract_ready",
+        recipient: profile.email,
+        idempotencyKey: `contract_resent_${contractId}_${Date.now()}`,
+        templateVars: {
           client_name: profile.full_name || "Client",
           contract_name: contract.contract_name || "Contrat de service",
           contract_number: contract.contract_number || "",
@@ -81,8 +83,7 @@ serve(async (req) => {
           subject_override: "Contrat à signer — Nivra Télécom",
         } as any,
         priority: 3,
-        status: "queued",
-      } as any);
+      });
 
       await supabase.from("contracts").update({
         sent_at: new Date().toISOString(),

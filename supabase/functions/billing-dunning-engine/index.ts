@@ -14,6 +14,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -139,19 +140,16 @@ Deno.serve(async (req) => {
         }
 
         // Queue email via email_queue (never direct Resend)
-        const { error: qErr } = await supabase.from("email_queue").insert({
-          event_key: eventKey,
-          idempotency_key: eventKey,
-          to_email: toEmailAddr,
-          from_email: "Nivra Telecom <facturation@nivra-telecom.ca>",
-          subject,
-          template_key: templateKey,
-          template_vars: templateVars,
-          status: "queued",
-          attempts: 0,
-          max_attempts: 3,
+        let qErr: any = null;
+        try { await enqueueCommunication({
+          channel: "email",
+          templateKey: templateKey,
+          recipient: toEmailAddr,
+          idempotencyKey: eventKey,
+          templateVars: templateVars,
+          subject: subject,
           priority: actionType === "j14_final" ? 1 : 0,
-        });
+        }); } catch (__e) { qErr = __e; }
 
         if (qErr) {
           results.errors.push(`Invoice ${inv.id}: email queue error: ${qErr.message}`);

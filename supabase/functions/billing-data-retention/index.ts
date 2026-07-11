@@ -21,6 +21,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -217,21 +218,17 @@ serve(async (req) => {
           .maybeSingle();
         if (existing) continue;
 
-        await supabase.from("email_queue").insert({
-          event_key: eventKey,
-          idempotency_key: eventKey,
-          to_email: recipient,
-          from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-          subject: `📋 ${stats.anonymized} compte${stats.anonymized > 1 ? "s" : ""} anonymisé${stats.anonymized > 1 ? "s" : ""} — Conformité Loi 25`,
-          template_key: "admin_alert_anonymization",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "admin_alert_anonymization",
+          recipient: recipient,
+          idempotencyKey: eventKey,
+          templateVars: {
             anonymized_count: stats.anonymized,
             documents_deleted: stats.documents_deleted,
             report_date: reportDate,
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 3,
+          subject: `📋 ${stats.anonymized} compte${stats.anonymized > 1 ? "s" : ""} anonymisé${stats.anonymized > 1 ? "s" : ""} — Conformité Loi 25`,
         });
       }
     }

@@ -13,6 +13,7 @@
  */
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "./enqueueCommunication.ts";
 export interface TicketActor {
   user_id: string | null;
   role: "admin" | "employee" | "client" | "bot" | "system";
@@ -82,15 +83,14 @@ async function enqueueTicketEmail(admin: SupabaseClient, params: {
 }) {
   if (!params.toEmail) return;
   try {
-    await admin.from("email_queue").insert({
-      to_email: params.toEmail,
-      template_key: params.templateKey,
-      template_vars: params.vars,
-      event_key: params.dedupeKey,
-      idempotency_key: params.dedupeKey,
-      entity_type: "support_ticket",
-      status: "queued",
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: params.templateKey,
+      recipient: params.toEmail,
+      idempotencyKey: params.dedupeKey,
+      templateVars: params.vars,
       priority: 0,
+      entityType: "support_ticket",
     });
   } catch (_) { /* dedupe unique index will reject duplicates — expected */ }
 }

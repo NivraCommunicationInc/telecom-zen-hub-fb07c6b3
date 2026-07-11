@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -165,11 +166,13 @@ serve(async (req) => {
           .join(", ") || null;
 
       try {
-        const { error: mailErr } = await supabase.from("email_queue").insert({
-          event_key: `field_payment_link_${intentId}`,
-          to_email: resolvedEmail,
-          template_key: "field_payment_link",
-          template_vars: {
+        let mailErr: any = null;
+        try { await enqueueCommunication({
+          channel: "email",
+          templateKey: "field_payment_link",
+          recipient: resolvedEmail,
+          idempotencyKey: `field_payment_link_${intentId}`,
+          templateVars: {
             client_name: resolvedName,
             first_name: ci.first_name || ci.firstName || "Client",
             agent_name: quote.agent_name || "Votre représentant Nivra",
@@ -184,10 +187,7 @@ serve(async (req) => {
             payment_url: paymentUrl,
             approval_url: paymentUrl,
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 5,
-        } as any);
+        }); } catch (__e) { mailErr = __e; }
 
         if (mailErr) console.warn("[field-payment-link-create] email enqueue failed:", mailErr);
         else {

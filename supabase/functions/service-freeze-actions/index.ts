@@ -26,6 +26,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -218,24 +219,22 @@ Deno.serve(async (req) => {
         .eq("user_id", clientId)
         .maybeSingle();
       if (clientProf?.email) {
-        const { error: emailErr } = await admin.from("email_queue").insert({
-          to_email: clientProf.email,
-          subject: `${label} enregistré / Freeze registered`,
-          template_key: `service_${mode}_requested`,
-          template_vars: {
-            recipient_name: clientProf.full_name ?? null,
+        let emailErr: any = null;
+        try { await enqueueCommunication({
+          channel: "email",
+          templateKey: `service_${mode}_requested`,
+          recipient: clientProf.email,
+          idempotencyKey: `service_${mode}_requested:${inserted.id}`,
+          templateVars: { recipient_name: clientProf.full_name ?? null,
             mode,
             scope,
             until_date: until,
-            account_number: account.account_number,
-          },
-          status: "queued",
+            account_number: account.account_number, language: (clientProf.preferred_language === "en" ? "en" : "fr") },
+          subject: `${label} enregistré / Freeze registered`,
           priority: 5,
-          language: (clientProf.preferred_language === "en" ? "en" : "fr"),
-          event_key: `service_${mode}_requested:${inserted.id}`,
-          entity_type: "service_change_request",
-          entity_id: inserted.id,
-        });
+          entityType: "service_change_request",
+          entityId: inserted.id,
+        }); } catch (__e) { emailErr = __e; }
         if (emailErr) console.error("[service-freeze-actions] email_queue insert failed", emailErr);
       }
 

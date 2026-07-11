@@ -16,6 +16,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -146,19 +147,16 @@ Deno.serve(async (req) => {
 
       if (existing) { skipped++; continue; }
 
-      const { error: insertErr } = await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        idempotency_key: eventKey,
-        to_email: r.email,
-        from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+      let insertErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "client_technical_notice",
+        recipient: r.email,
+        idempotencyKey: eventKey,
+        templateVars: { first_name: r.first_name },
         subject: "Information importante — Nivra Telecom",
-        template_key: "client_technical_notice",
-        template_vars: { first_name: r.first_name },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
         priority: 0,
-      });
+      }); } catch (__e) { insertErr = __e; }
 
       if (insertErr) {
         errors.push(`${r.email}: ${insertErr.message}`);

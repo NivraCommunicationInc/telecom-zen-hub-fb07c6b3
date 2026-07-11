@@ -6,6 +6,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -187,12 +188,12 @@ Deno.serve(async (req) => {
         .eq("event_key", `site_monitor_alert_${todayKey}`)
         .maybeSingle();
       if (!existingAlert) {
-        await supabase.from("email_queue").insert({
-          event_key: `site_monitor_alert_${todayKey}`,
-          to_email: ALERT_EMAIL,
-          template_key: "site_health_alert",
-          subject: "[ALERTE CRITIQUE] Problème détecté — Nivra Telecom",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "site_health_alert",
+          recipient: ALERT_EMAIL,
+          idempotencyKey: `site_monitor_alert_${todayKey}`,
+          templateVars: {
             client_name: "Équipe Nivra",
             health_score: ai?.score ?? 0,
             critical_count: critical.length,
@@ -200,7 +201,7 @@ Deno.serve(async (req) => {
             summary: ai?.summary ?? "Plusieurs problèmes critiques détectés.",
             issues: critical.map((c) => ({ title: c.title, description: c.description ?? "" })),
           },
-          status: "queued",
+          subject: "[ALERTE CRITIQUE] Problème détecté — Nivra Telecom",
         });
       }
     }

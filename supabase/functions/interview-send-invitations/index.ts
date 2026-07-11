@@ -1,6 +1,7 @@
 // Send interview invitation emails to applicants (admin only)
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -58,18 +59,16 @@ Deno.serve(async (req) => {
       const interviewUrl = `${BASE_URL}/entrevue/${a.interview_token}`;
       const lang = (a.interview_language || "fr") as string;
 
-      const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: `interview_invite_${a.id}_${Date.now()}`,
-        to_email: a.email,
-        template_key: "interview_invitation",
-        template_vars: {
-          first_name: a.first_name || "",
+      let qErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "interview_invitation",
+        recipient: a.email,
+        idempotencyKey: `interview_invite_${a.id}_${Date.now()}`,
+        templateVars: { first_name: a.first_name || "",
           last_name: a.last_name || "",
-          interview_url: interviewUrl,
-        },
-        language: lang,
-        status: "queued",
-      });
+          interview_url: interviewUrl, language: lang },
+      }); } catch (__e) { qErr = __e; }
       if (qErr) { errors.push(`${a.id}: ${qErr.message}`); continue; }
 
       await supabase

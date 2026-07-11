@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 /**
  * PORTAL-ADD-CREDIT — Apply a Square capture as account credit
  *
@@ -200,11 +201,12 @@ serve(async (req) => {
           credit_type: "credit",
         }).catch(() => null)
       : null;
-    await db.from("email_queue").insert({
-      event_key: `credit_payment_${captureId}`,
-      to_email: customer.email,
-      template_key: "billing_credit_payment",
-      template_vars: {
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: "billing_credit_payment",
+      recipient: customer.email,
+      idempotencyKey: `credit_payment_${captureId}`,
+      templateVars: {
         clientName: `${customer.first_name} ${customer.last_name}`,
         totalPaid: amount.toFixed(2),
         appliedToBalance: (amount - creditAmount).toFixed(2),

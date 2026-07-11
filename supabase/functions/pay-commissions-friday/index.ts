@@ -13,6 +13,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -244,11 +245,12 @@ Deno.serve(async (req) => {
       "Collègue";
 
     if (email) {
-      await supabase.from("email_queue").insert({
-        event_key: `commission_paid_${agentId}_${payDateISO}`,
-        to_email: email,
-        template_key: "hr_commission_paid",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "hr_commission_paid",
+        recipient: email,
+        idempotencyKey: `commission_paid_${agentId}_${payDateISO}`,
+        templateVars: {
           client_name: agentName,
           amount: totalAmount,
           commissions_amount: agg.total,
@@ -258,11 +260,9 @@ Deno.serve(async (req) => {
           payment_method: "Dépôt direct",
           portal_url: "https://nivra-telecom.ca/rh/commissions",
         },
-        message_type: "hr_commission_paid",
-        entity_type: "commission_payout",
-        entity_id: agentId,
-        status: "queued",
-      } as any);
+        entityType: "commission_payout",
+        entityId: agentId,
+      });
     }
 
     await supabase.from("employee_notifications").insert({

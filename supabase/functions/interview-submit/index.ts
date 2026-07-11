@@ -1,6 +1,7 @@
 // Public endpoint: submit interview answers + run AI analysis (Gemini)
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -228,12 +229,13 @@ Règles:
 
     // Queue admin notification email — NEVER block submission on email failure
     try {
-      const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: `interview_done_${applicant.id}`,
-        to_email: ADMIN_EMAIL,
-        template_key: "interview_completed_admin",
-        template_vars: {
-          first_name: applicant.first_name,
+      let qErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "interview_completed_admin",
+        recipient: ADMIN_EMAIL,
+        idempotencyKey: `interview_done_${applicant.id}`,
+        templateVars: { first_name: applicant.first_name,
           last_name: applicant.last_name,
           email: applicant.email,
           score: aiScore,
@@ -242,11 +244,8 @@ Règles:
           strengths: aiStrengths,
           concerns: aiConcerns,
           red_flags: aiRedFlags,
-          review_url: `https://www.nivra-telecom.ca/hr/applications`,
-        },
-        language: "fr",
-        status: "queued",
-      });
+          review_url: `https://www.nivra-telecom.ca/hr/applications`, language: "fr" },
+      }); } catch (__e) { qErr = __e; }
       if (qErr) console.error("[interview-submit] email_queue insert failed", qErr);
     } catch (e) {
       console.error("[interview-submit] email_queue insert threw", e);

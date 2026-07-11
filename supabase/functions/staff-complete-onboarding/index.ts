@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 // Token hash function
 async function hashToken(token: string): Promise<string> {
   const data = new TextEncoder().encode(token);
@@ -257,17 +258,17 @@ serve(async (req: Request) => {
         .maybeSingle();
       const firstName =
         prof?.first_name || (prof?.full_name ? String(prof.full_name).split(" ")[0] : "");
-      await adminClient.from("email_queue").insert({
-        event_key: `staff_account_created_${userId}_${Date.now()}`,
-        to_email: userEmail,
-        template_key: "staff_account_created",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "staff_account_created",
+        recipient: userEmail,
+        idempotencyKey: `staff_account_created_${userId}_${Date.now()}`,
+        templateVars: {
           first_name: firstName,
           role_label: roleLabel[userRole] || userRole,
           portal_url: portalUrl,
         },
-        status: "queued",
-      } as any);
+      });
     } catch (e) {
       console.error("[staff-complete-onboarding] welcome email queue failed:", e);
     }

@@ -17,6 +17,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -271,23 +272,18 @@ serve(async (req) => {
       const { data: profile } = await admin
         .from("profiles").select("email, full_name").eq("user_id", client_id).maybeSingle();
       if (profile?.email) {
-        await admin.from("email_queue").insert({
-          event_key: `compensation_voucher:${adjustmentId}`,
-          idempotency_key: `compensation:${adjustmentId}`,
-          to_email: profile.email,
-          template_key: "compensation_voucher",
-          template_vars: {
-            client_name: profile.full_name ?? "",
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "compensation_voucher",
+          recipient: profile.email,
+          idempotencyKey: `compensation:${adjustmentId}`,
+          templateVars: { client_name: profile.full_name ?? "",
             amount: finalAmount.toFixed(2),
             category,
             expires_at: expiresAt,
-            account_number: acc.account_number ?? "",
-          },
-          entity_type: "account_adjustments",
-          entity_id: adjustmentId,
-          language: "fr",
-          message_type: "compensation",
-          status: "queued",
+            account_number: acc.account_number ?? "", language: "fr" },
+          entityType: "account_adjustments",
+          entityId: adjustmentId,
         });
       }
     } catch (e) {

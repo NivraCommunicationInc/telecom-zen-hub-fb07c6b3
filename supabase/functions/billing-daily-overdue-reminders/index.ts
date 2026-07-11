@@ -12,6 +12,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -101,14 +102,14 @@ serve(async (req) => {
         .maybeSingle();
       if (existingQueue) { skipped++; continue; }
 
-      const { data: queueRow, error: qErr } = await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        idempotency_key: eventKey,
-        to_email: recipient,
-        from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-        subject: `Rappel — Facture ${inv.invoice_number} en attente de paiement`,
-        template_key: "overdue_invoice_daily_reminder",
-        template_vars: {
+      let queueRow: any = null;
+      let qErr: any = null;
+      try { queueRow = await enqueueCommunication({
+        channel: "email",
+        templateKey: "overdue_invoice_daily_reminder",
+        recipient: recipient,
+        idempotencyKey: eventKey,
+        templateVars: {
           customer_first_name: customer.first_name || "",
           customer_last_name: customer.last_name || "",
           invoice_number: inv.invoice_number,
@@ -118,10 +119,8 @@ serve(async (req) => {
           total_account_balance: totalCustomerBalance.toFixed(2),
           pay_balance_url: "https://nivra-telecom.ca/portal/billing",
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
-      }).select("id").maybeSingle();
+        subject: `Rappel — Facture ${inv.invoice_number} en attente de paiement`,
+      }); } catch (__e) { qErr = __e; }.select("id").maybeSingle();
 
       if (qErr) {
         console.error(`[reminders] enqueue failed for invoice ${inv.id}:`, qErr.message);

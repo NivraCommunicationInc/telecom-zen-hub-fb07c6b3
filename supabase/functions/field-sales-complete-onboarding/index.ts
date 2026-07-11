@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 // Generate cryptographically secure salt
 function generateSalt(): string {
   const saltBytes = new Uint8Array(32);
@@ -179,23 +180,23 @@ serve(async (req: Request) => {
       };
 
       if (userEmail) {
-        await adminClient.from("email_queue").insert({
-          event_key: `agent_welcome_confirmed_${userId}`,
-          to_email: userEmail,
-          template_key: "agent_welcome_confirmed",
-          template_vars: baseVars,
-          status: "queued",
-        } as any);
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "agent_welcome_confirmed",
+          recipient: userEmail,
+          idempotencyKey: `agent_welcome_confirmed_${userId}`,
+          templateVars: baseVars,
+        });
       }
 
       // BCC equivalent — duplicate row to support
-      await adminClient.from("email_queue").insert({
-        event_key: `agent_welcome_confirmed_${userId}_bcc_support`,
-        to_email: "support@nivra-telecom.ca",
-        template_key: "agent_welcome_confirmed",
-        template_vars: { ...baseVars, agent_email: userEmail },
-        status: "queued",
-      } as any);
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "agent_welcome_confirmed",
+        recipient: "support@nivra-telecom.ca",
+        idempotencyKey: `agent_welcome_confirmed_${userId}_bcc_support`,
+        templateVars: { ...baseVars, agent_email: userEmail },
+      });
     } catch (welcomeErr) {
       // Never fail onboarding because of email enqueue
       console.error("[field-sales-complete-onboarding] welcome email enqueue error:", welcomeErr);

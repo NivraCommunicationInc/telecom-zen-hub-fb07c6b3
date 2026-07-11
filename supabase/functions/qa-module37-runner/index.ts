@@ -6,6 +6,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -402,16 +403,15 @@ serve(async (req) => {
 
     // N5 — uniqueness
     if (m?.event_key) {
-      await admin.from("email_queue").insert({
-        event_key: m.event_key,
-        idempotency_key: m.idempotency_key,
-        to_email: clientEmail,
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "consent_recorded",
+        recipient: clientEmail,
+        idempotencyKey: m.idempotency_key,
         subject: "dup",
-        template_key: "consent_recorded",
-        entity_type: "consent_record",
-        entity_id: consentIdA,
-        status: "queued",
-      } as any);
+        entityType: "consent_record",
+        entityId: consentIdA,
+      });
       const { count } = await admin.from("email_queue")
         .select("id", { count: "exact", head: true })
         .eq("event_key", m.event_key);

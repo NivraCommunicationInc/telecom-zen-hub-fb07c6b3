@@ -14,6 +14,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -92,11 +93,13 @@ serve(async (req) => {
     if (mode === "email" && body?.customer_email) {
       try {
         const orderRef = `POS-${intent.id.slice(0, 8).toUpperCase()}`;
-        const { error: qErr } = await supabase.from("email_queue").insert({
-          event_key: `pos_payment_link_${intent.id}`,
-          to_email: body.customer_email,
-          template_key: "field_payment_link",
-          template_vars: {
+        let qErr: any = null;
+        try { await enqueueCommunication({
+          channel: "email",
+          templateKey: "field_payment_link",
+          recipient: body.customer_email,
+          idempotencyKey: `pos_payment_link_${intent.id}`,
+          templateVars: {
             client_name: body?.customer_name || "Client",
             first_name: (body?.customer_name || "Client").split(" ")[0],
             order_number: orderRef,
@@ -111,10 +114,7 @@ serve(async (req) => {
             agent_name: agentName,
             valid_until: "7 jours à compter de ce courriel",
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 5,
-        });
+        }); } catch (__e) { qErr = __e; }
         if (qErr) {
           emailError = qErr.message;
           console.error("[pos-square-intent] email_queue insert failed:", qErr);
