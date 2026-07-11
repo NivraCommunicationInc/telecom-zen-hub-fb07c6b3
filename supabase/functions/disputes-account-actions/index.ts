@@ -314,8 +314,10 @@ serve(async (req) => {
         if (err) return json(400, { error: err });
         await audit("set_under_review", { dispute_id: row.id, dispute_number: row.dispute_number });
         await activity("dispute_status_changed", "payment_dispute", row.id,
-          `Litige ${row.dispute_number} → En analyse`, null, { status: "under_review" });
-        await internalNote(`Litige ${row.dispute_number} passé "En analyse" par ${callerName}.`);
+          `Litige ${row.dispute_number} → En analyse`, null, { status: "under_review" },
+          `dispute:${row.id}:status:under_review:activity`);
+        await internalNote(`Litige ${row.dispute_number} passé "En analyse" par ${callerName}.`,
+          `dispute:${row.id}:status:under_review:note`, row.id);
         await enqueueStatusEmail(row.dispute_number, "under_review", row.reason_code, null);
         return json(200, { ok: true });
       }
