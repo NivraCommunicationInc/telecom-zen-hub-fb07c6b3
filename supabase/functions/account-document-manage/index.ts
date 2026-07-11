@@ -181,13 +181,23 @@ serve(async (req) => {
         await supabase.storage.from(BUCKET).remove([doc.document_url]).catch(() => {});
       }
       await supabase.from("client_documents").delete().eq("id", documentId);
-      await supabase.from("client_internal_notes").insert({
-        client_user_id: doc.user_id,
-        category: "document",
-        note: `Document « ${doc.document_name || documentId} » supprimé par ${userData.user.email || "admin"}.`,
-        created_by: userData.user.id,
-        author_name: userData.user.email || "Admin",
-      } as any);
+      const accountIdD = await resolveAccountId(supabase, doc.user_id);
+      try {
+        await writeAccountJournal(supabase as any, {
+          targetTable: "client_internal_notes",
+          eventKey: `client_document:${documentId}:delete:note`,
+          actor: { userId: userData.user.id, role: "admin", name: userData.user.email || "Admin", email: userData.user.email ?? null },
+          payload: {
+            account_id: accountIdD,
+            client_id: doc.user_id,
+            note_type: "system",
+            body: `Document « ${doc.document_name || documentId} » supprimé par ${userData.user.email || "admin"}.`,
+            created_by_user_id: userData.user.id,
+            created_by_name: userData.user.email || "Admin",
+            created_by_role: "admin",
+          },
+        });
+      } catch (_e) { /* best-effort */ }
       return new Response(JSON.stringify({ ok: true, action }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
