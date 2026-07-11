@@ -495,6 +495,7 @@ serve(async (req) => {
 
         await audit("change_plan", after, before);
         await activity(
+          `internet:plan_change:${data.id}:activity`,
           "internet_plan_change",
           data.id,
           "internet_plan_change",
@@ -503,6 +504,7 @@ serve(async (req) => {
           before,
         );
         await sysNote(
+          `internet:plan_change:${data.id}:note`,
           `[INTERNET] Forfait changé — ${body.previous_plan_name ?? "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}` +
           (subscriptionUpdateOk ? "" : ` · ⚠️ abonnement non synchronisé (${subscriptionUpdateError})`),
         );
