@@ -17,6 +17,7 @@
  * Idempotency via caller-provided idempotency_key (unique per event).
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 import {
   serviceClient, createTicket, replyTicket, transitionTicket, addParticipant,
   type TicketActor,
@@ -244,19 +245,31 @@ Deno.serve(async (req) => {
         }
         const rows = Array.isArray(body.rows) ? body.rows : [];
         if (rows.length === 0) return json(200, { ok: true, inserted: 0 });
-        const cleaned = rows.map((r: any) => ({
-          to_email: r.to_email,
-          template_key: r.template_key,
-          template_vars: r.template_vars ?? {},
-          dedupe_key: r.dedupe_key ?? r.event_key ?? null,
-          status: "queued",
-          priority: r.priority ?? 0,
-        }));
-        const { error: qErr } = await admin.from("email_queue").insert(cleaned);
-        if (qErr && !qErr.message?.includes("duplicate key")) {
-          return json(400, { error: qErr.message });
+        let inserted = 0;
+        for (const r of rows) {
+          const idem = r.dedupe_key ?? r.event_key ?? r.idempotency_key
+            ?? `ticket-notify:${r.template_key}:${r.to_email}:${body.ticket_id ?? "na"}`;
+          try {
+            await enqueueCommunication(admin, {
+              channel: "email",
+              templateKey: r.template_key,
+              recipient: r.to_email,
+              idempotencyKey: idem,
+              templateVars: r.template_vars ?? {},
+              priority: typeof r.priority === "number" ? r.priority : 0,
+              entityType: "support_ticket",
+              entityId: body.ticket_id ?? null,
+              actorUserId: actor.user_id,
+              actorRole: actor.role,
+            });
+            inserted++;
+          } catch (e: any) {
+            if (!String(e?.message ?? "").includes("duplicate")) {
+              return json(400, { error: e?.message ?? String(e) });
+            }
+          }
         }
-        return json(200, { ok: true, inserted: cleaned.length });
+        return json(200, { ok: true, inserted });
       }
 
       default:

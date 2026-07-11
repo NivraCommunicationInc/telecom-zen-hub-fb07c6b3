@@ -14,6 +14,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildPaystubPdf } from "../_shared/pdf/paystubTemplate.ts";
 import { buildPaymentConfirmationPdf } from "../_shared/pdf/paymentConfirmationTemplate.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -207,21 +208,20 @@ async function enqueuePaystubEmail(toEmail: string, vars: Record<string, unknown
     for (let i = 0; i < pdf.length; i++) binary += String.fromCharCode(pdf[i]);
     const content = btoa(binary);
     const eventKey = `paystub_notification_${entryId}`;
-    const { error: qErr } = await supabase.from("email_queue").upsert({
-      event_key: eventKey,
-      template_key: "paystub_notification",
-      to_email: toEmail,
-      template_vars: vars,
-      message_type: "paystub_notification",
-      entity_type: "payroll_entry",
-      entity_id: entryId,
-      attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
-      status: "queued",
-      attempts: 0,
-      last_error: null,
-      next_retry_at: new Date().toISOString(),
-    } as any, { onConflict: "event_key" });
-    if (qErr) throw qErr;
+    try {
+      await enqueueCommunication(supabase, {
+        channel: "email",
+        templateKey: "paystub_notification",
+        recipient: toEmail,
+        idempotencyKey: eventKey,
+        templateVars: vars,
+        entityType: "payroll_entry",
+        entityId: entryId,
+        attachments: [{ filename: `talon-paie-${String(vars.payroll_number || entryId)}.pdf`, content, contentType: "application/pdf" }],
+      });
+    } catch (qErr) {
+      throw qErr;
+    }
     const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
     if (drainErr) throw drainErr;
     return { ok: true };
@@ -399,12 +399,13 @@ Deno.serve(async (req) => {
             }
           }
 
-          const eventKey = `payment_confirmation_${entry.id}_${Date.now()}`;
-          const { error: qErr } = await supabase.from("email_queue").upsert({
-            event_key: eventKey,
-            template_key: "payment_confirmation",
-            to_email: profile.email,
-            template_vars: {
+          const eventKey = `payment_confirmation_${entry.id}`;
+          await enqueueCommunication(supabase, {
+            channel: "email",
+            templateKey: "payment_confirmation",
+            recipient: profile.email,
+            idempotencyKey: eventKey,
+            templateVars: {
               agent_name: profile.full_name || profile.email,
               agent_number: profile.agent_number || entry.agent_number || "—",
               confirmation_number: confirmationNumber,
@@ -420,16 +421,10 @@ Deno.serve(async (req) => {
               total_deductions: Number(entry.total_deductions || entry.deductions_total || 0),
               portal_url: "https://nivra-telecom.ca/hr/paie",
             },
-            message_type: "payment_confirmation",
-            entity_type: "payroll_entry",
-            entity_id: entry.id,
+            entityType: "payroll_entry",
+            entityId: entry.id,
             attachments,
-            status: "queued",
-            attempts: 0,
-            last_error: null,
-            next_retry_at: new Date().toISOString(),
-          } as any, { onConflict: "event_key" });
-          if (qErr) throw qErr;
+          });
           const { error: drainErr } = await supabase.functions.invoke("email-queue-drain", { body: { drain_now: true, event_key: eventKey } });
           if (drainErr) throw drainErr;
           emailResult = { ok: true };
