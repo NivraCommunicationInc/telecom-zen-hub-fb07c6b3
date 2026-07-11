@@ -842,11 +842,23 @@ serve(async (req) => {
       }
       if (body.order_id) {
         await admin.from("orders").update({ status: "cancelled" } as any).eq("id", body.order_id);
-        await admin.from("activity_logs").insert({
-          user_id: user.id, entity_type: "order", entity_id: body.order_id,
-          action: "order_cancelled", reason,
-          details: { source: "new_order_actions", actor_role: primaryRole,
-                     simulated: !!body.simulated },
+        await writeAccountJournal(admin, {
+          targetTable: "activity_logs",
+          eventKey: `order:${body.order_id}:status:cancelled`,
+          payload: {
+            entity_type: "order",
+            entity_id: body.order_id,
+            action: "order_cancelled",
+            reason,
+            details: { source: "new_order_actions", actor_role: primaryRole,
+                       simulated: !!body.simulated },
+          },
+          actor: {
+            userId: user.id,
+            role: primaryRole,
+            name: callerName ?? callerProfile?.email ?? "system",
+            email: callerProfile?.email ?? null,
+          },
         });
       }
       if (body.customer?.email) {
