@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { generateSalt, hashPbkdf2 } from "../_shared/pinHash.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface BootstrapRequest {
   action?: "bootstrap" | "recover";
