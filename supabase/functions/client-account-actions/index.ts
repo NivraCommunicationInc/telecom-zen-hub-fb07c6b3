@@ -387,7 +387,7 @@ async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, 
     .from('billing_subscriptions')
     .select('id', { count: 'exact', head: true })
     .eq('service_address_id', service_address_id)
-    .in('status', ['active', 'trialing', 'past_due']);
+    .in('status', ['active', 'pending', 'suspended']);
   if (subErr) throw subErr;
   if ((activeSubs ?? 0) > 0) {
     throw new Error(`cannot delete: ${activeSubs} active subscription(s) still bound to this address`);
@@ -434,6 +434,12 @@ async function handleAddressRestore(svc: any, actor: any, actorRole: string, inp
   const { service_address_id } = input.payload;
   const { data: before } = await svc.from('service_addresses').select('*').eq('id', service_address_id).eq('account_id', input.account_id).maybeSingle();
   if (!before) throw new Error('service_address not found');
+  if (before.is_active === true && before.deleted_at === null) {
+    const err: any = new Error('service_address already active');
+    err.status = 409;
+    err.code = 'ALREADY_ACTIVE';
+    throw err;
+  }
   const { data: after, error } = await svc
     .from('service_addresses')
     .update({ is_active: true, deleted_at: null })
