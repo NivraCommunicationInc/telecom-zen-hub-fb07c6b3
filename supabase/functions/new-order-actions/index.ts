@@ -37,6 +37,12 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Deterministic minute bucket (UTC) — used for idempotent event keys
+function isoMinuteBucket(d: Date = new Date()): string {
+  return d.toISOString().slice(0, 16).replace(/[-:T]/g, "");
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
