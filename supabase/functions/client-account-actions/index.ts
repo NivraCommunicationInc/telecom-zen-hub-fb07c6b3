@@ -29,16 +29,54 @@ const Base = {
 };
 
 // B1.1 FIX: removed `communication_preference` — column does not exist on profiles.
+// Module 50: `reason` is REQUIRED for identity mutations.
 const ProfileUpdate = z.object({
   action: z.literal('profile.update'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({
     first_name: z.string().trim().min(1).max(80).optional(),
     last_name: z.string().trim().min(1).max(80).optional(),
-    phone: z.string().trim().min(7).max(30).optional(),
     date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     preferred_language: z.enum(['fr', 'en']).optional(),
   }).refine((o) => Object.keys(o).length > 0, { message: 'payload must contain at least one field' }),
+});
+
+// Module 50 — Email double opt-in
+const EmailRequestChange = z.object({
+  action: z.literal('email.request_change'),
+  ...Base,
+  reason: z.string().trim().min(3).max(500),
+  payload: z.object({
+    new_email: z.string().trim().email().max(254),
+  }),
+});
+
+const EmailConfirmChange = z.object({
+  action: z.literal('email.confirm_change'),
+  ...Base,
+  payload: z.object({
+    verification_token: z.string().min(16).max(128),
+  }),
+});
+
+// Module 50 — Phone OTP
+const PhoneRequestChange = z.object({
+  action: z.literal('phone.request_change'),
+  ...Base,
+  reason: z.string().trim().min(3).max(500),
+  payload: z.object({
+    new_phone: z.string().trim().regex(/^\+?[\d\s\-()]{7,20}$/),
+  }),
+});
+
+const PhoneVerifyOtp = z.object({
+  action: z.literal('phone.verify_otp'),
+  ...Base,
+  payload: z.object({
+    request_id: z.string().uuid(),
+    otp: z.string().trim().regex(/^\d{6}$/),
+  }),
 });
 
 const AddressFields = {
