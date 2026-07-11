@@ -337,21 +337,32 @@ async function demoteOtherPrimaries(svc: any, accountId: string, keepId: string 
 // B1.1 FIX: profiles is keyed by user_id (= accounts.client_id), not id.
 async function handleProfileUpdate(svc: any, actor: any, actorRole: string, input: z.infer<typeof ProfileUpdate>, correlationId: string) {
   const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
+// B1.1 FIX: profiles is keyed by user_id (= accounts.client_id), not id.
+// Module 50: identity update no longer accepts `phone` here — use phone.request_change/verify_otp.
+async function handleProfileUpdate(svc: any, actor: any, actorRole: string, input: z.infer<typeof ProfileUpdate>, correlationId: string) {
+  const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
   if (!acct?.client_id) throw new Error('account not found');
 
   const { data: before } = await svc
     .from('profiles')
-    .select('first_name,last_name,phone,date_of_birth,preferred_language')
+    .select('first_name,last_name,date_of_birth,preferred_language')
     .eq('user_id', acct.client_id)
     .maybeSingle();
   if (!before) throw new Error('profile not found for account.client_id');
 
   const patch: Record<string, unknown> = { ...input.payload };
+  // Derive full_name when name parts change.
+  if (patch.first_name !== undefined || patch.last_name !== undefined) {
+    const fn = (patch.first_name ?? before.first_name ?? '').toString().trim();
+    const ln = (patch.last_name ?? before.last_name ?? '').toString().trim();
+    (patch as any).full_name = `${fn} ${ln}`.trim();
+  }
+
   const { data: after, error } = await svc
     .from('profiles')
     .update(patch)
     .eq('user_id', acct.client_id)
-    .select('first_name,last_name,phone,date_of_birth,preferred_language')
+    .select('first_name,last_name,date_of_birth,preferred_language,full_name')
     .maybeSingle();
   if (error) throw error;
   if (!after) throw new Error('profile update matched no row');
@@ -360,6 +371,8 @@ async function handleProfileUpdate(svc: any, actor: any, actorRole: string, inpu
     accountId: input.account_id,
     action: 'profile.update',
     before, after,
+    reason: input.reason,
+    moduleTag: 'module_50',
     correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, before, after };
