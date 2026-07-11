@@ -131,6 +131,11 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
     if (!valid) return;
 
     const patch = buildDiffPayload(initial, valid);
+    // Module 50: phone changes now require the OTP workflow — strip from profile.update.
+    if ('phone' in patch) {
+      delete (patch as any).phone;
+      toast.info("Le changement de téléphone requiert une vérification OTP (à venir).");
+    }
     if (Object.keys(patch).length === 0) {
       toast.info("Aucune modification détectée");
       onOpenChange(false);
