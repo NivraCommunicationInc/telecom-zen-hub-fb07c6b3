@@ -12119,6 +12119,36 @@ export type Database = {
           },
         ]
       }
+      fraud_action_idempotency: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          expires_at: string
+          idempotency_key: string
+          request_hash: string
+          response: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          expires_at?: string
+          idempotency_key: string
+          request_hash: string
+          response?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          expires_at?: string
+          idempotency_key?: string
+          request_hash?: string
+          response?: Json | null
+        }
+        Relationships: []
+      }
       fulfillment_snapshots: {
         Row: {
           created_at: string

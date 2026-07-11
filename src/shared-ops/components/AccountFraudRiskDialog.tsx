@@ -136,6 +136,7 @@ export function AccountFraudRiskDialog({ open, onClose, clientUserId, clientName
           description: description.trim(),
           internalNotes: internalNotes.trim() || undefined,
           reason: reason.trim(),
+          idempotency_key: crypto.randomUUID(),
         },
       });
       if (error) throw error;
@@ -168,7 +169,7 @@ export function AccountFraudRiskDialog({ open, onClose, clientUserId, clientName
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("fraud-risk-actions", {
-        body: { action: "update_status", incidentId, status: newStatus, resolutionNotes: resNotes, reason: r.trim() },
+        body: { action: "update_status", clientId: clientUserId, incidentId, status: newStatus, resolutionNotes: resNotes, reason: r.trim(), idempotency_key: crypto.randomUUID() },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -200,6 +201,7 @@ export function AccountFraudRiskDialog({ open, onClose, clientUserId, clientName
           riskLevel,
           notes: scoreNotes.trim() || undefined,
           reason: scoreReason.trim(),
+          idempotency_key: crypto.randomUUID(),
         },
       });
       if (error) throw error;
