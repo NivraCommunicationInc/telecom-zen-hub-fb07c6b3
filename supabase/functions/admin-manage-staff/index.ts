@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 // Loose Supabase client type — the generated Database type isn't available
 // in edge-function context, so we use `any` for schema generics. Without this,
 // `ReturnType<typeof createClient>` collapses to `never` for table rows.
