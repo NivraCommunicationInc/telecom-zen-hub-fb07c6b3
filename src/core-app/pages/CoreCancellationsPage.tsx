@@ -392,7 +392,8 @@ export default function CoreCancellationsPage() {
           ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
           : { data: null };
         if (clientProfile?.email) {
-          const { error: emailErr } = await enqueueCommunication({
+          let emailErr: any = null;
+          try { await enqueueCommunication({
             channel: "email",
             templateKey: "cancellation_scheduled",
             recipient: clientProfile.email,
@@ -407,7 +408,7 @@ export default function CoreCancellationsPage() {
             priority: 1,
             entityType: "cancellation_request",
             entityId: id,
-          });
+          }); } catch (__e) { emailErr = __e; }
           if (emailErr) throw emailErr;
           result._sideEffects.email = true;
         }

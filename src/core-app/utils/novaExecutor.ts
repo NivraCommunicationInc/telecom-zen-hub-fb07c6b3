@@ -48,13 +48,14 @@ export async function executeNovaAction(
 
       case "send_email": {
         const { to_email, template_key, vars } = action.payload;
-        const { error } = await enqueueCommunication({
+        let error: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: template_key,
           recipient: to_email,
           idempotencyKey: `nova-send-email:${to_email}:${template_key}`,
           templateVars: vars ?? {},
-        });
+        }); } catch (__e) { error = __e; }
         if (error) throw error;
         return { success: true, message: "Email mis en file d'attente" };
       }

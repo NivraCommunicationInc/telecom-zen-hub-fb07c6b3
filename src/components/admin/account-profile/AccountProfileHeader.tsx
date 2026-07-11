@@ -176,7 +176,8 @@ export function AccountProfileHeader({
     }
     setSaving(true);
     try {
-      const { error } = await enqueueCommunication({
+      let error: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "admin_manual_communication",
         recipient: profile.email,
@@ -184,7 +185,7 @@ export function AccountProfileHeader({
         subject: commSubject.trim(),
         bodyHtml: `<p>${commBody.trim().replace(/\n/g, "<br/>")}</p>`,
         toName: profile.full_name || "",
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success("Communication ajoutée à la file d'envoi");
       setCommSubject("");

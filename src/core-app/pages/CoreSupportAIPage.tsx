@@ -96,7 +96,8 @@ export default function CoreSupportAIPage() {
 
   const sendReply = async () => {
     if (!selected || !reply.trim()) return;
-    const { error: emailErr } = await enqueueCommunication({
+    let emailErr: any = null;
+    try { await enqueueCommunication({
       channel: "email",
       templateKey: "support_ai_response",
       recipient: selected.from_email,
@@ -108,7 +109,7 @@ export default function CoreSupportAIPage() {
         ai_response: reply,
       },
       subject: `Réponse — Ticket ${selected.ticket_number}`,
-    });
+    }); } catch (__e) { emailErr = __e; }
     if (emailErr) { toast.error(emailErr.message); return; }
     await supabase.from("support_tickets_ai").update({
       status: "in_progress",

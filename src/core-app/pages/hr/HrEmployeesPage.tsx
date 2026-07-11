@@ -58,7 +58,8 @@ export default function HrEmployeesPage() {
     }
     setResendingId(empId);
     try {
-      const { error } = await enqueueCommunication({
+      let error: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "employee_invite",
         recipient: email,
@@ -67,7 +68,7 @@ export default function HrEmployeesPage() {
         priority: 1,
         entityType: "employee",
         entityId: empId,
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success(`Invitation envoyée à ${email}`);
     } catch (err: any) {
