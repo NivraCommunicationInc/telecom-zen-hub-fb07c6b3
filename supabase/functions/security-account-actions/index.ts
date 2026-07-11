@@ -1,28 +1,73 @@
-﻿// security-account-actions — Phase 12
+// security-account-actions — Module 42 Phase 2
 // Staff-only security operations for a client account.
 // Actions:
-//   - list_overview: aggregates login attempts, active access sessions,
-//                    security lock state, pending login PINs, security events
-//   - revoke_access_session: revoke a single staff/customer access session
-//   - clear_security_lock: clear lock_until + reset pin_attempts
-//   - invalidate_login_pins: mark all unused client_login_pins as used
-//   - force_signout_all: invalidates the auth user's refresh tokens
+//   - list_overview
+//   - revoke_access_session
+//   - clear_security_lock
+//   - invalidate_login_pins
+//   - force_signout_all (admin only)
+//
+// Phase 2 additions:
+//   - Zod validation of request body
+//   - Idempotency via public.security_action_idempotency
+//   - Client Timeline journal via rpc_account_journal_write (writeAccountJournal)
+//   - admin_audit_log unchanged (kept for compliance)
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { z } from "npm:zod@3.23.8";
+import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-idempotency-key",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
-interface Body {
-  action: string;
-  client_user_id: string;
-  client_email?: string | null;
-  account_id?: string | null;
-  session_id?: string;
-  reason?: string;
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const BodySchema = z.object({
+  action: z.enum([
+    "list_overview",
+    "revoke_access_session",
+    "clear_security_lock",
+    "invalidate_login_pins",
+    "force_signout_all",
+  ]),
+  client_user_id: z.string().regex(uuidRe, "client_user_id must be a UUID"),
+  client_email: z.string().email().max(255).nullish(),
+  account_id: z.string().regex(uuidRe).nullish(),
+  session_id: z.string().regex(uuidRe).optional(),
+  reason: z.string().trim().max(500).optional(),
+  idempotency_key: z.string().regex(uuidRe).optional(),
+});
+
+type Body = z.infer<typeof BodySchema>;
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function hashRequest(action: string, body: Body): Promise<string> {
+  const canonical = JSON.stringify({
+    action,
+    client_user_id: body.client_user_id,
+    session_id: body.session_id ?? null,
+    reason: body.reason ?? null,
+  });
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function isoMinuteBucket36(d = new Date()): string {
+  // 36-char bucket: YYYYMMDDHHMM
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}`;
 }
 
 Deno.serve(async (req) => {
@@ -46,27 +91,64 @@ Deno.serve(async (req) => {
     const { isStaff } = await checkStaffAuth(admin, userData.user.id);
     if (!isStaff) return json({ error: "forbidden" }, 403);
 
-    // Sensitive actions require admin role specifically (not just any staff).
-    // Previous version referenced an undefined `roles` variable that crashed
-    // the function on every invocation. Use has_role() RPC instead.
     const { data: isAdminData } = await admin.rpc("has_role", {
       _user_id: userData.user.id,
       _role: "admin",
     });
     const isAdmin = isAdminData === true;
 
-    const body = (await req.json()) as Body;
-    if (!body?.client_user_id || !body?.action) {
-      return json({ error: "client_user_id and action required" }, 400);
+    // Zod validation
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return json({ error: "invalid JSON body" }, 400);
     }
-
+    const parsed = BodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return json({ error: "validation_failed", details: parsed.error.flatten() }, 400);
+    }
+    const body = parsed.data;
     const clientId = body.client_user_id;
     const email = body.client_email?.toLowerCase() ?? null;
+    const actorId = userData.user.id;
+    const actorEmail = userData.user.email ?? null;
 
-    const logAudit = async (action: string, details: Record<string, any>) => {
+    // Idempotency (only for mutating actions)
+    const isMutation = body.action !== "list_overview";
+    const idempotencyKey =
+      body.idempotency_key ?? req.headers.get("x-idempotency-key") ?? null;
+
+    if (isMutation && idempotencyKey) {
+      const requestHash = await hashRequest(body.action, body);
+      const { data: existing } = await admin
+        .from("security_action_idempotency")
+        .select("request_hash, response")
+        .eq("idempotency_key", idempotencyKey)
+        .maybeSingle();
+      if (existing) {
+        if (existing.request_hash !== requestHash) {
+          return json({ error: "idempotency_key_conflict" }, 409);
+        }
+        return json({ ...(existing.response as object ?? { ok: true }), idempotent: true });
+      }
+      // Reserve the key
+      const { error: insErr } = await admin.from("security_action_idempotency").insert({
+        idempotency_key: idempotencyKey,
+        action: body.action,
+        actor_id: actorId,
+        request_hash: requestHash,
+        response: null,
+      });
+      if (insErr && !String(insErr.message).toLowerCase().includes("duplicate")) {
+        throw insErr;
+      }
+    }
+
+    const logAudit = async (action: string, details: Record<string, unknown>) => {
       await admin.from("admin_audit_log").insert({
-        admin_user_id: userData.user.id,
-        admin_email: userData.user.email,
+        admin_user_id: actorId,
+        admin_email: actorEmail,
         action: `account_ops.security_${action}`,
         target_type: "user",
         target_id: clientId,
@@ -74,6 +156,56 @@ Deno.serve(async (req) => {
         details,
       });
     };
+
+    const journalActor = {
+      userId: actorId,
+      role: isAdmin ? "admin" : "employee",
+      name: actorEmail ?? "staff",
+      email: actorEmail,
+    };
+
+    // Client Timeline journal (activity + internal note). Non-fatal: log & continue.
+    const writeClientJournal = async (opts: {
+      eventPrefix: string; // e.g. "session_revoked"
+      businessId: string;  // stable id or minute bucket
+      summary: string;
+      details: Record<string, unknown>;
+    }) => {
+      const activityKey = `security:${clientId}:${opts.eventPrefix}:${opts.businessId}:activity`;
+      const noteKey = `security:${clientId}:${opts.eventPrefix}:${opts.businessId}:note`;
+      try {
+        await writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          eventKey: activityKey,
+          actor: journalActor,
+          payload: {
+            client_user_id: clientId,
+            activity_type: `security_${opts.eventPrefix}`,
+            description: opts.summary,
+            metadata: opts.details,
+          },
+        });
+      } catch (err) {
+        console.error("[security-account-actions] journal activity failed", activityKey, err);
+      }
+      try {
+        await writeAccountJournal(admin, {
+          targetTable: "client_internal_notes",
+          eventKey: noteKey,
+          actor: journalActor,
+          payload: {
+            client_user_id: clientId,
+            note_type: "security",
+            content: opts.summary,
+            metadata: opts.details,
+          },
+        });
+      } catch (err) {
+        console.error("[security-account-actions] journal note failed", noteKey, err);
+      }
+    };
+
+    let response: Record<string, unknown> = { ok: true };
 
     switch (body.action) {
       case "list_overview": {
@@ -131,17 +263,33 @@ Deno.serve(async (req) => {
           .is("revoked_at", null);
         if (error) throw error;
         await logAudit("revoke_session", { session_id: body.session_id, reason: body.reason });
-        return json({ ok: true });
+        await writeClientJournal({
+          eventPrefix: "session_revoked",
+          businessId: body.session_id,
+          summary: `Session ${body.session_id.slice(0, 8)} révoquée par ${actorEmail ?? "staff"}`,
+          details: { session_id: body.session_id, reason: body.reason ?? null },
+        });
+        response = { ok: true };
+        break;
       }
 
       case "clear_security_lock": {
-        const { error } = await admin
+        const { data: secRow, error } = await admin
           .from("customer_security")
           .update({ pin_attempts: 0, lock_until: null, updated_at: new Date().toISOString() })
-          .eq("customer_id", clientId);
+          .eq("customer_id", clientId)
+          .select("id")
+          .maybeSingle();
         if (error) throw error;
         await logAudit("clear_lock", { reason: body.reason });
-        return json({ ok: true });
+        await writeClientJournal({
+          eventPrefix: "security_lock_cleared",
+          businessId: secRow?.id ?? clientId,
+          summary: `Verrouillage sécurité levé par ${actorEmail ?? "staff"}`,
+          details: { customer_security_id: secRow?.id ?? null, reason: body.reason ?? null },
+        });
+        response = { ok: true };
+        break;
       }
 
       case "invalidate_login_pins": {
@@ -152,32 +300,45 @@ Deno.serve(async (req) => {
           .eq("used", false);
         if (error) throw error;
         await logAudit("invalidate_pins", { reason: body.reason });
-        return json({ ok: true });
+        await writeClientJournal({
+          eventPrefix: "login_pins_invalidated",
+          businessId: isoMinuteBucket36(),
+          summary: `PINs de connexion invalidés par ${actorEmail ?? "staff"}`,
+          details: { reason: body.reason ?? null },
+        });
+        response = { ok: true };
+        break;
       }
 
       case "force_signout_all": {
         if (!isAdmin) return json({ error: "admin role required" }, 403);
-        // Invalidate all refresh tokens for the user
         const { error } = await admin.auth.admin.signOut(clientId, "global" as any);
         if (error && !String(error.message).toLowerCase().includes("user not found")) {
           throw error;
         }
         await logAudit("force_signout", { reason: body.reason });
-        return json({ ok: true });
+        await writeClientJournal({
+          eventPrefix: "force_signout_all",
+          businessId: isoMinuteBucket36(),
+          summary: `Déconnexion globale forcée par ${actorEmail ?? "admin"}`,
+          details: { reason: body.reason ?? null },
+        });
+        response = { ok: true };
+        break;
       }
-
-      default:
-        return json({ error: `unknown action: ${body.action}` }, 400);
     }
+
+    // Persist idempotent response
+    if (isMutation && idempotencyKey) {
+      await admin
+        .from("security_action_idempotency")
+        .update({ response })
+        .eq("idempotency_key", idempotencyKey);
+    }
+
+    return json(response);
   } catch (e) {
     console.error("security-account-actions error", e);
     return json({ error: (e as Error).message }, 500);
   }
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
