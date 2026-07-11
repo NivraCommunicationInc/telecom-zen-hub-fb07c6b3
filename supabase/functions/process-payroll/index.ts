@@ -449,20 +449,25 @@ Deno.serve(async (req) => {
       });
 
       // Audit log
-      await supabase.from("activity_logs").insert({
-        user_id: processedBy,
-        entity_type: "payroll_entry",
-        entity_id: entry.id,
-        action: `payment_marked_${paymentStatus}`,
-        actor_role: "hr_admin",
-        details: {
-          payment_method: paymentMethod,
-          payment_reference: paymentReference,
-          payment_date: paymentDate,
-          net_amount: Number(entry.net_pay || 0),
-          email_sent: emailResult.ok,
+      await writeAccountJournal(supabase, {
+        targetTable: "activity_logs",
+        payload: {
+          user_id: processedBy,
+          entity_type: "payroll_entry",
+          entity_id: entry.id,
+          action: `payment_marked_${paymentStatus}`,
+          actor_role: "hr_admin",
+          details: {
+            payment_method: paymentMethod,
+            payment_reference: paymentReference,
+            payment_date: paymentDate,
+            net_amount: Number(entry.net_pay || 0),
+            email_sent: emailResult.ok,
+          },
         },
-      } as any);
+        eventKey: `payroll_entry:${entry.id}:payment_marked_${paymentStatus}`,
+        actor: { userId: processedBy ?? "00000000-0000-0000-0000-000000000000", role: "hr_admin", name: "hr_admin", email: null },
+      });
 
       return new Response(JSON.stringify({
         ok: true,
