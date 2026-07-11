@@ -184,21 +184,21 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
     enabled: !!clientId,
   });
 
-  // ── All emails sent ──
+  // ── All communications (email + SMS + notifications + calls) — Module 46 (D46-E) ──
+  // Uses the canonical `v_customer_communications` unified view.
   const emailsQ = useQuery({
-    queryKey: ["client-history-emails", email],
+    queryKey: ["client-history-communications", clientId, email],
     queryFn: async () => {
-      if (!email) return [];
       const { data, error } = await supabase
-        .from("email_queue")
-        .select("id, template_key, subject, to_email, status, sent_at, created_at, last_error")
-        .eq("to_email", email.trim().toLowerCase())
+        .from("v_customer_communications" as any)
+        .select("row_id, channel, direction, recipient, phone, subject, template_key, status, sent_at, created_at, error_message")
+        .eq("client_id", clientId)
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
-      return data || [];
+      return (data as any[]) || [];
     },
-    enabled: !!email,
+    enabled: !!clientId,
   });
 
   // ── Reviewer names for KYC sessions ──
