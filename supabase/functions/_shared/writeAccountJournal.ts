@@ -48,6 +48,8 @@ export interface WriteAccountJournalActor {
   email?: string | null;
 }
 
+export type AccountJournalVisibility = "client" | "staff" | "admin";
+
 export interface WriteAccountJournalInput {
   targetTable: AccountJournalTable;
   payload: Record<string, unknown>;
@@ -59,6 +61,14 @@ export interface WriteAccountJournalInput {
    * calls (auth.uid() wins). Serialized as `payload._actor` for the RPC.
    */
   actor?: WriteAccountJournalActor | null;
+  /**
+   * Module 44 visibility contract:
+   *   - "client" : surfaces in the client portal timeline
+   *   - "staff"  : internal, staff-only
+   *   - "admin"  : sensitive (fraud, security, kyc, consent, privacy, docs)
+   * Defaults inferred by targetTable when omitted.
+   */
+  visibility?: AccountJournalVisibility;
 }
 
 export interface WriteAccountJournalResult {
