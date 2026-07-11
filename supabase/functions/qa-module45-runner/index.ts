@@ -98,7 +98,7 @@ serve(async (req) => {
       subject: "QA fusion create", description: "Test fusion door", escalation_type: "billing",
       idempotency_key: key1,
     }, employeeId, mkEmail("emp"));
-    push("create", "T01_employee_create", r1.status === 200 && !!r1.data?.ticket_id, `status=${r1.status}`);
+    push("create", "T01_employee_create", r1.status === 200 && !!r1.data?.ticket_id, `status=${r1.status} body=${r1.text.slice(0,200)}`);
     if (r1.data?.ticket_id) createdTicketIds.push(r1.data.ticket_id);
 
     // ---------- T02: Idempotency replay ----------
