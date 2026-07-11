@@ -693,13 +693,17 @@ serve(async (req) => {
         };
         await audit("modem_action", after);
         await activity(
+          `internet:modem_action:${data.id}:activity`,
           "internet_modem_action",
           data.id,
           "internet_modem_action",
           `Modem: ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}`,
           after,
         );
-        await sysNote(`[INTERNET] ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}${reasonStr ? ` · Raison: ${reasonStr}` : ""}`);
+        await sysNote(
+          `internet:modem_action:${data.id}:note`,
+          `[INTERNET] ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}${reasonStr ? ` · Raison: ${reasonStr}` : ""}`,
+        );
         await enqueueEmail("client_internet_modem_action", {
           action_label: meta.label,
           modem_serial: body.modem_serial || "—",
