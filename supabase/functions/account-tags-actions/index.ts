@@ -5,6 +5,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
