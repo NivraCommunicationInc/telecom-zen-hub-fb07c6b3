@@ -99,13 +99,24 @@ serve(async (req) => {
         status: contract.status === "draft" ? "sent" : contract.status,
       } as any).eq("id", contractId);
 
-      await supabase.from("client_internal_notes").insert({
-        client_user_id: contract.user_id,
-        category: "contract",
-        note: `Contrat ${contract.contract_number || contractId.slice(0, 8)} renvoyé pour signature (action manuelle).`,
-        created_by: userData.user.id,
-        author_name: userData.user.email || "Staff",
-      } as any);
+      const newSentCount = ((contract as any).sent_count ?? 0) + 1;
+      const accountIdC = await resolveAccountId(supabase, contract.user_id);
+      try {
+        await writeAccountJournal(supabase as any, {
+          targetTable: "client_internal_notes",
+          eventKey: `contract:${contractId}:resend:${newSentCount}:note`,
+          actor: { userId: userData.user.id, role: "admin", name: userData.user.email || "Staff", email: userData.user.email ?? null },
+          payload: {
+            account_id: accountIdC,
+            client_id: contract.user_id,
+            note_type: "system",
+            body: `Contrat ${contract.contract_number || contractId.slice(0, 8)} renvoyé pour signature (action manuelle).`,
+            created_by_user_id: userData.user.id,
+            created_by_name: userData.user.email || "Staff",
+            created_by_role: "admin",
+          },
+        });
+      } catch (_e) { /* best-effort */ }
 
       return new Response(JSON.stringify({ ok: true, action, contract_id: contractId }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
