@@ -15,6 +15,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -164,32 +165,45 @@ serve(async (req) => {
     action_type: string,
     entity_id: string | null,
     summary: string,
-    after_data: Record<string, unknown> | null = null,
+    after_data: Record<string, unknown> | null,
+    action_id: string,
   ) => {
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id: client_user_id,
-        actor_user_id: user.id,
-        actor_name: callerName,
-        actor_role: "staff",
-        action_type,
-        entity_type: "invoice",
-        entity_id: entity_id,
-        summary,
-        before_data: null,
-        after_data,
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        payload: {
+          client_id: client_user_id,
+          actor_user_id: user.id,
+          actor_name: callerName,
+          actor_role: "staff",
+          action_type,
+          entity_type: "invoice",
+          entity_id,
+          summary,
+          before_data: null,
+          after_data,
+        },
+        eventKey: `collections:action:${action_id}:activity`,
+        correlationId: action_id,
+        actor: { userId: user.id, role: "staff", name: callerName },
       });
     } catch (_e) { /* swallow */ }
   };
-  const internalNote = async (body_text: string) => {
+  const internalNote = async (body_text: string, action_id: string) => {
     try {
-      await admin.from("client_internal_notes").insert({
-        client_id: client_user_id,
-        note_type: "system",
-        body: body_text,
-        created_by_user_id: user.id,
-        created_by_role: "staff",
-        created_by_name: callerName,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        payload: {
+          client_id: client_user_id,
+          note_type: "system",
+          body: body_text,
+          created_by_user_id: user.id,
+          created_by_role: "staff",
+          created_by_name: callerName,
+        },
+        eventKey: `collections:action:${action_id}:note`,
+        correlationId: action_id,
+        actor: { userId: user.id, role: "staff", name: callerName },
       });
     } catch (_e) { /* swallow */ }
   };
@@ -222,9 +236,10 @@ serve(async (req) => {
         const action_type = ch === "phone" ? "contact_phone" : ch === "sms" ? "contact_sms" : "contact_email";
         const { data, error } = await insertAction(action_type, { notes: body.notes ?? null });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:${action_type}`;
         await audit("log_contact", { channel: ch });
-        await activity(`collections_${action_type}`, invoice_id, `Contact ${ch} pour facture ${invRef}`, { channel: ch });
-        await internalNote(`Recouvrement — contact ${ch} sur facture ${invRef} par ${callerName}.${body.notes ? ` Note: ${body.notes.slice(0, 200)}` : ""}`);
+        await activity(`collections_${action_type}`, invoice_id, `Contact ${ch} pour facture ${invRef}`, { channel: ch }, aid);
+        await internalNote(`Recouvrement — contact ${ch} sur facture ${invRef} par ${callerName}.${body.notes ? ` Note: ${body.notes.slice(0, 200)}` : ""}`, aid);
         if (ch === "email") {
           await enqueueEmail("client_collections_reminder", {
             subject: `Rappel — Facture #${inv.invoice_number}`,
@@ -245,11 +260,12 @@ serve(async (req) => {
           notes: body.notes ?? null,
         });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:promise_to_pay:${date}`;
         await audit("promise_to_pay", { amount: amt, date });
         await activity("collections_promise_to_pay", invoice_id,
           `Engagement de paiement ${fmtMoney(amt)} pour ${fmtDate(date)} — facture ${invRef}`,
-          { amount_promised: amt, promise_date: date });
-        await internalNote(`Recouvrement — engagement client: ${fmtMoney(amt)} pour ${fmtDate(date)} sur facture ${invRef}.`);
+          { amount_promised: amt, promise_date: date }, aid);
+        await internalNote(`Recouvrement — engagement client: ${fmtMoney(amt)} pour ${fmtDate(date)} sur facture ${invRef}.`, aid);
         await enqueueEmail("client_collections_promise", {
           amount_promised: fmtMoney(amt),
           promise_date: fmtDate(date),
@@ -267,11 +283,12 @@ serve(async (req) => {
         const note = `Plan: ${installments} versements de ${fmtMoney(each)} (total ${fmtMoney(total)}). ${body.notes || ""}`.trim();
         const { data, error } = await insertAction("payment_plan", { notes: note });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:payment_plan:${installments}x${each}`;
         await audit("payment_plan", { installments, each, total });
         await activity("collections_payment_plan", invoice_id,
           `Plan de paiement ${installments}×${fmtMoney(each)} sur facture ${invRef}`,
-          { installments, installment_amount: each, total });
-        await internalNote(`Recouvrement — plan ${installments}×${fmtMoney(each)} (total ${fmtMoney(total)}) sur facture ${invRef}.`);
+          { installments, installment_amount: each, total }, aid);
+        await internalNote(`Recouvrement — plan ${installments}×${fmtMoney(each)} (total ${fmtMoney(total)}) sur facture ${invRef}.`, aid);
         await enqueueEmail("client_collections_payment_plan", {
           installments: String(installments),
           installment_amount: fmtMoney(each),
@@ -284,9 +301,10 @@ serve(async (req) => {
       case "escalate": {
         const { data, error } = await insertAction("escalation", { notes: body.reason || body.notes || "Escalade interne" });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:escalation`;
         await audit("escalate", { reason: body.reason || null });
-        await activity("collections_escalated", invoice_id, `Escalade — facture ${invRef}`, { reason: body.reason ?? null });
-        await internalNote(`Recouvrement — ESCALADE sur facture ${invRef} par ${callerName}. Motif: ${(body.reason || "—").slice(0, 200)}`);
+        await activity("collections_escalated", invoice_id, `Escalade — facture ${invRef}`, { reason: body.reason ?? null }, aid);
+        await internalNote(`Recouvrement — ESCALADE sur facture ${invRef} par ${callerName}. Motif: ${(body.reason || "—").slice(0, 200)}`, aid);
 
         // Notify client of collections transfer
         try {
@@ -318,18 +336,20 @@ serve(async (req) => {
         }
         const { data, error } = await insertAction("writeoff", { notes: body.reason });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:writeoff`;
         await audit("writeoff", { reason: body.reason });
-        await activity("collections_writeoff", invoice_id, `Radiation — facture ${invRef}`, { reason: body.reason });
-        await internalNote(`Recouvrement — RADIATION (bad debt) sur facture ${invRef} par ${callerName}. Motif: ${body.reason.slice(0, 200)}`);
+        await activity("collections_writeoff", invoice_id, `Radiation — facture ${invRef}`, { reason: body.reason }, aid);
+        await internalNote(`Recouvrement — RADIATION (bad debt) sur facture ${invRef} par ${callerName}. Motif: ${body.reason.slice(0, 200)}`, aid);
         return json(200, { ok: true, id: data?.id });
       }
 
       case "mark_resolved": {
         const { data, error } = await insertAction("resolved", { notes: body.notes ?? null });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:resolved`;
         await audit("resolved", {});
-        await activity("collections_resolved", invoice_id, `Dossier résolu — facture ${invRef}`, null);
-        await internalNote(`Recouvrement — dossier résolu sur facture ${invRef} par ${callerName}.${body.notes ? ` Note: ${body.notes.slice(0, 200)}` : ""}`);
+        await activity("collections_resolved", invoice_id, `Dossier résolu — facture ${invRef}`, null, aid);
+        await internalNote(`Recouvrement — dossier résolu sur facture ${invRef} par ${callerName}.${body.notes ? ` Note: ${body.notes.slice(0, 200)}` : ""}`, aid);
         return json(200, { ok: true, id: data?.id });
       }
 
@@ -338,9 +358,10 @@ serve(async (req) => {
         if (!txt) return json(400, { error: "Note requise" });
         const { data, error } = await insertAction("note", { notes: txt });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:note:${txt.slice(0, 40)}`;
         await audit("add_note", { length: txt.length });
-        await activity("collections_note", invoice_id, `Note recouvrement — facture ${invRef}`, null);
-        await internalNote(`Recouvrement — note sur facture ${invRef}: ${txt.slice(0, 200)}`);
+        await activity("collections_note", invoice_id, `Note recouvrement — facture ${invRef}`, null, aid);
+        await internalNote(`Recouvrement — note sur facture ${invRef}: ${txt.slice(0, 200)}`, aid);
         return json(200, { ok: true, id: data?.id });
       }
 
