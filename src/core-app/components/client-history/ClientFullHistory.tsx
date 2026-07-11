@@ -371,28 +371,31 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
         )}
       </HistorySection>
 
-      {/* ═══ EMAILS ═══ */}
-      <HistorySection title="Tous les courriels envoyés" icon={Mail} count={emailsQ.data?.length || 0} loading={emailsQ.isLoading} defaultOpen={false}>
+      {/* ═══ COMMUNICATIONS (email + SMS + notifications + calls) — Module 46 ═══ */}
+      <HistorySection title="Toutes les communications" icon={Mail} count={emailsQ.data?.length || 0} loading={emailsQ.isLoading} defaultOpen={false}>
         {emailsQ.data && emailsQ.data.length > 0 ? (
           <div className="overflow-x-auto mt-2">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[hsl(220,15%,14%)]">
-                  {["Date", "Type", "Sujet", "Statut"].map((h) => (
+                  {["Date", "Canal", "Destinataire", "Type / Sujet", "Statut"].map((h) => (
                     <th key={h} className="text-left px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {emailsQ.data.map((e: any) => (
-                  <tr key={e.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
+                  <tr key={e.row_id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)]">
                     <td className="px-2 py-2 text-[#A1A1AA] whitespace-nowrap">{fmtDate(e.sent_at || e.created_at)}</td>
-                    <td className="px-2 py-2 text-white">{formatTemplate(e.template_key)}</td>
-                    <td className="px-2 py-2 text-[#A1A1AA] truncate max-w-[280px]">{e.subject || "—"}</td>
+                    <td className="px-2 py-2 text-white uppercase text-[10px]">{e.channel}</td>
+                    <td className="px-2 py-2 text-[#CBD5E1] truncate max-w-[180px]">{e.recipient || e.phone || "—"}</td>
+                    <td className="px-2 py-2 text-[#A1A1AA] truncate max-w-[280px]">
+                      {e.subject || formatTemplate(e.template_key) || "—"}
+                    </td>
                     <td className="px-2 py-2">
                       <StatusBadge
-                        label={e.status === "sent" ? "envoyé" : e.status === "failed" ? "échoué" : e.status === "queued" ? "en file" : e.status}
-                        variant={statusToVariant(e.status === "sent" ? "active" : e.status)}
+                        label={e.status === "sent" || e.status === "delivered" ? "envoyé" : e.status === "failed" ? "échoué" : e.status === "queued" || e.status === "pending" ? "en file" : e.status}
+                        variant={statusToVariant(e.status === "sent" || e.status === "delivered" ? "active" : e.status)}
                         size="sm"
                       />
                     </td>
@@ -402,7 +405,7 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
             </table>
           </div>
         ) : (
-          <EmptyRow label={email ? "Aucun courriel" : "Adresse courriel introuvable"} />
+          <EmptyRow label="Aucune communication" />
         )}
       </HistorySection>
 
