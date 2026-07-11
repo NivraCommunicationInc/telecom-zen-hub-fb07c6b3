@@ -29,6 +29,8 @@ export interface ActivityLogInput {
   correlationId?: string | null;
   /** Explicit visibility (defaults to "staff"). */
   visibility?: AccountJournalVisibility;
+  /** Pass-through of any legacy activity_logs columns. */
+  [key: string]: unknown;
 }
 
 export async function logActivityLog(input: ActivityLogInput) {
