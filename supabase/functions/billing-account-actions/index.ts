@@ -216,6 +216,15 @@ serve(async (req) => {
   };
 
   // ── A23-1 : parité activity_log + note interne pour toutes les actions ──
+  // Migration Module 41 B.2.b — passage par writeAccountJournal (single door).
+  // eventBase doit être déterministe et porter un identifiant métier stable
+  // (method_id / plan_id / refund_id) quand disponible.
+  const journalActor = {
+    userId: user.id,
+    role: "admin",
+    name: user.email ?? null,
+    email: user.email ?? null,
+  };
   const logAndNote = async (
     action_type: string,
     entity_type: string,
@@ -223,31 +232,47 @@ serve(async (req) => {
     summary: string,
     before_data: Record<string, unknown> | null,
     after_data: Record<string, unknown> | null,
+    eventBase: string,
   ) => {
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id:     client_user_id,
-        actor_user_id: user.id,
-        actor_name:    user.email ?? null,
-        actor_role:    "admin",
-        action_type,
-        entity_type,
-        entity_id,
-        summary,
-        before_data,
-        after_data,
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `${eventBase}:activity`,
+        actor: journalActor,
+        payload: {
+          client_id:     client_user_id,
+          actor_user_id: user.id,
+          actor_name:    user.email ?? null,
+          actor_role:    "admin",
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          before_data,
+          after_data,
+        },
       });
-      await admin.from("client_internal_notes").insert({
-        client_id:          client_user_id,
-        account_id:         body.account_id ?? null,
-        note_type:          "system",
-        body:               `${summary} — par ${user.email ?? user.id}`,
-        created_by_user_id: user.id,
-        created_by_role:    "admin",
-        created_by_name:    user.email ?? null,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `${eventBase}:note`,
+        actor: journalActor,
+        payload: {
+          client_id:          client_user_id,
+          account_id:         body.account_id ?? null,
+          note_type:          "system",
+          body:               `${summary} — par ${user.email ?? user.id}`,
+          created_by_user_id: user.id,
+          created_by_role:    "admin",
+          created_by_name:    user.email ?? null,
+        },
       });
     } catch (e) { console.warn("[logAndNote]", String(e)); }
   };
+
+  // Bucket ISO à la minute pour les rares actions sans event id stable
+  // (autopay/settings). Uniquement en complément d'un identifiant métier
+  // (client_user_id + état) et de l'idempotency_key s'il est fourni.
+  const isoMinuteBucket = () => new Date().toISOString().slice(0, 16);
 
   // ── A23-3 : contrôle d'appartenance invoice/payment (sécurité cross-client) ──
   // NB: schéma canonique — billing_invoices.customer_id / account_id
