@@ -245,24 +245,42 @@ serve(async (req) => {
     });
 
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id,
-        actor_user_id: user.id,
-        actor_name: user.email ?? "Admin Core",
-        actor_role: primaryRole,
-        action_type: "compensation_issued",
-        entity_type: "account_adjustments",
-        entity_id: adjustmentId,
-        summary: `Bon de compensation — ${finalAmount.toFixed(2)}$ (${category})`,
-        after_data: { adjustment_id: adjustmentId, category, amount: finalAmount, expires_at: expiresAt },
+      const actor = {
+        userId: user.id,
+        role: primaryRole,
+        name: user.email ?? "Admin Core",
+        email: user.email ?? null,
+      };
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `compensation:${adjustmentId}:issued:activity`,
+        correlationId: idempotency_key ?? null,
+        actor,
+        payload: {
+          client_id,
+          actor_user_id: user.id,
+          actor_name: user.email ?? "Admin Core",
+          actor_role: primaryRole,
+          action_type: "compensation_issued",
+          entity_type: "account_adjustments",
+          entity_id: adjustmentId,
+          summary: `Bon de compensation — ${finalAmount.toFixed(2)}$ (${category})`,
+          after_data: { adjustment_id: adjustmentId, category, amount: finalAmount, expires_at: expiresAt },
+        },
       });
-      await admin.from("client_internal_notes").insert({
-        client_id,
-        note_type: "system",
-        body: `Bon de compensation émis — ${finalAmount.toFixed(2)}$ — catégorie: ${category} — motif: ${reason}`,
-        created_by_user_id: user.id,
-        created_by_role: primaryRole,
-        created_by_name: user.email ?? "Admin Core",
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `compensation:${adjustmentId}:issued:note`,
+        correlationId: idempotency_key ?? null,
+        actor,
+        payload: {
+          client_id,
+          note_type: "system",
+          body: `Bon de compensation émis — ${finalAmount.toFixed(2)}$ — catégorie: ${category} — motif: ${reason}`,
+          created_by_user_id: user.id,
+          created_by_role: primaryRole,
+          created_by_name: user.email ?? "Admin Core",
+        },
       });
     } catch (e) {
       console.warn("[core-issue-compensation] traceability:", (e as any)?.message);
