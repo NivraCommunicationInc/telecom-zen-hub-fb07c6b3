@@ -335,9 +335,6 @@ async function demoteOtherPrimaries(svc: any, accountId: string, keepId: string 
 // ---------- Action handlers ----------
 
 // B1.1 FIX: profiles is keyed by user_id (= accounts.client_id), not id.
-async function handleProfileUpdate(svc: any, actor: any, actorRole: string, input: z.infer<typeof ProfileUpdate>, correlationId: string) {
-  const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
-// B1.1 FIX: profiles is keyed by user_id (= accounts.client_id), not id.
 // Module 50: identity update no longer accepts `phone` here — use phone.request_change/verify_otp.
 async function handleProfileUpdate(svc: any, actor: any, actorRole: string, input: z.infer<typeof ProfileUpdate>, correlationId: string) {
   const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
