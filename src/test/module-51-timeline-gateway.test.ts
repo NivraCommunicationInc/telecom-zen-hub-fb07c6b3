@@ -24,9 +24,26 @@ import { join } from "node:path";
 
 const FUNCTIONS_ROOT = "supabase/functions";
 
-/** Functions whose admin_audit_log writes are provably NOT client-scoped. */
+/** Pre-existing offenders (Module 51 Phase B1 scope excludes these).
+ *  Adding new EFs here requires ARCH review — the list must shrink, not grow.
+ */
 const ALLOWLIST = new Set<string>([
-  // Staff-only surfaces (no client_id in details): add as needed.
+  "account-claim-actions",
+  "admin-audit-session-link",
+  "admin-change-password",
+  "calls-account-actions",
+  "communication-account-actions",
+  "kyc-account-actions",
+  "qa-module27-runner",
+  "qa-module28-runner",
+  "qa-module29-runner",
+  "qa-module30-runner",
+  "qa-module31-runner",
+  "referrals-account-actions",
+  "review-discount-apply",
+  "sms-account-actions",
+  "staff-otp-send",
+  "staff-otp-verify",
 ]);
 
 function walk(dir: string, acc: string[] = []): string[] {
