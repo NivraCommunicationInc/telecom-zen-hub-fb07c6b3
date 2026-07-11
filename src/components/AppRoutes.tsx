@@ -204,8 +204,7 @@ const CoreCoveragePage = lazy(() => import("@/core-app/pages/CoreCoveragePage"))
 const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
 const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"));
 const CoreEmailMarketingPage = lazy(() => import("@/core-app/pages/CoreEmailMarketingPage"));
-const CoreCommunicationEmailPage = lazy(() => import("@/core-app/pages/CoreCommunicationEmailPage"));
-const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommunicationSMSPage"));
+const CoreCommunicationsPage = lazy(() => import("@/core-app/pages/CoreCommunicationsPage"));
 // Marketing Hub
 const MarketingHubDashboard = lazy(() => import("@/core-app/pages/marketing/MarketingHubDashboard"));
 const MarketingConversationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingConversationsPage"));
