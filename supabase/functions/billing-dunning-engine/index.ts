@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
