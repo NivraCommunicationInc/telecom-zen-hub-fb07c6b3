@@ -692,25 +692,35 @@ serve(async (req) => {
         // ── Client activity log + system note (parity with Module 8/9) ──
         try {
           const summary = `Plan de paiement annulé — total ${fmtMoney(Number(existing.total_amount ?? 0))} · ${existing.installment_count}× — motif: ${reason}`;
-          await admin.from("client_activity_logs").insert({
-            client_id:     client_user_id,
-            actor_user_id: user.id,
-            actor_name:    user.email ?? null,
-            actor_role:    "admin",
-            action_type:   "payment_plan_cancelled",
-            entity_type:   "client_payment_plan",
-            entity_id:     id,
-            summary,
-            after_data:    { plan_id: id, status: "cancelled" },
+          await writeAccountJournal(admin, {
+            targetTable: "client_activity_logs",
+            eventKey: `billing:plan:${id}:cancelled:activity`,
+            actor: journalActor,
+            payload: {
+              client_id:     client_user_id,
+              actor_user_id: user.id,
+              actor_name:    user.email ?? null,
+              actor_role:    "admin",
+              action_type:   "payment_plan_cancelled",
+              entity_type:   "client_payment_plan",
+              entity_id:     id,
+              summary,
+              after_data:    { plan_id: id, status: "cancelled" },
+            },
           });
-          await admin.from("client_internal_notes").insert({
-            client_id:          client_user_id,
-            account_id:         existing.account_id ?? body.account_id ?? null,
-            note_type:          "system",
-            body:               `${summary} — par ${user.email ?? user.id}`,
-            created_by_user_id: user.id,
-            created_by_role:    "admin",
-            created_by_name:    user.email ?? null,
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `billing:plan:${id}:cancelled:note`,
+            actor: journalActor,
+            payload: {
+              client_id:          client_user_id,
+              account_id:         existing.account_id ?? body.account_id ?? null,
+              note_type:          "system",
+              body:               `${summary} — par ${user.email ?? user.id}`,
+              created_by_user_id: user.id,
+              created_by_role:    "admin",
+              created_by_name:    user.email ?? null,
+            },
           });
         } catch (_e) { /* swallow */ }
 
