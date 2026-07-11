@@ -874,10 +874,12 @@ serve(async (req) => {
           ? { enabled: existing.enabled, max_rating: existing.max_rating, blocked_count: (existing.blocked_channels as any[])?.length ?? 0 }
           : null;
         await audit("set_parental", after, before);
-        await activity("service_change", null, "service",
+        const parentalBucket = body.idempotency_key ?? isoMinuteBucket36();
+        const parentalKeyBase = `tv:parental:${client_user_id}:${accountFilter ?? "na"}:updated:${parentalBucket}`;
+        await activity(`${parentalKeyBase}:activity`, "service_change", null, "service",
           `Contrôles parentaux TV — ${enabled ? "activés" : "désactivés"} (rating ${max_rating}, ${blocked_channels.length} chaîne(s))`,
           after, before);
-        await sysNote(`[TV] Contrôles parentaux — ${enabled ? "activés" : "désactivés"} · rating=${max_rating} · bloquées=${blocked_channels.length}${body.pin ? " · NIP mis à jour" : ""}. Motif: ${reasonStr}`);
+        await sysNote(`${parentalKeyBase}:note`, `[TV] Contrôles parentaux — ${enabled ? "activés" : "désactivés"} · rating=${max_rating} · bloquées=${blocked_channels.length}${body.pin ? " · NIP mis à jour" : ""}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_parental_controls", {
           enabled: enabled ? "true" : "false",
           max_rating,
