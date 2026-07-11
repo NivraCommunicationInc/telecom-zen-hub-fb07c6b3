@@ -71,23 +71,36 @@ export const ClientBillingAddressSection = ({
     }
   }, [account]);
 
-  // Update billing address
+  // Update billing address via canonical gateway (Module 49 Phase B2).
   const updateMutation = useMutation({
     mutationFn: async (data: typeof billingData | null) => {
       if (!account?.id) throw new Error("No account found");
-      
-      const updateData = data || {
-        billing_address: null,
-        billing_city: null,
-        billing_province: null,
-        billing_postal_code: null,
-      };
 
-      const { error } = await supabase
-        .from("accounts")
-        .update(updateData)
-        .eq("id", account.id);
-      if (error) throw error;
+      const body = data
+        ? {
+            action: "billing_address.set_custom",
+            account_id: account.id,
+            payload: {
+              billing_address: data.billing_address,
+              billing_city: data.billing_city,
+              billing_province: data.billing_province,
+              billing_postal_code: data.billing_postal_code,
+            },
+            idempotency_key: `bill-custom:${account.id}:${Date.now()}`,
+          }
+        : {
+            action: "billing_address.set_same_as_service",
+            account_id: account.id,
+            payload: {},
+            idempotency_key: `bill-same:${account.id}:${Date.now()}`,
+          };
+
+      const { data: resp, error } = await supabase.functions.invoke("client-account-actions", { body });
+      if (error) {
+        const detail = (error as any)?.context?.text ? await (error as any).context.text() : error.message;
+        throw new Error(detail || error.message || "Gateway error");
+      }
+      return resp;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-account-billing"] });
