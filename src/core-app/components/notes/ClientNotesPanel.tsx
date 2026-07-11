@@ -120,25 +120,17 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
 
       if (!currentUser) throw new Error("Non authentifié");
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("user_id", currentUser.id)
-        .maybeSingle();
-
-      const { error } = await supabase.from("client_internal_notes").insert({
-        client_id: clientId,
-        note_type: "admin",
-        body: noteText.trim(),
-        created_by_user_id: currentUser.id,
-        created_by_role: "admin",
-        created_by_name: profile?.full_name || currentUser.email || "Agent",
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `note:${clientId}:admin:${currentUser.id}:${minuteBucket}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          note_type: "admin",
+          body: noteText.trim(),
+        },
       });
-
-      if (error) {
-        console.error("[ClientNotesPanel] insert failed:", error);
-        throw error;
-      }
     },
     onSuccess: async () => {
       setNoteText("");
