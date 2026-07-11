@@ -354,6 +354,7 @@ Deno.serve(async (req) => {
     await admin.from("order_status_history").delete().eq("order_id", testOrderId);
     await admin.from("order_internal_notes").delete().eq("order_id", testOrderId);
     await admin.from("orders").delete().eq("id", testOrderId);
+    await admin.from("accounts").delete().eq("id", testAccountId);
     await admin.from("activity_logs").delete().eq("entity_id", clientA);
     await admin.from("client_activity_logs").delete().eq("client_id", clientA);
     await admin.from("client_internal_notes").delete().eq("client_id", clientA);
