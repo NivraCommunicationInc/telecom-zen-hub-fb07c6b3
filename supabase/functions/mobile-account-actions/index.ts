@@ -583,13 +583,14 @@ serve(async (req) => {
         const after = { addon_id: data.id, addon_code: cat.addon_code, addon_name: cat.addon_name, monthly_price, one_time_price };
         await audit("add_addon", after);
         await activity(
+          `mobile:addon:${data.id}:added:activity`,
           "service_add",
           data.id,
           "mobile_addon",
           `Option mobile ajoutée: ${cat.addon_name} (${fmtMoney(monthly_price)}/mois)`,
           after,
         );
-        await sysNote(`[MOBILE.ADD_ADDON] ${cat.addon_name} — ${cat.addon_code} — ${fmtMoney(monthly_price)}/mois`);
+        await sysNote(`mobile:addon:${data.id}:added:note`, `[MOBILE.ADD_ADDON] ${cat.addon_name} — ${cat.addon_code} — ${fmtMoney(monthly_price)}/mois`);
         await enqueueEmail("client_mobile_addon_change", {
           addon_name: cat.addon_name,
           monthly_price: fmtMoney(monthly_price),
