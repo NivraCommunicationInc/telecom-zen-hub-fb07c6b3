@@ -164,7 +164,7 @@ function Employee360Inner({
     if (!email) { toast.error("Aucun email pour cet employé"); return; }
     setResending(true);
     try {
-      const { error } = await (supabase as any)enqueueCommunication({
+      const { error } = await enqueueCommunication({
         channel: "email",
         templateKey: "employee_invite",
         recipient: email,

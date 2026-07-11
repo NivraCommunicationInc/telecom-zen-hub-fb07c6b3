@@ -160,7 +160,7 @@ export default function CoreCancellationsPage() {
             ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
             : { data: null };
           if (cp?.email) {
-            await (supabase as any)enqueueCommunication({
+            await enqueueCommunication({
               channel: "email",
               templateKey: fields.status === "declined" ? "cancellation_declined" : "cancellation_completed",
               recipient: cp.email,
@@ -392,7 +392,7 @@ export default function CoreCancellationsPage() {
           ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
           : { data: null };
         if (clientProfile?.email) {
-          const { error: emailErr } = await (supabase as any)enqueueCommunication({
+          const { error: emailErr } = await enqueueCommunication({
             channel: "email",
             templateKey: "cancellation_scheduled",
             recipient: clientProfile.email,

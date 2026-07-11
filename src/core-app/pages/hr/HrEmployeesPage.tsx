@@ -58,7 +58,7 @@ export default function HrEmployeesPage() {
     }
     setResendingId(empId);
     try {
-      const { error } = await (sb as any)enqueueCommunication({
+      const { error } = await enqueueCommunication({
         channel: "email",
         templateKey: "employee_invite",
         recipient: email,

@@ -243,7 +243,7 @@ export default function CoreApplicationsPage() {
       if (insertErr) throw insertErr;
 
       // Queue invite email
-      await (supabase as any)enqueueCommunication({
+      await enqueueCommunication({
         channel: "email",
         templateKey: "employee_invite",
         recipient: hireForm.work_email.trim().toLowerCase(),

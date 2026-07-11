@@ -144,7 +144,7 @@ export default function HrCreateEmployeePage() {
       if (insertErr) throw insertErr;
 
       // Queue invite email
-      await (supabase as any)enqueueCommunication({
+      await enqueueCommunication({
         channel: "email",
         templateKey: "employee_invite",
         recipient: form.work_email.trim().toLowerCase(),

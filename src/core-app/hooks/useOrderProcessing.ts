@@ -2307,7 +2307,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         .maybeSingle();
       if (kycErr) throw kycErr;
 
-      await (supabase as any)enqueueCommunication({
+      await enqueueCommunication({
         channel: "email",
         templateKey: "kyc_request",
         recipient: recipientEmail,
@@ -2353,7 +2353,7 @@ export function useOrderProcessing(orderId: string | undefined) {
           .from("kyc_requests")
           .upsert({ order_id: orderId, client_email: recipientEmailResub, token, status: "pending", requested_at: new Date().toISOString(), expires_at: expiresAt, notes: opts?.reason || null }, { onConflict: "order_id" })
           .select("id").maybeSingle();
-        await (supabase as any)enqueueCommunication({
+        await enqueueCommunication({
           channel: "email",
           templateKey: "kyc_request",
           recipient: recipientEmailResub,

@@ -82,7 +82,7 @@ export function CoreKycPanel({ order, onRefresh }: Props) {
       if (kycErr) throw kycErr;
 
       // Queue the email
-      await (supabase as any)enqueueCommunication({
+      await enqueueCommunication({
         channel: "email",
         templateKey: "kyc_request",
         recipient: order.client_email,
