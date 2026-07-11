@@ -21,6 +21,7 @@ async function queueChannelConfirmedEmail(order: any, channels: { name: string; 
     if (!email) return;
 
     await supabase.from("email_queue").insert({
+      event_key: `tv-channels-confirmed:${order.id}`,
       to_email: email,
       template_key: "client_tv_channels_confirmed",
       template_vars: {

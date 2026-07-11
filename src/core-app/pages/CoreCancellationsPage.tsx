@@ -391,6 +391,7 @@ export default function CoreCancellationsPage() {
           : { data: null };
         if (clientProfile?.email) {
           const { error: emailErr } = await (supabase as any).from("email_queue").insert({
+            event_key: `cancellation-scheduled:${id}`,
             template_key: "cancellation_scheduled",
             to_email: clientProfile.email,
             entity_type: "cancellation_request",
@@ -430,6 +431,7 @@ export default function CoreCancellationsPage() {
             }
 
             await supabase.from("email_queue").insert({
+              event_key: `service-cancelled-brand:${id}`,
               to_email: clientProfile.email,
               template_key: "service_cancelled",
               variables: {

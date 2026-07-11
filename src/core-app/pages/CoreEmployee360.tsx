@@ -164,6 +164,7 @@ function Employee360Inner({
     setResending(true);
     try {
       const { error } = await (supabase as any).from("email_queue").insert({
+        event_key: `employee-invite-resend:${empId}`,
         template_key: "employee_invite",
         to_email: email,
         entity_type: "employee",

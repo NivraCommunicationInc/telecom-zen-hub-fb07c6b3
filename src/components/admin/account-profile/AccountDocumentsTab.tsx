@@ -157,6 +157,7 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
       if (!profile?.email) { toast.error("Email client introuvable"); return; }
 
       await supabase.from("email_queue").insert({
+        event_key: `contract-send:${contract.id}`,
         to_email: profile.email,
         to_name: profile.full_name || "",
         subject: `Votre contrat Nivra`,

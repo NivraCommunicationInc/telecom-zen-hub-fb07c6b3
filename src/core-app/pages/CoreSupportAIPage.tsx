@@ -96,6 +96,7 @@ export default function CoreSupportAIPage() {
   const sendReply = async () => {
     if (!selected || !reply.trim()) return;
     const { error: emailErr } = await supabase.from("email_queue").insert({
+      event_key: `support-ai-reply:${selected.id}`,
       to_email: selected.from_email,
       template_key: "support_ai_response",
       subject: `Réponse — Ticket ${selected.ticket_number}`,

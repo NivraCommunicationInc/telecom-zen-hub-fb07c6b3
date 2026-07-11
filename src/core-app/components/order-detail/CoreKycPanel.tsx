@@ -82,6 +82,7 @@ export function CoreKycPanel({ order, onRefresh }: Props) {
 
       // Queue the email
       await (supabase as any).from("email_queue").insert({
+        event_key: `kyc-request:${kycRow?.id ?? order.id}`,
         template_key: "kyc_request",
         to_email: order.client_email,
         entity_type: "kyc_request",

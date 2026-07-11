@@ -176,6 +176,7 @@ export function AccountProfileHeader({
     setSaving(true);
     try {
       const { error } = await supabase.from("email_queue").insert({
+        event_key: `manual-comm:${profile.user_id ?? profile.email}:${commSubject.trim().slice(0, 40)}:${commBody.trim().length}`,
         to_email: profile.email,
         to_name: profile.full_name || "",
         subject: commSubject.trim(),

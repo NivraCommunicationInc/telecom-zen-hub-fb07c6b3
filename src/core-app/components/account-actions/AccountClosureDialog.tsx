@@ -127,6 +127,7 @@ export function AccountClosureDialog({
       // 3) Queue closure-requested email
       if (clientEmail) {
         await supabase.from("email_queue").insert({
+          event_key: `account-closure-requested:${accountId ?? clientEmail}`,
           to_email: clientEmail,
           template_key: "account_closure_requested",
           variables: {

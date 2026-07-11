@@ -144,6 +144,7 @@ export default function HrCreateEmployeePage() {
 
       // Queue invite email
       await (supabase as any).from("email_queue").insert({
+        event_key: `employee-invite:${empRecord.id}`,
         template_key: "employee_invite",
         to_email: form.work_email.trim().toLowerCase(),
         entity_type: "employee",

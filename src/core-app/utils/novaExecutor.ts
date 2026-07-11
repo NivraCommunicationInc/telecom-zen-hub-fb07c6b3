@@ -48,6 +48,7 @@ export async function executeNovaAction(
       case "send_email": {
         const { to_email, template_key, vars } = action.payload;
         const { error } = await supabase.from("email_queue").insert({
+          event_key: `nova-send-email:${to_email}:${template_key}`,
           to_email,
           template_key,
           template_vars: vars ?? {},
