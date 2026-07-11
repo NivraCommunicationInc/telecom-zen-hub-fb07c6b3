@@ -1,6 +1,6 @@
-// Module 49 — Phase B1.1 — Canonical gateway for client account writes
-// Single door for profile / service_addresses / billing address writes.
-// NOTE: email change is intentionally NOT handled here (see email_change_requests).
+// Module 49 + 50 — Canonical gateway for client account writes
+// Single door for profile / service_addresses / billing address / email / phone identity writes.
+// Module 50 adds: email.request_change, email.confirm_change, phone.request_change, phone.verify_otp.
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { z } from 'npm:zod@3.23.8';
