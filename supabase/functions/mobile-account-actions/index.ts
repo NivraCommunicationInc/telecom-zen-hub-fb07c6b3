@@ -338,6 +338,7 @@ serve(async (req) => {
   };
 
   const activity = async (
+    eventKey: string,
     action_type: string,
     entity_id: string | null,
     entity_type: string,
@@ -346,37 +347,60 @@ serve(async (req) => {
     before_data: Record<string, unknown> | null = null,
   ) => {
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id: client_user_id,
-        actor_user_id: user.id,
-        actor_name: callerName,
-        actor_role: primaryRole,
-        action_type,
-        entity_type,
-        entity_id,
-        summary,
-        before_data,
-        after_data,
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey,
+        correlationId: body.idempotency_key ?? null,
+        actor: {
+          userId: user.id,
+          role: primaryRole ?? "system",
+          name: callerName ?? "system",
+          email: callerProfile?.email ?? null,
+        },
+        payload: {
+          client_id: client_user_id,
+          actor_user_id: user.id,
+          actor_name: callerName,
+          actor_role: primaryRole,
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          before_data,
+          after_data,
+        },
       });
     } catch (e) {
       await raiseAlert("mobile_activity_write_failed", { action_type, error: String(e) });
     }
   };
 
-  const sysNote = async (body_text: string) => {
+  const sysNote = async (eventKey: string, body_text: string) => {
     try {
-      await admin.from("client_internal_notes").insert({
-        client_id: client_user_id,
-        note_type: "system",
-        body: body_text,
-        created_by_user_id: user.id,
-        created_by_role: primaryRole,
-        created_by_name: callerName,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey,
+        correlationId: body.idempotency_key ?? null,
+        actor: {
+          userId: user.id,
+          role: primaryRole ?? "system",
+          name: callerName ?? "system",
+          email: callerProfile?.email ?? null,
+        },
+        payload: {
+          client_id: client_user_id,
+          note_type: "system",
+          body: body_text,
+          created_by_user_id: user.id,
+          created_by_role: primaryRole,
+          created_by_name: callerName,
+        },
       });
     } catch (e) {
       await raiseAlert("mobile_note_write_failed", { error: String(e) });
     }
   };
+
 
   const enqueueEmail = async (
     template: string,
