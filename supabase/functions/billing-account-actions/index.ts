@@ -18,6 +18,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -215,6 +216,15 @@ serve(async (req) => {
   };
 
   // ── A23-1 : parité activity_log + note interne pour toutes les actions ──
+  // Migration Module 41 B.2.b — passage par writeAccountJournal (single door).
+  // eventBase doit être déterministe et porter un identifiant métier stable
+  // (method_id / plan_id / refund_id) quand disponible.
+  const journalActor = {
+    userId: user.id,
+    role: "admin",
+    name: user.email ?? null,
+    email: user.email ?? null,
+  };
   const logAndNote = async (
     action_type: string,
     entity_type: string,
@@ -222,31 +232,47 @@ serve(async (req) => {
     summary: string,
     before_data: Record<string, unknown> | null,
     after_data: Record<string, unknown> | null,
+    eventBase: string,
   ) => {
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id:     client_user_id,
-        actor_user_id: user.id,
-        actor_name:    user.email ?? null,
-        actor_role:    "admin",
-        action_type,
-        entity_type,
-        entity_id,
-        summary,
-        before_data,
-        after_data,
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `${eventBase}:activity`,
+        actor: journalActor,
+        payload: {
+          client_id:     client_user_id,
+          actor_user_id: user.id,
+          actor_name:    user.email ?? null,
+          actor_role:    "admin",
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          before_data,
+          after_data,
+        },
       });
-      await admin.from("client_internal_notes").insert({
-        client_id:          client_user_id,
-        account_id:         body.account_id ?? null,
-        note_type:          "system",
-        body:               `${summary} — par ${user.email ?? user.id}`,
-        created_by_user_id: user.id,
-        created_by_role:    "admin",
-        created_by_name:    user.email ?? null,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `${eventBase}:note`,
+        actor: journalActor,
+        payload: {
+          client_id:          client_user_id,
+          account_id:         body.account_id ?? null,
+          note_type:          "system",
+          body:               `${summary} — par ${user.email ?? user.id}`,
+          created_by_user_id: user.id,
+          created_by_role:    "admin",
+          created_by_name:    user.email ?? null,
+        },
       });
     } catch (e) { console.warn("[logAndNote]", String(e)); }
   };
+
+  // Bucket ISO à la minute pour les rares actions sans event id stable
+  // (autopay/settings). Uniquement en complément d'un identifiant métier
+  // (client_user_id + état) et de l'idempotency_key s'il est fourni.
+  const isoMinuteBucket = () => new Date().toISOString().slice(0, 16);
 
   // ── A23-3 : contrôle d'appartenance invoice/payment (sécurité cross-client) ──
   // NB: schéma canonique — billing_invoices.customer_id / account_id
@@ -358,6 +384,7 @@ serve(async (req) => {
           `Méthode de paiement ajoutée — ${METHOD_LABELS[method_type] || method_type}${body.last4 ? ` ••${String(body.last4).slice(-4)}` : ""}${body.is_default ? " (par défaut)" : ""}`,
           null,
           { method_id: data.id, method_type, last4: body.last4 ?? null, is_default: !!body.is_default },
+          `billing:pm:${data.id}:added`,
         );
         await enqueuePaymentMethodEmail("added", METHOD_LABELS[method_type] || method_type, body.last4);
         return json(200, { ok: true, method_id: data.id });
@@ -410,6 +437,7 @@ serve(async (req) => {
           `Méthode de paiement retirée — ${METHOD_LABELS[existing.method_type] || existing.method_type}${existing.last4 ? ` ••${existing.last4}` : ""}${body.reason ? ` — motif: ${body.reason}` : ""}`,
           { status: existing.status, method_type: existing.method_type, last4: existing.last4 },
           { status: "removed", removed_reason: body.reason ?? null },
+          `billing:pm:${id}:removed`,
         );
         await enqueuePaymentMethodEmail("removed", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
@@ -444,6 +472,7 @@ serve(async (req) => {
           `Méthode par défaut définie — ${METHOD_LABELS[existing.method_type] || existing.method_type}${existing.last4 ? ` ••${existing.last4}` : ""}`,
           { is_default: false },
           { is_default: true },
+          `billing:pm:${id}:default_set`,
         );
         await enqueuePaymentMethodEmail("default_set", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
@@ -499,6 +528,7 @@ serve(async (req) => {
           `Paiement automatique ${enabled ? "activé" : "désactivé"} — décalage ${charge_day_offset}j${body.reason ? ` — motif: ${body.reason}` : ""}`,
           null,
           { enabled, payment_method_id, charge_day_offset, reason: body.reason ?? null },
+          `billing:autopay:${client_user_id}:${enabled ? "on" : "off"}:${body.idempotency_key ?? isoMinuteBucket()}`,
         );
         await enqueueEmail("client_autopay_change", {
           enabled: enabled ? "true" : "false",
@@ -587,29 +617,39 @@ serve(async (req) => {
         // ── Client activity log + system note (parity with Module 8/9) ──
         try {
           const summary = `Plan de paiement créé — ${count}× ${fmtMoney(installment_amount)} (${frequency}) · total ${fmtMoney(total)} · début ${first_due_date} — motif: ${reason}`;
-          await admin.from("client_activity_logs").insert({
-            client_id:     client_user_id,
-            actor_user_id: user.id,
-            actor_name:    user.email ?? null,
-            actor_role:    "admin",
-            action_type:   "payment_plan_created",
-            entity_type:   "client_payment_plan",
-            entity_id:     data.id,
-            summary,
-            after_data: {
-              plan_id: data.id, total_amount: total, installment_count: count,
-              installment_amount, frequency, first_due_date,
-              invoice_id: body.invoice_id ?? null,
+          await writeAccountJournal(admin, {
+            targetTable: "client_activity_logs",
+            eventKey: `billing:plan:${data.id}:created:activity`,
+            actor: journalActor,
+            payload: {
+              client_id:     client_user_id,
+              actor_user_id: user.id,
+              actor_name:    user.email ?? null,
+              actor_role:    "admin",
+              action_type:   "payment_plan_created",
+              entity_type:   "client_payment_plan",
+              entity_id:     data.id,
+              summary,
+              after_data: {
+                plan_id: data.id, total_amount: total, installment_count: count,
+                installment_amount, frequency, first_due_date,
+                invoice_id: body.invoice_id ?? null,
+              },
             },
           });
-          await admin.from("client_internal_notes").insert({
-            client_id:          client_user_id,
-            account_id:         body.account_id ?? null,
-            note_type:          "system",
-            body:               `${summary} — par ${user.email ?? user.id}`,
-            created_by_user_id: user.id,
-            created_by_role:    "admin",
-            created_by_name:    user.email ?? null,
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `billing:plan:${data.id}:created:note`,
+            actor: journalActor,
+            payload: {
+              client_id:          client_user_id,
+              account_id:         body.account_id ?? null,
+              note_type:          "system",
+              body:               `${summary} — par ${user.email ?? user.id}`,
+              created_by_user_id: user.id,
+              created_by_role:    "admin",
+              created_by_name:    user.email ?? null,
+            },
           });
         } catch (_e) { /* swallow */ }
 
@@ -652,25 +692,35 @@ serve(async (req) => {
         // ── Client activity log + system note (parity with Module 8/9) ──
         try {
           const summary = `Plan de paiement annulé — total ${fmtMoney(Number(existing.total_amount ?? 0))} · ${existing.installment_count}× — motif: ${reason}`;
-          await admin.from("client_activity_logs").insert({
-            client_id:     client_user_id,
-            actor_user_id: user.id,
-            actor_name:    user.email ?? null,
-            actor_role:    "admin",
-            action_type:   "payment_plan_cancelled",
-            entity_type:   "client_payment_plan",
-            entity_id:     id,
-            summary,
-            after_data:    { plan_id: id, status: "cancelled" },
+          await writeAccountJournal(admin, {
+            targetTable: "client_activity_logs",
+            eventKey: `billing:plan:${id}:cancelled:activity`,
+            actor: journalActor,
+            payload: {
+              client_id:     client_user_id,
+              actor_user_id: user.id,
+              actor_name:    user.email ?? null,
+              actor_role:    "admin",
+              action_type:   "payment_plan_cancelled",
+              entity_type:   "client_payment_plan",
+              entity_id:     id,
+              summary,
+              after_data:    { plan_id: id, status: "cancelled" },
+            },
           });
-          await admin.from("client_internal_notes").insert({
-            client_id:          client_user_id,
-            account_id:         existing.account_id ?? body.account_id ?? null,
-            note_type:          "system",
-            body:               `${summary} — par ${user.email ?? user.id}`,
-            created_by_user_id: user.id,
-            created_by_role:    "admin",
-            created_by_name:    user.email ?? null,
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `billing:plan:${id}:cancelled:note`,
+            actor: journalActor,
+            payload: {
+              client_id:          client_user_id,
+              account_id:         existing.account_id ?? body.account_id ?? null,
+              note_type:          "system",
+              body:               `${summary} — par ${user.email ?? user.id}`,
+              created_by_user_id: user.id,
+              created_by_role:    "admin",
+              created_by_name:    user.email ?? null,
+            },
           });
         } catch (_e) { /* swallow */ }
 
@@ -729,6 +779,7 @@ serve(async (req) => {
           `Préférences facturation mises à jour — jour ${day}, ${delivery_format}, ${language}${body.email_for_billing ? `, courriel ${body.email_for_billing}` : ""}`,
           prevSettings ?? null,
           { billing_day_of_month: day, delivery_format, language, email_for_billing: body.email_for_billing ?? null, paper_mailing_address: body.paper_mailing_address ?? null },
+          `billing:settings:${client_user_id}:${body.idempotency_key ?? isoMinuteBucket()}`,
         );
         await enqueueEmail("client_billing_settings_change", {
           billing_day_of_month: String(day),
@@ -859,25 +910,35 @@ serve(async (req) => {
         try {
           const amountLabel = fmtMoney(amount);
           const methodLabel = METHOD_LABELS[refund_method] || refund_method;
-          await admin.from("client_activity_logs").insert({
-            client_id:     client_user_id,
-            actor_user_id: user.id,
-            actor_name:    user.email ?? null,
-            actor_role:    "admin",
-            action_type:   "refund_processed",
-            entity_type:   "billing_refund",
-            entity_id:     data.id,
-            summary:       `Remboursement ${amountLabel} traité (${methodLabel}) — motif: ${body.reason.trim()}`,
-            after_data:    { refund_id: data.id, amount, refund_method, payment_id: body.payment_id ?? null, invoice_id: body.invoice_id ?? null },
+          await writeAccountJournal(admin, {
+            targetTable: "client_activity_logs",
+            eventKey: `billing:refund:${data.id}:activity`,
+            actor: journalActor,
+            payload: {
+              client_id:     client_user_id,
+              actor_user_id: user.id,
+              actor_name:    user.email ?? null,
+              actor_role:    "admin",
+              action_type:   "refund_processed",
+              entity_type:   "billing_refund",
+              entity_id:     data.id,
+              summary:       `Remboursement ${amountLabel} traité (${methodLabel}) — motif: ${body.reason.trim()}`,
+              after_data:    { refund_id: data.id, amount, refund_method, payment_id: body.payment_id ?? null, invoice_id: body.invoice_id ?? null },
+            },
           });
-          await admin.from("client_internal_notes").insert({
-            client_id:          client_user_id,
-            account_id:         body.account_id ?? null,
-            note_type:          "system",
-            body:               `Remboursement ${amountLabel} traité (${methodLabel}) — par ${user.email ?? user.id} — motif: ${body.reason.trim()}${body.external_reference ? ` — ref ${body.external_reference}` : ""}`,
-            created_by_user_id: user.id,
-            created_by_role:    "admin",
-            created_by_name:    user.email ?? null,
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `billing:refund:${data.id}:note`,
+            actor: journalActor,
+            payload: {
+              client_id:          client_user_id,
+              account_id:         body.account_id ?? null,
+              note_type:          "system",
+              body:               `Remboursement ${amountLabel} traité (${methodLabel}) — par ${user.email ?? user.id} — motif: ${body.reason.trim()}${body.external_reference ? ` — ref ${body.external_reference}` : ""}`,
+              created_by_user_id: user.id,
+              created_by_role:    "admin",
+              created_by_name:    user.email ?? null,
+            },
           });
         } catch (_e) { /* swallow */ }
 
