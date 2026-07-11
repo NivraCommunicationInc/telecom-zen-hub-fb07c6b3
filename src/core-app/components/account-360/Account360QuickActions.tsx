@@ -127,6 +127,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [autopayOpen, setAutopayOpen] = useState(false);
   const [reviewDiscountOpen, setReviewDiscountOpen] = useState(false);
+  const [ownershipTransferOpen, setOwnershipTransferOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
