@@ -695,16 +695,18 @@ const AdminContracts = () => {
       
       // Queue email to client
       const portalUrl = `${window.location.origin}/portal/contracts/${contract.id}/sign`;
-      await supabase.from("email_queue").insert({
-        to_email: client.email,
-        template_type: "contract_ready_for_signature",
-        template_data: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "contract_ready_for_signature",
+        recipient: client.email,
+        idempotencyKey: `contract-send:${contract.id}`,
+        templateVars: {
           clientName: client.full_name || "Client",
           contractNumber: contract.contract_number || contract.contract_url,
           orderNumber: contract.linkedOrder?.order_number || "N/A",
           signatureUrl: portalUrl,
         },
-        priority: "high",
+        priority: 10,
       });
       
       return { contract, client, token };
