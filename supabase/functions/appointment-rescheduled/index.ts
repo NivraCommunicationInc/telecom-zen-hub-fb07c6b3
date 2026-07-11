@@ -8,6 +8,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { violetShell, violetEsc } from "../_shared/violetEmailShell.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface Body {
   appointment_id: string;
