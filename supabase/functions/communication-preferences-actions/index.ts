@@ -10,6 +10,71 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Module 51 — Phase B1: canonical timeline write for every client-scoped
+// communication preference change. Mirror every admin_audit_log insert
+// with a client_activity_logs entry so `v_customer_timeline` surfaces it.
+function minuteBucket(): string {
+  return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+}
+async function journalPrefsChange(
+  admin: any,
+  args: {
+    clientId: string;
+    accountId: string | null;
+    action: "preferences_update" | "preferences_unsubscribe_all" | "sms_master_toggle";
+    before: Record<string, unknown> | null;
+    after: Record<string, unknown> | null;
+    reason: string | null;
+    actorId: string;
+    actorEmail: string | null;
+    actorRole: "staff" | "client";
+    correlationId: string;
+  },
+) {
+  try {
+    await writeAccountJournal(admin, {
+      targetTable: "client_activity_logs",
+      eventKey: `account:${args.clientId}:communication.${args.action}:${args.correlationId}`,
+      correlationId: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.correlationId)
+        ? args.correlationId
+        : null,
+      visibility: "staff",
+      actor: {
+        userId: args.actorId,
+        role: args.actorRole,
+        email: args.actorEmail,
+        name: args.actorEmail ?? args.actorRole,
+      },
+      payload: {
+        client_id: args.clientId,
+        account_id: args.accountId,
+        action_type: `account.communication.${args.action}`,
+        entity_type: "account",
+        entity_id: args.accountId ?? args.clientId,
+        summary: args.reason
+          ? `communication.${args.action} — ${args.reason}`
+          : `communication.${args.action}`,
+        before_data: args.before,
+        after_data: args.after,
+        metadata: {
+          before: args.before,
+          after: args.after,
+          reason: args.reason,
+          correlation_id: args.correlationId,
+          module_tag: "module_51",
+        },
+      },
+    });
+  } catch (err) {
+    // Loud, but non-fatal — the admin_audit_log write is authoritative.
+    console.error(
+      "communication-preferences-actions: timeline journal write failed",
+      { action: args.action, clientId: args.clientId, error: (err as Error).message },
+    );
+  }
+}
 
 type BoolKey =
   | "marketing_emails"
@@ -69,6 +134,14 @@ Deno.serve(async (req) => {
         return json({ error: "forbidden: self-only action" }, 403);
       }
       const value = !!body.changes?.sms_master;
+      // Read "before" for a proper before/after diff in the timeline.
+      const beforeRow = await admin
+        .from("profiles")
+        .select("sms_opt_in")
+        .eq("user_id", body.client_user_id)
+        .maybeSingle();
+      const before = { sms_opt_in: beforeRow.data?.sms_opt_in ?? null };
+
       const { error: updErr } = await admin
         .from("profiles")
         .update({ sms_opt_in: value })
@@ -85,14 +158,33 @@ Deno.serve(async (req) => {
         user_agent: req.headers.get("user-agent"),
       }).catch(() => {});
 
+      const correlationId = crypto.randomUUID();
       await admin.from("admin_audit_log").insert({
         admin_user_id: userData.user.id,
         admin_email: userData.user.email,
         action: "client_self.sms_master_toggle",
         target_type: "user",
         target_id: body.client_user_id,
-        details: { sms_master: value, reason: body.reason ?? null },
+        details: {
+          sms_master: value,
+          reason: body.reason ?? null,
+          correlation_id: correlationId,
+          module_tag: "module_51",
+        },
       }).catch(() => {});
+
+      await journalPrefsChange(admin, {
+        clientId: body.client_user_id,
+        accountId: body.account_id ?? null,
+        action: "sms_master_toggle",
+        before,
+        after: { sms_opt_in: value },
+        reason: body.reason ?? null,
+        actorId: userData.user.id,
+        actorEmail: userData.user.email ?? null,
+        actorRole: "client",
+        correlationId,
+      });
 
       return json({ ok: true, sms_master: value });
     }
@@ -128,6 +220,7 @@ Deno.serve(async (req) => {
       case "update": {
         if (!body.reason?.trim()) return json({ error: "Motif requis" }, 400);
         const changes = body.changes ?? {};
+        const beforeSnapshot = await loadAll();
 
         // Upsert email/SMS preferences row
         const prefPatch: Record<string, unknown> = {};
@@ -177,6 +270,7 @@ Deno.serve(async (req) => {
           if (error) throw error;
         }
 
+        const correlationId = crypto.randomUUID();
         await admin.from("admin_audit_log").insert({
           admin_user_id: userData.user.id,
           admin_email: userData.user.email,
@@ -187,15 +281,30 @@ Deno.serve(async (req) => {
             account_id: body.account_id ?? null,
             reason: body.reason.trim(),
             changes,
+            correlation_id: correlationId,
+            module_tag: "module_51",
           },
         });
 
         const data = await loadAll();
+        await journalPrefsChange(admin, {
+          clientId: body.client_user_id,
+          accountId: body.account_id ?? null,
+          action: "preferences_update",
+          before: beforeSnapshot as Record<string, unknown>,
+          after: data as Record<string, unknown>,
+          reason: body.reason.trim(),
+          actorId: userData.user.id,
+          actorEmail: userData.user.email ?? null,
+          actorRole: "staff",
+          correlationId,
+        });
         return json({ ok: true, ...data });
       }
 
       case "unsubscribe_all": {
         if (!body.reason?.trim()) return json({ error: "Motif requis" }, 400);
+        const beforeSnapshot = await loadAll();
         const off: Record<string, unknown> = {
           marketing_emails: false, promotional_emails: false, newsletter: false,
           sms_reminders: false, sms_invoices: false, sms_service_updates: false,
@@ -219,16 +328,34 @@ Deno.serve(async (req) => {
           user_agent: req.headers.get("user-agent"),
         }).catch(() => {});
 
+        const correlationId = crypto.randomUUID();
         await admin.from("admin_audit_log").insert({
           admin_user_id: userData.user.id,
           admin_email: userData.user.email,
           action: "account_ops.preferences_unsubscribe_all",
           target_type: "user",
           target_id: body.client_user_id,
-          details: { account_id: body.account_id ?? null, reason: body.reason.trim() },
+          details: {
+            account_id: body.account_id ?? null,
+            reason: body.reason.trim(),
+            correlation_id: correlationId,
+            module_tag: "module_51",
+          },
         });
 
         const data = await loadAll();
+        await journalPrefsChange(admin, {
+          clientId: body.client_user_id,
+          accountId: body.account_id ?? null,
+          action: "preferences_unsubscribe_all",
+          before: beforeSnapshot as Record<string, unknown>,
+          after: data as Record<string, unknown>,
+          reason: body.reason.trim(),
+          actorId: userData.user.id,
+          actorEmail: userData.user.email ?? null,
+          actorRole: "staff",
+          correlationId,
+        });
         return json({ ok: true, ...data });
       }
 
