@@ -38,6 +38,15 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Minute bucket in base36 — reserved for actions with no stable per-write id.
+// Every mobile action here has a stable business id (mobile_topups.id,
+// mobile_addons.id, sim_actions.id) so it is not currently used, but kept
+// available to mirror the internet-account-actions reference pattern.
+function isoMinuteBucket36(d: Date = new Date()): string {
+  return Math.floor(d.getTime() / 60_000).toString(36);
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -329,6 +338,7 @@ serve(async (req) => {
   };
 
   const activity = async (
+    eventKey: string,
     action_type: string,
     entity_id: string | null,
     entity_type: string,
@@ -337,37 +347,60 @@ serve(async (req) => {
     before_data: Record<string, unknown> | null = null,
   ) => {
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id: client_user_id,
-        actor_user_id: user.id,
-        actor_name: callerName,
-        actor_role: primaryRole,
-        action_type,
-        entity_type,
-        entity_id,
-        summary,
-        before_data,
-        after_data,
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey,
+        correlationId: body.idempotency_key ?? null,
+        actor: {
+          userId: user.id,
+          role: primaryRole ?? "system",
+          name: callerName ?? "system",
+          email: callerProfile?.email ?? null,
+        },
+        payload: {
+          client_id: client_user_id,
+          actor_user_id: user.id,
+          actor_name: callerName,
+          actor_role: primaryRole,
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          before_data,
+          after_data,
+        },
       });
     } catch (e) {
       await raiseAlert("mobile_activity_write_failed", { action_type, error: String(e) });
     }
   };
 
-  const sysNote = async (body_text: string) => {
+  const sysNote = async (eventKey: string, body_text: string) => {
     try {
-      await admin.from("client_internal_notes").insert({
-        client_id: client_user_id,
-        note_type: "system",
-        body: body_text,
-        created_by_user_id: user.id,
-        created_by_role: primaryRole,
-        created_by_name: callerName,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey,
+        correlationId: body.idempotency_key ?? null,
+        actor: {
+          userId: user.id,
+          role: primaryRole ?? "system",
+          name: callerName ?? "system",
+          email: callerProfile?.email ?? null,
+        },
+        payload: {
+          client_id: client_user_id,
+          note_type: "system",
+          body: body_text,
+          created_by_user_id: user.id,
+          created_by_role: primaryRole,
+          created_by_name: callerName,
+        },
       });
     } catch (e) {
       await raiseAlert("mobile_note_write_failed", { error: String(e) });
     }
   };
+
 
   const enqueueEmail = async (
     template: string,
@@ -463,13 +496,14 @@ serve(async (req) => {
         const after = { topup_id: data.id, amount, currency, msisdn: body.msisdn ?? null, payment_method, payment_reference };
         await audit("topup", after);
         await activity(
+          `mobile:topup:${data.id}:activity`,
           "balance_add",
           data.id,
           "mobile_topup",
           `Recharge mobile ${fmtMoney(amount, currency)}${body.msisdn ? ` — ${body.msisdn}` : ""}`,
           after,
         );
-        await sysNote(`[MOBILE.TOPUP] ${fmtMoney(amount, currency)} — ${payment_method} — réf ${payment_reference}${body.msisdn ? ` — ${body.msisdn}` : ""}`);
+        await sysNote(`mobile:topup:${data.id}:note`, `[MOBILE.TOPUP] ${fmtMoney(amount, currency)} — ${payment_method} — réf ${payment_reference}${body.msisdn ? ` — ${body.msisdn}` : ""}`);
         await enqueueEmail("client_mobile_topup_confirmation", {
           amount: fmtMoney(amount, currency),
           msisdn: body.msisdn,
@@ -549,13 +583,14 @@ serve(async (req) => {
         const after = { addon_id: data.id, addon_code: cat.addon_code, addon_name: cat.addon_name, monthly_price, one_time_price };
         await audit("add_addon", after);
         await activity(
+          `mobile:addon:${data.id}:added:activity`,
           "service_add",
           data.id,
           "mobile_addon",
           `Option mobile ajoutée: ${cat.addon_name} (${fmtMoney(monthly_price)}/mois)`,
           after,
         );
-        await sysNote(`[MOBILE.ADD_ADDON] ${cat.addon_name} — ${cat.addon_code} — ${fmtMoney(monthly_price)}/mois`);
+        await sysNote(`mobile:addon:${data.id}:added:note`, `[MOBILE.ADD_ADDON] ${cat.addon_name} — ${cat.addon_code} — ${fmtMoney(monthly_price)}/mois`);
         await enqueueEmail("client_mobile_addon_change", {
           addon_name: cat.addon_name,
           monthly_price: fmtMoney(monthly_price),
@@ -608,6 +643,7 @@ serve(async (req) => {
         const after = { addon_id, status: "cancelled", reason: reasonStr };
         await audit("remove_addon", { addon_id, addon_name: existing.addon_name, reason: reasonStr }, before);
         await activity(
+          `mobile:addon:${addon_id}:removed:activity`,
           "service_remove",
           addon_id,
           "mobile_addon",
@@ -615,7 +651,7 @@ serve(async (req) => {
           after,
           before,
         );
-        await sysNote(`[MOBILE.REMOVE_ADDON] ${existing.addon_name} — Motif: ${reasonStr}`);
+        await sysNote(`mobile:addon:${addon_id}:removed:note`, `[MOBILE.REMOVE_ADDON] ${existing.addon_name} — Motif: ${reasonStr}`);
         await enqueueEmail("client_mobile_addon_change", {
           addon_name: existing.addon_name,
           monthly_price: fmtMoney(Number(existing.monthly_price ?? 0)),
@@ -764,6 +800,7 @@ serve(async (req) => {
         };
         await audit("sim_action", after, before, meta.critical ? "critical" : "info");
         await activity(
+          `mobile:sim_action:${data.id}:activity`,
           "service_change",
           data.id,
           "sim_action",
@@ -771,7 +808,7 @@ serve(async (req) => {
           after,
           before,
         );
-        await sysNote(`[MOBILE.SIM_ACTION] ${meta.label}${body.msisdn ? ` — ${body.msisdn}` : ""} — Motif: ${reasonStr}${body.new_iccid ? ` — Nouvelle ICCID: ${body.new_iccid}` : ""}`);
+        await sysNote(`mobile:sim_action:${data.id}:note`, `[MOBILE.SIM_ACTION] ${meta.label}${body.msisdn ? ` — ${body.msisdn}` : ""} — Motif: ${reasonStr}${body.new_iccid ? ` — Nouvelle ICCID: ${body.new_iccid}` : ""}`);
         await enqueueEmail("client_mobile_sim_action", {
           action_label: meta.label,
           reason: reasonStr,
