@@ -148,13 +148,23 @@ serve(async (req) => {
       } as any).select("id").maybeSingle();
       if (dErr) throw dErr;
 
-      await supabase.from("client_internal_notes").insert({
-        client_user_id: clientUserId,
-        category: "document",
-        note: `Document manuel « ${filename} » téléversé par ${userData.user.email || "admin"}.`,
-        created_by: userData.user.id,
-        author_name: userData.user.email || "Admin",
-      } as any);
+      const accountIdU = await resolveAccountId(supabase, clientUserId);
+      try {
+        await writeAccountJournal(supabase as any, {
+          targetTable: "client_internal_notes",
+          eventKey: `client_document:${(doc as any)?.id}:upload:note`,
+          actor: { userId: userData.user.id, role: "admin", name: userData.user.email || "Admin", email: userData.user.email ?? null },
+          payload: {
+            account_id: accountIdU,
+            client_id: clientUserId,
+            note_type: "system",
+            body: `Document manuel « ${filename} » téléversé par ${userData.user.email || "admin"}.`,
+            created_by_user_id: userData.user.id,
+            created_by_name: userData.user.email || "Admin",
+            created_by_role: "admin",
+          },
+        });
+      } catch (_e) { /* best-effort */ }
 
       return new Response(JSON.stringify({ ok: true, action, document_id: doc?.id, path }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
