@@ -297,6 +297,7 @@ serve(async (req) => {
         `Méthode de paiement remplacée — ${brand} •••• ${last4} — motif: ${reason}`,
         "autopay_card_replaced",
         { square_card_brand: brand, square_card_last4: last4 },
+        `card_replaced:${last4}:${isoMinuteBucket36()}`,
       );
       return json({ ok: true });
     }
