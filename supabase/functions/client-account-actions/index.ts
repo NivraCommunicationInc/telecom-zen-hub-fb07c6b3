@@ -264,19 +264,23 @@ async function auditAndJournal(
     action,
     before,
     after,
+    reason,
     correlationId,
     actorId,
     actorRole,
     actorEmail,
+    moduleTag = 'module_49',
   }: {
     accountId: string;
     action: string;
     before: any;
     after: any;
+    reason?: string | null;
     correlationId: string;
     actorId: string;
     actorRole: string;
     actorEmail: string | null;
+    moduleTag?: string;
   },
 ) {
   try {
@@ -286,7 +290,7 @@ async function auditAndJournal(
       action: `client_account.${action}`,
       target_type: 'account',
       target_id: accountId,
-      details: { before, after, correlation_id: correlationId, actor_role: actorRole, module_tag: 'module_49' },
+      details: { before, after, reason: reason ?? null, correlation_id: correlationId, actor_role: actorRole, module_tag: moduleTag },
     });
   } catch (e) {
     console.warn('admin_audit_log insert failed (non-fatal):', (e as Error).message);
@@ -302,10 +306,10 @@ async function auditAndJournal(
         action_type: `account.${action}`,
         entity_type: 'account',
         entity_id: accountId,
-        summary: `Client account ${action}`,
+        summary: reason ? `${action} — ${reason}` : `Client account ${action}`,
         before_data: before,
         after_data: after,
-        metadata: { before, after },
+        metadata: { before, after, reason: reason ?? null },
       },
       eventKey: `account:${accountId}:${action}:${correlationId}`,
       correlationId,
