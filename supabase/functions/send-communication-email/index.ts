@@ -108,43 +108,47 @@ serve(async (req) => {
       try {
         const html = buildHtmlEmail(recipient.name, message);
 
-        const eqResult = await enqueueEmail({
-          to: recipient.email,
+        // D46-D: canonical gateway. Deterministic idempotency scoped to the
+        // direct_email + recipient so duplicate clicks collapse into one send.
+        const eqResult = await enqueueCommunication(supabase, {
+          channel: "email",
           templateKey: "custom_html",
+          recipient: recipient.email,
+          idempotencyKey: `direct_email:${directEmailId}:${recipient.email.toLowerCase()}`,
           subject,
-          html,
-          fromEmail: "Nivra Télécom <communication@nivra-telecom.ca>",
-          replyTo: "support@nivra-telecom.ca",
-          messageType: "communication_email",
+          bodyHtml: html,
+          category: "operational",
           entityType: "direct_email",
           entityId: directEmailId,
-          eventKey: `comm_${directEmailId}_${recipient.email}`,
+          clientId: recipient.client_id ?? null,
+          reason: "communication_email",
         });
 
-        if (!eqResult.success) {
-          console.error(`Failed to queue for ${recipient.email}:`, eqResult.error);
-          errors.push(`${recipient.email}: ${eqResult.error || "Queue failed"}`);
+        if (!eqResult?.success) {
+          const msg = (eqResult as any)?.error || "Queue failed";
+          console.error(`Failed to queue for ${recipient.email}:`, msg);
+          errors.push(`${recipient.email}: ${msg}`);
           failedCount++;
-          
+
           await supabase.from("direct_email_recipients").insert({
             direct_email_id: directEmailId,
             email: recipient.email,
             name: recipient.name,
             client_id: recipient.client_id,
             status: "failed",
-            error_message: eqResult.error || "Failed to queue",
+            error_message: msg,
           });
         } else {
-          console.log(`Email queued for ${recipient.email}: ${eqResult.id}`);
+          console.log(`Email queued for ${recipient.email}: ${(eqResult as any).id ?? "ok"}`);
           sentCount++;
-          
+
           await supabase.from("direct_email_recipients").insert({
             direct_email_id: directEmailId,
             email: recipient.email,
             name: recipient.name,
             client_id: recipient.client_id,
             status: "queued",
-            resend_id: eqResult.id,
+            resend_id: (eqResult as any).id ?? null,
           });
         }
 
