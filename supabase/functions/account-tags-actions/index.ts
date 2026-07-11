@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
           reason,
           idempotency_key: body.idempotency_key ?? null,
         });
-        await writeParityLogs("tag_remove", existing.account_id ?? null, { removed_tag: existing }, reason);
+        await writeParityLogs("tag_remove", existing.account_id ?? null, { removed_tag: existing }, reason, (existing as any).id);
 
         return json({ ok: true });
       }
