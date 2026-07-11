@@ -67,8 +67,7 @@ const CoreContractsPage = lazy(() => import("./pages/CoreContractsPage"));
 const CorePromotionsPage = lazy(() => import("./pages/CorePromotionsPage"));
 const CoreContestsPage = lazy(() => import("./pages/CoreContestsPage"));
 const CoreEmailMarketingPage = lazy(() => import("./pages/CoreEmailMarketingPage"));
-const CoreCommunicationEmailPage = lazy(() => import("./pages/CoreCommunicationEmailPage"));
-const CoreCommunicationSMSPage = lazy(() => import("./pages/CoreCommunicationSMSPage"));
+const CoreCommunicationsPage = lazy(() => import("./pages/CoreCommunicationsPage"));
 
 // Partners
 const CoreReferralsPage = lazy(() => import("./pages/CoreReferralsPage"));
