@@ -726,9 +726,9 @@ serve(async (req) => {
 
         const after = { vod_id: data.id, title, amount, currency, payment_reference };
         await audit("purchase_vod", after);
-        await activity("service_add", data.id, "service",
+        await activity(`tv:vod:${data.id}:activity`, "service_add", data.id, "service",
           `Achat VOD/PPV: ${title} (${fmtMoney(amount, currency)})`, after);
-        await sysNote(`[TV] Achat VOD/PPV — ${title} (${content_type}) · ${fmtMoney(amount, currency)} · Réf: ${payment_reference}. Motif: ${reasonStr}`);
+        await sysNote(`tv:vod:${data.id}:note`, `[TV] Achat VOD/PPV — ${title} (${content_type}) · ${fmtMoney(amount, currency)} · Réf: ${payment_reference}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_vod_purchase", {
           title, content_type,
           amount: fmtMoney(amount, currency),
