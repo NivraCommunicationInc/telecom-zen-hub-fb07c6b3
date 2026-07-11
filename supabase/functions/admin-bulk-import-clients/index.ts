@@ -295,17 +295,23 @@ Deno.serve(async (req) => {
     }
 
     // Log the activity
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: callingUser.id,
-      action: "bulk_import_clients",
-      entity_type: "profiles",
-      actor_email: callingUser.email,
-      actor_role: "admin",
-      details: {
-        total: body.clients.length,
-        success: successCount,
-        errors: errorCount,
+    const importMinute = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+    await writeAccountJournal(supabaseAdmin, {
+      targetTable: "activity_logs",
+      payload: {
+        user_id: callingUser.id,
+        action: "bulk_import_clients",
+        entity_type: "profiles",
+        actor_email: callingUser.email,
+        actor_role: "admin",
+        details: {
+          total: body.clients.length,
+          success: successCount,
+          errors: errorCount,
+        },
       },
+      eventKey: `bulk_import_clients:${callingUser.id}:${importMinute}`,
+      actor: { userId: callingUser.id, role: "admin", name: callingUser.email ?? "admin", email: callingUser.email ?? null },
     });
 
     console.log(`Bulk import completed: ${successCount} success, ${errorCount} errors`);
