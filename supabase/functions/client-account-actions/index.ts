@@ -298,6 +298,18 @@ async function auditAndJournal(
 
   try {
     const { data: acct } = await svc.from('accounts').select('client_id').eq('id', accountId).maybeSingle();
+    // Module 50 — timeline stabilization:
+    // `rpc_account_journal_write.p_correlation_id` is typed `uuid`. A
+    // non-UUID textual correlation id (e.g. `m50-b2-proof-admin-003`) makes
+    // PostgREST raise 22P02 inside the RPC, which the try/catch below used
+    // to swallow — losing the timeline event silently. We now:
+    //   1) keep the human correlation id in `event_key` (uniqueness) and in
+    //      `metadata.correlation_id` (searchability),
+    //   2) forward it to the RPC ONLY when it is a canonical UUID,
+    //   3) let the RPC mint a fresh UUID otherwise (still linked via event_key),
+    //   4) log any RPC error at `error` level so future failures are loud.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const correlationUuid = UUID_RE.test(correlationId) ? correlationId : null;
     await writeAccountJournal(svc, {
       targetTable: 'client_activity_logs',
       payload: {
@@ -309,15 +321,20 @@ async function auditAndJournal(
         summary: reason ? `${action} — ${reason}` : `Client account ${action}`,
         before_data: before,
         after_data: after,
-        metadata: { before, after, reason: reason ?? null },
+        metadata: { before, after, reason: reason ?? null, correlation_id: correlationId, module_tag: moduleTag },
       },
       eventKey: `account:${accountId}:${action}:${correlationId}`,
-      correlationId,
+      correlationId: correlationUuid,
       actor: { userId: actorId, role: actorRole, email: actorEmail },
       visibility: 'staff',
     });
   } catch (e) {
-    console.warn('journal write failed (non-fatal):', (e as Error).message);
+    console.error('[client-account-actions] timeline write failed', {
+      correlation_id: correlationId,
+      action,
+      account_id: accountId,
+      error: (e as Error).message,
+    });
   }
 }
 
