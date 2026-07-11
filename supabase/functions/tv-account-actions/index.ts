@@ -936,10 +936,10 @@ serve(async (req) => {
 
         const after = { selection_id: data.id, count: channelsJson.length, total_price };
         await audit("set_channels", after);
-        await activity("channels_change", data.id, "service",
+        await activity(`tv:channel_selection:${data.id}:created:activity`, "channels_change", data.id, "service",
           `Chaînes TV mises à jour — ${channelsJson.length} chaîne(s) (${fmtMoney(total_price)})`,
           { ...after, channels: channelsJson.map((c) => c.name) });
-        await sysNote(`[TV] Sélection chaînes — ${channelsJson.length} chaîne(s) · total ${fmtMoney(total_price)}. Motif: ${reasonStr}`);
+        await sysNote(`tv:channel_selection:${data.id}:created:note`, `[TV] Sélection chaînes — ${channelsJson.length} chaîne(s) · total ${fmtMoney(total_price)}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_channels_updated", {
           channel_count: String(channelsJson.length),
           total_price: fmtMoney(total_price),
