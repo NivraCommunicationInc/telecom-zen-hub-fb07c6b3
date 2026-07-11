@@ -399,9 +399,17 @@ serve(async (req) => {
           .eq("id", body.dispute_id);
         if (error) return json(500, { error: error.message });
         await audit("add_staff_note", { dispute_id: body.dispute_id });
+        const noteTxt = body.staff_note.trim();
+        let sig = 0;
+        for (let i = 0; i < noteTxt.length; i++) sig = ((sig << 5) - sig + noteTxt.charCodeAt(i)) | 0;
+        const sigHex = (sig >>> 0).toString(16);
+        const minuteBucket = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+        const discriminant = `${minuteBucket}:${sigHex}`;
         await activity("dispute_staff_note_added", "payment_dispute", body.dispute_id,
-          `Note staff ajoutée au litige ${cur.dispute_number}`, null, null);
-        await internalNote(`Note staff — Litige ${cur.dispute_number}: ${body.staff_note.trim().slice(0, 200)}`);
+          `Note staff ajoutée au litige ${cur.dispute_number}`, null, null,
+          `dispute:${body.dispute_id}:staff_note:${discriminant}:activity`);
+        await internalNote(`Note staff — Litige ${cur.dispute_number}: ${noteTxt.slice(0, 200)}`,
+          `dispute:${body.dispute_id}:staff_note:${discriminant}:note`, body.dispute_id);
         return json(200, { ok: true });
       }
 
