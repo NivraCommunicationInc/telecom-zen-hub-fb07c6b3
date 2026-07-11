@@ -1,8 +1,8 @@
-import { adminClient as supabase } from "@/integrations/backend";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useToast } from "@/hooks/use-toast";
 import { useCallback } from "react";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 
 export type ActionType =
   | "service_add"
@@ -71,6 +71,10 @@ interface LogClientActivityParams {
   afterData?: Record<string, any>;
 }
 
+function minuteBucket(): string {
+  return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+}
+
 /**
  * Hook for logging client activity
  * Returns a function to log activities for a specific client
@@ -96,52 +100,26 @@ export const useClientActivityLog = () => {
       }
 
       try {
-        // Fetch actor info
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name, email")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        // Determine role
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        const actorRole = roleData?.role || "unknown";
-        const actorName = profile?.full_name || profile?.email || "Unknown";
-
-        const { error } = await supabase.from("client_activity_logs").insert({
-          client_id: clientId,
-          actor_user_id: user.id,
-          actor_name: actorName,
-          actor_role: actorRole,
-          action_type: actionType,
-          entity_type: entityType,
-          entity_id: entityId || null,
-          summary,
-          before_data: beforeData || null,
-          after_data: afterData || null,
+        const eventKey = `clientact:${clientId}:${actionType}:${entityType}:${entityId || "none"}:${minuteBucket()}`;
+        await writeAccountJournal({
+          targetTable: "client_activity_logs",
+          eventKey,
+          payload: {
+            client_id: clientId,
+            action_type: actionType,
+            entity_type: entityType,
+            entity_id: entityId || null,
+            summary,
+            before_data: beforeData || null,
+            after_data: afterData || null,
+          },
         });
-
-        if (error) {
-          console.error("Failed to log client activity:", error);
-          // Only show warning toast to admin
-          if (isAdmin) {
-            toast({
-              title: "Journal: échec d'enregistrement",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
-        }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error logging client activity:", err);
         if (isAdmin) {
           toast({
             title: "Journal: échec d'enregistrement",
+            description: err?.message,
             variant: "destructive",
           });
         }
@@ -158,9 +136,9 @@ export const useClientActivityLog = () => {
  */
 export const logClientActivityDirect = async ({
   clientId,
-  actorUserId,
-  actorName,
-  actorRole,
+  actorUserId: _actorUserId,
+  actorName: _actorName,
+  actorRole: _actorRole,
   actionType,
   entityType,
   entityId,
@@ -180,22 +158,20 @@ export const logClientActivityDirect = async ({
   afterData?: Record<string, any>;
 }) => {
   try {
-    const { error } = await supabase.from("client_activity_logs").insert({
-      client_id: clientId,
-      actor_user_id: actorUserId,
-      actor_name: actorName,
-      actor_role: actorRole,
-      action_type: actionType,
-      entity_type: entityType,
-      entity_id: entityId || null,
-      summary,
-      before_data: beforeData || null,
-      after_data: afterData || null,
+    const eventKey = `clientactdirect:${clientId}:${actionType}:${entityType}:${entityId || "none"}:${minuteBucket()}`;
+    await writeAccountJournal({
+      targetTable: "client_activity_logs",
+      eventKey,
+      payload: {
+        client_id: clientId,
+        action_type: actionType,
+        entity_type: entityType,
+        entity_id: entityId || null,
+        summary,
+        before_data: beforeData || null,
+        after_data: afterData || null,
+      },
     });
-
-    if (error) {
-      console.error("Failed to log client activity:", error);
-    }
   } catch (err) {
     console.error("Error logging client activity:", err);
   }

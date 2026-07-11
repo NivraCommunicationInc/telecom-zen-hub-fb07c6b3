@@ -1,11 +1,15 @@
-import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 
 interface ActivityLogOptions {
   changedField?: string;
   reason?: string;
   oldValue?: string;
   newValue?: string;
+}
+
+function minuteBucket(): string {
+  return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
 }
 
 export const usePortalActivityLog = () => {
@@ -21,26 +25,20 @@ export const usePortalActivityLog = () => {
     if (!user) return;
 
     try {
-      // Get user profile for name/email
-      const { data: profile } = await portalSupabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      await portalSupabase.from("activity_logs").insert({
-        user_id: user.id,
-        action,
-        entity_type: entityType,
-        entity_id: entityId,
-        details,
-        actor_role: "Client",
-        actor_name: profile?.full_name || user.email?.split("@")[0] || "Client",
-        actor_email: profile?.email || user.email,
-        changed_field: options?.changedField,
-        reason: options?.reason,
-        old_value: options?.oldValue,
-        new_value: options?.newValue,
+      const eventKey = `portalact:${user.id}:${entityType}:${entityId || "none"}:${action}:${minuteBucket()}`;
+      await writeAccountJournal({
+        targetTable: "activity_logs",
+        eventKey,
+        payload: {
+          action,
+          entity_type: entityType,
+          entity_id: entityId,
+          details,
+          changed_field: options?.changedField,
+          reason: options?.reason,
+          old_value: options?.oldValue,
+          new_value: options?.newValue,
+        },
       });
     } catch (error) {
       console.error("Failed to log portal activity:", error);
