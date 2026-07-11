@@ -20,6 +20,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+function isoMinuteBucket(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}`;
+}
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -349,30 +356,44 @@ serve(async (req) => {
 
     if (!ok || !targetId) return;
 
+    const bucket = isoMinuteBucket();
+    const baseKey = `client_account:${targetId}:${evt}:${bucket}`;
+    const actor = { userId: user.id, role: "admin", name: user.email || "admin", email: user.email ?? null };
+
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id: targetId,
-        actor_user_id: user.id,
-        actor_role: "admin",
-        actor_name: user.email || "admin",
-        action_type: "account_access",
-        summary: ACTION_LABELS[evt] || `Action accès en ligne: ${evt}`,
-        entity_type: "client_user",
-        entity_id: targetId,
-        after_data: details,
+      await writeAccountJournal(admin as any, {
+        targetTable: "client_activity_logs",
+        eventKey: `${baseKey}:activity`,
+        actor,
+        payload: {
+          client_id: targetId,
+          actor_user_id: user.id,
+          actor_role: "admin",
+          actor_name: user.email || "admin",
+          action_type: "account_access",
+          summary: ACTION_LABELS[evt] || `Action accès en ligne: ${evt}`,
+          entity_type: "client_user",
+          entity_id: targetId,
+          after_data: details,
+        },
       });
     } catch (_e) { /* best-effort */ }
 
     try {
       if (accountId) {
-        await admin.from("client_internal_notes").insert({
-          account_id: accountId,
-          client_id: targetId,
-          note_type: "system",
-          body: `${ACTION_LABELS[evt] || evt}${reason ? ` — motif: ${reason}` : ""} — par ${user.email || user.id}`,
-          created_by_user_id: user.id,
-          created_by_name: user.email || "admin",
-          created_by_role: "admin",
+        await writeAccountJournal(admin as any, {
+          targetTable: "client_internal_notes",
+          eventKey: `${baseKey}:note`,
+          actor,
+          payload: {
+            account_id: accountId,
+            client_id: targetId,
+            note_type: "system",
+            body: `${ACTION_LABELS[evt] || evt}${reason ? ` — motif: ${reason}` : ""} — par ${user.email || user.id}`,
+            created_by_user_id: user.id,
+            created_by_name: user.email || "admin",
+            created_by_role: "admin",
+          },
         });
       }
     } catch (_e) { /* best-effort */ }
