@@ -101,9 +101,19 @@ export async function writeAccountJournal(
   }
   assertDeterministicEventKey(input.eventKey);
 
+  const payload: Record<string, unknown> = { ...(input.payload ?? {}) };
+  if (input.actor && input.actor.userId) {
+    payload._actor = {
+      user_id: input.actor.userId,
+      role: input.actor.role ?? "system",
+      name: input.actor.name ?? "system",
+      email: input.actor.email ?? null,
+    };
+  }
+
   const { data, error } = await supabase.rpc("rpc_account_journal_write", {
     p_target_table: input.targetTable,
-    p_payload: input.payload ?? {},
+    p_payload: payload,
     p_event_key: input.eventKey,
     p_correlation_id: input.correlationId ?? null,
   });
