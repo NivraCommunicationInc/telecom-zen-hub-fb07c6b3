@@ -30749,6 +30749,32 @@ export type Database = {
           },
         ]
       }
+      v_customer_communications: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          bounced_at: string | null
+          channel: string | null
+          client_id: string | null
+          correlation_id: string | null
+          created_at: string | null
+          delivered_at: string | null
+          direction: string | null
+          entity_id: string | null
+          entity_type: string | null
+          error_message: string | null
+          opened_at: string | null
+          phone: string | null
+          recipient: string | null
+          row_id: string | null
+          sent_at: string | null
+          source_id: string | null
+          status: string | null
+          subject: string | null
+          template_key: string | null
+        }
+        Relationships: []
+      }
       v_customer_timeline: {
         Row: {
           account_id: string | null

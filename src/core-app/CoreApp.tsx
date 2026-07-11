@@ -67,8 +67,7 @@ const CoreContractsPage = lazy(() => import("./pages/CoreContractsPage"));
 const CorePromotionsPage = lazy(() => import("./pages/CorePromotionsPage"));
 const CoreContestsPage = lazy(() => import("./pages/CoreContestsPage"));
 const CoreEmailMarketingPage = lazy(() => import("./pages/CoreEmailMarketingPage"));
-const CoreCommunicationEmailPage = lazy(() => import("./pages/CoreCommunicationEmailPage"));
-const CoreCommunicationSMSPage = lazy(() => import("./pages/CoreCommunicationSMSPage"));
+const CoreCommunicationsPage = lazy(() => import("./pages/CoreCommunicationsPage"));
 
 // Partners
 const CoreReferralsPage = lazy(() => import("./pages/CoreReferralsPage"));
@@ -209,8 +208,9 @@ const CoreApp = () => {
                 <Route path="promotions" element={<S><CorePromotionsPage /></S>} />
                 <Route path="contests" element={<S><CoreContestsPage /></S>} />
                 <Route path="email-marketing" element={<S><CoreEmailMarketingPage /></S>} />
-                <Route path="communication-email" element={<S><CoreCommunicationEmailPage /></S>} />
-                <Route path="communication-sms" element={<S><CoreCommunicationSMSPage /></S>} />
+                <Route path="communications" element={<S><CoreCommunicationsPage /></S>} />
+                <Route path="communication-email" element={<S><CoreCommunicationsPage /></S>} />
+                <Route path="communication-sms" element={<S><CoreCommunicationsPage /></S>} />
                 {/* Partners */}
                 <Route path="referrals" element={<S><CoreReferralsPage /></S>} />
                 <Route path="referral-terms" element={<S><CoreReferralTermsPage /></S>} />

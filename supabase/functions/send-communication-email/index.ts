@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { enqueueEmail } from "../_shared/ResendProxy.ts";
+// Module 46 (D46-D): route every outbound email through the canonical
+// gateway (rpc_communication_enqueue). No direct email_queue inserts, no
+// direct Resend calls — the sms/email drainers are the sole senders.
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 import { violetShell } from "../_shared/violetEmailShell.ts";
 
 interface Recipient {
@@ -26,12 +29,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY not configured");
-    }
-
+    // RESEND_API_KEY is no longer read here — the drain worker owns delivery.
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get the authenticated user. Default sender is the public support
@@ -110,43 +108,47 @@ serve(async (req) => {
       try {
         const html = buildHtmlEmail(recipient.name, message);
 
-        const eqResult = await enqueueEmail({
-          to: recipient.email,
+        // D46-D: canonical gateway. Deterministic idempotency scoped to the
+        // direct_email + recipient so duplicate clicks collapse into one send.
+        const eqResult = await enqueueCommunication(supabase, {
+          channel: "email",
           templateKey: "custom_html",
+          recipient: recipient.email,
+          idempotencyKey: `direct_email:${directEmailId}:${recipient.email.toLowerCase()}`,
           subject,
-          html,
-          fromEmail: "Nivra Télécom <communication@nivra-telecom.ca>",
-          replyTo: "support@nivra-telecom.ca",
-          messageType: "communication_email",
+          bodyHtml: html,
+          category: "operational",
           entityType: "direct_email",
           entityId: directEmailId,
-          eventKey: `comm_${directEmailId}_${recipient.email}`,
+          clientId: recipient.client_id ?? null,
+          reason: "communication_email",
         });
 
-        if (!eqResult.success) {
-          console.error(`Failed to queue for ${recipient.email}:`, eqResult.error);
-          errors.push(`${recipient.email}: ${eqResult.error || "Queue failed"}`);
+        if (!eqResult?.success) {
+          const msg = (eqResult as any)?.error || "Queue failed";
+          console.error(`Failed to queue for ${recipient.email}:`, msg);
+          errors.push(`${recipient.email}: ${msg}`);
           failedCount++;
-          
+
           await supabase.from("direct_email_recipients").insert({
             direct_email_id: directEmailId,
             email: recipient.email,
             name: recipient.name,
             client_id: recipient.client_id,
             status: "failed",
-            error_message: eqResult.error || "Failed to queue",
+            error_message: msg,
           });
         } else {
-          console.log(`Email queued for ${recipient.email}: ${eqResult.id}`);
+          console.log(`Email queued for ${recipient.email}: ${(eqResult as any).id ?? "ok"}`);
           sentCount++;
-          
+
           await supabase.from("direct_email_recipients").insert({
             direct_email_id: directEmailId,
             email: recipient.email,
             name: recipient.name,
             client_id: recipient.client_id,
             status: "queued",
-            resend_id: eqResult.id,
+            resend_id: (eqResult as any).id ?? null,
           });
         }
 

@@ -22,7 +22,7 @@ type BoolKey =
   | "sms_service_updates";
 
 interface Body {
-  action: "get" | "update" | "unsubscribe_all";
+  action: "get" | "update" | "unsubscribe_all" | "client_self_sms_master";
   client_user_id: string;
   account_id?: string | null;
   reason?: string | null;
@@ -30,6 +30,7 @@ interface Body {
     preferred_contact_method?: "email" | "sms" | "both";
     preferred_language?: "fr" | "en";
     notification_channel?: "email" | "sms" | "push";
+    sms_master?: boolean;
   };
 }
 
@@ -57,13 +58,47 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-      const { isStaff } = await checkStaffAuth(admin, userData.user.id);
-  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
-
     const body = (await req.json()) as Body;
     if (!body?.client_user_id || !body?.action) {
       return json({ error: "client_user_id and action required" }, 400);
     }
+
+    // D46-C: allow a client to self-manage the SMS master toggle without staff role.
+    if (body.action === "client_self_sms_master") {
+      if (userData.user.id !== body.client_user_id) {
+        return json({ error: "forbidden: self-only action" }, 403);
+      }
+      const value = !!body.changes?.sms_master;
+      const { error: updErr } = await admin
+        .from("profiles")
+        .update({ sms_opt_in: value })
+        .eq("user_id", body.client_user_id);
+      if (updErr) throw updErr;
+
+      const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+      await admin.from("consent_audit_trail").insert({
+        client_id: body.client_user_id,
+        channel: "sms",
+        action: value ? "sms_master_opt_in" : "sms_master_opt_out",
+        consent_source: "client_portal",
+        ip_address: clientIp,
+        user_agent: req.headers.get("user-agent"),
+      }).catch(() => {});
+
+      await admin.from("admin_audit_log").insert({
+        admin_user_id: userData.user.id,
+        admin_email: userData.user.email,
+        action: "client_self.sms_master_toggle",
+        target_type: "user",
+        target_id: body.client_user_id,
+        details: { sms_master: value, reason: body.reason ?? null },
+      }).catch(() => {});
+
+      return json({ ok: true, sms_master: value });
+    }
+
+    const { isStaff } = await checkStaffAuth(admin, userData.user.id);
+    if (!isStaff) return json({ error: "Action réservée au personnel autorisé" }, 403);
 
     const loadAll = async () => {
       const [prefs, profile] = await Promise.all([
