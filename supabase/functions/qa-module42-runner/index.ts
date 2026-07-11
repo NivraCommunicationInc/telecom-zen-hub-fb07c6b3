@@ -249,15 +249,15 @@ Deno.serve(async (req) => {
   // T13 client journal (activity + notes) written
   await check("T13 client_activity_logs journal written", async () => {
     const { data } = await admin.from("client_activity_logs")
-      .select("activity_type, metadata")
-      .eq("client_user_id", fakeClientA)
-      .like("activity_type", "security_%");
+      .select("action_type, metadata")
+      .eq("client_id", fakeClientA)
+      .like("action_type", "security_%");
     if ((data ?? []).length < 3) throw new Error(`expected >=3 activity rows, got ${(data ?? []).length}`);
   });
   await check("T14 client_internal_notes journal written", async () => {
     const { data } = await admin.from("client_internal_notes")
       .select("id, note_type, metadata")
-      .eq("client_user_id", fakeClientA)
+      .eq("client_id", fakeClientA)
       .eq("note_type", "security");
     if ((data ?? []).length < 3) throw new Error(`expected >=3 notes, got ${(data ?? []).length}`);
   });
@@ -265,8 +265,8 @@ Deno.serve(async (req) => {
   // T15 event keys deterministic (idempotent replay does not duplicate journal)
   await check("T15 journal idempotency: no duplicate for same event_key", async () => {
     const { data } = await admin.from("client_activity_logs")
-      .select("activity_type").eq("client_user_id", fakeClientA);
-    const revokeRows = (data ?? []).filter((r: any) => r.activity_type === "security_session_revoked");
+      .select("action_type").eq("client_id", fakeClientA);
+    const revokeRows = (data ?? []).filter((r: any) => r.action_type === "security_session_revoked");
     if (revokeRows.length > 1) throw new Error(`duplicate journal rows for session revoke: ${revokeRows.length}`);
   });
 
