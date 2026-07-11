@@ -27,6 +27,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -180,25 +181,35 @@ Deno.serve(async (req) => {
           target_id: inserted.id,
           details,
         }),
-        admin.from("client_activity_logs").insert({
-          client_id: clientId,
-          actor_user_id: actor.id,
-          actor_name: actorName,
-          actor_role: actorRole,
-          action_type: "service_change",
-          entity_type: "service",
-          entity_id: inserted.id,
-          summary: `${label} demandé jusqu'au ${until} (portée: ${scope})`,
-          after_data: { mode, scope, until_date: until },
+        writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          eventKey: `service:freeze:${inserted.id}:requested:${mode}:activity`,
+          actor: { userId: actor.id, role: actorRole, name: actorName, email: prof?.email ?? null },
+          payload: {
+            client_id: clientId,
+            actor_user_id: actor.id,
+            actor_name: actorName,
+            actor_role: actorRole,
+            action_type: "service_change",
+            entity_type: "service",
+            entity_id: inserted.id,
+            summary: `${label} demandé jusqu'au ${until} (portée: ${scope})`,
+            after_data: { mode, scope, until_date: until },
+          },
         }),
-        admin.from("client_internal_notes").insert({
-          client_id: clientId,
-          account_id: body.account_id,
-          note_type: (actorRole === "admin" || actorRole === "core_admin") ? "admin" : "employee",
-          body: `[SERVICE.${mode.toUpperCase()}.REQUESTED] ${label} jusqu'au ${until}. Portée: ${scope}. Motif: ${body.__audit_reason}`,
-          created_by_user_id: actor.id,
-          created_by_role: actorRole,
-          created_by_name: actorName,
+        writeAccountJournal(admin, {
+          targetTable: "client_internal_notes",
+          eventKey: `service:freeze:${inserted.id}:requested:${mode}:note`,
+          actor: { userId: actor.id, role: actorRole, name: actorName, email: prof?.email ?? null },
+          payload: {
+            client_id: clientId,
+            account_id: body.account_id,
+            note_type: (actorRole === "admin" || actorRole === "core_admin") ? "admin" : "employee",
+            body: `[SERVICE.${mode.toUpperCase()}.REQUESTED] ${label} jusqu'au ${until}. Portée: ${scope}. Motif: ${body.__audit_reason}`,
+            created_by_user_id: actor.id,
+            created_by_role: actorRole,
+            created_by_name: actorName,
+          },
         }),
         admin.from("account_tags").upsert({
           client_user_id: clientId,
@@ -277,26 +288,36 @@ Deno.serve(async (req) => {
           target_id: body.request_id,
           details: { account_id: body.account_id, mode, reason: body.__audit_reason },
         }),
-        admin.from("client_activity_logs").insert({
-          client_id: clientId,
-          actor_user_id: actor.id,
-          actor_name: actorName,
-          actor_role: actorRole,
-          action_type: "service_change",
-          entity_type: "service",
-          entity_id: body.request_id,
-          summary: `${label} annulé (${body.__audit_reason})`,
-          before_data: { status: "pending", mode },
-          after_data: { status: "cancelled" },
+        writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          eventKey: `service:freeze:${body.request_id}:cancelled:activity`,
+          actor: { userId: actor.id, role: actorRole, name: actorName, email: prof?.email ?? null },
+          payload: {
+            client_id: clientId,
+            actor_user_id: actor.id,
+            actor_name: actorName,
+            actor_role: actorRole,
+            action_type: "service_change",
+            entity_type: "service",
+            entity_id: body.request_id,
+            summary: `${label} annulé (${body.__audit_reason})`,
+            before_data: { status: "pending", mode },
+            after_data: { status: "cancelled" },
+          },
         }),
-        admin.from("client_internal_notes").insert({
-          client_id: clientId,
-          account_id: body.account_id,
-          note_type: (actorRole === "admin" || actorRole === "core_admin") ? "admin" : "employee",
-          body: `[SERVICE.${mode.toUpperCase()}.CANCELLED] ${label} annulé. Motif: ${body.__audit_reason}`,
-          created_by_user_id: actor.id,
-          created_by_role: actorRole,
-          created_by_name: actorName,
+        writeAccountJournal(admin, {
+          targetTable: "client_internal_notes",
+          eventKey: `service:freeze:${body.request_id}:cancelled:note`,
+          actor: { userId: actor.id, role: actorRole, name: actorName, email: prof?.email ?? null },
+          payload: {
+            client_id: clientId,
+            account_id: body.account_id,
+            note_type: (actorRole === "admin" || actorRole === "core_admin") ? "admin" : "employee",
+            body: `[SERVICE.${mode.toUpperCase()}.CANCELLED] ${label} annulé. Motif: ${body.__audit_reason}`,
+            created_by_user_id: actor.id,
+            created_by_role: actorRole,
+            created_by_name: actorName,
+          },
         }),
         admin.from("account_tags").delete()
           .eq("client_user_id", clientId)
