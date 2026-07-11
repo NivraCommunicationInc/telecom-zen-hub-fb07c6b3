@@ -69,8 +69,8 @@ const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"
 const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
 const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"));
 const CoreEmailMarketingPage = lazy(() => import("@/core-app/pages/CoreEmailMarketingPage"));
-const CoreCommunicationEmailPage = lazy(() => import("@/core-app/pages/CoreCommunicationEmailPage"));
-const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommunicationSMSPage"));
+// Module 46 (D46-A): merged unified Communications page.
+const CoreCommunicationsPage = lazy(() => import("@/core-app/pages/CoreCommunicationsPage"));
 
 // Partners
 const CoreReferralsPage = lazy(() => import("@/core-app/pages/CoreReferralsPage"));
