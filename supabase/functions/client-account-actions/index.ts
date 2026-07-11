@@ -1,6 +1,6 @@
-// Module 49 — Phase B1.1 — Canonical gateway for client account writes
-// Single door for profile / service_addresses / billing address writes.
-// NOTE: email change is intentionally NOT handled here (see email_change_requests).
+// Module 49 + 50 — Canonical gateway for client account writes
+// Single door for profile / service_addresses / billing address / email / phone identity writes.
+// Module 50 adds: email.request_change, email.confirm_change, phone.request_change, phone.verify_otp.
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { z } from 'npm:zod@3.23.8';
@@ -29,16 +29,54 @@ const Base = {
 };
 
 // B1.1 FIX: removed `communication_preference` — column does not exist on profiles.
+// Module 50: `reason` is REQUIRED for identity mutations.
 const ProfileUpdate = z.object({
   action: z.literal('profile.update'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({
     first_name: z.string().trim().min(1).max(80).optional(),
     last_name: z.string().trim().min(1).max(80).optional(),
-    phone: z.string().trim().min(7).max(30).optional(),
     date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     preferred_language: z.enum(['fr', 'en']).optional(),
   }).refine((o) => Object.keys(o).length > 0, { message: 'payload must contain at least one field' }),
+});
+
+// Module 50 — Email double opt-in
+const EmailRequestChange = z.object({
+  action: z.literal('email.request_change'),
+  ...Base,
+  reason: z.string().trim().min(3).max(500),
+  payload: z.object({
+    new_email: z.string().trim().email().max(254),
+  }),
+});
+
+const EmailConfirmChange = z.object({
+  action: z.literal('email.confirm_change'),
+  ...Base,
+  payload: z.object({
+    verification_token: z.string().min(16).max(128),
+  }),
+});
+
+// Module 50 — Phone OTP
+const PhoneRequestChange = z.object({
+  action: z.literal('phone.request_change'),
+  ...Base,
+  reason: z.string().trim().min(3).max(500),
+  payload: z.object({
+    new_phone: z.string().trim().regex(/^\+?[\d\s\-()]{7,20}$/),
+  }),
+});
+
+const PhoneVerifyOtp = z.object({
+  action: z.literal('phone.verify_otp'),
+  ...Base,
+  payload: z.object({
+    request_id: z.string().uuid(),
+    otp: z.string().trim().regex(/^\d{6}$/),
+  }),
 });
 
 const AddressFields = {
@@ -125,6 +163,10 @@ const InputSchema = z.discriminatedUnion('action', [
   BillingSameAsService,
   BillingSetCustom,
   BillingLinkToServiceAddress,
+  EmailRequestChange,
+  EmailConfirmChange,
+  PhoneRequestChange,
+  PhoneVerifyOtp,
 ]);
 
 // ---------- Helpers ----------
@@ -222,19 +264,23 @@ async function auditAndJournal(
     action,
     before,
     after,
+    reason,
     correlationId,
     actorId,
     actorRole,
     actorEmail,
+    moduleTag = 'module_49',
   }: {
     accountId: string;
     action: string;
     before: any;
     after: any;
+    reason?: string | null;
     correlationId: string;
     actorId: string;
     actorRole: string;
     actorEmail: string | null;
+    moduleTag?: string;
   },
 ) {
   try {
@@ -244,7 +290,7 @@ async function auditAndJournal(
       action: `client_account.${action}`,
       target_type: 'account',
       target_id: accountId,
-      details: { before, after, correlation_id: correlationId, actor_role: actorRole, module_tag: 'module_49' },
+      details: { before, after, reason: reason ?? null, correlation_id: correlationId, actor_role: actorRole, module_tag: moduleTag },
     });
   } catch (e) {
     console.warn('admin_audit_log insert failed (non-fatal):', (e as Error).message);
@@ -260,10 +306,10 @@ async function auditAndJournal(
         action_type: `account.${action}`,
         entity_type: 'account',
         entity_id: accountId,
-        summary: `Client account ${action}`,
+        summary: reason ? `${action} — ${reason}` : `Client account ${action}`,
         before_data: before,
         after_data: after,
-        metadata: { before, after },
+        metadata: { before, after, reason: reason ?? null },
       },
       eventKey: `account:${accountId}:${action}:${correlationId}`,
       correlationId,
@@ -291,21 +337,32 @@ async function demoteOtherPrimaries(svc: any, accountId: string, keepId: string 
 // B1.1 FIX: profiles is keyed by user_id (= accounts.client_id), not id.
 async function handleProfileUpdate(svc: any, actor: any, actorRole: string, input: z.infer<typeof ProfileUpdate>, correlationId: string) {
   const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
+// B1.1 FIX: profiles is keyed by user_id (= accounts.client_id), not id.
+// Module 50: identity update no longer accepts `phone` here — use phone.request_change/verify_otp.
+async function handleProfileUpdate(svc: any, actor: any, actorRole: string, input: z.infer<typeof ProfileUpdate>, correlationId: string) {
+  const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
   if (!acct?.client_id) throw new Error('account not found');
 
   const { data: before } = await svc
     .from('profiles')
-    .select('first_name,last_name,phone,date_of_birth,preferred_language')
+    .select('first_name,last_name,date_of_birth,preferred_language')
     .eq('user_id', acct.client_id)
     .maybeSingle();
   if (!before) throw new Error('profile not found for account.client_id');
 
   const patch: Record<string, unknown> = { ...input.payload };
+  // Derive full_name when name parts change.
+  if (patch.first_name !== undefined || patch.last_name !== undefined) {
+    const fn = (patch.first_name ?? before.first_name ?? '').toString().trim();
+    const ln = (patch.last_name ?? before.last_name ?? '').toString().trim();
+    (patch as any).full_name = `${fn} ${ln}`.trim();
+  }
+
   const { data: after, error } = await svc
     .from('profiles')
     .update(patch)
     .eq('user_id', acct.client_id)
-    .select('first_name,last_name,phone,date_of_birth,preferred_language')
+    .select('first_name,last_name,date_of_birth,preferred_language,full_name')
     .maybeSingle();
   if (error) throw error;
   if (!after) throw new Error('profile update matched no row');
@@ -314,6 +371,8 @@ async function handleProfileUpdate(svc: any, actor: any, actorRole: string, inpu
     accountId: input.account_id,
     action: 'profile.update',
     before, after,
+    reason: input.reason,
+    moduleTag: 'module_50',
     correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, before, after };
@@ -530,7 +589,226 @@ async function handleBillingLinkToServiceAddress(svc: any, actor: any, actorRole
   return { ok: true, accounts: after };
 }
 
-// ---------- Server ----------
+// ---------- Module 50 — Email double opt-in ----------
+function randToken(len = 48): string {
+  const bytes = new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, len);
+}
+
+function randOtp(): string {
+  const n = new Uint32Array(1);
+  crypto.getRandomValues(n);
+  return String(n[0] % 1_000_000).padStart(6, '0');
+}
+
+async function handleEmailRequestChange(svc: any, actor: any, actorRole: string, input: z.infer<typeof EmailRequestChange>, correlationId: string) {
+  const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
+  if (!acct?.client_id) throw new Error('account not found');
+
+  const { data: profile } = await svc.from('profiles').select('email,first_name').eq('user_id', acct.client_id).maybeSingle();
+  const currentEmail = profile?.email ?? null;
+  const newEmail = input.payload.new_email.toLowerCase();
+  if (currentEmail && currentEmail.toLowerCase() === newEmail) {
+    const err: any = new Error('new_email equals current email'); err.status = 409; err.code = 'SAME_EMAIL'; throw err;
+  }
+
+  // Invalidate previous pending requests for this client.
+  await svc.from('email_change_requests').update({ status: 'cancelled' })
+    .eq('client_id', acct.client_id).eq('status', 'pending');
+
+  const token = randToken(48);
+  const { data: req, error } = await svc.from('email_change_requests').insert({
+    client_id: acct.client_id,
+    current_email: currentEmail ?? '',
+    new_email: newEmail,
+    verification_token: token,
+    status: 'pending',
+  }).select('id, expires_at').maybeSingle();
+  if (error) throw error;
+
+  // Send verification email via canonical gateway (best-effort).
+  try {
+    await svc.rpc('rpc_communication_enqueue', {
+      p_channel: 'email',
+      p_template_key: 'email_change_verify',
+      p_recipient: newEmail,
+      p_template_vars: {
+        first_name: profile?.first_name ?? '',
+        verification_token: token,
+        expires_at: req?.expires_at,
+      },
+      p_idempotency_key: `email_change_verify:${req?.id}`,
+      p_client_id: acct.client_id,
+      p_category: 'transactional',
+      p_actor_user_id: actor.id,
+      p_actor_role: actorRole,
+      p_entity_type: 'email_change_request',
+      p_entity_id: req?.id,
+      p_correlation_id: correlationId,
+      p_reason: input.reason,
+    });
+  } catch (e) { console.warn('email enqueue failed (non-fatal):', (e as Error).message); }
+
+  await auditAndJournal(svc, {
+    accountId: input.account_id,
+    action: 'email.request_change',
+    before: { email: currentEmail },
+    after: { email_pending: newEmail, request_id: req?.id },
+    reason: input.reason,
+    moduleTag: 'module_50',
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
+  });
+
+  return { ok: true, request_id: req?.id, expires_at: req?.expires_at, new_email: newEmail };
+}
+
+async function handleEmailConfirmChange(svc: any, actor: any, actorRole: string, input: z.infer<typeof EmailConfirmChange>, correlationId: string) {
+  const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
+  if (!acct?.client_id) throw new Error('account not found');
+
+  const { data: req } = await svc.from('email_change_requests')
+    .select('*').eq('verification_token', input.payload.verification_token).maybeSingle();
+  if (!req) { const e: any = new Error('token not found'); e.status = 404; e.code = 'TOKEN_NOT_FOUND'; throw e; }
+  if (req.client_id !== acct.client_id) { const e: any = new Error('token/account mismatch'); e.status = 403; e.code = 'TOKEN_MISMATCH'; throw e; }
+  if (req.status !== 'pending' && req.status !== 'old_verified') { const e: any = new Error(`request status is ${req.status}`); e.status = 409; e.code = 'INVALID_STATUS'; throw e; }
+  if (new Date(req.expires_at).getTime() < Date.now()) {
+    await svc.from('email_change_requests').update({ status: 'expired' }).eq('id', req.id);
+    const e: any = new Error('token expired'); e.status = 410; e.code = 'EXPIRED'; throw e;
+  }
+
+  const { data: before } = await svc.from('profiles').select('email').eq('user_id', acct.client_id).maybeSingle();
+  const { data: after, error } = await svc.from('profiles')
+    .update({ email: req.new_email }).eq('user_id', acct.client_id).select('email').maybeSingle();
+  if (error) throw error;
+
+  await svc.from('email_change_requests').update({
+    status: 'completed', new_email_verified: true, completed_at: new Date().toISOString(),
+  }).eq('id', req.id);
+
+  await auditAndJournal(svc, {
+    accountId: input.account_id,
+    action: 'email.confirm_change',
+    before, after,
+    reason: 'confirm via verification token',
+    moduleTag: 'module_50',
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
+  });
+
+  return { ok: true, email: after?.email };
+}
+
+// ---------- Module 50 — Phone OTP ----------
+async function handlePhoneRequestChange(svc: any, actor: any, actorRole: string, input: z.infer<typeof PhoneRequestChange>, correlationId: string) {
+  const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
+  if (!acct?.client_id) throw new Error('account not found');
+
+  // Normalize to a permissive digit form (E.164-lite): strip spaces/dashes/parens.
+  const raw = input.payload.new_phone;
+  const digits = raw.replace(/[^\d+]/g, '');
+  const newPhone = digits.startsWith('+') ? digits : (digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : digits);
+
+  const { data: profile } = await svc.from('profiles').select('phone,first_name').eq('user_id', acct.client_id).maybeSingle();
+  if (profile?.phone === newPhone) {
+    const err: any = new Error('new_phone equals current phone'); err.status = 409; err.code = 'SAME_PHONE'; throw err;
+  }
+
+  // Rate limit: cancel any pending request older than 30s, allow only 1 pending at a time.
+  await svc.from('phone_change_requests').update({ status: 'cancelled' })
+    .eq('client_id', acct.client_id).eq('status', 'pending');
+
+  const otp = randOtp();
+  const otpHash = await sha256(otp);
+  const { data: req, error } = await svc.from('phone_change_requests').insert({
+    client_id: acct.client_id,
+    current_phone: profile?.phone ?? null,
+    new_phone: newPhone,
+    otp_hash: otpHash,
+    status: 'pending',
+    requested_by: actor.id,
+    requested_by_role: actorRole,
+    reason: input.reason,
+    correlation_id: correlationId,
+  }).select('id, expires_at').maybeSingle();
+  if (error) throw error;
+
+  // Send OTP via SMS gateway (best-effort).
+  try {
+    await svc.rpc('rpc_communication_enqueue', {
+      p_channel: 'sms',
+      p_template_key: 'phone_change_otp',
+      p_recipient: newPhone,
+      p_template_vars: { first_name: profile?.first_name ?? '', otp },
+      p_idempotency_key: `phone_change_otp:${req?.id}`,
+      p_client_id: acct.client_id,
+      p_category: 'transactional',
+      p_actor_user_id: actor.id,
+      p_actor_role: actorRole,
+      p_entity_type: 'phone_change_request',
+      p_entity_id: req?.id,
+      p_correlation_id: correlationId,
+      p_reason: input.reason,
+    });
+  } catch (e) { console.warn('sms enqueue failed (non-fatal):', (e as Error).message); }
+
+  await auditAndJournal(svc, {
+    accountId: input.account_id,
+    action: 'phone.request_change',
+    before: { phone: profile?.phone ?? null },
+    after: { phone_pending: newPhone, request_id: req?.id },
+    reason: input.reason,
+    moduleTag: 'module_50',
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
+  });
+
+  return { ok: true, request_id: req?.id, expires_at: req?.expires_at, new_phone: newPhone };
+}
+
+async function handlePhoneVerifyOtp(svc: any, actor: any, actorRole: string, input: z.infer<typeof PhoneVerifyOtp>, correlationId: string) {
+  const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
+  if (!acct?.client_id) throw new Error('account not found');
+
+  const { data: req } = await svc.from('phone_change_requests')
+    .select('*').eq('id', input.payload.request_id).maybeSingle();
+  if (!req) { const e: any = new Error('request not found'); e.status = 404; e.code = 'REQUEST_NOT_FOUND'; throw e; }
+  if (req.client_id !== acct.client_id) { const e: any = new Error('request/account mismatch'); e.status = 403; e.code = 'REQUEST_MISMATCH'; throw e; }
+  if (req.status !== 'pending') { const e: any = new Error(`request status is ${req.status}`); e.status = 409; e.code = 'INVALID_STATUS'; throw e; }
+  if (new Date(req.expires_at).getTime() < Date.now()) {
+    await svc.from('phone_change_requests').update({ status: 'expired' }).eq('id', req.id);
+    const e: any = new Error('otp expired'); e.status = 410; e.code = 'EXPIRED'; throw e;
+  }
+  if ((req.attempts ?? 0) >= (req.max_attempts ?? 5)) {
+    await svc.from('phone_change_requests').update({ status: 'failed' }).eq('id', req.id);
+    const e: any = new Error('max attempts reached'); e.status = 429; e.code = 'MAX_ATTEMPTS'; throw e;
+  }
+
+  const submittedHash = await sha256(input.payload.otp);
+  if (submittedHash !== req.otp_hash) {
+    await svc.from('phone_change_requests').update({ attempts: (req.attempts ?? 0) + 1 }).eq('id', req.id);
+    const e: any = new Error('invalid otp'); e.status = 401; e.code = 'INVALID_OTP'; throw e;
+  }
+
+  const { data: before } = await svc.from('profiles').select('phone').eq('user_id', acct.client_id).maybeSingle();
+  const { data: after, error } = await svc.from('profiles')
+    .update({ phone: req.new_phone }).eq('user_id', acct.client_id).select('phone').maybeSingle();
+  if (error) throw error;
+
+  await svc.from('phone_change_requests').update({
+    status: 'verified', verified_at: new Date().toISOString(),
+  }).eq('id', req.id);
+
+  await auditAndJournal(svc, {
+    accountId: input.account_id,
+    action: 'phone.verify_otp',
+    before, after,
+    reason: req.reason ?? 'phone verified via OTP',
+    moduleTag: 'module_50',
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
+  });
+
+  return { ok: true, phone: after?.phone };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -540,6 +818,10 @@ Deno.serve(async (req) => {
     if (!actor) return j({ error: 'unauthorized' }, 401);
 
     const raw = await req.json();
+    // Accept `reason` at top level OR `__audit_reason` (callCoreAction wrapper).
+    if (raw && typeof raw === 'object' && raw.__audit_reason && !raw.reason) {
+      raw.reason = raw.__audit_reason;
+    }
     const parsed = InputSchema.safeParse(raw);
     if (!parsed.success) return j({ error: 'validation_failed', details: parsed.error.flatten() }, 400);
     const input = parsed.data;
@@ -565,6 +847,10 @@ Deno.serve(async (req) => {
       case 'billing_address.set_same_as_service': result = await handleBillingSameAsService(svc, actor, rbac.role, input, correlationId); break;
       case 'billing_address.set_custom': result = await handleBillingSetCustom(svc, actor, rbac.role, input, correlationId); break;
       case 'billing_address.link_to_service_address': result = await handleBillingLinkToServiceAddress(svc, actor, rbac.role, input, correlationId); break;
+      case 'email.request_change': result = await handleEmailRequestChange(svc, actor, rbac.role, input, correlationId); break;
+      case 'email.confirm_change': result = await handleEmailConfirmChange(svc, actor, rbac.role, input, correlationId); break;
+      case 'phone.request_change': result = await handlePhoneRequestChange(svc, actor, rbac.role, input, correlationId); break;
+      case 'phone.verify_otp': result = await handlePhoneVerifyOtp(svc, actor, rbac.role, input, correlationId); break;
     }
 
     const response = { ...result, correlation_id: correlationId };
