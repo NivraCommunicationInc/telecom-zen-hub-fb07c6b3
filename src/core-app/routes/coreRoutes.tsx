@@ -260,8 +260,9 @@ export const coreRoutes: RouteObject = {
     { path: "promotions", element: <CorePromotionsPage /> },
     { path: "contests", element: <CoreContestsPage /> },
     { path: "email-marketing", element: <CoreEmailMarketingPage /> },
-    { path: "communication-email", element: <CoreCommunicationEmailPage /> },
-    { path: "communication-sms", element: <CoreCommunicationSMSPage /> },
+    { path: "communications", element: <CoreCommunicationsPage /> },
+    { path: "communication-email", element: <CoreCommunicationsPage /> },
+    { path: "communication-sms", element: <CoreCommunicationsPage /> },
     // Partners
     { path: "referrals", element: <CoreReferralsPage /> },
     { path: "referral-rewards", element: <CoreReferralRewardsPage /> },
