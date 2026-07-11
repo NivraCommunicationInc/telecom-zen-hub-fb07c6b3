@@ -615,14 +615,16 @@ async function handleEmailRequestChange(svc: any, actor: any, actorRole: string,
     .eq('client_id', acct.client_id).eq('status', 'pending');
 
   const token = randToken(48);
+  const tokenHash = await sha256(token);
   const { data: req, error } = await svc.from('email_change_requests').insert({
     client_id: acct.client_id,
     current_email: currentEmail ?? '',
     new_email: newEmail,
-    verification_token: token,
+    verification_token: tokenHash,
     status: 'pending',
   }).select('id, expires_at').maybeSingle();
   if (error) throw error;
+
 
   // Send verification email via canonical gateway (best-effort).
   try {
