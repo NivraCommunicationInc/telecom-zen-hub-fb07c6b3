@@ -521,10 +521,9 @@ serve(async (req) => {
         };
         await audit("change_plan", after, before);
         await activity(`tv:plan_change:${data.id}:activity`, "plan_change", data.id, "subscription",
-
           `Forfait TV: ${body.previous_plan_name || "—"} → ${new_plan_name} (${fmtMoney(new_monthly_price)})`,
           after, before);
-        await sysNote(`[TV] Changement forfait — ${body.previous_plan_name || "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}. Motif: ${reasonStr}`);
+        await sysNote(`tv:plan_change:${data.id}:note`, `[TV] Changement forfait — ${body.previous_plan_name || "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_plan_change", {
           previous_plan_name: body.previous_plan_name || "—",
           new_plan_name,
