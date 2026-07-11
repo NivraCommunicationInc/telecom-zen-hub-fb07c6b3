@@ -123,36 +123,54 @@ Deno.serve(async (req) => {
   });
 
   // ---------- 2. WRITE TO EACH TARGET TABLE ----------
-  const writeCases: Array<{ table: string; payload: Record<string, unknown>; visibility: string }> = [
+  // Create a real order fixture for order-scoped tables
+  const testOrderId = crypto.randomUUID();
+  await admin.from("orders").insert({
+    id: testOrderId,
+    order_number: `QA-M44-${runId.slice(0, 8)}`,
+    status: "pending",
+    customer_email: `qa-m44-${runId.slice(0, 8)}@qa.local`,
+    customer_first_name: "QA",
+    customer_last_name: "M44",
+    total_amount: 0,
+  });
+
+  const writeCases: Array<{ table: string; payload: Record<string, unknown>; visibility: string; expectedVisibility?: string }> = [
     {
       table: "activity_logs",
       payload: { entity_type: "test", entity_id: clientA, action: "qa_touch", actor_name: "qa", actor_role: "admin", details: { run: runId } },
       visibility: "staff",
+      expectedVisibility: "admin", // RPC derives visibility from actor_role
     },
     {
       table: "client_activity_logs",
       payload: { client_id: clientA, action_type: "note_add", entity_type: "profile", summary: "qa note", before_data: null, after_data: null },
       visibility: "client",
+      expectedVisibility: "client",
     },
     {
       table: "client_internal_notes",
-      payload: { client_id: clientA, note_type: "general", body: "qa internal note m44 " + runId.slice(0, 6) },
+      payload: { client_id: clientA, note_type: "admin", body: "qa internal note m44 " + runId.slice(0, 6) },
       visibility: "staff",
+      expectedVisibility: "staff",
     },
     {
       table: "account_followups",
-      payload: { account_id: clientA, category: "qa", title: "qa followup " + runId.slice(0, 6), due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10) },
+      payload: { client_user_id: clientA, account_id: clientA, category: "qa", title: "qa followup " + runId.slice(0, 6), priority: "normal", status: "open" },
       visibility: "staff",
+      expectedVisibility: "staff",
     },
     {
       table: "order_internal_notes",
-      payload: { order_id: crypto.randomUUID(), body: "qa order note " + runId.slice(0, 6), author_role: "admin" },
+      payload: { order_id: testOrderId, body: "qa order note " + runId.slice(0, 6), author_role: "admin" },
       visibility: "staff",
+      expectedVisibility: "staff",
     },
     {
       table: "order_status_history",
-      payload: { order_id: crypto.randomUUID(), from_status: "pending", to_status: "confirmed", changed_by: adminUser.id },
+      payload: { order_id: testOrderId, status_domain: "fulfillment", new_status: "confirmed", from_status: "pending", to_status: "confirmed", changed_by: adminUser.id },
       visibility: "client",
+      expectedVisibility: "client",
     },
   ];
 
