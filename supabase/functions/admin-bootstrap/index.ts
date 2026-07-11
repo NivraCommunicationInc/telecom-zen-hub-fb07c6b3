@@ -293,19 +293,24 @@ Deno.serve(async (req) => {
     }
 
     // Log the bootstrap action
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: authData.user.id,
-      entity_type: "admin",
-      entity_id: authData.user.id,
-      action: "bootstrap",
-      new_value: JSON.stringify({ 
-        email: body.email, 
-        full_name: body.full_name,
-        created_via: "admin_bootstrap"
-      }),
-      reason: "Premier administrateur créé via bootstrap",
-      actor_email: body.email,
-      actor_role: "system",
+    await writeAccountJournal(supabaseAdmin, {
+      targetTable: "activity_logs",
+      payload: {
+        user_id: authData.user.id,
+        entity_type: "admin",
+        entity_id: authData.user.id,
+        action: "bootstrap",
+        new_value: JSON.stringify({
+          email: body.email,
+          full_name: body.full_name,
+          created_via: "admin_bootstrap",
+        }),
+        reason: "Premier administrateur créé via bootstrap",
+        actor_email: body.email,
+        actor_role: "system",
+      },
+      eventKey: `admin:${authData.user.id}:bootstrapped`,
+      actor: { userId: authData.user.id, role: "system", name: "admin_bootstrap", email: body.email ?? null },
     });
 
     console.log(`[admin-bootstrap] Admin bootstrap completed successfully for ${body.email}`);
