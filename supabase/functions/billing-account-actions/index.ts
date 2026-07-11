@@ -384,6 +384,7 @@ serve(async (req) => {
           `Méthode de paiement ajoutée — ${METHOD_LABELS[method_type] || method_type}${body.last4 ? ` ••${String(body.last4).slice(-4)}` : ""}${body.is_default ? " (par défaut)" : ""}`,
           null,
           { method_id: data.id, method_type, last4: body.last4 ?? null, is_default: !!body.is_default },
+          `billing:pm:${data.id}:added`,
         );
         await enqueuePaymentMethodEmail("added", METHOD_LABELS[method_type] || method_type, body.last4);
         return json(200, { ok: true, method_id: data.id });
