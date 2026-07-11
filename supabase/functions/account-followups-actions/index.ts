@@ -9,6 +9,18 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Deterministic minute bucket (UTC) — used to build idempotent event keys
+function isoMinuteBucket(d: Date = new Date()): string {
+  return d.toISOString().slice(0, 16).replace(/[-:T]/g, "");
+}
+// Short stable hash for arbitrary strings (djb2, base36)
+function shortHash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+  return (h >>> 0).toString(36);
+}
 
 interface Body {
   action: "list" | "create" | "update_status" | "assign" | "delete";
