@@ -13,6 +13,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -169,27 +170,37 @@ Deno.serve(async (req) => {
       });
 
       // Activity log
-      await admin.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: actor.id,
-        actor_name: actorName,
-        actor_role: actorRole,
-        action_type: "service_change",
-        entity_type: "service",
-        entity_id: inserted.id,
-        summary: `Demande de transfert de service planifiée le ${moveDate} vers ${fullAddress}`,
-        after_data: { new_address: fullAddress, move_date: moveDate, subscription_id: subId },
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `service:move:${inserted.id}:requested:activity`,
+        actor: { userId: actor.id, role: actorRole, name: actorName, email: prof?.email ?? null },
+        payload: {
+          client_id: clientId,
+          actor_user_id: actor.id,
+          actor_name: actorName,
+          actor_role: actorRole,
+          action_type: "service_change",
+          entity_type: "service",
+          entity_id: inserted.id,
+          summary: `Demande de transfert de service planifiée le ${moveDate} vers ${fullAddress}`,
+          after_data: { new_address: fullAddress, move_date: moveDate, subscription_id: subId },
+        },
       });
 
       // Internal note
-      await admin.from("client_internal_notes").insert({
-        client_id: clientId,
-        account_id: body.account_id,
-        note_type: actorRole === "admin" || actorRole === "core_admin" ? "admin" : "employee",
-        body: `[SERVICE.MOVE.REQUESTED] Transfert planifié le ${moveDate} vers ${fullAddress}. Motif: ${body.__audit_reason}`,
-        created_by_user_id: actor.id,
-        created_by_role: actorRole,
-        created_by_name: actorName,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `service:move:${inserted.id}:requested:note`,
+        actor: { userId: actor.id, role: actorRole, name: actorName, email: prof?.email ?? null },
+        payload: {
+          client_id: clientId,
+          account_id: body.account_id,
+          note_type: actorRole === "admin" || actorRole === "core_admin" ? "admin" : "employee",
+          body: `[SERVICE.MOVE.REQUESTED] Transfert planifié le ${moveDate} vers ${fullAddress}. Motif: ${body.__audit_reason}`,
+          created_by_user_id: actor.id,
+          created_by_role: actorRole,
+          created_by_name: actorName,
+        },
       });
 
       // Email queued (bilingual template handled by consumer)
@@ -252,26 +263,36 @@ Deno.serve(async (req) => {
         target_id: body.request_id,
         details: { account_id: body.account_id, reason: body.__audit_reason },
       });
-      await admin.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: actor.id,
-        actor_name: actorName,
-        actor_role: actorRole,
-        action_type: "service_change",
-        entity_type: "service",
-        entity_id: body.request_id,
-        summary: `Demande de transfert annulée (${body.__audit_reason})`,
-        before_data: { status: "pending" },
-        after_data: { status: "cancelled" },
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `service:move:${body.request_id}:cancelled:activity`,
+        actor: { userId: actor.id, role: actorRole, name: actorName, email: prof?.email ?? null },
+        payload: {
+          client_id: clientId,
+          actor_user_id: actor.id,
+          actor_name: actorName,
+          actor_role: actorRole,
+          action_type: "service_change",
+          entity_type: "service",
+          entity_id: body.request_id,
+          summary: `Demande de transfert annulée (${body.__audit_reason})`,
+          before_data: { status: "pending" },
+          after_data: { status: "cancelled" },
+        },
       });
-      await admin.from("client_internal_notes").insert({
-        client_id: clientId,
-        account_id: body.account_id,
-        note_type: actorRole === "admin" || actorRole === "core_admin" ? "admin" : "employee",
-        body: `[SERVICE.MOVE.CANCELLED] Transfert annulé. Motif: ${body.__audit_reason}`,
-        created_by_user_id: actor.id,
-        created_by_role: actorRole,
-        created_by_name: actorName,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `service:move:${body.request_id}:cancelled:note`,
+        actor: { userId: actor.id, role: actorRole, name: actorName, email: prof?.email ?? null },
+        payload: {
+          client_id: clientId,
+          account_id: body.account_id,
+          note_type: actorRole === "admin" || actorRole === "core_admin" ? "admin" : "employee",
+          body: `[SERVICE.MOVE.CANCELLED] Transfert annulé. Motif: ${body.__audit_reason}`,
+          created_by_user_id: actor.id,
+          created_by_role: actorRole,
+          created_by_name: actorName,
+        },
       });
       return json({ ok: true });
     }
