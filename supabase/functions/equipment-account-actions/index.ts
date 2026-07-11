@@ -579,7 +579,7 @@ serve(async (req) => {
           before,
           after: patch,
         });
-        await addSystemNote("EQUIPMENT.UPDATE_SERIAL", `Identifiants mis à jour sur ${row.catalog_name || "Équipement"}: ${Object.keys(patch).join(", ")}`);
+        await addSystemNote("EQUIPMENT.UPDATE_SERIAL", `Identifiants mis à jour sur ${row.catalog_name || "Équipement"}: ${Object.keys(patch).join(", ")}`, { action_type: "equipment_identifiers_updated", inventory_id: body.inventory_id, extra: `${Object.keys(patch).sort().join(".")}:${isoMinuteBucket36()}` });
         return json(200, { ok: true });
       }
 
