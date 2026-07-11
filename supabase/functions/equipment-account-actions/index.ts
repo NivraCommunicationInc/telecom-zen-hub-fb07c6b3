@@ -161,35 +161,75 @@ serve(async (req) => {
     .maybeSingle();
   const actorRole = actorRoleRow?.role || "staff";
 
+  const actor = {
+    userId: user.id,
+    role: actorRole,
+    name: actorName,
+    email: actorEmail,
+  };
+
+  // Build a deterministic event key anchored on inventory_id + action_type.
+  // For update_serial (identifiers_updated), the same inventory_id can be
+  // patched repeatedly with different fields — the minute bucket + patch
+  // signature disambiguates legitimate consecutive updates without allowing
+  // click-storm duplicates.
+  const journalEventKey = (
+    action_type: string,
+    inventoryId: string | null | undefined,
+    extra?: string,
+  ) => {
+    const anchor = inventoryId ?? "na";
+    const suffix = extra ? `:${extra}` : "";
+    return `equipment:${anchor}:${action_type}${suffix}`;
+  };
+
   const logActivity = async (action_type: string, summary: string, metadata: Record<string, unknown>) => {
     try {
       const before = (metadata as any)?.before ?? null;
       const after = (metadata as any)?.after ?? null;
-      await admin.from("client_activity_logs").insert({
-        client_id: client_user_id,
-        actor_user_id: user.id,
-        actor_name: actorName,
-        actor_role: actorRole,
-        action_type,
-        entity_type: "equipment",
-        entity_id: (metadata?.inventory_id as string) ?? null,
-        summary,
-        before_data: before,
-        after_data: after ?? { ...metadata, actor_email: actorEmail },
+      const inventoryId = (metadata?.inventory_id as string) ?? null;
+      const extra = action_type === "equipment_identifiers_updated"
+        ? `${Object.keys((metadata as any)?.after ?? {}).sort().join(".")}:${isoMinuteBucket36()}`
+        : undefined;
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `${journalEventKey(action_type, inventoryId, extra)}:activity`,
+        actor,
+        payload: {
+          client_id: client_user_id,
+          actor_user_id: user.id,
+          actor_name: actorName,
+          actor_role: actorRole,
+          action_type,
+          entity_type: "equipment",
+          entity_id: inventoryId,
+          summary,
+          before_data: before,
+          after_data: after ?? { ...metadata, actor_email: actorEmail },
+        },
       });
     } catch (_e) { /* swallow */ }
   };
 
-  const addSystemNote = async (prefix: string, message: string) => {
+  const addSystemNote = async (
+    prefix: string,
+    message: string,
+    opts: { action_type: string; inventory_id?: string | null; extra?: string } = { action_type: "note" },
+  ) => {
     try {
-      await admin.from("client_internal_notes").insert({
-        client_id: client_user_id,
-        account_id: body.account_id ?? null,
-        note_type: "system",
-        body: `[${prefix}] ${message} — par ${actorName}`,
-        created_by_user_id: user.id,
-        created_by_role: actorRole,
-        created_by_name: actorName,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `${journalEventKey(opts.action_type, opts.inventory_id ?? null, opts.extra)}:note`,
+        actor,
+        payload: {
+          client_id: client_user_id,
+          account_id: body.account_id ?? null,
+          note_type: "system",
+          body: `[${prefix}] ${message} — par ${actorName}`,
+          created_by_user_id: user.id,
+          created_by_role: actorRole,
+          created_by_name: actorName,
+        },
       });
     } catch (_e) { /* swallow */ }
   };
