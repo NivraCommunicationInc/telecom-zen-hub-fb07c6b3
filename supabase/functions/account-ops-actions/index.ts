@@ -996,31 +996,21 @@ serve(async (req) => {
           reactivate_cancelled: reactivateCancelled,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: callerName,
-            actor_role: callerRole,
+        {
+          // Un compte peut être réactivé plusieurs fois sur sa durée de vie
+          // (suspended→active puis à nouveau après une pause). Discriminant :
+          // previous_status + idempotency_key sinon bucket ISO minute.
+          const disc = body.idempotency_key ?? isoMinuteBucket();
+          await logActivityNote({
             action_type: "account_reactivate",
             entity_type: "account",
             entity_id: body.account_id,
             summary: `Compte réactivé (depuis ${acct.status}) — motif: ${reason}${reactivatedSubs ? ` — ${reactivatedSubs} service(s) réactivé(s)` : ""}`,
             after_data: { reason, reactivated_subscriptions: reactivatedSubs, previous_status: acct.status },
+            noteBody: `Compte réactivé — par ${user.email || callerName} — motif: ${reason}${reactivatedSubs ? ` — ${reactivatedSubs} service(s) réactivé(s)` : ""}`,
+            eventBase: `ops:account:${body.account_id}:reactivate:${acct.status}:${disc}`,
           });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: `Compte réactivé — par ${user.email || callerName} — motif: ${reason}${reactivatedSubs ? ` — ${reactivatedSubs} service(s) réactivé(s)` : ""}`,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
-          });
-        } catch (_e) { /* swallow */ }
+        }
 
         return json(200, {
           ok: true,
