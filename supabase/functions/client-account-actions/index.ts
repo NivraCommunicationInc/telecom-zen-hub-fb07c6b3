@@ -666,8 +666,9 @@ async function handleEmailConfirmChange(svc: any, actor: any, actorRole: string,
   const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
   if (!acct?.client_id) throw new Error('account not found');
 
+  const tokenHash = await sha256(input.payload.verification_token);
   const { data: req } = await svc.from('email_change_requests')
-    .select('*').eq('verification_token', input.payload.verification_token).maybeSingle();
+    .select('*').eq('verification_token', tokenHash).maybeSingle();
   if (!req) { const e: any = new Error('token not found'); e.status = 404; e.code = 'TOKEN_NOT_FOUND'; throw e; }
   if (req.client_id !== acct.client_id) { const e: any = new Error('token/account mismatch'); e.status = 403; e.code = 'TOKEN_MISMATCH'; throw e; }
   if (req.status !== 'pending' && req.status !== 'old_verified') { const e: any = new Error(`request status is ${req.status}`); e.status = 409; e.code = 'INVALID_STATUS'; throw e; }
@@ -677,9 +678,14 @@ async function handleEmailConfirmChange(svc: any, actor: any, actorRole: string,
   }
 
   const { data: before } = await svc.from('profiles').select('email').eq('user_id', acct.client_id).maybeSingle();
-  const { data: after, error } = await svc.from('profiles')
-    .update({ email: req.new_email }).eq('user_id', acct.client_id).select('email').maybeSingle();
+  const { data: rpcRes, error } = await svc.rpc('rpc_client_apply_identity_update', {
+    _client_id: acct.client_id,
+    _admin_id: actor.id,
+    _patch: { email: req.new_email },
+  });
   if (error) throw error;
+  const after = { email: (rpcRes as any)?.email ?? req.new_email };
+
 
   await svc.from('email_change_requests').update({
     status: 'completed', new_email_verified: true, completed_at: new Date().toISOString(),
