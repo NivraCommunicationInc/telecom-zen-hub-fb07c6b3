@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface CsvClient {
   name: string;
