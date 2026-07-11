@@ -472,6 +472,7 @@ serve(async (req) => {
           `Méthode par défaut définie — ${METHOD_LABELS[existing.method_type] || existing.method_type}${existing.last4 ? ` ••${existing.last4}` : ""}`,
           { is_default: false },
           { is_default: true },
+          `billing:pm:${id}:default_set`,
         );
         await enqueuePaymentMethodEmail("default_set", METHOD_LABELS[existing.method_type] || existing.method_type, existing.last4);
         return json(200, { ok: true });
