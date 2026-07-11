@@ -101,8 +101,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { error: insertErr } = await supabase.from("email_queue").insert(emailRows);
-    if (insertErr) throw insertErr;
+    let enqueued = 0;
+    for (const row of emailRows) {
+      try {
+        await enqueueCommunication(supabase, {
+          channel: "email",
+          recipient: row.to_email,
+          templateKey: row.template_key,
+          templateVars: row.template_vars,
+          idempotencyKey: row.event_key,
+          maxAttempts: row.max_attempts,
+        });
+        enqueued++;
+      } catch (e) {
+        console.warn("[send-interac-migration-notice] enqueue failed", row.to_email, e);
+      }
+    }
+    console.log(`[send-interac-migration-notice] enqueued=${enqueued}/${emailRows.length}`);
 
     console.log(`[send-interac-migration-notice] ✅ ${emailRows.length} courriels mis en file`);
 
