@@ -12,6 +12,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -201,6 +202,70 @@ serve(async (req) => {
     });
     } catch (_e) { /* swallow */ }
   };
+
+  // ── Module 41 B.2.b — Journal single-door helper ──
+  // Toutes les écritures client_activity_logs + client_internal_notes de ce
+  // fichier passent par writeAccountJournal() avec un event_key déterministe.
+  // `eventBase` DOIT porter un identifiant métier stable (account_id + verbe
+  // + discriminant de transition). Le fallback isoMinuteBucket() n'est utilisé
+  // que quand aucun discriminant de transition n'existe (unpause manuel sans
+  // idempotency_key). `actorOverride` sert au cas `unpause_account` auto (system).
+  const isoMinuteBucket = () => new Date().toISOString().slice(0, 16);
+  const defaultActor = {
+    userId: user.id,
+    role: callerRole,
+    name: callerName,
+    email: user.email ?? null,
+  };
+  const logActivityNote = async (args: {
+    action_type: string;
+    entity_type: string;
+    entity_id: string | null;
+    summary: string;
+    before_data?: Record<string, unknown> | null;
+    after_data?: Record<string, unknown> | null;
+    noteBody: string;
+    eventBase: string;
+    actorOverride?: { userId: string; role: string; name: string | null; email: string | null };
+  }) => {
+    const actor = args.actorOverride ?? defaultActor;
+    try {
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `${args.eventBase}:activity`,
+        actor,
+        payload: {
+          client_id:     client_user_id,
+          actor_user_id: actor.userId,
+          actor_name:    actor.name,
+          actor_role:    actor.role,
+          action_type:   args.action_type,
+          entity_type:   args.entity_type,
+          entity_id:     args.entity_id,
+          summary:       args.summary,
+          before_data:   args.before_data ?? null,
+          after_data:    args.after_data ?? null,
+        },
+      });
+    } catch (e) { console.warn("[logActivityNote:activity]", String(e)); }
+    try {
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `${args.eventBase}:note`,
+        actor,
+        payload: {
+          client_id:          client_user_id,
+          account_id:         body.account_id ?? null,
+          note_type:          "system",
+          body:               args.noteBody,
+          created_by_user_id: actor.userId,
+          created_by_role:    actor.role,
+          created_by_name:    actor.name,
+        },
+      });
+    } catch (e) { console.warn("[logActivityNote:note]", String(e)); }
+  };
+
 
   try {
     switch (action) {
@@ -435,31 +500,18 @@ serve(async (req) => {
           reason,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: callerName,
-            actor_role: callerRole,
+        {
+          const untilDay = until.toISOString().split("T")[0];
+          await logActivityNote({
             action_type: "account_pause",
             entity_type: "account",
             entity_id: body.account_id,
-            summary: `Pause temporaire appliquée jusqu'au ${until.toISOString().split("T")[0]}`,
+            summary: `Pause temporaire appliquée jusqu'au ${untilDay}`,
             after_data: { paused_until: until.toISOString(), reason },
+            noteBody: `Pause temporaire — par ${user.email || callerName} — jusqu'au ${untilDay} — motif: ${reason}`,
+            eventBase: `ops:account:${body.account_id}:pause:${untilDay}`,
           });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: `Pause temporaire — par ${user.email || callerName} — jusqu'au ${until.toISOString().split("T")[0]} — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
-          });
-        } catch (_e) { /* swallow */ }
+        }
 
         // F6 — Notification client via email_queue uniquement.
         await enqueueEmail("client_account_paused", {
@@ -515,32 +567,19 @@ serve(async (req) => {
           reason,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: callerName,
-            actor_role: callerRole,
+        {
+          const untilDay = until.toISOString().split("T")[0];
+          await logActivityNote({
             action_type: "account_pause",
             entity_type: "account",
             entity_id: body.account_id,
-            summary: `Pause temporaire modifiée — nouvelle échéance ${until.toISOString().split("T")[0]}`,
+            summary: `Pause temporaire modifiée — nouvelle échéance ${untilDay}`,
             before_data: before,
             after_data: { paused_until: until.toISOString(), reason },
+            noteBody: `Pause temporaire modifiée — par ${user.email || callerName} — nouvelle échéance ${untilDay} — motif: ${reason}`,
+            eventBase: `ops:account:${body.account_id}:pause_update:${untilDay}`,
           });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: `Pause temporaire modifiée — par ${user.email || callerName} — nouvelle échéance ${until.toISOString().split("T")[0]} — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
-          });
-        } catch (_e) { /* swallow */ }
+        }
 
         return json(200, { ok: true, account_id: body.account_id });
       }
@@ -590,12 +629,13 @@ serve(async (req) => {
           auto_resume: autoResume,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: autoResume ? "Système (reprise automatique)" : callerName,
-            actor_role: autoResume ? "system" : callerRole,
+        {
+          const mode = autoResume ? "auto" : "manual";
+          // Discriminant: idempotency_key si fourni sinon bucket ISO minute.
+          // Fallback bucket nécessaire car unpause manuel n'a pas d'ID métier
+          // stable après coup (paused_until vient d'être remis à null).
+          const disc = body.idempotency_key ?? isoMinuteBucket();
+          await logActivityNote({
             action_type: "account_pause",
             entity_type: "account",
             entity_id: body.account_id,
@@ -603,22 +643,15 @@ serve(async (req) => {
               ? "Pause temporaire levée automatiquement (échéance atteinte)"
               : "Pause temporaire levée — compte réactivé",
             after_data: { reason: autoResume ? "auto_resume" : reason },
-          });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: autoResume
+            noteBody: autoResume
               ? `Pause temporaire levée automatiquement (échéance atteinte)`
               : `Pause temporaire levée — par ${user.email || callerName} — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: autoResume ? "system" : callerRole,
-            created_by_name: autoResume ? "Système" : callerName,
+            eventBase: `ops:account:${body.account_id}:unpause:${mode}:${disc}`,
+            actorOverride: autoResume
+              ? { userId: user.id, role: "system", name: "Système (reprise automatique)", email: null }
+              : undefined,
           });
-        } catch (_e) { /* swallow */ }
+        }
 
         // F6 — Notification client
         await enqueueEmail("client_account_resumed", {
@@ -849,16 +882,14 @@ serve(async (req) => {
           equipment_acknowledged: equipmentCount > 0 ? acknowledgeEquipment : null,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: callerName,
-            actor_role: callerRole,
+        {
+          const cancelSummary = `Compte annulé — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement` : ""}`;
+          const cancelNote = `Compte annulé — par ${user.email || callerName} — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement demandé(s)` : ""}${balanceDue > 0 ? ` — Solde impayé ${balanceDue.toFixed(2)} $ reste dû` : ""}`;
+          await logActivityNote({
             action_type: "account_cancel",
             entity_type: "account",
             entity_id: body.account_id,
-            summary: `Compte annulé — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement` : ""}`,
+            summary: cancelSummary,
             before_data: { status: previousStatus, balance_due: balanceDue, subscriptions: subsBefore.length },
             after_data: {
               status: "cancelled",
@@ -867,20 +898,11 @@ serve(async (req) => {
               autopay_disabled: autopayDisabled,
               equipment_return_requests: equipmentReturnRequests,
             },
+            noteBody: cancelNote,
+            // Transition unique active→cancelled ; guard upstream empêche re-cancel.
+            eventBase: `ops:account:${body.account_id}:cancel`,
           });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: `Compte annulé — par ${user.email || callerName} — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement demandé(s)` : ""}${balanceDue > 0 ? ` — Solde impayé ${balanceDue.toFixed(2)} $ reste dû` : ""}`,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
-          });
-        } catch (_e) { /* swallow */ }
+        }
 
         // F26-3 — email bilingue via email_queue
         await enqueueEmail("client_account_cancelled", {
@@ -974,31 +996,21 @@ serve(async (req) => {
           reactivate_cancelled: reactivateCancelled,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: callerName,
-            actor_role: callerRole,
+        {
+          // Un compte peut être réactivé plusieurs fois sur sa durée de vie
+          // (suspended→active puis à nouveau après une pause). Discriminant :
+          // previous_status + idempotency_key sinon bucket ISO minute.
+          const disc = body.idempotency_key ?? isoMinuteBucket();
+          await logActivityNote({
             action_type: "account_reactivate",
             entity_type: "account",
             entity_id: body.account_id,
             summary: `Compte réactivé (depuis ${acct.status}) — motif: ${reason}${reactivatedSubs ? ` — ${reactivatedSubs} service(s) réactivé(s)` : ""}`,
             after_data: { reason, reactivated_subscriptions: reactivatedSubs, previous_status: acct.status },
+            noteBody: `Compte réactivé — par ${user.email || callerName} — motif: ${reason}${reactivatedSubs ? ` — ${reactivatedSubs} service(s) réactivé(s)` : ""}`,
+            eventBase: `ops:account:${body.account_id}:reactivate:${acct.status}:${disc}`,
           });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: `Compte réactivé — par ${user.email || callerName} — motif: ${reason}${reactivatedSubs ? ` — ${reactivatedSubs} service(s) réactivé(s)` : ""}`,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
-          });
-        } catch (_e) { /* swallow */ }
+        }
 
         return json(200, {
           ok: true,
