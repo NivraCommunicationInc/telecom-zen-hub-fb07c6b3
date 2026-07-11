@@ -3,6 +3,7 @@
  * AI-personalized offers via Gemini 2.5 Pro. Tracks conversions.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -134,24 +135,24 @@ async function runDaily(supabase: any) {
       status: "queued",
     });
 
-    await supabase.from("email_queue").insert({
-      to_email: o.email,
-      template_key: "sales_opportunity_offer",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: o.email,
+      templateKey: "sales_opportunity_offer",
       subject: ai.hero_title ?? "Une offre pour vous",
-      template_vars: {
-        client_name: o.full_name,
-        first_name: o.first_name ?? "Client",
-        hero_title: ai.hero_title ?? "Offre exclusive",
-        hook: ai.hook ?? "",
-        body_html: ai.body ?? "",
-        current_plan: o.plan_name,
-        current_price: o.plan_price,
-        offer_label: ai.offer_label ?? "",
-        new_plan_value: ai.new_plan_value ?? "",
-        urgency_days: ai.urgency_days ?? 14,
-        portal_url: `${APP_URL}/portail`,
-      },
-      status: "queued",
+      idempotencyKey: `sales:opportunity:${o.account_id ?? o.user_id ?? o.email}:${new Date().toISOString().slice(0,10)}`,
+      templateVars: {
+    client_name: o.full_name,
+    first_name: o.first_name ?? "Client",
+    hero_title: ai.hero_title ?? "Offre exclusive",
+    hook: ai.hook ?? "",
+    body_html: ai.body ?? "",
+    current_plan: o.plan_name,
+    current_price: o.plan_price,
+    offer_label: ai.offer_label ?? "",
+    new_plan_value: ai.new_plan_value ?? "",
+    urgency_days: ai.urgency_days ?? 14,
+    portal_url: `${APP_URL}/portail`,,
     });
     sent++;
   }

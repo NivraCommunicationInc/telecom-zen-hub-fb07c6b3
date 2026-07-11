@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 /**
  * AUTO-CREATE CLIENT ACCOUNT
@@ -229,13 +230,14 @@ serve(async (req) => {
 
     // Schedule NPS survey for J+7 via email_queue trigger (non-blocking)
     try {
-      const { error: npsError } = await supabase.from("email_queue").insert({
-        to_email: email,
-        template_key: "nps_survey_scheduled",
-        template_vars: { first_name: body.first_name, days: 7, order_id: body.order_id || null },
-        status: "queued",
-        scheduled_for: new Date(Date.now() + 7 * 86400_000).toISOString(),
-      });
+      const { error: npsError } = await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: email,
+      templateKey: "nps_survey_scheduled",
+      scheduledFor: new Date(Date.now() + 7 * 86400_000).toISOString(),
+      idempotencyKey: `auto-create:nps_schedule:${userId}:${body.order_id ?? "no-order"}`,
+      templateVars: { first_name: body.first_name, days: 7, order_id: body.order_id || null },
+    });
       if (npsError) console.warn("[auto-create-client-account] NPS queue skipped:", npsError);
     } catch (npsErr) {
       console.warn("[auto-create-client-account] NPS queue skipped:", npsErr);

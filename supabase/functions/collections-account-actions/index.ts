@@ -14,6 +14,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -139,21 +140,22 @@ serve(async (req) => {
   const enqueueEmail = async (template_key: string, vars: Record<string, unknown>, attachments?: any[] | null) => {
     if (!clientEmail) return;
     try {
-      await admin.from("email_queue").insert({
-        to_email: clientEmail,
-        template_key,
-        template_vars: {
-          ...vars,
-          first_name: firstName,
-          to_email: clientEmail,
-          invoice_number: inv.invoice_number,
-          amount_due: fmtMoney(Number(inv.amount_due || inv.total || 0)),
-          due_date: inv.due_date ? fmtDate(inv.due_date) : "—",
-        },
-        attachments: attachments ?? null,
-        status: "queued",
-        priority: 0,
-      });
+      await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: clientEmail,
+      templateKey: template_key,
+      attachments: attachments ?? null,
+      priority: 0,
+      idempotencyKey: `acct360:collections:${body.account_id ?? "na"}:${inv?.id ?? "no-inv"}:${template_key}:${body.idempotency_key ?? body.__audit_reason ?? "default"}`,
+      templateVars: {
+      ...vars,
+      first_name: firstName,
+      to_email: clientEmail,
+      invoice_number: inv.invoice_number,
+      amount_due: fmtMoney(Number(inv.amount_due || inv.total || 0)),
+      due_date: inv.due_date ? fmtDate(inv.due_date) : "—",
+    },
+    });
     } catch (_e) { /* swallow */ }
   };
 

@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { withNovaAudit } from "../_shared/novaAudit.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -95,13 +96,13 @@ serve(async (req) => {
 
       // Critical → also enqueue email to Oldo (even if nova_action insert failed)
       if (a.severity === "critical") {
-        const { error: emailErr } = await admin.from("email_queue").insert({
-          to_email: "support@nivra-telecom.ca",
-          template_key: "nova_alert_critical",
-          template_vars: { title: a.title, message: a.message, category: a.category },
-          status: "queued",
-          language: "fr",
-        });
+        const { error: emailErr } = await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: "support@nivra-telecom.ca",
+      templateKey: "nova_alert_critical",
+      idempotencyKey: `nova-watchdog:critical_alert:${a.id}`,
+      templateVars: { title: a.title, message: a.message, category: a.category, language: "fr" },
+    });
         if (emailErr) console.error("[nova-watchdog] Failed to enqueue critical alert email:", emailErr.message);
       }
       inserted++;

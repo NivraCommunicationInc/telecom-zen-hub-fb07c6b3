@@ -14,6 +14,7 @@
  * re-notify already-notified sales (tracked via commissions.notes marker).
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -154,18 +155,19 @@ Deno.serve(async (req) => {
       const planName = Array.isArray(o.services) && o.services.length
         ? (o.services as Array<Record<string, unknown>>).map((s) => s.name ?? s.type ?? "").filter(Boolean).join(", ")
         : "Service Nivra";
-      await supabase.from("email_queue").insert({
-        to_email: email,
-        template_key: "sale_assigned_notification",
-        template_vars: {
-          agent_name: (agent as any)?.full_name ?? "agent",
-          customer_name: o.customer_name ?? "",
-          plan_name: planName,
-          commission_amount: amount,
-          order_reference: o.local_id ?? o.id,
-        },
-        status: "queued",
-      });
+      await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: email,
+      templateKey: "sale_assigned_notification",
+      idempotencyKey: `sales-assign:${o.id}:${(agent as any)?.id ?? "no-agent"}`,
+      templateVars: {
+      agent_name: (agent as any)?.full_name ?? "agent",
+      customer_name: o.customer_name ?? "",
+      plan_name: planName,
+      commission_amount: amount,
+      order_reference: o.local_id ?? o.id,
+    },
+    });
       await logEvent(supabase, "email_sent", `Notification de vente envoyée à ${email}`, { order_id: o.id });
     }
   }

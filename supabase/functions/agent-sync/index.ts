@@ -8,6 +8,7 @@
  * Body: { test?: boolean }  (cron sends {} every 30 minutes)
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -324,20 +325,21 @@ Deno.serve(async (req) => {
     // Alert if critical issues remain after fixes.
     const critical = orders.manual + crm.flagged;
     if (critical >= 3) {
-      await supabase.from("email_queue").insert({
-        to_email: ALERT_EMAIL,
-        template_key: "sync_alert",
-        subject: "Alerte synchronisation — Nivra",
-        template_vars: {
-          client_name: "Équipe Nivra",
-          affected_orders: orders.manual,
-          incomplete_profiles: profiles.flagged,
-          unlinked_complaints: complaints.flagged,
-          auto_fixes: totalFixes,
-          recommendations: ai?.recommendations ?? [],
-        },
-        status: "queued",
-      });
+      await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: ALERT_EMAIL,
+      templateKey: "sync_alert",
+      subject: "Alerte synchronisation — Nivra",
+      idempotencyKey: `agent-sync:critical_alert:${new Date().toISOString().slice(0,10)}:${critical}`,
+      templateVars: {
+      client_name: "Équipe Nivra",
+      affected_orders: orders.manual,
+      incomplete_profiles: profiles.flagged,
+      unlinked_complaints: complaints.flagged,
+      auto_fixes: totalFixes,
+      recommendations: ai?.recommendations ?? [],
+    },
+    });
     }
 
     await supabase.from("agent_audit_log").insert({

@@ -13,6 +13,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -150,22 +151,23 @@ serve(async (req) => {
         bank_reference: dispute_number,
         reason_code: reason_code || undefined,
       }).catch(() => null);
-      await admin.from("email_queue").insert({
-        to_email: clientEmail,
-        template_key: "client_dispute_status_update",
-        template_vars: {
-          first_name: firstName,
-          to_email: clientEmail,
-          dispute_number: dispute_number || "—",
-          status_label: STATUS_LABEL[new_status] || new_status,
-          new_status,
-          reason_label: reason_code ? (REASON_LABEL[reason_code] || reason_code) : "—",
-          public_message: public_message || "",
-        },
-        attachments: chargePdf ? [chargePdf] : null,
-        status: "queued",
-        priority: 0,
-      });
+      await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: clientEmail,
+      templateKey: "client_dispute_status_update",
+      attachments: chargePdf ? [chargePdf] : null,
+      priority: 0,
+      idempotencyKey: `acct360:disputes:${dispute_number ?? "na"}:${new_status}:${body.idempotency_key ?? body.__audit_reason ?? "default"}`,
+      templateVars: {
+      first_name: firstName,
+      to_email: clientEmail,
+      dispute_number: dispute_number || "—",
+      status_label: STATUS_LABEL[new_status] || new_status,
+      new_status,
+      reason_label: reason_code ? (REASON_LABEL[reason_code] || reason_code) : "—",
+      public_message: public_message || "",
+    },
+    });
     } catch (_e) { /* swallow */ }
   };
 

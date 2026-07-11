@@ -16,6 +16,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -190,13 +191,14 @@ serve(async (req) => {
   const enqueueEmail = async (template: string, vars: Record<string, unknown>) => {
     if (!clientEmail) return;
     try {
-      await admin.from("email_queue").insert({
-        to_email: clientEmail,
-        template_key: template,
-        template_vars: { ...vars, first_name: firstName, to_email: clientEmail },
-        status: "queued",
-        priority: 0,
-      });
+      await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: clientEmail,
+      templateKey: template,
+      priority: 0,
+      idempotencyKey: `acct360:equipment:${body.account_id ?? "na"}:${template}:${body.idempotency_key ?? body.__audit_reason ?? "default"}`,
+      templateVars: { ...vars, first_name: firstName, to_email: clientEmail },
+    });
     } catch (_e) { /* swallow */ }
   };
 

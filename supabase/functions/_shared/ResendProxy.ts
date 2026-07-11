@@ -349,8 +349,24 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
       status: "pending",
     });
 
-    // Also track in email_queue table for idempotency/admin visibility
-    const templateVars: Record<string, any> = { ...(params.templateVars || {}) };
+    // Also track in email_queue table for idempotency/admin visibility.
+    //
+    // MODULE 40 EXEMPTION (transport-layer tracking write):
+    // ResendProxy sits AFTER the pgmq delivery layer. Callers upstream have
+    // already gone through preference/suppression checks (or this file's own
+    // isEmailSuppressed guard at line 276). The row inserted here reflects
+    // the delivery outcome (`status: "sent"`, `attempts: 1`), not a new
+    // producer intent, so routing it through rpc_communication_enqueue would
+    // create a duplicate audit trail and re-run preference checks against an
+    // email that has already been dispatched.
+    //
+    // The `_communication_source` marker below is picked up by the audit-only
+    // tg_communications_single_door trigger so this insert is classified as
+    // "transport" instead of "unknown_producer".
+    const templateVars: Record<string, any> = {
+      ...(params.templateVars || {}),
+      _communication_source: "resend-proxy-transport",
+    };
     await supabase.from("email_queue").insert({
       event_key: eventKey,
       to_email: params.to,

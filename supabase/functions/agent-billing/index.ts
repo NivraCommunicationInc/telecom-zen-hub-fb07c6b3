@@ -61,13 +61,14 @@ async function queueIfNotSent(
     .filter("template_vars->>account_id", "eq", accountId)
     .limit(1);
   if (existing && existing.length > 0) return false;
-  await supabase.from("email_queue").insert({
-    to_email: toEmail,
-    template_key: templateKey,
-    subject,
-    template_vars: { ...vars, account_id: accountId },
-    status: "queued",
-  });
+  await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: toEmail,
+      templateKey: templateKey,
+      subject: subject,
+      idempotencyKey: `agent-billing:queueIfNotSent:${templateKey}:${accountId}`,
+      templateVars: { ...vars, account_id: accountId },
+    });
   return true;
 }
 
@@ -135,16 +136,17 @@ async function checkFailedPayments(supabase: any) {
   let processed = 0;
   for (const o of (orders ?? []) as any[]) {
     if (!o.client_email) continue;
-    await supabase.from("email_queue").insert({
-      to_email: o.client_email,
-      template_key: "payment_failed_notice",
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: o.client_email,
+      templateKey: "payment_failed_notice",
       subject: "Échec de paiement — Action requise",
-      template_vars: {
-        client_name: o.client_email,
-        order_number: o.order_number,
-        amount: o.total_amount,
-      },
-      status: "queued",
+      idempotencyKey: `agent-billing:payment_failed:${o.id ?? o.order_number}`,
+      templateVars: {
+    client_name: o.client_email,
+    order_number: o.order_number,
+    amount: o.total_amount,
+  },
     });
     processed++;
   }
@@ -180,23 +182,25 @@ async function checkOverdueAccounts(supabase: any) {
     });
     if (decision === "suspend") {
       await supabase.from("accounts").update({ status: "suspended" }).eq("id", account.id);
-      await supabase.from("email_queue").insert({
-        to_email: p.email,
-        template_key: "payment_failed_notice",
-        subject: "Suspension de votre service Nivra",
-        template_vars: { client_name: p.full_name, amount: s.plan_price, plan_name: s.plan_name, account_id: account.id },
-        status: "queued",
-      });
+      await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: p.email,
+      templateKey: "payment_failed_notice",
+      subject: "Suspension de votre service Nivra",
+      idempotencyKey: `agent-billing:suspend:${account.id}:${new Date().toISOString().slice(0,10)}`,
+      templateVars: { client_name: p.full_name, amount: s.plan_price, plan_name: s.plan_name, account_id: account.id },
+    });
       suspended++;
     } else {
       const deadline = new Date(Date.now() + 48 * 3600_000).toISOString().slice(0, 10);
-      await supabase.from("email_queue").insert({
-        to_email: p.email,
-        template_key: "grace_period_offer",
-        subject: "On vous donne 48 heures supplémentaires",
-        template_vars: { client_name: p.full_name, amount: s.plan_price, deadline, account_id: account.id },
-        status: "queued",
-      });
+      await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: p.email,
+      templateKey: "grace_period_offer",
+      subject: "On vous donne 48 heures supplémentaires",
+      idempotencyKey: `agent-billing:grace:${account.id}:${deadline}`,
+      templateVars: { client_name: p.full_name, amount: s.plan_price, deadline, account_id: account.id },
+    });
       grace++;
     }
   }
@@ -264,16 +268,14 @@ async function checkStuckOrders(supabase: any) {
     .lt("created_at", twoHoursAgo)
     .limit(100);
   if ((count ?? 0) > 0) {
-    await supabase.from("email_queue").insert({
-      to_email: ALERT_EMAIL,
-      template_key: "site_health_alert",
-      subject: `[ALERTE] ${count} commandes bloquées >2h`,
-      template_vars: {
-        client_name: "Équipe Nivra",
-        health_score: 70,
-        critical_count: count,
-        total_issues: count,
-        summary: `${count} commande(s) bloquée(s) en statut 'pending' depuis plus de 2 heures.`,
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      recipient: ALERT_EMAIL,
+      templateKey: "site_health_alert",
+      subject: `[ALERTE] ${count,
+      idempotencyKey: `agent-billing:site_health_alert:${new Date().toISOString().slice(0,10)}`,
+      templateVars: {},
+    }) bloquée(s) en statut 'pending' depuis plus de 2 heures.`,
         issues: (orders ?? []).slice(0, 10).map((o: any) => ({
           title: `Commande ${o.order_number}`,
           description: `Créée le ${o.created_at}`,

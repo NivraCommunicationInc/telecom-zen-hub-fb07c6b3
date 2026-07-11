@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -252,21 +253,22 @@ serve(async (req) => {
               if (clientEmail) {
                 const { buildInvoicePdfAttachment } = await import("../_shared/pdfFromDb.ts");
                 const invoicePdf = await buildInvoicePdfAttachment(proInvoice.id, "Facture");
-                await admin.from("email_queue").insert({
-                  to_email: clientEmail,
-                  template_key: "invoice_created",
-                  template_vars: {
-                    first_name: firstName,
-                    invoice_number: proInvoice.invoice_number,
-                    total: proTotal,
-                    due_date: todayDate.toISOString().slice(0, 10),
-                    cycle_start: cycleStartDate.toISOString().slice(0, 10),
-                    cycle_end: cycleEndDate.toISOString().slice(0, 10),
-                  },
-                  attachments: invoicePdf ? [invoicePdf] : null,
-                  status: "queued",
-                  priority: 1,
-                }).catch(() => {});
+                await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: clientEmail,
+      templateKey: "invoice_created",
+      attachments: invoicePdf ? [invoicePdf] : null,
+      priority: 1,
+      idempotencyKey: `client-plan-change:invoice_created:${proInvoice.id}`,
+      templateVars: {
+                first_name: firstName,
+                invoice_number: proInvoice.invoice_number,
+                total: proTotal,
+                due_date: todayDate.toISOString().slice(0, 10),
+                cycle_start: cycleStartDate.toISOString().slice(0, 10),
+                cycle_end: cycleEndDate.toISOString().slice(0, 10),
+              },
+    }).catch(() => {});
               }
             }
           }
@@ -293,38 +295,40 @@ serve(async (req) => {
           reason: "Changement de forfait",
         })
       : null;
-    await admin.from("email_queue").insert({
-      to_email: clientEmail,
-      template_key: changeType === "upgrade" ? "plan_change_approved" : "plan_change_requested",
-      template_vars: {
-        first_name: firstName,
-        to_email: clientEmail,
-        client_name: firstName,
-        current_plan_name: previous_plan_name || "—",
-        requested_plan_name: new_plan_name,
-        effective_date: effDisplay,
-        change_type: changeType,
-      },
+    await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: clientEmail,
+      templateKey: changeType === "upgrade" ? "plan_change_approved" : "plan_change_requested",
       attachments: amendPdf ? [amendPdf] : null,
-      status: "queued",
       priority: 0,
+      idempotencyKey: `client-plan-change:client:${scr?.id ?? account_id}:${changeType}`,
+      templateVars: {
+    first_name: firstName,
+    to_email: clientEmail,
+    client_name: firstName,
+    current_plan_name: previous_plan_name || "—",
+    requested_plan_name: new_plan_name,
+    effective_date: effDisplay,
+    change_type: changeType,
+  },
     }).catch(() => {});
   }
 
   // Internal admin alert
-  await admin.from("email_queue").insert({
-    to_email: "support@nivra-telecom.ca",
-    template_key: "plan_change_admin_alert",
-    template_vars: {
-      client_name: firstName,
-      current_plan_name: previous_plan_name || "—",
-      requested_plan_name: new_plan_name,
-      account_number: accountNumber,
-      change_type: changeType,
-    },
-    status: "queued",
-    priority: 0,
-  }).catch(() => {});
+  await enqueueCommunication(admin, {
+      channel: "email",
+      recipient: "support@nivra-telecom.ca",
+      templateKey: "plan_change_admin_alert",
+      priority: 0,
+      idempotencyKey: `client-plan-change:admin:${scr?.id ?? account_id}:${changeType}`,
+      templateVars: {
+  client_name: firstName,
+  current_plan_name: previous_plan_name || "—",
+  requested_plan_name: new_plan_name,
+  account_number: accountNumber,
+  change_type: changeType,
+},
+    }).catch(() => {});
 
   return json(200, {
     ok: true,
