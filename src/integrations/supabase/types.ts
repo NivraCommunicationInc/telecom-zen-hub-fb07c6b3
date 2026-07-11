@@ -20818,6 +20818,71 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_change_requests: {
+        Row: {
+          attempts: number
+          client_id: string
+          correlation_id: string | null
+          created_at: string
+          current_phone: string | null
+          expires_at: string
+          id: string
+          max_attempts: number
+          new_phone: string
+          otp_hash: string
+          reason: string | null
+          requested_by: string | null
+          requested_by_role: string | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          client_id: string
+          correlation_id?: string | null
+          created_at?: string
+          current_phone?: string | null
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          new_phone: string
+          otp_hash: string
+          reason?: string | null
+          requested_by?: string | null
+          requested_by_role?: string | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          client_id?: string
+          correlation_id?: string | null
+          created_at?: string
+          current_phone?: string | null
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          new_phone?: string
+          otp_hash?: string
+          reason?: string | null
+          requested_by?: string | null
+          requested_by_role?: string | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_change_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       phone_inventory: {
         Row: {
           assigned_at: string | null
