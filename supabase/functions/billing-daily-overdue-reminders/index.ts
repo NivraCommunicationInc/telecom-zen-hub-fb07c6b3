@@ -102,7 +102,9 @@ serve(async (req) => {
         .maybeSingle();
       if (existingQueue) { skipped++; continue; }
 
-      const { data: queueRow, error: qErr } = await enqueueCommunication({
+      let queueRow: any = null;
+      let qErr: any = null;
+      try { queueRow = await enqueueCommunication({
         channel: "email",
         templateKey: "overdue_invoice_daily_reminder",
         recipient: recipient,
@@ -118,7 +120,7 @@ serve(async (req) => {
           pay_balance_url: "https://nivra-telecom.ca/portal/billing",
         },
         subject: `Rappel — Facture ${inv.invoice_number} en attente de paiement`,
-      }).select("id").maybeSingle();
+      }); } catch (__e) { qErr = __e; }.select("id").maybeSingle();
 
       if (qErr) {
         console.error(`[reminders] enqueue failed for invoice ${inv.id}:`, qErr.message);

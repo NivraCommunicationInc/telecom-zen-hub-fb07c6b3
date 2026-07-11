@@ -78,7 +78,8 @@ Deno.serve(async (req) => {
       const stock_status = grp.available === 0 ? "out_of_stock" : "critical";
       const eventKey = `inv_low_${grp.sku}_${new Date().toISOString().slice(0, 10)}`;
 
-      const { error: qErr } = await enqueueCommunication({
+      let qErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "inventory_low_stock",
         recipient: ADMIN_EMAIL,
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
           stock_status,
           language: "fr",
         },
-      });
+      }); } catch (__e) { qErr = __e; }
 
       if (!qErr) {
         queued++;

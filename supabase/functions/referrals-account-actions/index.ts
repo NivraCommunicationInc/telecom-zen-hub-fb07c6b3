@@ -134,7 +134,8 @@ serve(async (req) => {
     // referral action never collide.
     const key = eventKey ? `referral:${template}:${eventKey}` : null;
     try {
-      const { error: insErr } = await enqueueCommunication({
+      let insErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: template,
         recipient: refEmail,
@@ -146,7 +147,7 @@ serve(async (req) => {
           event_key: eventKey,
         },
         priority: 0,
-      });
+      }); } catch (__e) { insErr = __e; }
       if (insErr && insErr.code !== "23505") {
         // 23505 = duplicate key -> already enqueued, treat as success
         console.warn("[referrals] enqueueEmail insert failed", insErr);

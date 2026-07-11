@@ -480,7 +480,8 @@ serve(async (req) => {
           cancellation_date: new Date().toISOString(),
           reason: reason || "—",
         }).catch(() => null);
-        const { error: emailErr } = await enqueueCommunication({
+        let emailErr: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: "subscription_cancellation_confirmation",
           recipient: profile.email,
@@ -495,7 +496,7 @@ serve(async (req) => {
             cancellation_date: new Date().toLocaleDateString("fr-CA"),
           },
           attachments: cancelPdf ? [cancelPdf] : null,
-        });
+        }); } catch (__e) { emailErr = __e; }
         if (!emailErr) emailQueued = true;
         recordStep("email_queued", !emailErr, emailErr ? { error: emailErr.message } : { to: profile.email });
       } else {

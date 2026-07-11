@@ -64,7 +64,8 @@ Deno.serve(async (req) => {
       const validUntil = new Date(Date.now() + 24 * 60 * 60 * 1000)
         .toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" });
 
-      const { error: insErr } = await enqueueCommunication({
+      let insErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "field_payment_reminder",
         recipient: email,
@@ -82,7 +83,7 @@ Deno.serve(async (req) => {
           agent_name: (q as any)?.agent_name || "Nivra Telecom",
           reminder_index: (count ?? 0) + 1,
         },
-      });
+      }); } catch (__e) { insErr = __e; }
       if (!insErr) sent++;
     }
 

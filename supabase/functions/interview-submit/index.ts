@@ -229,7 +229,8 @@ Règles:
 
     // Queue admin notification email — NEVER block submission on email failure
     try {
-      const { error: qErr } = await enqueueCommunication({
+      let qErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "interview_completed_admin",
         recipient: ADMIN_EMAIL,
@@ -244,7 +245,7 @@ Règles:
           concerns: aiConcerns,
           red_flags: aiRedFlags,
           review_url: `https://www.nivra-telecom.ca/hr/applications`, language: "fr" },
-      });
+      }); } catch (__e) { qErr = __e; }
       if (qErr) console.error("[interview-submit] email_queue insert failed", qErr);
     } catch (e) {
       console.error("[interview-submit] email_queue insert threw", e);

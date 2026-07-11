@@ -58,13 +58,14 @@ serve(async (req) => {
       const testKey = `${EVENT_KEY}:test:${testEmail}`;
       // Remove any previous test entry so it can be re-sent
       await supabase.from("email_queue").delete().eq("event_key", testKey);
-      const { error: testInsertErr } = await enqueueCommunication({
+      let testInsertErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: EVENT_KEY,
         recipient: testEmail,
         idempotencyKey: testKey,
         templateVars: { client_name: "Test", first_name: "Test" },
-      });
+      }); } catch (__e) { testInsertErr = __e; }
       if (testInsertErr) throw new Error(`Test email insert failed: ${testInsertErr.message}`);
       return new Response(
         JSON.stringify({ success: true, test_sent_to: testEmail }),
@@ -129,7 +130,8 @@ serve(async (req) => {
         continue;
       }
 
-      const { error: insertErr } = await enqueueCommunication({
+      let insertErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: EVENT_KEY,
         recipient: client.email,
@@ -138,7 +140,7 @@ serve(async (req) => {
           client_name: client.firstName,
           first_name: client.firstName,
         },
-      });
+      }); } catch (__e) { insertErr = __e; }
 
       if (insertErr) {
         errors.push(`${client.email}: ${insertErr.message}`);

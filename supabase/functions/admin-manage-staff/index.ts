@@ -1094,7 +1094,8 @@ serve(async (req: Request) => {
                 const agentNumber = (agentProfile as any)?.agent_number || "En cours d'attribution";
                 const proEmail = (agentProfile as any)?.professional_email || "À venir";
 
-                const { error: queueErr } = await enqueueCommunication({
+                let queueErr: any = null;
+                try { await enqueueCommunication({
                   channel: "email",
                   templateKey: "staff_invitation_field_sales",
                   recipient: email,
@@ -1106,7 +1107,7 @@ serve(async (req: Request) => {
                     agent_number: agentNumber,
                     professional_email: proEmail,
                   },
-                });
+                }); } catch (__e) { queueErr = __e; }
                 if (queueErr) {
                   console.error("[admin-manage-staff] field_sales email_queue insert error:", queueErr);
                   throw new Error(`Email queue insert failed: ${queueErr.message}`);
@@ -1415,7 +1416,8 @@ serve(async (req: Request) => {
             : "staff_invitation";
 
           try {
-            const { error: queueErr } = await enqueueCommunication({
+            let queueErr: any = null;
+            try { await enqueueCommunication({
               channel: "email",
               templateKey: templateKey,
               recipient: targetEmail,
@@ -1426,7 +1428,7 @@ serve(async (req: Request) => {
                 role: roleData.role,
                 role_label: roleLabels[roleData.role] || roleData.role,
               },
-            });
+            }); } catch (__e) { queueErr = __e; }
             if (queueErr) {
               throw new Error(`Email queue insert failed: ${queueErr.message}`);
             }
@@ -1994,7 +1996,8 @@ serve(async (req: Request) => {
           const resetLink = linkData.properties.action_link;
 
           // CANONICAL — route through email_queue + customQueueTemplates Violet Bold shell.
-          const { error: queueErr } = await enqueueCommunication({
+          let queueErr: any = null;
+          try { await enqueueCommunication({
             channel: "email",
             templateKey: "staff_password_reset",
             recipient: email,
@@ -2005,7 +2008,7 @@ serve(async (req: Request) => {
               audience: "staff",
               portal_label: "votre portail Administrateur Nivra",
             },
-          });
+          }); } catch (__e) { queueErr = __e; }
           if (queueErr) {
             console.error("[admin-manage-staff] send_reset email_queue insert error:", queueErr);
             throw new Error(`Email queue insert failed: ${queueErr.message}`);
@@ -3505,7 +3508,8 @@ serve(async (req: Request) => {
                 : "Technicien";
 
           // CANONICAL — Violet Bold shell via email_queue + customQueueTemplates
-          const { error: queueErr } = await enqueueCommunication({
+          let queueErr: any = null;
+          try { await enqueueCommunication({
             channel: "email",
             templateKey: "staff_password_reset",
             recipient: normalizedEmail,
@@ -3516,7 +3520,7 @@ serve(async (req: Request) => {
               audience: "staff",
               portal_label: `votre portail ${portalName} Nivra`,
             },
-          });
+          }); } catch (__e) { queueErr = __e; }
           if (queueErr) {
             console.error(`[admin-manage-staff] ${stepBase} email_queue insert error:`, queueErr);
             throw new Error(`Email queue insert failed: ${queueErr.message}`);

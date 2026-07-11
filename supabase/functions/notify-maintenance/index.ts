@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
 
       // 1) Email — idempotent via event_key unique constraint
       const eventKey = `maintenance_${incident.id}_${p.user_id}`;
-      const { error: qErr } = await enqueueCommunication({
+      let qErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "maintenance_notification",
         recipient: p.email,
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
         },
         entityType: "service_incident",
         entityId: incident.id,
-      });
+      }); } catch (__e) { qErr = __e; }
       if (!qErr) queued++;
       else if (!String(qErr.message || "").includes("duplicate")) {
         skippedEmails.push(p.email);

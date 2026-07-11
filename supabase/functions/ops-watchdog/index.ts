@@ -207,13 +207,14 @@ serve(async (req) => {
       // Consolidated event_key: one email per day maximum for the aggregated report
       const eventKey = `ops_watchdog_${todayKey}_${alerts.map(a => a.key).sort().join("|")}`.slice(0, 400);
 
-      const { error: qErr } = await enqueueCommunication({
+      let qErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "ops_watchdog_alert",
         recipient: ALERT_EMAIL,
         idempotencyKey: eventKey,
         templateVars: { alerts, scanned_at: new Date().toISOString(), language: "fr" },
-      });
+      }); } catch (__e) { qErr = __e; }
       // The unique-index trigger from Bloc 4 silently skips duplicates.
       emailSent = !qErr;
       if (qErr) console.warn("[ops-watchdog] email enqueue warning:", qErr);

@@ -410,7 +410,8 @@ async function processSuspensionWarningJ3(
     if (existing) continue;
 
     const suspensionDate = addDays(inv.due_date as string, 5);
-    const { error: queueErr } = await enqueueCommunication({
+    let queueErr: any = null;
+    try { await enqueueCommunication({
       channel: "email",
       templateKey: "invoice_suspension_warning",
       recipient: inv.customer.email,
@@ -425,7 +426,7 @@ async function processSuspensionWarningJ3(
         payment_link: "https://nivra-telecom.ca/portail/facturation",
       },
       subject: `Rappel: votre facture Nivra (#${inv.invoice_number})`,
-    });
+    }); } catch (__e) { queueErr = __e; }
 
     if (queueErr) {
       stats.errors.push(`J+2 warning queue error ${inv.invoice_number}: ${queueErr.message}`);
@@ -495,7 +496,8 @@ async function processReminders(
         "J0": `Nivra — Action requise aujourd'hui: renouvelez votre service (#${inv.invoice_number})`,
       };
 
-      const { error: queueErr } = await enqueueCommunication({
+      let queueErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: offset.template,
         recipient: inv.customer.email,
@@ -514,7 +516,7 @@ async function processReminders(
           payment_link: "https://nivra-telecom.ca/portail/facturation",
         },
         subject: subjectMap[offset.label] || `Nivra — Rappel de paiement (#${inv.invoice_number})`,
-      });
+      }); } catch (__e) { queueErr = __e; }
 
       if (queueErr) {
         stats.errors.push(

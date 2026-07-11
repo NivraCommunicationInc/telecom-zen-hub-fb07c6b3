@@ -199,7 +199,8 @@ Deno.serve(async (req) => {
         .eq("user_id", clientId)
         .maybeSingle();
       if (clientProf?.email) {
-        const { error: emailErr } = await enqueueCommunication({
+        let emailErr: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: "service_move_requested",
           recipient: clientProf.email,
@@ -212,7 +213,7 @@ Deno.serve(async (req) => {
           priority: 5,
           entityType: "service_change_request",
           entityId: inserted.id,
-        });
+        }); } catch (__e) { emailErr = __e; }
         if (emailErr) console.error("[service-move-actions] email_queue insert failed", emailErr);
       } else {
         console.log("[service-move-actions] no client email to queue", { clientId });

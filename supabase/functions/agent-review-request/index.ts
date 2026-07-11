@@ -84,7 +84,8 @@ Deno.serve(async (req: Request) => {
       const eventKey = `review_request_activation_weekly_${a.id}_${new Date().toISOString().slice(0, 10)}`;
 
       // 5. Queue email
-      const { error: qErr } = await enqueueCommunication({
+      let qErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "review_request_activation",
         recipient: email,
@@ -94,7 +95,7 @@ Deno.serve(async (req: Request) => {
           review_url: `https://nivra-telecom.ca/avis/${reviewToken}`,
           google_review_url: "https://g.page/r/CXlAG2vT9CgoEAE/review",
           language, language: language },
-      });
+      }); } catch (__e) { qErr = __e; }
 
       results.push({ account_id: a.id, queued: !qErr, error: qErr?.message });
     }

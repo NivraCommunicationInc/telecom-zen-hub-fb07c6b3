@@ -147,7 +147,8 @@ Deno.serve(async (req) => {
 
       if (existing) { skipped++; continue; }
 
-      const { error: insertErr } = await enqueueCommunication({
+      let insertErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "client_technical_notice",
         recipient: r.email,
@@ -155,7 +156,7 @@ Deno.serve(async (req) => {
         templateVars: { first_name: r.first_name },
         subject: "Information importante — Nivra Telecom",
         priority: 0,
-      });
+      }); } catch (__e) { insertErr = __e; }
 
       if (insertErr) {
         errors.push(`${r.email}: ${insertErr.message}`);

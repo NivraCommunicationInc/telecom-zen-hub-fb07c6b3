@@ -166,7 +166,8 @@ serve(async (req) => {
           .join(", ") || null;
 
       try {
-        const { error: mailErr } = await enqueueCommunication({
+        let mailErr: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: "field_payment_link",
           recipient: resolvedEmail,
@@ -186,7 +187,7 @@ serve(async (req) => {
             payment_url: paymentUrl,
             approval_url: paymentUrl,
           },
-        });
+        }); } catch (__e) { mailErr = __e; }
 
         if (mailErr) console.warn("[field-payment-link-create] email enqueue failed:", mailErr);
         else {

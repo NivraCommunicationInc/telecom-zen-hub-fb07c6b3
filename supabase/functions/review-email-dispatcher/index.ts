@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
     }
 
     const idempotencyKey = `review-request-${acct.id}`;
-    const { error: qErr } = await enqueueCommunication({
+    let qErr: any = null;
+    try { await enqueueCommunication({
       channel: "email",
       templateKey: "review_request_activation",
       recipient: recipient,
@@ -112,7 +113,7 @@ Deno.serve(async (req) => {
       templateVars: { firstName: profile?.first_name ?? "", language: profile?.preferred_language ?? "fr" },
       subject: "Votre service Nivra est actif — votre avis vaut 5 $ 😊",
       priority: 2,
-    });
+    }); } catch (__e) { qErr = __e; }
 
     if (qErr) {
       results.push({ account: acct.account_number, recipient, error: qErr.message });

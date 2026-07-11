@@ -93,7 +93,8 @@ serve(async (req) => {
     if (mode === "email" && body?.customer_email) {
       try {
         const orderRef = `POS-${intent.id.slice(0, 8).toUpperCase()}`;
-        const { error: qErr } = await enqueueCommunication({
+        let qErr: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: "field_payment_link",
           recipient: body.customer_email,
@@ -113,7 +114,7 @@ serve(async (req) => {
             agent_name: agentName,
             valid_until: "7 jours à compter de ce courriel",
           },
-        });
+        }); } catch (__e) { qErr = __e; }
         if (qErr) {
           emailError = qErr.message;
           console.error("[pos-square-intent] email_queue insert failed:", qErr);

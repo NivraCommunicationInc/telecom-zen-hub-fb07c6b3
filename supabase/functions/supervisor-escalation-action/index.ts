@@ -211,7 +211,8 @@ Deno.serve(async (req) => {
 
   if (clientEmail) {
     const eventKey = `supervisor_escalation:${b.idempotency_key}`;
-    const { error: mailErr } = await enqueueCommunication({
+    let mailErr: any = null;
+    try { await enqueueCommunication({
       channel: "email",
       templateKey: "supervisor_escalation",
       recipient: clientEmail,
@@ -227,7 +228,7 @@ Deno.serve(async (req) => {
       subject: "Votre demande a été escaladée",
       entityType: "internal_ticket",
       entityId: ticketId,
-    });
+    }); } catch (__e) { mailErr = __e; }
     if (mailErr && (mailErr as any).code !== "23505") {
       console.error("[supervisor-escalation-action] email_queue failed:", mailErr.message);
     }

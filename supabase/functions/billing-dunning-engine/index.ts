@@ -140,7 +140,8 @@ Deno.serve(async (req) => {
         }
 
         // Queue email via email_queue (never direct Resend)
-        const { error: qErr } = await enqueueCommunication({
+        let qErr: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: templateKey,
           recipient: toEmailAddr,
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
           templateVars: templateVars,
           subject: subject,
           priority: actionType === "j14_final" ? 1 : 0,
-        });
+        }); } catch (__e) { qErr = __e; }
 
         if (qErr) {
           results.errors.push(`Invoice ${inv.id}: email queue error: ${qErr.message}`);

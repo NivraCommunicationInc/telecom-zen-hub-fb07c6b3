@@ -409,14 +409,15 @@ async function executeTool(
         const subject = input.subject as string;
         const body = input.body_text as string;
         if (!subject || !body) return { ok: false, error: "Missing subject or body" };
-        const { error } = await enqueueCommunication({
+        let error: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: "generic_internal_note",
           recipient: "support@nivra-telecom.ca",
           idempotencyKey: `nova_internal_${Date.now()}`,
           templateVars: { body_text: body, sender: "NOVA Digital Brain" },
           subject: `[NOVA] ${subject}`,
-        });
+        }); } catch (__e) { error = __e; }
         if (error) return { ok: false, error: error.message };
         return { ok: true, result: { queued: true, subject } };
       }
@@ -670,7 +671,8 @@ async function executeTool(
           .from("profiles").select("email, full_name").eq("user_id", account?.client_id).maybeSingle();
         if (!profile?.email) return { ok: false, error: "Customer has no email on file" };
 
-        const { data, error } = await enqueueCommunication({
+        let error: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: "generic_customer_message",
           recipient: profile.email,
@@ -681,7 +683,7 @@ async function executeTool(
               sender: "NOVA via " + (account?.client_id ?? "system"),
             },
           subject: input.subject,
-        })
+        }); } catch (__e) { error = __e; }
           .select("id")
           .maybeSingle();
         if (error) return { ok: false, error: error.message };

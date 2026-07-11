@@ -263,7 +263,8 @@ Deno.serve(async (req) => {
 
   if (subjectEmail) {
     const eventKey = `consent_recorded:${b.idempotency_key}`;
-    const { error: mailErr } = await enqueueCommunication({
+    let mailErr: any = null;
+    try { await enqueueCommunication({
       channel: "email",
       templateKey: "consent_recorded",
       recipient: subjectEmail,
@@ -280,7 +281,7 @@ Deno.serve(async (req) => {
       subject: "Confirmation d'enregistrement de consentement (Loi 25)",
       entityType: "consent_record",
       entityId: consentId,
-    });
+    }); } catch (__e) { mailErr = __e; }
     if (mailErr && (mailErr as any).code !== "23505") {
       console.error("[consent-journal-action] email_queue failed:", mailErr.message);
     }

@@ -59,7 +59,8 @@ Deno.serve(async (req) => {
       const interviewUrl = `${BASE_URL}/entrevue/${a.interview_token}`;
       const lang = (a.interview_language || "fr") as string;
 
-      const { error: qErr } = await enqueueCommunication({
+      let qErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "interview_invitation",
         recipient: a.email,
@@ -67,7 +68,7 @@ Deno.serve(async (req) => {
         templateVars: { first_name: a.first_name || "",
           last_name: a.last_name || "",
           interview_url: interviewUrl, language: lang },
-      });
+      }); } catch (__e) { qErr = __e; }
       if (qErr) { errors.push(`${a.id}: ${qErr.message}`); continue; }
 
       await supabase

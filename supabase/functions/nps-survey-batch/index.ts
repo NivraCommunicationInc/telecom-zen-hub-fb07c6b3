@@ -80,7 +80,8 @@ serve(async (req) => {
       const token = crypto.randomUUID();
       const npsLink = `https://nivra-telecom.ca/feedback?token=${token}`;
 
-      const { error: queueErr } = await enqueueCommunication({
+      let queueErr: any = null;
+      try { await enqueueCommunication({
         channel: "email",
         templateKey: "nps_survey",
         recipient: email,
@@ -89,7 +90,7 @@ serve(async (req) => {
           first_name: cust.first_name || "Client",
           nps_link: npsLink,
         },
-      });
+      }); } catch (__e) { queueErr = __e; }
 
       if (queueErr) {
         errors.push(`${email}: ${queueErr.message}`);

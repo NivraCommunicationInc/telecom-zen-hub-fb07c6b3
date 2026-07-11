@@ -186,7 +186,8 @@ Deno.serve(async (req) => {
     if (sendEmail) {
       const recipient = profile.professional_email || profile.email;
       if (recipient) {
-        const { error: qErr } = await enqueueCommunication({
+        let qErr: any = null;
+        try { await enqueueCommunication({
           channel: "email",
           templateKey: "employee_badge_ready",
           recipient: recipient,
@@ -199,7 +200,7 @@ Deno.serve(async (req) => {
             dept: info.dept_fr,
             color: info.color,
             portal_url: primaryRole === "field_sales" ? "https://nivra-telecom.ca/field" : "https://nivra-telecom.ca/hr", language: profile.preferred_language || "fr" },
-        });
+        }); } catch (__e) { qErr = __e; }
         emailQueued = !qErr;
       }
     }

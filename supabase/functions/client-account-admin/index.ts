@@ -381,13 +381,14 @@ serve(async (req) => {
   const origin = resolveOrigin(body.redirect_origin);
 
   const queueEmail = async (templateKey: string, toEmail: string, vars: Record<string, any>) => {
-    const { error } = await enqueueCommunication({
+    let error: any = null;
+    try { await enqueueCommunication({
       channel: "email",
       templateKey: templateKey,
       recipient: toEmail,
       idempotencyKey: `${templateKey}_${toEmail}_${Date.now()}`,
       templateVars: { first_name: firstName, ...vars },
-    });
+    }); } catch (__e) { error = __e; }
     if (error) throw new Error(`Échec mise en file courriel: ${error.message}`);
   };
 
