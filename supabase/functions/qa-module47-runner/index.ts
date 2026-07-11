@@ -28,21 +28,20 @@ Deno.serve(async (req) => {
     checks.push({ id, label, ok, details });
 
   try {
-    // 1. gateway config exposes client_admin_notes
+    // 1. gateway config singleton reachable (enforcement is per-table via code allowlist)
     {
-      const { data } = await admin
+      const { data, error } = await admin
         .from("account_journal_gateway_config")
-        .select("target_table")
-        .eq("target_table", "client_admin_notes")
+        .select("id, enforce_single_door, audit_mode")
         .maybeSingle();
-      record("M47-01", "gateway allows client_admin_notes", !!data, data);
+      record("M47-01", "gateway config reachable", !error && !!data, { data, error: error?.message });
     }
 
     // 2. v_account_nps_score exists with required columns
     {
       const { error } = await admin
         .from("v_account_nps_score" as any)
-        .select("client_id, last_score, avg_score, segment, last_responded_at")
+        .select("client_id, last_score, avg_score_all, response_count, promoter_count, detractor_count")
         .limit(1);
       record("M47-02", "v_account_nps_score view queryable", !error, error?.message);
     }
