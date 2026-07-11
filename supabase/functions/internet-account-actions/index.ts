@@ -25,6 +25,13 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Minute bucket in base36, used only as a complement to a stable business
+// identity for actions with no natural per-write entity id (e.g. WiFi upsert).
+function isoMinuteBucket36(d: Date = new Date()): string {
+  return Math.floor(d.getTime() / 60_000).toString(36);
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -282,6 +289,7 @@ serve(async (req) => {
   };
 
   const activity = async (
+    eventKey: string,
     action_type: string,
     entity_id: string | null,
     entity_type: string,
@@ -290,30 +298,52 @@ serve(async (req) => {
     before_data: Record<string, unknown> | null = null,
   ) => {
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id: client_user_id,
-        actor_user_id: user.id,
-        actor_name: callerName,
-        actor_role: primaryRole,
-        action_type,
-        entity_type,
-        entity_id,
-        summary,
-        before_data,
-        after_data,
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey,
+        correlationId: body.idempotency_key ?? null,
+        actor: {
+          userId: user.id,
+          role: primaryRole ?? "system",
+          name: callerName ?? "system",
+          email: callerProfile?.email ?? null,
+        },
+        payload: {
+          client_id: client_user_id,
+          actor_user_id: user.id,
+          actor_name: callerName,
+          actor_role: primaryRole,
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          before_data,
+          after_data,
+        },
       });
     } catch (_e) { /* swallow */ }
   };
 
-  const sysNote = async (body_text: string) => {
+  const sysNote = async (eventKey: string, body_text: string) => {
     try {
-      await admin.from("client_internal_notes").insert({
-        client_id: client_user_id,
-        note_type: "system",
-        body: body_text,
-        created_by_user_id: user.id,
-        created_by_role: primaryRole,
-        created_by_name: callerName,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey,
+        correlationId: body.idempotency_key ?? null,
+        actor: {
+          userId: user.id,
+          role: primaryRole ?? "system",
+          name: callerName ?? "system",
+          email: callerProfile?.email ?? null,
+        },
+        payload: {
+          client_id: client_user_id,
+          note_type: "system",
+          body: body_text,
+          created_by_user_id: user.id,
+          created_by_role: primaryRole,
+          created_by_name: callerName,
+        },
       });
     } catch (_e) { /* swallow */ }
   };
@@ -465,6 +495,7 @@ serve(async (req) => {
 
         await audit("change_plan", after, before);
         await activity(
+          `internet:plan_change:${data.id}:activity`,
           "internet_plan_change",
           data.id,
           "internet_plan_change",
@@ -473,6 +504,7 @@ serve(async (req) => {
           before,
         );
         await sysNote(
+          `internet:plan_change:${data.id}:note`,
           `[INTERNET] Forfait changé — ${body.previous_plan_name ?? "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}` +
           (subscriptionUpdateOk ? "" : ` · ⚠️ abonnement non synchronisé (${subscriptionUpdateError})`),
         );
@@ -661,13 +693,17 @@ serve(async (req) => {
         };
         await audit("modem_action", after);
         await activity(
+          `internet:modem_action:${data.id}:activity`,
           "internet_modem_action",
           data.id,
           "internet_modem_action",
           `Modem: ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}`,
           after,
         );
-        await sysNote(`[INTERNET] ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}${reasonStr ? ` · Raison: ${reasonStr}` : ""}`);
+        await sysNote(
+          `internet:modem_action:${data.id}:note`,
+          `[INTERNET] ${meta.label}${body.modem_serial ? ` · S/N ${body.modem_serial}` : ""}${reasonStr ? ` · Raison: ${reasonStr}` : ""}`,
+        );
         await enqueueEmail("client_internet_modem_action", {
           action_label: meta.label,
           modem_serial: body.modem_serial || "—",
@@ -731,6 +767,7 @@ serve(async (req) => {
         };
         await audit("run_diagnostic", after);
         await activity(
+          `internet:diagnostic:${data.id}:activity`,
           "internet_diagnostic",
           data.id,
           "internet_diagnostic",
@@ -738,6 +775,7 @@ serve(async (req) => {
           after,
         );
         await sysNote(
+          `internet:diagnostic:${data.id}:note`,
           `[INTERNET] Diagnostic ${diagnostic_type} — lien: ${link_status ?? "—"}` +
           ` · DL ${body.download_mbps ?? "—"} Mbps · UL ${body.upload_mbps ?? "—"} Mbps` +
           ` · latence ${body.latency_ms ?? "—"} ms · perte ${body.packet_loss_pct ?? "—"}%` +
@@ -820,7 +858,13 @@ serve(async (req) => {
           guest_ssid: body.guest_ssid ?? null,
         };
         await audit("set_wifi", after, before);
+        // WiFi upsert has no per-write natural id (scoped by user_id + account_id).
+        // Anchor on business identity; append minute bucket to permit legitimate
+        // subsequent updates while still deduping accidental double-clicks.
+        const wifiScope = `${client_user_id}:${body.account_id ?? "na"}`;
+        const wifiBucket = body.idempotency_key ?? isoMinuteBucket36();
         await activity(
+          `internet:wifi:${wifiScope}:updated:${wifiBucket}:activity`,
           "internet_wifi_change",
           null,
           "internet_wifi_settings",
@@ -829,6 +873,7 @@ serve(async (req) => {
           before,
         );
         await sysNote(
+          `internet:wifi:${wifiScope}:updated:${wifiBucket}:note`,
           `[INTERNET] WiFi mis à jour — bande ${band_mode}` +
           ` · SSID 2.4: ${body.ssid_24 ?? "—"} · SSID 5: ${body.ssid_5 ?? "—"}` +
           ` · Invité: ${body.guest_enabled ? `oui (${body.guest_ssid ?? "—"})` : "non"}`,
@@ -886,6 +931,7 @@ serve(async (req) => {
 
           await audit("static_ip_release", { assignment_id: id, ...after }, before);
           await activity(
+            `internet:static_ip:${id}:released:activity`,
             "internet_static_ip_release",
             id,
             "internet_static_ip",
@@ -893,7 +939,10 @@ serve(async (req) => {
             after,
             before,
           );
-          await sysNote(`[INTERNET] IP statique libérée — ${existing.ip_address ?? "—"} · Raison: ${reasonStr}`);
+          await sysNote(
+            `internet:static_ip:${id}:released:note`,
+            `[INTERNET] IP statique libérée — ${existing.ip_address ?? "—"} · Raison: ${reasonStr}`,
+          );
           await enqueueEmail("client_internet_static_ip", {
             mode: "released",
             ip_address: existing.ip_address || "—",
@@ -948,13 +997,17 @@ serve(async (req) => {
         const after = { assignment_id: data.id, ip_address, monthly_price, status: "active" };
         await audit("static_ip_assign", after);
         await activity(
+          `internet:static_ip:${data.id}:assigned:activity`,
           "internet_static_ip_assign",
           data.id,
           "internet_static_ip",
           `IP statique attribuée — ${ip_address} (${fmtMoney(monthly_price)}/mois)`,
           after,
         );
-        await sysNote(`[INTERNET] IP statique attribuée — ${ip_address} · ${fmtMoney(monthly_price)}/mois · Raison: ${reasonStr}`);
+        await sysNote(
+          `internet:static_ip:${data.id}:assigned:note`,
+          `[INTERNET] IP statique attribuée — ${ip_address} · ${fmtMoney(monthly_price)}/mois · Raison: ${reasonStr}`,
+        );
         await enqueueEmail("client_internet_static_ip", {
           mode: "assigned",
           ip_address,
