@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 interface Props {
   subscription: AdminSubscription | null;
   onClose: () => void;
@@ -76,9 +77,7 @@ export function SubscriptionDetailDrawer({ subscription, onClose }: Props) {
       const { error } = await supabase.from("billing_subscriptions")
         .update({ status: newStatus as any, updated_at: new Date().toISOString() })
         .eq("id", s.id);
-      if (error) throw error;
-
-      // Audit trail
+// Audit trail
       if (s.customer_id) {
         await supabase.from("billing_subscription_trace_audit").insert({
           subscription_id: s.id,
@@ -131,7 +130,7 @@ export function SubscriptionDetailDrawer({ subscription, onClose }: Props) {
     setActionLoading("note");
     try {
       const user = (await supabase.auth.getUser()).data.user;
-      const { error } = await supabase.from("activity_logs").insert({
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "subscription",
         entity_id: s.id,
@@ -139,8 +138,7 @@ export function SubscriptionDetailDrawer({ subscription, onClose }: Props) {
         reason: note.trim(),
         details: { plan: s.plan_name, source: "subscription_drawer" },
       });
-      if (error) throw error;
-      toast.success("Note ajoutée");
+toast.success("Note ajoutée");
     } catch (e: any) {
       toast.error(e.message || "Erreur");
     } finally {

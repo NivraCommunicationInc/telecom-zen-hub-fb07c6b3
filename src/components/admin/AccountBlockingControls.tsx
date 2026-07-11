@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { adminClient as supabase } from "@/integrations/backend";
 import { format } from "date-fns";
+import { logActivityLog } from "@/lib/logActivityLog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,11 +97,8 @@ const AccountBlockingControls = ({
         .eq("user_id", clientId)
         .select()
         .single();
-
-      if (error) throw error;
-
-      // Log to activity_logs
-      await supabase.from("activity_logs").insert({
+// Log to activity_logs
+      await logActivityLog({
         user_id: user?.id || clientId,
         actor_email: user?.email,
         actor_name: user?.email?.split("@")[0] || "Admin",

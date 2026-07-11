@@ -30,6 +30,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ProfileName } from "@/hooks/useProfileName";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 type ReturnRow = {
   id: string;
   order_id: string | null;
@@ -93,8 +94,7 @@ const CoreReturnsPage = () => {
       if (dateFrom) q = q.gte("requested_at", dateFrom);
       if (dateTo) q = q.lte("requested_at", `${dateTo}T23:59:59`);
       const { data, error } = await q;
-      if (error) throw error;
-      return (data || []) as ReturnRow[];
+return (data || []) as ReturnRow[];
     },
   });
 
@@ -126,7 +126,7 @@ const CoreReturnsPage = () => {
   const logActivity = async (id: string, from: string, to: string, action: string, patch: Record<string, any>) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         action: `equipment_return_${action}`,
         entity_type: "equipment_return_request",
         entity_id: id,
@@ -143,8 +143,7 @@ const CoreReturnsPage = () => {
     mutationFn: async (row: ReturnRow) => {
       const patch = { status: "approved", approved_at: new Date().toISOString() };
       const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
-      if (error) throw error;
-      await logActivity(row.id, row.status, "approved", "approve", patch);
+await logActivity(row.id, row.status, "approved", "approve", patch);
     },
     onSuccess: () => { toast.success("Demande approuvée"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),
@@ -160,8 +159,7 @@ const CoreReturnsPage = () => {
         carrier: carrier.trim() || null,
       };
       const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
-      if (error) throw error;
-      await logActivity(row.id, row.status, "label_sent", "label_sent", patch);
+await logActivity(row.id, row.status, "label_sent", "label_sent", patch);
     },
     onSuccess: () => { toast.success("Étiquette enregistrée"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),
@@ -176,8 +174,7 @@ const CoreReturnsPage = () => {
         agent_notes: agentNotes.trim() || null,
       };
       const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
-      if (error) throw error;
-      if (row.equipment_inventory_id) {
+if (row.equipment_inventory_id) {
         try {
           await supabase.from("equipment_inventory").update({ status: "returned" }).eq("id", row.equipment_inventory_id);
         } catch (e) {
@@ -195,8 +192,7 @@ const CoreReturnsPage = () => {
       const patch: Record<string, any> = { status: "completed", completed_at: new Date().toISOString() };
       if (refundAmount && Number(refundAmount) > 0) patch.refund_amount = Number(refundAmount);
       const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
-      if (error) throw error;
-      await logActivity(row.id, row.status, "completed", "complete", patch);
+await logActivity(row.id, row.status, "completed", "complete", patch);
     },
     onSuccess: () => { toast.success("Retour complété"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),
@@ -210,8 +206,7 @@ const CoreReturnsPage = () => {
         agent_notes: [row.agent_notes, `Rejet: ${rejectReason.trim()}`].filter(Boolean).join("\n"),
       };
       const { error } = await supabase.from("equipment_return_requests").update(patch).eq("id", row.id);
-      if (error) throw error;
-      await logActivity(row.id, row.status, "rejected", "reject", patch);
+await logActivity(row.id, row.status, "rejected", "reject", patch);
     },
     onSuccess: () => { toast.success("Demande rejetée"); qc.invalidateQueries({ queryKey: ["core-returns"] }); closeAction(); },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),

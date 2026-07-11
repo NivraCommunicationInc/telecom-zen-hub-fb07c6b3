@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useAuth } from "@/hooks/useAuth";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 // Quebec cities for validation
 const QUEBEC_CITIES = [
   "Montréal", "Laval", "Longueuil", "Brossard", "Saint-Laurent", "Verdun",
@@ -146,9 +147,7 @@ const AdminAppointments = () => {
         .from("appointments")
         .select("*")
         .order("scheduled_at", { ascending: true });
-      if (error) throw error;
-      
-      if (appointmentsData && appointmentsData.length > 0) {
+if (appointmentsData && appointmentsData.length > 0) {
         const clientIds = [...new Set(appointmentsData.filter(a => a.client_id).map(a => a.client_id))];
         
         const { data: profilesData } = await supabase
@@ -188,8 +187,7 @@ const AdminAppointments = () => {
         .from("profiles")
         .select("user_id, email, full_name, phone, client_number, service_address, service_city")
         .order("full_name");
-      if (error) throw error;
-      return data || [];
+return data || [];
     },
   });
 
@@ -201,8 +199,7 @@ const AdminAppointments = () => {
         .from("technicians")
         .select("*")
         .eq("status", "active");
-      if (error) throw error;
-      return data || [];
+return data || [];
     },
   });
 
@@ -215,8 +212,7 @@ const AdminAppointments = () => {
         .select("id, order_number, service_type, user_id, client_email")
         .in("status", ["pending", "confirmed", "processing"])
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+return data || [];
     },
   });
 
@@ -281,14 +277,12 @@ const AdminAppointments = () => {
           .insert(payload)
           .select()
           .single();
-
-        if (error) throw error;
-        if (!data) throw new Error("Aucune donnée retournée");
+if (!data) throw new Error("Aucune donnée retournée");
 
         // Log activity (non-blocking)
         if (user?.id) {
           try {
-            await supabase.from("activity_logs").insert({
+            await logActivityLog({
               user_id: user.id,
               entity_type: "appointment",
               entity_id: data.id,
@@ -340,9 +334,7 @@ const AdminAppointments = () => {
           generate_password: true, // Let server generate secure password
         },
       });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+if (data?.error) throw new Error(data.error);
 
       return data.user;
     },
@@ -375,12 +367,9 @@ const AdminAppointments = () => {
         })
         .select()
         .single();
-
-      if (error) throw error;
-
-      // Log activity
+// Log activity
       if (user?.id) {
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: user.id,
           entity_type: "technician",
           entity_id: data.id,
@@ -412,11 +401,9 @@ const AdminAppointments = () => {
         .from("appointments")
         .update({ ...updates, updated_by: user?.id })
         .eq("id", id);
-      if (error) throw error;
-
-      // Log activity
+// Log activity
       if (user?.id && reason) {
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: user.id,
           entity_type: "appointment",
           entity_id: id,
@@ -454,11 +441,9 @@ const AdminAppointments = () => {
           updated_by: user?.id,
         })
         .eq("id", id);
-      if (error) throw error;
-
-      // Log activity
+// Log activity
       if (user?.id) {
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: user.id,
           entity_type: "appointment",
           entity_id: id,
@@ -511,11 +496,9 @@ const AdminAppointments = () => {
           updated_by: user?.id,
         })
         .eq("id", id);
-      if (error) throw error;
-
-      // Log activity
+// Log activity
       if (user?.id) {
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: user.id,
           entity_type: "appointment",
           entity_id: id,
@@ -592,7 +575,7 @@ const AdminAppointments = () => {
 
       // Log activity
       if (user?.id) {
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: user.id,
           entity_type: "appointment",
           entity_id: appointmentId,
@@ -633,8 +616,7 @@ const AdminAppointments = () => {
           updated_by: user?.id,
         })
         .eq("id", id);
-      if (error) throw error;
-    },
+},
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });

@@ -36,6 +36,7 @@ import { format, differenceInCalendarDays, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
+import { logActivityLog } from "@/lib/logActivityLog";
 type FilterKey = "pending" | "active" | "resumed" | "rejected" | "all";
 type ActionKind = "approve" | "reject" | "resume" | null;
 
@@ -111,8 +112,7 @@ export default function CorePauseRequestsPage() {
       else if (filter === "resumed") q = q.eq("status", "resumed");
       else if (filter === "rejected") q = q.eq("status", "rejected");
       const { data, error } = await q;
-      if (error) throw error;
-      return (data as Row[]) || [];
+return (data as Row[]) || [];
     },
   });
 
@@ -196,7 +196,7 @@ export default function CorePauseRequestsPage() {
   const logActivity = async (id: string, to: string, patch: Record<string, any>) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         action: `suspension_${to}`,
         entity_type: "suspension_request",
         entity_id: id,
@@ -230,8 +230,7 @@ export default function CorePauseRequestsPage() {
             pause_reason: r.reason,
           })
           .eq("id", r.subscription_id);
-        if (error) throw error;
-      }
+}
 
       const { error: rErr } = await supabase
         .from("suspension_requests")
@@ -302,9 +301,7 @@ export default function CorePauseRequestsPage() {
           notes: newNotes,
         })
         .eq("id", r.id);
-      if (error) throw error;
-
-      // Note: rejected pause requests never touch the subscription status
+// Note: rejected pause requests never touch the subscription status
       // (subscription stays "active" until an approval flips it to "suspended").
 
       await logActivity(r.id, "rejected", { reason: rejectReason.trim() });
@@ -348,8 +345,7 @@ export default function CorePauseRequestsPage() {
             pause_reason: null,
           })
           .eq("id", r.subscription_id);
-        if (error) throw error;
-      }
+}
 
       const { error: rErr } = await supabase
         .from("suspension_requests")

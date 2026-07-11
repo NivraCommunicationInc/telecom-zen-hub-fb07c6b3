@@ -47,6 +47,7 @@ import {
 import TechnicianLocationShare from "@/core-app/components/TechnicianLocationShare";
 
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
+import { logActivityLog } from "@/lib/logActivityLog";
 /* ─── Helpers ─── */
 const todayBoundsIso = () => {
   const now = new Date();
@@ -154,10 +155,7 @@ export default function CoreTechnicianMobilePage() {
           data,
           error,
         });
-
-        if (error) throw error;
-
-        const row = Array.isArray(data) ? data[0] : data;
+const row = Array.isArray(data) ? data[0] : data;
         return (row ?? null) as TechnicianSelfRecord | null;
       } catch (error) {
         console.error("[TechnicianMobilePage] technician self lookup failed", error);
@@ -187,10 +185,7 @@ export default function CoreTechnicianMobilePage() {
         data,
         error,
       });
-
-      if (error) throw error;
-
-      return ((data as TechnicianPickerRecord[] | null) || []).filter(
+return ((data as TechnicianPickerRecord[] | null) || []).filter(
         (tech) => (tech.status || "").toLowerCase() === "active"
       );
     },
@@ -231,8 +226,7 @@ export default function CoreTechnicianMobilePage() {
         .lte("scheduled_at", endIso)
         .not("status", "in", "(cancelled,completed)")
         .order("scheduled_at", { ascending: true });
-      if (error) throw error;
-      return data || [];
+return data || [];
     },
   });
 
@@ -293,8 +287,7 @@ export default function CoreTechnicianMobilePage() {
         .eq("status", "completed")
         .order("scheduled_at", { ascending: false })
         .limit(50);
-      if (error) throw error;
-      return data || [];
+return data || [];
     },
   });
 
@@ -318,8 +311,7 @@ export default function CoreTechnicianMobilePage() {
           },
           { onConflict: "id" }
         );
-      if (error) throw error;
-      return newStatus;
+return newStatus;
     },
     onSuccess: (s) => {
       queryClient.invalidateQueries({ queryKey: ["technician-self"] });
@@ -338,8 +330,7 @@ export default function CoreTechnicianMobilePage() {
           updated_by: user?.id ?? null,
         })
         .eq("id", params.id);
-      if (error) throw error;
-      return params;
+return params;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["technician-today"] });
@@ -356,7 +347,7 @@ export default function CoreTechnicianMobilePage() {
   }) => {
     if (!user?.id || !params.entity_id) return;
     try {
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         action: params.action,
         entity_type: params.entity_type,
         entity_id: params.entity_id,

@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ShoppingCart, RefreshCw, Package, Trash2, ArrowRightLeft, DollarSign, Link2, ToggleLeft } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 /** Equipment array is a mix of equipment_inventory rows and equipment_order_lines rows. */
 function eqLabel(eq: any): string {
   const name = eq?.catalog_name || eq?.item_name || "Équipement";
@@ -298,16 +299,14 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
         .from("equipment_order_lines")
         .update({ serial_numbers: [serialDisplay] })
         .eq("id", selectedId);
-      if (error) throw error;
-
-      // Update inventory status to deployed
+// Update inventory status to deployed
       await supabase
         .from("equipment_inventory")
         .update({ status: "deployed" } as any)
         .eq("id", selectedInventoryId);
 
       const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "equipment",
         entity_id: selectedId,
@@ -406,8 +405,7 @@ function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
           } as any)
           .eq("id", selectedId)
           .select("id");
-        if (error) throw error;
-        if (!data || data.length === 0) throw new Error("Aucune ligne d'inventaire mise à jour (vérifiez vos permissions).");
+if (!data || data.length === 0) throw new Error("Aucune ligne d'inventaire mise à jour (vérifiez vos permissions).");
       } else {
         // Snapshot row from equipment_order_lines → delete the line.
         const { error, data } = await supabase
@@ -415,12 +413,11 @@ function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
           .delete()
           .eq("id", selectedId)
           .select("id");
-        if (error) throw error;
-        if (!data || data.length === 0) throw new Error("Aucune ligne de commande supprimée (vérifiez vos permissions).");
+if (!data || data.length === 0) throw new Error("Aucune ligne de commande supprimée (vérifiez vos permissions).");
       }
 
       const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "equipment",
         entity_id: selectedId,
@@ -495,10 +492,8 @@ function ReplaceEquipmentModal({ equipment, onClose, onRefresh }: { equipment: a
         .from("equipment_order_lines")
         .update({ serial_numbers: newSerial ? [newSerial] : eq.serial_numbers })
         .eq("id", selectedId);
-      if (error) throw error;
-
-      const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+const user = (await supabase.auth.getUser()).data.user;
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "equipment",
         entity_id: selectedId,
@@ -578,10 +573,8 @@ function ExchangeEquipmentModal({ equipment, onClose, onRefresh }: { equipment: 
           serial_numbers: newSerial ? [newSerial] : null,
         })
         .eq("id", selectedId);
-      if (error) throw error;
-
-      const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+const user = (await supabase.auth.getUser()).data.user;
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "equipment",
         entity_id: selectedId,
@@ -651,11 +644,10 @@ function ChangeStatusModal({ equipment, onClose, onRefresh }: { equipment: any[]
           .from("inventory_items")
           .update({ status })
           .eq("id", current.inventory_item_id);
-        if (error) throw error;
-      }
+}
 
       const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "equipment",
         entity_id: selectedId,
@@ -726,7 +718,7 @@ function ChargeReplacementModal({ equipment, clientId, onClose, onRefresh }: { e
     setLoading(true);
     try {
       const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "equipment",
         entity_id: selectedId,

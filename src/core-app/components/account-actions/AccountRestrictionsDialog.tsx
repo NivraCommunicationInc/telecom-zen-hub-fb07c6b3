@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Shield, Ban, AlertTriangle, Lock, Flag, CreditCard } from "lucide-react";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
 const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted/40 transition-colors";
@@ -46,8 +47,7 @@ export function AccountRestrictionsDialog({ accountId, clientId, accountStatus, 
           const { error } = await supabase.from("accounts").update({
             status: "blocked", updated_at: new Date().toISOString(),
           }).eq("id", accountId);
-          if (error) throw error;
-          toast.success("Compte bloqué");
+toast.success("Compte bloqué");
           break;
         }
         case "suspend_services": {
@@ -73,7 +73,7 @@ export function AccountRestrictionsDialog({ accountId, clientId, accountStatus, 
         }
         case "internal_flag": {
           // Add flag note to activity logs
-          await supabase.from("activity_logs").insert({
+          await logActivityLog({
             user_id: actorId,
             entity_type: "account",
             entity_id: accountId || clientId || "unknown",
@@ -87,7 +87,7 @@ export function AccountRestrictionsDialog({ accountId, clientId, accountStatus, 
       }
 
       // Always log the restriction action
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         user_id: actorId,
         entity_type: "account",
         entity_id: accountId || clientId || "unknown",

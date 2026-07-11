@@ -6,6 +6,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 export type PaymentMethod = "interac" | "cash" | "debit_credit" | "square" | "bank_transfer" | "other";
 type CanonicalMethod = "interac" | "manual" | "card";
 
@@ -83,7 +84,7 @@ export async function recordPayment(params: RecordPaymentParams) {
 
   // Activity log
   if (note?.trim()) {
-    await supabase.from("activity_logs").insert({
+    await logActivityLog({
       user_id: session.user.id,
       entity_type: "billing_payment",
       entity_id: invoiceId,

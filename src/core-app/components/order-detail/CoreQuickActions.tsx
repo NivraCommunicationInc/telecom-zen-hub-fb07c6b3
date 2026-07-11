@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { EditOrderDialog } from "@/core-app/components/account-actions/EditOrderDialog";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 interface Props {
   proc: any;
   /** Visual layout. Defaults to "bar" for backward compatibility. */
@@ -134,7 +135,7 @@ export function CoreQuickActions({ proc, layout = "bar" }: Props) {
           .eq("id", order.id);
         if (updateError) throw updateError;
 
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: user?.id || order.user_id,
           entity_type: "order", entity_id: order.id, action: "equipment_refund",
           reason: `Remboursement équipement approuvé par ${user?.email || "admin"} — Montant: ${equipmentTotal.toFixed(2)} $ — Code promo: ${orderPromoCode}`,

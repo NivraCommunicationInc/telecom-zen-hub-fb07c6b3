@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
+import { logActivityLog } from "@/lib/logActivityLog";
 import {
   FileX, Search, CheckCircle, XCircle, AlertTriangle, Clock,
   RefreshCw, Calendar, Loader2,
@@ -82,9 +83,7 @@ export default function CoreCancellationsPage() {
         .from("service_cancellation_requests")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-
-      if (!data?.length) return [];
+if (!data?.length) return [];
       const userIds = [...new Set(data.map((r: any) => r.user_id))];
       const { data: profiles } = await supabase
         .from("profiles")
@@ -142,9 +141,7 @@ export default function CoreCancellationsPage() {
         .from("service_cancellation_requests")
         .update(update)
         .eq("id", id);
-      if (error) throw error;
-
-      // Pull a full snapshot of the request so downstream steps have all fields
+// Pull a full snapshot of the request so downstream steps have all fields
       const { data: req } = await supabase
         .from("service_cancellation_requests")
         .select("*")
@@ -364,7 +361,7 @@ export default function CoreCancellationsPage() {
       // STEP 7 — Activity log
       try {
         if (accountId && req.user_id) {
-          await supabase.from("activity_logs").insert({
+          await logActivityLog({
             user_id: req.user_id,
             action: "service_cancelled",
             entity_type: "account",
@@ -457,7 +454,7 @@ export default function CoreCancellationsPage() {
       // STEP 9 — Auto-note (no helper exists in repo → log via activity_logs as service_cancelled_note)
       try {
         if (req.user_id) {
-          await supabase.from("activity_logs").insert({
+          await logActivityLog({
             user_id: req.user_id,
             action: "service_cancelled_note",
             entity_type: "client_profile",

@@ -12,6 +12,7 @@ import {
 import { Plus, ExternalLink, XCircle, AlertTriangle, Copy } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 const inputCls = "w-full rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-white placeholder:text-[hsl(220,10%,30%)] outline-none focus:border-emerald-500/50";
 const btnPrimary = "rounded-md bg-emerald-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors";
 const btnSecondary = "rounded-md border border-[hsl(220,15%,16%)] px-4 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white transition-colors";
@@ -75,10 +76,8 @@ function CancelOrderModal({ orders, onClose, onRefresh }: { orders: any[]; onClo
       const { error } = await supabase.from("orders").update({
         status: "cancelled", updated_at: new Date().toISOString(),
       }).eq("id", selectedId);
-      if (error) throw error;
-
-      const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+const user = (await supabase.auth.getUser()).data.user;
+      await logActivityLog({
         user_id: user?.id || "system", entity_type: "order", entity_id: selectedId,
         action: "order_cancelled", reason: reason || null,
         details: { source: "account_360" },

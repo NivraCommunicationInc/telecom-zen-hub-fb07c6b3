@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { ShoppingCart } from "lucide-react";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
 const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted/40 transition-colors";
@@ -52,10 +53,8 @@ export function EditOrderDialog({ order, open, onClose, onRefresh }: Props) {
       };
 
       const { error } = await supabase.from("orders").update(updates).eq("id", o.id);
-      if (error) throw error;
-
-      const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+const user = (await supabase.auth.getUser()).data.user;
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "order",
         entity_id: o.id,
