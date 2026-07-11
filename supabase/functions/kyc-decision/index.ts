@@ -123,14 +123,19 @@ Deno.serve(async (req) => {
       console.warn("[kyc-decision] Client notify failed:", e);
     }
 
-    await supabase.from("activity_logs").insert({
-      user_id: adminId,
-      entity_type: "order",
-      entity_id: kycReq.order_id,
-      action: `kyc_${newStatus}`,
-      reason: body.decision === "approve"
-        ? "Vérification d'identité approuvée"
-        : `Vérification d'identité rejetée â€” ${body.rejection_reason || "Non spécifié"}`,
+    await writeAccountJournal(supabase, {
+      targetTable: "activity_logs",
+      eventKey: `kyc:${kycReq.id}:decision:${newStatus}:activity`,
+      payload: {
+        user_id: adminId,
+        entity_type: "order",
+        entity_id: kycReq.order_id,
+        action: `kyc_${newStatus}`,
+        reason: body.decision === "approve"
+          ? "Vérification d'identité approuvée"
+          : `Vérification d'identité rejetée â€” ${body.rejection_reason || "Non spécifié"}`,
+      },
+      actor: { userId: adminId, role: "admin" },
     });
 
     return new Response(JSON.stringify({ success: true, status: newStatus }), {
