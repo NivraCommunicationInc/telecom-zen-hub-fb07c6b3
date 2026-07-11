@@ -507,7 +507,7 @@ serve(async (req) => {
           condition: body.condition || "good",
           reason: body.reason || null,
         });
-        await addSystemNote("EQUIPMENT.RETURN", `${row.catalog_name || "Équipement"} retourné (état: ${body.condition || "good"})`);
+        await addSystemNote("EQUIPMENT.RETURN", `${row.catalog_name || "Équipement"} retourné (état: ${body.condition || "good"})`, { action_type: "equipment_returned", inventory_id: body.inventory_id });
         await enqueueEmail("client_equipment_returned", {
           equipment_name: row.catalog_name || "Équipement",
           condition: body.condition || "good",
