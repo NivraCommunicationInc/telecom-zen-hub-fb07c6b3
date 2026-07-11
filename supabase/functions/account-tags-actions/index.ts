@@ -424,7 +424,7 @@ Deno.serve(async (req) => {
           reason,
           idempotency_key: body.idempotency_key ?? null,
         });
-        await writeParityLogs("fraud_lock_applied", body.account_id, { lock_mode: body.lock_mode, tag }, reason);
+        await writeParityLogs("fraud_lock_applied", body.account_id, { lock_mode: body.lock_mode, tag }, reason, (tag as any).id);
 
         return json({ ok: true, tag, lock_mode: body.lock_mode });
       }
