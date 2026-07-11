@@ -210,33 +210,46 @@ serve(async (req) => {
       entity_type: string,
       entity_id: string | null,
       summary: string,
-      before_data: Record<string, unknown> | null = null,
-      after_data: Record<string, unknown> | null = null,
+      before_data: Record<string, unknown> | null,
+      after_data: Record<string, unknown> | null,
+      eventKey: string,
     ) => {
       try {
-        await admin.from("client_activity_logs").insert({
-          client_id: client_user_id,
-          actor_user_id: user.id,
-          actor_name: callerName,
-          actor_role: "staff",
-          action_type,
-          entity_type,
-          entity_id,
-          summary,
-          before_data,
-          after_data,
+        await writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          payload: {
+            client_id: client_user_id,
+            actor_user_id: user.id,
+            actor_name: callerName,
+            actor_role: "staff",
+            action_type,
+            entity_type,
+            entity_id,
+            summary,
+            before_data,
+            after_data,
+          },
+          eventKey,
+          correlationId: entity_id,
+          actor: { userId: user.id, role: "staff", name: callerName },
         });
       } catch (_e) { /* swallow */ }
     };
-    const internalNote = async (body_text: string) => {
+    const internalNote = async (body_text: string, eventKey: string, correlationId?: string | null) => {
       try {
-        await admin.from("client_internal_notes").insert({
-          client_id: client_user_id,
-          note_type: "system",
-          body: body_text,
-          created_by_user_id: user.id,
-          created_by_role: "staff",
-          created_by_name: callerName,
+        await writeAccountJournal(admin, {
+          targetTable: "client_internal_notes",
+          payload: {
+            client_id: client_user_id,
+            note_type: "system",
+            body: body_text,
+            created_by_user_id: user.id,
+            created_by_role: "staff",
+            created_by_name: callerName,
+          },
+          eventKey,
+          correlationId: correlationId ?? null,
+          actor: { userId: user.id, role: "staff", name: callerName },
         });
       } catch (_e) { /* swallow */ }
     };
