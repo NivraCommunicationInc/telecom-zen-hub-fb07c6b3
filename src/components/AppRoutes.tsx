@@ -1077,8 +1077,9 @@ const AppRoutes = () => {
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
           <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />
           <Route path="email-marketing" element={<Suspense fallback={null}><CoreEmailMarketingPage /></Suspense>} />
-          <Route path="communication-email" element={<Suspense fallback={null}><CoreCommunicationEmailPage /></Suspense>} />
-          <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationSMSPage /></Suspense>} />
+          <Route path="communications" element={<Suspense fallback={null}><CoreCommunicationsPage /></Suspense>} />
+          <Route path="communication-email" element={<Suspense fallback={null}><CoreCommunicationsPage /></Suspense>} />
+          <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationsPage /></Suspense>} />
           {/* Field Management */}
           <Route path="field-agents" element={<Suspense fallback={null}><CoreFieldAgentsPage /></Suspense>} />
           <Route path="field-submissions" element={<Suspense fallback={null}><CoreFieldSubmissionsPage /></Suspense>} />
