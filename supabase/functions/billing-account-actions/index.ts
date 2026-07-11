@@ -759,6 +759,7 @@ serve(async (req) => {
           `Préférences facturation mises à jour — jour ${day}, ${delivery_format}, ${language}${body.email_for_billing ? `, courriel ${body.email_for_billing}` : ""}`,
           prevSettings ?? null,
           { billing_day_of_month: day, delivery_format, language, email_for_billing: body.email_for_billing ?? null, paper_mailing_address: body.paper_mailing_address ?? null },
+          `billing:settings:${client_user_id}:${body.idempotency_key ?? isoMinuteBucket()}`,
         );
         await enqueueEmail("client_billing_settings_change", {
           billing_day_of_month: String(day),
