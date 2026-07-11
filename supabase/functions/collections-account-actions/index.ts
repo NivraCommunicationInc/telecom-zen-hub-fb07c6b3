@@ -260,11 +260,12 @@ serve(async (req) => {
           notes: body.notes ?? null,
         });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:promise_to_pay:${date}`;
         await audit("promise_to_pay", { amount: amt, date });
         await activity("collections_promise_to_pay", invoice_id,
           `Engagement de paiement ${fmtMoney(amt)} pour ${fmtDate(date)} — facture ${invRef}`,
-          { amount_promised: amt, promise_date: date });
-        await internalNote(`Recouvrement — engagement client: ${fmtMoney(amt)} pour ${fmtDate(date)} sur facture ${invRef}.`);
+          { amount_promised: amt, promise_date: date }, aid);
+        await internalNote(`Recouvrement — engagement client: ${fmtMoney(amt)} pour ${fmtDate(date)} sur facture ${invRef}.`, aid);
         await enqueueEmail("client_collections_promise", {
           amount_promised: fmtMoney(amt),
           promise_date: fmtDate(date),
