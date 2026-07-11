@@ -332,22 +332,30 @@ serve(async (req) => {
   ) => {
     if (!body.client_user_id) return;
     try {
-      const { error } = await admin.from("client_activity_logs").insert({
-        client_id: body.client_user_id,
-        actor_user_id: user.id,
-        actor_name: callerName ?? callerProfile?.email ?? "system",
-        actor_role: primaryRole,
-        action_type,
-        entity_id,
-        entity_type,
-        summary,
-        after_data: {
-          ...(after ?? {}),
-          module_tag: "module31_new_order",
-          simulated: !!body.simulated,
+      // Deterministic event key — one activity row per (client, action, entity, minute)
+      const eventKey = `order:${entity_id ?? body.order_id ?? body.client_user_id}:activity:${action_type}:${isoMinuteBucket()}`;
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey,
+        payload: {
+          client_id: body.client_user_id,
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          after_data: {
+            ...(after ?? {}),
+            module_tag: "module31_new_order",
+            simulated: !!body.simulated,
+          },
+        },
+        actor: {
+          userId: user.id,
+          role: primaryRole,
+          name: callerName ?? callerProfile?.email ?? "system",
+          email: callerProfile?.email ?? null,
         },
       });
-      if (error) await raiseAlert("order_new_activity_failed", { action_type, error: error.message });
     } catch (e) {
       await raiseAlert("order_new_activity_failed", { action_type, error: String(e) });
     }
@@ -357,16 +365,24 @@ serve(async (req) => {
   const clientInternalNote = async (title: string, content: string, tag: string) => {
     if (!body.client_user_id) return;
     try {
-      const { error } = await admin.from("client_internal_notes").insert({
-        client_id: body.client_user_id,
-        account_id: body.account_id ?? null,
-        note_type: primaryRole === "admin" ? "admin" : "employee",
-        body: `[${tag}] ${title}\n${content}`,
-        created_by_user_id: user.id,
-        created_by_role: primaryRole,
-        created_by_name: callerName ?? callerProfile?.email ?? "system",
+      // Deterministic event key — one note per (client, order/tag, minute)
+      const eventKey = `note:${body.client_user_id}:${body.order_id ?? "new_order"}:${tag}:${isoMinuteBucket()}`;
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey,
+        payload: {
+          client_id: body.client_user_id,
+          account_id: body.account_id ?? null,
+          note_type: primaryRole === "admin" ? "admin" : "employee",
+          body: `[${tag}] ${title}\n${content}`,
+        },
+        actor: {
+          userId: user.id,
+          role: primaryRole,
+          name: callerName ?? callerProfile?.email ?? "system",
+          email: callerProfile?.email ?? null,
+        },
       });
-      if (error) await raiseAlert("order_new_note_failed", { error: error.message });
     } catch (e) {
       await raiseAlert("order_new_note_failed", { error: String(e) });
     }
