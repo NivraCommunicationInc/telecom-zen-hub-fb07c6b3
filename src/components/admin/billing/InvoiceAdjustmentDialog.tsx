@@ -111,7 +111,7 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
             reason: reason || "Correction administrative",
           },
           subject: `Ajustement de facture ${invoice.invoice_number}`,
-          priority: "normal",
+          priority: 0,
           toName: `${invoice.customer.first_name || ""} ${invoice.customer.last_name || ""}`.trim(),
         });
       }

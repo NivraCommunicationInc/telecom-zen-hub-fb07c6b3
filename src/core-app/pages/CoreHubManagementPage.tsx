@@ -816,7 +816,7 @@ function OrdersAdmin() {
         delivery_address: [o.delivery_address, o.delivery_city, o.delivery_province, o.delivery_postal_code].filter(Boolean).join(", "),
       },
       subject: `Mise à jour commande ${o.order_number} — Nivra Telecom`,
-      priority: "normal",
+      priority: 0,
       toName: o.delivery_name || "",
     });
   };
