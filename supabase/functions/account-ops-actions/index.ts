@@ -203,6 +203,70 @@ serve(async (req) => {
     } catch (_e) { /* swallow */ }
   };
 
+  // ── Module 41 B.2.b — Journal single-door helper ──
+  // Toutes les écritures client_activity_logs + client_internal_notes de ce
+  // fichier passent par writeAccountJournal() avec un event_key déterministe.
+  // `eventBase` DOIT porter un identifiant métier stable (account_id + verbe
+  // + discriminant de transition). Le fallback isoMinuteBucket() n'est utilisé
+  // que quand aucun discriminant de transition n'existe (unpause manuel sans
+  // idempotency_key). `actorOverride` sert au cas `unpause_account` auto (system).
+  const isoMinuteBucket = () => new Date().toISOString().slice(0, 16);
+  const defaultActor = {
+    userId: user.id,
+    role: callerRole,
+    name: callerName,
+    email: user.email ?? null,
+  };
+  const logActivityNote = async (args: {
+    action_type: string;
+    entity_type: string;
+    entity_id: string | null;
+    summary: string;
+    before_data?: Record<string, unknown> | null;
+    after_data?: Record<string, unknown> | null;
+    noteBody: string;
+    eventBase: string;
+    actorOverride?: { userId: string; role: string; name: string | null; email: string | null };
+  }) => {
+    const actor = args.actorOverride ?? defaultActor;
+    try {
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey: `${args.eventBase}:activity`,
+        actor,
+        payload: {
+          client_id:     client_user_id,
+          actor_user_id: actor.userId,
+          actor_name:    actor.name,
+          actor_role:    actor.role,
+          action_type:   args.action_type,
+          entity_type:   args.entity_type,
+          entity_id:     args.entity_id,
+          summary:       args.summary,
+          before_data:   args.before_data ?? null,
+          after_data:    args.after_data ?? null,
+        },
+      });
+    } catch (e) { console.warn("[logActivityNote:activity]", String(e)); }
+    try {
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey: `${args.eventBase}:note`,
+        actor,
+        payload: {
+          client_id:          client_user_id,
+          account_id:         body.account_id ?? null,
+          note_type:          "system",
+          body:               args.noteBody,
+          created_by_user_id: actor.userId,
+          created_by_role:    actor.role,
+          created_by_name:    actor.name,
+        },
+      });
+    } catch (e) { console.warn("[logActivityNote:note]", String(e)); }
+  };
+
+
   try {
     switch (action) {
       // ============================================================
