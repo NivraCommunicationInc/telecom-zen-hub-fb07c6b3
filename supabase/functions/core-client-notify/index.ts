@@ -6,6 +6,7 @@
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { sendOfficialEmail } from "../_shared/officialEmail.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface Payload {
   clientEmail: string;
