@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { reportEdgeError } from "../_shared/sentry.ts";
 
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -83,19 +84,16 @@ Deno.serve(async (req: Request) => {
       const eventKey = `review_request_activation_weekly_${a.id}_${new Date().toISOString().slice(0, 10)}`;
 
       // 5. Queue email
-      const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        to_email: email,
-        template_key: "review_request_activation",
-        template_vars: {
-          first_name: profile?.first_name || "Client",
+      const { error: qErr } = await enqueueCommunication({
+        channel: "email",
+        templateKey: "review_request_activation",
+        recipient: email,
+        idempotencyKey: eventKey,
+        templateVars: { first_name: profile?.first_name || "Client",
           account_id: a.id,
           review_url: `https://nivra-telecom.ca/avis/${reviewToken}`,
           google_review_url: "https://g.page/r/CXlAG2vT9CgoEAE/review",
-          language,
-        },
-        status: "queued",
-        language,
+          language, language: language },
       });
 
       results.push({ account_id: a.id, queued: !qErr, error: qErr?.message });
