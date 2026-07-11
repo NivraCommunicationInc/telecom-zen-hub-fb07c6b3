@@ -30,15 +30,22 @@ Deno.serve(async (req) => {
 
   const auth = req.headers.get("Authorization");
   if (!auth) return json({ error: "unauthorized" }, 401);
-  const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-    global: { headers: { Authorization: auth } },
-  });
-  const { data: userData } = await userClient.auth.getUser();
-  const actor = userData?.user;
-  if (!actor) return json({ error: "unauthorized" }, 401);
-  const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", actor.id);
-  const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
-  if (!isAdmin) return json({ error: "forbidden" }, 403);
+  const bearer = auth.replace(/^Bearer\s+/i, "").trim();
+  const isServiceRole = bearer === SERVICE_ROLE;
+  let actor: { id: string; email?: string } | null = null;
+  if (isServiceRole) {
+    actor = { id: "00000000-0000-0000-0000-000000000000", email: "qa-runner@service" };
+  } else {
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: auth } },
+    });
+    const { data: userData } = await userClient.auth.getUser();
+    if (!userData?.user) return json({ error: "unauthorized" }, 401);
+    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", userData.user.id);
+    const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
+    if (!isAdmin) return json({ error: "forbidden" }, 403);
+    actor = { id: userData.user.id, email: userData.user.email };
+  }
 
   const runId = crypto.randomUUID();
   const results: Res[] = [];
