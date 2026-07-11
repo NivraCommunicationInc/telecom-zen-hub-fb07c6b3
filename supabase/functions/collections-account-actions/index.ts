@@ -358,9 +358,10 @@ serve(async (req) => {
         if (!txt) return json(400, { error: "Note requise" });
         const { data, error } = await insertAction("note", { notes: txt });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:note:${txt.slice(0, 40)}`;
         await audit("add_note", { length: txt.length });
-        await activity("collections_note", invoice_id, `Note recouvrement — facture ${invRef}`, null);
-        await internalNote(`Recouvrement — note sur facture ${invRef}: ${txt.slice(0, 200)}`);
+        await activity("collections_note", invoice_id, `Note recouvrement — facture ${invRef}`, null, aid);
+        await internalNote(`Recouvrement — note sur facture ${invRef}: ${txt.slice(0, 200)}`, aid);
         return json(200, { ok: true, id: data?.id });
       }
 
