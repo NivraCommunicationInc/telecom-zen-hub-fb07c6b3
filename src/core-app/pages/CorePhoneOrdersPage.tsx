@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
+import { logActivityLog } from "@/lib/logActivityLog";
 import {
   Select,
   SelectContent,
@@ -140,8 +141,7 @@ export default function CorePhoneOrdersPage() {
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
       if (riskFilter !== "all") q = q.eq("fraud_level", riskFilter);
       const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as unknown as PhoneOrderRow[];
+return (data ?? []) as unknown as PhoneOrderRow[];
     },
   });
 
@@ -724,8 +724,7 @@ function ManualOrderDialog({
         q = q.or(`brand.ilike.${term},model.ilike.${term},imei.ilike.${term}`);
       }
       const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as AvailablePhone[];
+return (data ?? []) as AvailablePhone[];
     },
   });
 
@@ -740,8 +739,7 @@ function ManualOrderDialog({
         .select("user_id, email, full_name, first_name, last_name, phone, service_address, service_city, service_province, service_postal_code")
         .or(`email.ilike.${term},full_name.ilike.${term},first_name.ilike.${term},last_name.ilike.${term}`)
         .limit(10);
-      if (error) throw error;
-      const userIds = (profs ?? []).map((p) => p.user_id);
+const userIds = (profs ?? []).map((p) => p.user_id);
       let accountsByUser: Record<string, { id: string; account_number: string }> = {};
       if (userIds.length) {
         const { data: accts } = await supabase
@@ -979,7 +977,7 @@ function ManualOrderDialog({
 
       // 4. Activity log
       try {
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: agent?.id ?? userId,
           actor_role: "admin",
           action: "phone_order_manual_created",

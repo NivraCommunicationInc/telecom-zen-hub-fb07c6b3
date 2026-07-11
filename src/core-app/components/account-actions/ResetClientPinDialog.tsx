@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { KeyRound, Copy, AlertTriangle, Eye, EyeOff } from "lucide-react";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
 const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted/40 transition-colors";
@@ -59,15 +60,13 @@ export function ResetClientPinDialog({ clientId, clientName, open, onClose, onRe
         client_pin_hash: pinHash,
         pin_is_default: false,
       }).eq("user_id", clientId);
-      if (error) throw error;
-
-      // Also update plaintext pin for legacy compatibility
+// Also update plaintext pin for legacy compatibility
       await supabase.from("profiles").update({
         client_pin: pin,
       }).eq("user_id", clientId);
 
       const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "profile",
         entity_id: clientId,

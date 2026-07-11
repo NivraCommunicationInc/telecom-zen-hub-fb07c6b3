@@ -5,6 +5,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 export interface AddNoteParams {
   entityId: string;
   entityType: string;
@@ -18,7 +19,7 @@ export async function addOperationalNote({ entityId, entityType, note, portal }:
 
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
 
-  await supabase.from("activity_logs").insert({
+  await logActivityLog({
     user_id: session.user.id,
     entity_id: entityId,
     entity_type: entityType,

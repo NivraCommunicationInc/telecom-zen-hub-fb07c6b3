@@ -6,6 +6,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 export interface StatusUpdateParams {
   orderId: string;
   newStatus: string;
@@ -21,11 +22,9 @@ export async function updateOrderStatus({ orderId, newStatus, logAction, portal 
     .from("orders")
     .update({ status: newStatus, updated_at: new Date().toISOString() })
     .eq("id", orderId);
-  if (error) throw error;
+const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
 
-  const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
-
-  await supabase.from("activity_logs").insert({
+  await logActivityLog({
     user_id: session.user.id,
     entity_id: orderId,
     entity_type: "order",

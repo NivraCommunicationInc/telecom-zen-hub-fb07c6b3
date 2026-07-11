@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ShieldAlert, Star, FileCheck2, PauseCircle } from "lucide-react";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 interface Base {
   open: boolean;
   onClose: () => void;
@@ -66,7 +67,7 @@ async function writeCoreActivity(input: {
 }) {
   const { data: userData } = await supabase.auth.getUser();
   const actor = userData?.user;
-  await supabase.from("activity_logs").insert({
+  await logActivityLog({
     user_id: input.clientUserId ?? actor?.id ?? null,
     entity_type: input.entityType ?? "account",
     entity_id: input.accountId ?? input.clientUserId ?? null,
@@ -101,8 +102,7 @@ export function QuickRefundDialog(props: Base & { latestPaymentId?: string | nul
         const { data, error } = await supabase.functions.invoke("square-refund-payment", {
           body: { payment_id: props.latestPaymentId, amount: n, reason },
         });
-        if (error) throw error;
-        refundResult = data;
+refundResult = data;
       } else {
         // No Square payment linked → record an account credit adjustment
         const { error } = await supabase.from("account_adjustments").insert({
@@ -111,8 +111,7 @@ export function QuickRefundDialog(props: Base & { latestPaymentId?: string | nul
           months_total: 1, months_remaining: 0, applied_count: 1,
           status: "applied", is_permanent: false,
         } as any);
-        if (error) throw error;
-      }
+}
       if (props.clientEmail) {
         await notify({
           clientEmail: props.clientEmail, clientName: props.clientName,
@@ -178,8 +177,7 @@ export function AccountWriteOffDialog(props: Base) {
         months_total: 1, months_remaining: 0, applied_count: 1,
         status: "applied", is_permanent: true,
       } as any);
-      if (error) throw error;
-      if (props.clientEmail) {
+if (props.clientEmail) {
         await notify({
           clientEmail: props.clientEmail, clientName: props.clientName,
           subject: "Ajustement appliqué à votre compte",
@@ -251,8 +249,7 @@ export function PaymentPlanDialog(props: Base) {
         status: "active", reason: reason || null,
         metadata: { created_via: "core_360" },
       } as any);
-      if (error) throw error;
-      if (props.clientEmail) {
+if (props.clientEmail) {
         await notify({
           clientEmail: props.clientEmail, clientName: props.clientName,
           subject: "Plan de paiement confirmé",
@@ -329,8 +326,7 @@ export function AutopayRetryDialog(props: Base & { invoiceId?: string | null; in
           autopay_last_attempt_at: null,
         } as any)
         .eq("id", props.invoiceId);
-      if (error) throw error;
-      if (props.clientEmail) {
+if (props.clientEmail) {
         await notify({
           clientEmail: props.clientEmail, clientName: props.clientName,
           subject: "Nouvelle tentative AutoPay planifiée",
@@ -402,8 +398,7 @@ export function RemoteRebootDialog(props: Base) {
       else body.terminal_serial = serial.trim() || null;
 
       const { data, error } = await supabase.functions.invoke(fn, { body });
-      if (error) throw error;
-      if (data && (data as any).error) throw new Error((data as any).error);
+if (data && (data as any).error) throw new Error((data as any).error);
       toast.success("Reboot enregistré (simulation QA — aucune commande opérateur réelle)");
       invalidate(); props.onRefresh?.(); props.onClose();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
@@ -488,8 +483,7 @@ export function LineDiagnosticDialog(props: Base) {
           __audit_reason: reason.trim(),
         },
       });
-      if (error) throw error;
-      if (data && (data as any).error) throw new Error((data as any).error);
+if (data && (data as any).error) throw new Error((data as any).error);
 
       setResult({ ...r, linkStatus });
       toast.success("Diagnostic enregistré");
@@ -580,8 +574,7 @@ export function QuickPlanChangeDialog(props: Base) {
           idempotency_key: idemKey,
         },
       });
-      if (error) throw error;
-      if (data && (data as any).error) throw new Error((data as any).error);
+if (data && (data as any).error) throw new Error((data as any).error);
       toast.success("Modification enregistrée — courriel envoyé");
       invalidate(); props.onRefresh?.(); props.onClose();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
@@ -904,8 +897,7 @@ export function FreezeCycleTrialDialog(props: Base) {
           __audit_reason: reason.trim(),
         },
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+if ((data as any)?.error) throw new Error((data as any).error);
       toast.success("Demande de gel enregistrée");
       invalidate(); props.onRefresh?.(); props.onClose();
     } catch (e: any) { toast.error(e?.message ?? "Échec"); }
@@ -1315,8 +1307,7 @@ export function VipChurnToggleDialog(props: Base) {
       const { data, error } = await supabase.functions.invoke("account-tags-actions", {
         body: { action: "list", client_user_id: props.clientUserId },
       });
-      if (error) throw error;
-      const tags: AccountTagRow[] = (data as any)?.tags ?? [];
+const tags: AccountTagRow[] = (data as any)?.tags ?? [];
       const next: Record<VipChurnKey, AccountTagRow | null> = { vip: null, churn_risk: null };
       for (const t of tags) {
         if (t.tag_key === "vip") next.vip = t;

@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invalidateAfterPayment } from "@/lib/queryInvalidation";
 import { SquarePaymentSuccessCard } from "@/components/payment/SquarePaymentSuccessCard";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 const BACKEND_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const BACKEND_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const SQUARE_APP_ID = "sq0idp-MFFFKgiNraeBXx-h1mruxw";
@@ -147,7 +148,7 @@ export const CoreSquarePaymentDialog = ({
       // Activity log (best-effort)
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           action: "manual_square_charge",
           entity_type: "billing_invoice",
           entity_id: selectedInvoiceId,

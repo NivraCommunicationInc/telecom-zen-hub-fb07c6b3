@@ -41,6 +41,7 @@ import { fr } from "date-fns/locale";
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
+import { logActivityLog } from "@/lib/logActivityLog";
 type FilterKey = "pending" | "approved" | "rejected" | "all";
 type ActionKind = "approve" | "reject" | "view" | null;
 
@@ -110,8 +111,7 @@ export default function CorePlanChangesPage() {
       const { data, error } = await supabase
         .from("service_change_requests")
         .select("status");
-      if (error) throw error;
-      (data || []).forEach((r: any) => {
+(data || []).forEach((r: any) => {
         counts.total++;
         if (r.status === "pending" || r.status === "pending_core") counts.pending++;
         else if (r.status === "approved") counts.approved++;
@@ -137,8 +137,7 @@ export default function CorePlanChangesPage() {
       if (dateFrom) q = q.gte("created_at", dateFrom);
       if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
       const { data, error } = await q;
-      if (error) throw error;
-      return (data as Row[]) || [];
+return (data as Row[]) || [];
     },
   });
 
@@ -257,7 +256,7 @@ export default function CorePlanChangesPage() {
   const logActivity = async (id: string, from: string, to: string, patch: Record<string, any>) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         action: `plan_change_${to}`,
         entity_type: "service_change_request",
         entity_id: id,
@@ -289,8 +288,7 @@ export default function CorePlanChangesPage() {
           .from("billing_subscriptions")
           .update(update)
           .eq("id", r.subscription_id);
-        if (error) throw error;
-      }
+}
 
       // ── PRORATION ON IMMEDIATE PLAN CHANGE ──
       // Everything on ONE invoice — add a line to the existing pending renewal invoice,
@@ -473,8 +471,7 @@ export default function CorePlanChangesPage() {
           notes: newNotes,
         })
         .eq("id", r.id);
-      if (error) throw error;
-      await logActivity(r.id, r.status, "rejected", { reason: rejectReason.trim() });
+await logActivity(r.id, r.status, "rejected", { reason: rejectReason.trim() });
 
       const client = clients?.[r.client_id];
       if (client?.email) {

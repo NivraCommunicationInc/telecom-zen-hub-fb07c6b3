@@ -12,6 +12,7 @@ import {
 import { Gift, DollarSign, Calendar } from "lucide-react";
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
 const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted/40 transition-colors";
@@ -89,10 +90,8 @@ export function AddCreditWithDurationDialog({ accountId, customerId, clientId, c
         created_by: user?.id || null,
         expires_at: expiresAt,
       });
-      if (error) throw error;
-
-      // Log activity
-      await supabase.from("activity_logs").insert({
+// Log activity
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "account",
         entity_id: accountId,
@@ -109,7 +108,7 @@ export function AddCreditWithDurationDialog({ accountId, customerId, clientId, c
       });
 
       // Internal note documenting the discount
-      await supabase.from("activity_logs").insert({
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "account",
         entity_id: accountId,

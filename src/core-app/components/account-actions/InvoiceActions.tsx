@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
+import { logActivityLog } from "@/lib/logActivityLog";
 import {
   CreditCard, DollarSign, FileText, Mail, CheckCircle, RotateCcw, Plus, Minus, Banknote, Wallet, Ban,
 } from "lucide-react";
@@ -189,11 +190,9 @@ function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invo
         p_created_by_name: "Account 360",
         p_created_by_role: "admin",
       });
-      if (error) throw error;
-
-      if (internalNote.trim()) {
+if (internalNote.trim()) {
         const user = (await supabase.auth.getUser()).data.user;
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: user?.id || "system",
           entity_type: "billing_payment",
           entity_id: targetInvoice.id,
@@ -362,8 +361,7 @@ function MarkPaidModal({ invoices, customerId, onClose, onRefresh }: { invoices:
         p_created_by_name: "Account 360",
         p_created_by_role: "admin",
       });
-      if (error) throw error;
-      toast.success(`Facture ${inv.invoice_number} marquée payée`);
+toast.success(`Facture ${inv.invoice_number} marquée payée`);
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -507,9 +505,7 @@ function SendInvoiceModal({
         entityType: "invoice",
         entityId: inv.id,
       }); } catch (__e) { error = __e; }
-      if (error) throw error;
-
-      toast.success(`Facture ${inv.invoice_number} envoyée à ${recipientEmail}`);
+toast.success(`Facture ${inv.invoice_number} envoyée à ${recipientEmail}`);
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -572,9 +568,7 @@ function AdjustmentModal({ type, invoices, onClose, onRefresh }: { type: "charge
         line_total: lineTotal,
         line_type: isCharge ? "charge" : "credit",
       });
-      if (error) throw error;
-
-      await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: selectedInvoice });
+await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: selectedInvoice });
 
       toast.success(`${isCharge ? "Frais" : "Crédit"} de ${parsedAmount.toFixed(2)} $ ajouté`);
       onRefresh();
@@ -697,8 +691,7 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
           created_by_name: "Admin",
           created_by_role: "admin",
         });
-        if (error) throw error;
-        await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
+await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
         toast.success(
           `Remboursement de ${parsedAmount.toFixed(2)} $ enregistré. Exécutez le remboursement dans le dashboard PayPal.`,
         );
@@ -723,9 +716,7 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
           created_by_name: "Admin",
           created_by_role: "admin",
         });
-        if (error) throw error;
-
-        await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
+await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
         toast.success(`Remboursement manuel de ${parsedAmount.toFixed(2)} $ appliqué`);
       }
 
@@ -827,10 +818,8 @@ function CancelInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[];
           notes: `[ANNULÉE] ${reason.trim()}${inv.notes ? `\n---\n${inv.notes}` : ""}`,
         })
         .eq("id", inv.id);
-      if (error) throw error;
-
-      const user = (await supabase.auth.getUser()).data.user;
-      await supabase.from("activity_logs").insert({
+const user = (await supabase.auth.getUser()).data.user;
+      await logActivityLog({
         user_id: user?.id || "system",
         entity_type: "billing_invoice",
         entity_id: inv.id,

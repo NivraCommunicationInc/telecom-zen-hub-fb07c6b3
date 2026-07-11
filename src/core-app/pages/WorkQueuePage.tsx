@@ -16,6 +16,7 @@ import { format, formatDistanceToNowStrict, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { corePath } from "@/core-app/lib/corePaths";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 /* ── Types ── */
 interface QueueOrder {
   id: string;
@@ -248,8 +249,7 @@ const WorkQueuePage = () => {
         .select("id, card_last4, card_brand, card_expiry, card_name, amount, currency, customer_name, customer_email, status, expires_at, created_at")
         .eq("status", "pending_processing")
         .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data || [];
+return data || [];
     },
     refetchInterval: 60_000,
   });
@@ -270,8 +270,7 @@ const WorkQueuePage = () => {
         .eq("environment", "live")
         .order("created_at", { ascending: false })
         .limit(500);
-      if (error) throw error;
-      return (data || []) as QueueOrder[];
+return (data || []) as QueueOrder[];
     },
     refetchInterval: 30_000,
   });
@@ -740,9 +739,7 @@ function SidePreview({ order, onClose }: { order: QueueOrder; onClose: () => voi
           updated_at: now,
         })
         .eq("id", order.id);
-      if (error) throw error;
-
-      await supabase.from("activity_logs").insert({
+await logActivityLog({
         entity_type: "order",
         entity_id: order.id,
         action: "kyc_approved",

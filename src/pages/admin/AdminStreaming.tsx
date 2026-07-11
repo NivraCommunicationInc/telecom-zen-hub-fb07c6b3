@@ -56,6 +56,7 @@ import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+import { logActivityLog } from "@/lib/logActivityLog";
 const categoryIcons: Record<string, any> = {
   video: Film,
   music: Music,
@@ -114,8 +115,7 @@ const AdminStreaming = () => {
         .from("streaming_services")
         .select("*")
         .order("name");
-      if (error) throw error;
-      return data;
+return data;
     },
   });
 
@@ -127,9 +127,7 @@ const AdminStreaming = () => {
         .from("client_streaming_subscriptions")
         .select("*, streaming_services(*)")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-
-      // Fetch profiles for user_ids
+// Fetch profiles for user_ids
       const userIds = [...new Set(subs?.map(s => s.user_id).filter(Boolean))];
       let profilesMap: Record<string, any> = {};
       let accountsMap: Record<string, any> = {};
@@ -175,8 +173,7 @@ const AdminStreaming = () => {
         .from("profiles")
         .select("user_id, full_name, email, client_number")
         .order("full_name");
-      if (error) throw error;
-      return data;
+return data;
     },
   });
 
@@ -198,8 +195,7 @@ const AdminStreaming = () => {
         private_notes: data.private_notes || null,
         is_active: data.is_active,
       });
-      if (error) throw error;
-    },
+},
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-streaming-services"] });
       toast({ title: "Service de streaming créé" });
@@ -231,8 +227,7 @@ const AdminStreaming = () => {
           is_active: data.is_active,
         })
         .eq("id", data.id);
-      if (error) throw error;
-    },
+},
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-streaming-services"] });
       toast({ title: "Service mis à jour" });
@@ -250,8 +245,7 @@ const AdminStreaming = () => {
         .from("streaming_services")
         .delete()
         .eq("id", id);
-      if (error) throw error;
-    },
+},
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-streaming-services"] });
       toast({ title: "Service supprimé" });
@@ -272,8 +266,7 @@ const AdminStreaming = () => {
         status: "active",
         internal_notes: data.internal_notes || null,
       });
-      if (error) throw error;
-    },
+},
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-streaming-subscriptions"] });
       toast({ title: "Abonnement créé" });
@@ -295,11 +288,9 @@ const AdminStreaming = () => {
         .from("client_streaming_subscriptions")
         .update(updateData)
         .eq("id", id);
-      if (error) throw error;
-      
-      // Log to activity_logs
+// Log to activity_logs
       try {
-        await supabase.from("activity_logs").insert({
+        await logActivityLog({
           user_id: "system",
           entity_type: "streaming_subscription",
           entity_id: id,
