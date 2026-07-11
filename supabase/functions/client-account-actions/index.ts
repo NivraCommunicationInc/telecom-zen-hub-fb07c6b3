@@ -1,4 +1,4 @@
-// Module 49 — Phase B1 — Canonical gateway for client account writes
+// Module 49 — Phase B1.1 — Canonical gateway for client account writes
 // Single door for profile / service_addresses / billing address writes.
 // NOTE: email change is intentionally NOT handled here (see email_change_requests).
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
@@ -8,7 +8,6 @@ import { writeAccountJournal } from '../_shared/writeAccountJournal.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 function j(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -29,6 +28,7 @@ const Base = {
   correlation_id: z.string().min(6).max(240).optional(),
 };
 
+// B1.1 FIX: removed `communication_preference` — column does not exist on profiles.
 const ProfileUpdate = z.object({
   action: z.literal('profile.update'),
   ...Base,
@@ -38,7 +38,6 @@ const ProfileUpdate = z.object({
     phone: z.string().trim().min(7).max(30).optional(),
     date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     preferred_language: z.enum(['fr', 'en']).optional(),
-    communication_preference: z.enum(['email', 'sms', 'both', 'none']).optional(),
   }).refine((o) => Object.keys(o).length > 0, { message: 'payload must contain at least one field' }),
 });
 
@@ -138,18 +137,19 @@ async function loadActor(authHeader: string | null) {
   return data?.user ?? null;
 }
 
+// B1.1 FIX: `support_agent` does not exist in app_role — replaced with `support`.
 async function canWriteAccount(svc: any, userId: string, accountId: string): Promise<{ ok: boolean; role: string }> {
-  // Owner check
   const { data: acct } = await svc.from('accounts').select('client_id').eq('id', accountId).maybeSingle();
   if (acct?.client_id === userId) return { ok: true, role: 'client' };
-  // Staff roles
-  for (const role of ['admin', 'supervisor', 'support_agent'] as const) {
+  for (const role of ['admin', 'supervisor', 'support'] as const) {
     const { data: has } = await svc.rpc('has_role', { _user_id: userId, _role: role });
     if (has) return { ok: true, role };
   }
   return { ok: false, role: 'none' };
 }
 
+// B1.1 FIX: replay only when result IS NOT NULL. Poisoned rows (result null)
+// are treated as unclaimed and re-executed. Failed attempts also clean up.
 async function reserveIdempotency(
   svc: any,
   accountId: string,
@@ -158,16 +158,26 @@ async function reserveIdempotency(
   requestHash: string,
   actorId: string,
 ): Promise<{ replay: boolean; result: any | null }> {
-  // Check existing
   const { data: existing } = await svc
     .from('client_account_action_idempotency')
     .select('id, request_hash, result')
     .eq('account_id', accountId)
     .eq('idempotency_key', idempotencyKey)
     .maybeSingle();
-  if (existing) {
-    return { replay: true, result: existing.result ?? { replay: true } };
+
+  if (existing && existing.result !== null) {
+    return { replay: true, result: existing.result };
   }
+
+  if (existing && existing.result === null) {
+    // Stale/poisoned reservation — clear it and re-reserve.
+    await svc
+      .from('client_account_action_idempotency')
+      .delete()
+      .eq('account_id', accountId)
+      .eq('idempotency_key', idempotencyKey);
+  }
+
   const { error } = await svc.from('client_account_action_idempotency').insert({
     account_id: accountId,
     action,
@@ -180,6 +190,14 @@ async function reserveIdempotency(
     throw error;
   }
   return { replay: false, result: null };
+}
+
+async function releaseIdempotency(svc: any, accountId: string, idempotencyKey: string) {
+  await svc
+    .from('client_account_action_idempotency')
+    .delete()
+    .eq('account_id', accountId)
+    .eq('idempotency_key', idempotencyKey);
 }
 
 async function finalizeIdempotency(
@@ -195,6 +213,8 @@ async function finalizeIdempotency(
     .eq('idempotency_key', idempotencyKey);
 }
 
+// B1.1 FIX: admin_audit_log columns are target_type/target_id/admin_email — not resource_*.
+// Journal + audit run best-effort AFTER the business write already succeeded.
 async function auditAndJournal(
   svc: any,
   {
@@ -205,6 +225,7 @@ async function auditAndJournal(
     correlationId,
     actorId,
     actorRole,
+    actorEmail,
   }: {
     accountId: string;
     action: string;
@@ -213,31 +234,40 @@ async function auditAndJournal(
     correlationId: string;
     actorId: string;
     actorRole: string;
+    actorEmail: string | null;
   },
 ) {
-  // admin_audit_log
-  await svc.from('admin_audit_log').insert({
-    admin_user_id: actorId,
-    action: `client_account.${action}`,
-    resource_type: 'account',
-    resource_id: accountId,
-    details: { before, after, correlation_id: correlationId, actor_role: actorRole },
-  });
-
-  // Timeline
   try {
+    await svc.from('admin_audit_log').insert({
+      admin_user_id: actorId,
+      admin_email: actorEmail,
+      action: `client_account.${action}`,
+      target_type: 'account',
+      target_id: accountId,
+      details: { before, after, correlation_id: correlationId, actor_role: actorRole, module_tag: 'module_49' },
+    });
+  } catch (e) {
+    console.warn('admin_audit_log insert failed (non-fatal):', (e as Error).message);
+  }
+
+  try {
+    const { data: acct } = await svc.from('accounts').select('client_id').eq('id', accountId).maybeSingle();
     await writeAccountJournal(svc, {
       targetTable: 'client_activity_logs',
       payload: {
-        client_id: null, // resolved via account_id in RPC
+        client_id: acct?.client_id ?? null,
         account_id: accountId,
-        activity_type: `account.${action}`,
-        description: `Client account ${action}`,
+        action_type: `account.${action}`,
+        entity_type: 'account',
+        entity_id: accountId,
+        summary: `Client account ${action}`,
+        before_data: before,
+        after_data: after,
         metadata: { before, after },
       },
       eventKey: `account:${accountId}:${action}:${correlationId}`,
       correlationId,
-      actor: { userId: actorId, role: actorRole },
+      actor: { userId: actorId, role: actorRole, email: actorEmail },
       visibility: 'staff',
     });
   } catch (e) {
@@ -245,38 +275,58 @@ async function auditAndJournal(
   }
 }
 
+// B1.1 FIX: demote any other primary address on the same account.
+async function demoteOtherPrimaries(svc: any, accountId: string, keepId: string | null) {
+  const q = svc
+    .from('service_addresses')
+    .update({ is_primary: false })
+    .eq('account_id', accountId)
+    .eq('is_primary', true);
+  const { error } = keepId ? await q.neq('id', keepId) : await q;
+  if (error) throw error;
+}
+
 // ---------- Action handlers ----------
 
+// B1.1 FIX: profiles is keyed by user_id (= accounts.client_id), not id.
 async function handleProfileUpdate(svc: any, actor: any, actorRole: string, input: z.infer<typeof ProfileUpdate>, correlationId: string) {
   const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
   if (!acct?.client_id) throw new Error('account not found');
 
   const { data: before } = await svc
     .from('profiles')
-    .select('first_name,last_name,phone,date_of_birth,preferred_language,communication_preference')
-    .eq('id', acct.client_id)
+    .select('first_name,last_name,phone,date_of_birth,preferred_language')
+    .eq('user_id', acct.client_id)
     .maybeSingle();
+  if (!before) throw new Error('profile not found for account.client_id');
 
   const patch: Record<string, unknown> = { ...input.payload };
   const { data: after, error } = await svc
     .from('profiles')
     .update(patch)
-    .eq('id', acct.client_id)
-    .select('first_name,last_name,phone,date_of_birth,preferred_language,communication_preference')
+    .eq('user_id', acct.client_id)
+    .select('first_name,last_name,phone,date_of_birth,preferred_language')
     .maybeSingle();
   if (error) throw error;
+  if (!after) throw new Error('profile update matched no row');
 
   await auditAndJournal(svc, {
     accountId: input.account_id,
     action: 'profile.update',
     before, after,
-    correlationId, actorId: actor.id, actorRole,
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, before, after };
 }
 
 async function handleAddressCreate(svc: any, actor: any, actorRole: string, input: z.infer<typeof AddressCreate>, correlationId: string) {
   const p = input.payload;
+  const willBePrimary = p.is_primary === true;
+
+  if (willBePrimary) {
+    await demoteOtherPrimaries(svc, input.account_id, null);
+  }
+
   const { data: after, error } = await svc.from('service_addresses').insert({
     account_id: input.account_id,
     label: p.label ?? 'Service',
@@ -287,10 +337,10 @@ async function handleAddressCreate(svc: any, actor: any, actorRole: string, inpu
     contact_name: p.contact_name,
     contact_phone: p.contact_phone,
     notes: p.notes,
-    is_primary: p.is_primary ?? false,
+    is_primary: willBePrimary,
     is_active: true,
     created_by_user_id: actor.id,
-    created_via: 'client-account-actions',
+    created_via: 'core',
   }).select('*').maybeSingle();
   if (error) throw error;
 
@@ -298,7 +348,7 @@ async function handleAddressCreate(svc: any, actor: any, actorRole: string, inpu
     accountId: input.account_id,
     action: 'service_address.create',
     before: null, after,
-    correlationId, actorId: actor.id, actorRole,
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, service_address: after };
 }
@@ -307,6 +357,11 @@ async function handleAddressUpdate(svc: any, actor: any, actorRole: string, inpu
   const { service_address_id, ...patch } = input.payload;
   const { data: before } = await svc.from('service_addresses').select('*').eq('id', service_address_id).eq('account_id', input.account_id).maybeSingle();
   if (!before) throw new Error('service_address not found for account');
+
+  if (patch.is_primary === true) {
+    await demoteOtherPrimaries(svc, input.account_id, service_address_id);
+  }
+
   const { data: after, error } = await svc.from('service_addresses').update(patch).eq('id', service_address_id).select('*').maybeSingle();
   if (error) throw error;
 
@@ -314,19 +369,54 @@ async function handleAddressUpdate(svc: any, actor: any, actorRole: string, inpu
     accountId: input.account_id,
     action: 'service_address.update',
     before, after,
-    correlationId, actorId: actor.id, actorRole,
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, service_address: after };
 }
 
+// B1.1 FIX: refuse if an active billing_subscription references this address.
+// Do NOT overwrite notes — append reason into deletion_reason / metadata via notes suffix only when notes is empty.
 async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, input: z.infer<typeof AddressSoftDelete>, correlationId: string) {
   const { service_address_id, reason } = input.payload;
   const { data: before } = await svc.from('service_addresses').select('*').eq('id', service_address_id).eq('account_id', input.account_id).maybeSingle();
   if (!before) throw new Error('service_address not found');
   if (before.is_primary) throw new Error('cannot delete primary service address');
+
+  // Reject if an active subscription is bound to this address.
+  const { count: activeSubs, error: subErr } = await svc
+    .from('billing_subscriptions')
+    .select('id', { count: 'exact', head: true })
+    .eq('service_address_id', service_address_id)
+    .in('status', ['active', 'trialing', 'past_due']);
+  if (subErr) throw subErr;
+  if ((activeSubs ?? 0) > 0) {
+    throw new Error(`cannot delete: ${activeSubs} active subscription(s) still bound to this address`);
+  }
+
+  // Also block if a billing_service_address_id link exists on the account.
+  const { data: acctLink } = await svc
+    .from('accounts')
+    .select('billing_service_address_id')
+    .eq('id', input.account_id)
+    .maybeSingle();
+  if (acctLink?.billing_service_address_id === service_address_id) {
+    throw new Error('cannot delete: this address is the billing address');
+  }
+
+  const patch: Record<string, unknown> = {
+    is_active: false,
+    deleted_at: new Date().toISOString(),
+  };
+  // Preserve existing notes; append reason only if room and non-destructive.
+  if (reason) {
+    const existing = (before.notes ?? '').toString();
+    const suffix = `[deleted: ${reason}]`;
+    patch.notes = existing ? `${existing}\n${suffix}` : suffix;
+  }
+
   const { data: after, error } = await svc
     .from('service_addresses')
-    .update({ is_active: false, deleted_at: new Date().toISOString(), notes: reason ? `[deleted] ${reason}` : before.notes })
+    .update(patch)
     .eq('id', service_address_id)
     .select('*').maybeSingle();
   if (error) throw error;
@@ -335,7 +425,7 @@ async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, 
     accountId: input.account_id,
     action: 'service_address.soft_delete',
     before, after,
-    correlationId, actorId: actor.id, actorRole,
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, service_address: after };
 }
@@ -355,31 +445,38 @@ async function handleAddressRestore(svc: any, actor: any, actorRole: string, inp
     accountId: input.account_id,
     action: 'service_address.restore',
     before, after,
-    correlationId, actorId: actor.id, actorRole,
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, service_address: after };
 }
 
+// B1.1 FIX: null out the 4 legacy billing_* columns when same-as-service.
 async function handleBillingSameAsService(svc: any, actor: any, actorRole: string, input: z.infer<typeof BillingSameAsService>, correlationId: string) {
-  const { data: before } = await svc.from('accounts').select('billing_same_as_service,billing_service_address_id,billing_address,billing_city,billing_province,billing_postal_code').eq('id', input.account_id).maybeSingle();
+  const cols = 'billing_same_as_service,billing_service_address_id,billing_address,billing_city,billing_province,billing_postal_code';
+  const { data: before } = await svc.from('accounts').select(cols).eq('id', input.account_id).maybeSingle();
   const { data: after, error } = await svc.from('accounts').update({
     billing_same_as_service: true,
     billing_service_address_id: null,
-  }).eq('id', input.account_id).select('billing_same_as_service,billing_service_address_id,billing_address,billing_city,billing_province,billing_postal_code').maybeSingle();
+    billing_address: null,
+    billing_city: null,
+    billing_province: null,
+    billing_postal_code: null,
+  }).eq('id', input.account_id).select(cols).maybeSingle();
   if (error) throw error;
 
   await auditAndJournal(svc, {
     accountId: input.account_id,
     action: 'billing_address.set_same_as_service',
     before, after,
-    correlationId, actorId: actor.id, actorRole,
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
 }
 
 async function handleBillingSetCustom(svc: any, actor: any, actorRole: string, input: z.infer<typeof BillingSetCustom>, correlationId: string) {
   const p = input.payload;
-  const { data: before } = await svc.from('accounts').select('billing_same_as_service,billing_service_address_id,billing_address,billing_city,billing_province,billing_postal_code').eq('id', input.account_id).maybeSingle();
+  const cols = 'billing_same_as_service,billing_service_address_id,billing_address,billing_city,billing_province,billing_postal_code';
+  const { data: before } = await svc.from('accounts').select(cols).eq('id', input.account_id).maybeSingle();
   const { data: after, error } = await svc.from('accounts').update({
     billing_same_as_service: false,
     billing_service_address_id: null,
@@ -387,36 +484,42 @@ async function handleBillingSetCustom(svc: any, actor: any, actorRole: string, i
     billing_city: p.billing_city,
     billing_province: p.billing_province,
     billing_postal_code: p.billing_postal_code,
-  }).eq('id', input.account_id).select('billing_same_as_service,billing_service_address_id,billing_address,billing_city,billing_province,billing_postal_code').maybeSingle();
+  }).eq('id', input.account_id).select(cols).maybeSingle();
   if (error) throw error;
 
   await auditAndJournal(svc, {
     accountId: input.account_id,
     action: 'billing_address.set_custom',
     before, after,
-    correlationId, actorId: actor.id, actorRole,
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
 }
 
+// B1.1 FIX: also null out the 4 legacy billing_* columns when linking.
 async function handleBillingLinkToServiceAddress(svc: any, actor: any, actorRole: string, input: z.infer<typeof BillingLinkToServiceAddress>, correlationId: string) {
   const { service_address_id } = input.payload;
   const { data: sa } = await svc.from('service_addresses').select('id,account_id,is_active').eq('id', service_address_id).maybeSingle();
   if (!sa || sa.account_id !== input.account_id) throw new Error('service_address not found for account');
   if (sa.is_active === false) throw new Error('service_address is inactive');
 
-  const { data: before } = await svc.from('accounts').select('billing_same_as_service,billing_service_address_id').eq('id', input.account_id).maybeSingle();
+  const cols = 'billing_same_as_service,billing_service_address_id,billing_address,billing_city,billing_province,billing_postal_code';
+  const { data: before } = await svc.from('accounts').select(cols).eq('id', input.account_id).maybeSingle();
   const { data: after, error } = await svc.from('accounts').update({
     billing_same_as_service: false,
     billing_service_address_id: service_address_id,
-  }).eq('id', input.account_id).select('billing_same_as_service,billing_service_address_id').maybeSingle();
+    billing_address: null,
+    billing_city: null,
+    billing_province: null,
+    billing_postal_code: null,
+  }).eq('id', input.account_id).select(cols).maybeSingle();
   if (error) throw error;
 
   await auditAndJournal(svc, {
     accountId: input.account_id,
     action: 'billing_address.link_to_service_address',
     before, after,
-    correlationId, actorId: actor.id, actorRole,
+    correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
 }
@@ -425,6 +528,7 @@ async function handleBillingLinkToServiceAddress(svc: any, actor: any, actorRole
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  let reservedForCleanup: { accountId: string; key: string } | null = null;
   try {
     const actor = await loadActor(req.headers.get('Authorization'));
     if (!actor) return j({ error: 'unauthorized' }, 401);
@@ -436,15 +540,14 @@ Deno.serve(async (req) => {
 
     const svc = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-    // RBAC
     const rbac = await canWriteAccount(svc, actor.id, input.account_id);
     if (!rbac.ok) return j({ error: 'forbidden' }, 403);
 
-    // Idempotency
     const correlationId = input.correlation_id ?? crypto.randomUUID();
     const requestHash = await sha256(JSON.stringify({ action: input.action, account_id: input.account_id, payload: (input as any).payload ?? {} }));
     const reserved = await reserveIdempotency(svc, input.account_id, input.action, input.idempotency_key, requestHash, actor.id);
     if (reserved.replay) return j({ ok: true, replay: true, result: reserved.result });
+    reservedForCleanup = { accountId: input.account_id, key: input.idempotency_key };
 
     let result: any;
     switch (input.action) {
@@ -460,9 +563,17 @@ Deno.serve(async (req) => {
 
     const response = { ...result, correlation_id: correlationId };
     await finalizeIdempotency(svc, input.account_id, input.idempotency_key, response);
+    reservedForCleanup = null;
     return j(response);
   } catch (e) {
     console.error('client-account-actions error:', e);
+    // B1.1 FIX: delete the poisoned reservation on failure so retries are not blocked.
+    if (reservedForCleanup) {
+      try {
+        const svc = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+        await releaseIdempotency(svc, reservedForCleanup.accountId, reservedForCleanup.key);
+      } catch (_) { /* ignore */ }
+    }
     return j({ error: (e as Error).message || 'internal_error' }, 500);
   }
 });
