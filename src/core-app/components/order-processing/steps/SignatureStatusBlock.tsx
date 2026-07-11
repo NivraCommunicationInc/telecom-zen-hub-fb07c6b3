@@ -14,6 +14,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface SignatureStatusBlockProps {
   contract: any;
   order: any;
@@ -73,15 +74,13 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
       const url = `${SIGN_BASE_URL}/${encodeURIComponent(freshToken)}`;
 
       // 2. Queue branded email through canonical pipeline
-      const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: `contract_sign_request_${contract.id}_${freshToken.slice(0, 12)}`,
-        to_email: clientEmail,
-        template_key: "contract_sign_request",
-        subject: "Votre contrat est prêt à signer — Nivra",
-        entity_type: "contract",
-        entity_id: contract.id,
-        message_type: "contract_signature_request",
-        template_vars: {
+      let qErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "contract_sign_request",
+        recipient: clientEmail,
+        idempotencyKey: `contract_sign_request_${contract.id}_${freshToken.slice(0, 12)}`,
+        templateVars: {
           client_name: clientName,
           client_first_name: order?.client_first_name || "",
           client_last_name: order?.client_last_name || "",
@@ -90,9 +89,11 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
           order_number: order?.order_number || "",
           contract_number: contract?.contract_number || "",
         } as any,
+        subject: "Votre contrat est prêt à signer — Nivra",
         priority: 10,
-        status: "queued",
-      } as any);
+        entityType: "contract",
+        entityId: contract.id,
+      }); } catch (__e) { qErr = __e; }
       if (qErr) throw qErr;
 
       // 3. Update sent_at / sent_count for traceability
@@ -165,15 +166,13 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
     setBusy("resend");
     try {
       // Queue email through canonical pipeline
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `contract_sign_resend_${contract.id}_${(contract.sent_count || 0) + 1}`,
-        to_email: clientEmail,
-        template_key: "contract_sign_request",
-        subject: "Votre contrat est prêt à signer — Nivra",
-        entity_type: "contract",
-        entity_id: contract.id,
-        message_type: "contract_signature_request",
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "contract_sign_request",
+        recipient: clientEmail,
+        idempotencyKey: `contract_sign_resend_${contract.id}_${(contract.sent_count || 0) + 1}`,
+        templateVars: {
           client_name: clientName,
           client_first_name: order?.client_first_name || "",
           client_last_name: order?.client_last_name || "",
@@ -182,9 +181,11 @@ export function SignatureStatusBlock({ contract, order, onRefresh }: SignatureSt
           order_number: order?.order_number || "",
           contract_number: contract?.contract_number || "",
         } as any,
+        subject: "Votre contrat est prêt à signer — Nivra",
         priority: 10,
-        status: "queued",
-      } as any);
+        entityType: "contract",
+        entityId: contract.id,
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
 
       // Bump sent_count for traceability

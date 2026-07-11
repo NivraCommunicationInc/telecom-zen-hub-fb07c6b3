@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { orderEmails } from "@/core-app/lib/emails/orderEmails";
 import { addClientAutoNote, fmtMoney } from "@/core-app/lib/clientAutoNotes";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 /**
  * Append-only email enqueue. NEVER throws — an email failure must not break
  * any order mutation. Logs to console on failure.
@@ -347,17 +348,17 @@ async function queueClientEmail(params: {
       ...(params.mode === "manual" ? { manual_send: true } : {}),
     };
 
-    const { error } = await supabase.from("email_queue").insert({
-      to_email: params.to_email,
-      template_key: params.template_key,
-      event_key: params.event_key,
-      idempotency_key: params.idempotency_key,
+    let error: any = null;
+    try { await enqueueCommunication({
+      channel: "email",
+      templateKey: params.template_key,
+      recipient: params.to_email,
+      idempotencyKey: params.idempotency_key,
+      templateVars: templateVars,
       subject: params.subject,
-      entity_type: params.entity_type || "order",
-      entity_id: params.entity_id,
-      template_vars: templateVars,
-      status: "queued",
-    });
+      entityType: params.entity_type || "order",
+      entityId: params.entity_id,
+    }); } catch (__e) { error = __e; }
     if (error) {
       console.error("[GUARDRAIL][EmailQueue] Insert failed:", error.message, { template: params.template_key, entity: params.entity_id });
       toast.warning(`⚠ Courriel non envoyé (${params.template_key}) — ${error.message}`);

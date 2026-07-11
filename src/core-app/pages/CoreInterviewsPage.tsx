@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-slate-500/15 text-slate-600 border-slate-500/30" },
   invited: { label: "Invité", color: "bg-sky-500/15 text-sky-600 border-sky-500/30" },
@@ -266,13 +267,12 @@ export default function CoreInterviewsPage() {
         .eq("id", id);
       if (error) throw error;
 
-      await supabase.from("email_queue").insert({
-        event_key: `applicant_${decision}_${id}_${Date.now()}`,
-        to_email: a.email,
-        template_key: decision === "accept" ? "applicant_accepted" : "applicant_rejected",
-        template_vars: { first_name: a.first_name, last_name: a.last_name },
-        language: a.interview_language || "fr",
-        status: "queued",
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: decision === "accept" ? "applicant_accepted" : "applicant_rejected",
+        recipient: a.email,
+        idempotencyKey: `applicant_${decision}_${id}_${Date.now()}`,
+        templateVars: { first_name: a.first_name, last_name: a.last_name, language: a.interview_language || "fr" },
       });
       await supabase.from("applicant_emails").insert({
         applicant_id: id,
@@ -389,14 +389,14 @@ export default function CoreInterviewsPage() {
       }
 
       const url = `https://nivra-telecom.ca/onboarding/${tokenToUse}`;
-      const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: `onboarding_invite_${applicant.id}_${Date.now()}`,
-        to_email: applicant.email,
-        template_key: "onboarding_form_invitation",
-        template_vars: { first_name: applicant.first_name, onboarding_url: url },
-        language: applicant.interview_language || "fr",
-        status: "queued",
-      });
+      let qErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "onboarding_form_invitation",
+        recipient: applicant.email,
+        idempotencyKey: `onboarding_invite_${applicant.id}_${Date.now()}`,
+        templateVars: { first_name: applicant.first_name, onboarding_url: url, language: applicant.interview_language || "fr" },
+      }); } catch (__e) { qErr = __e; }
       if (qErr) throw qErr;
       await supabase.from("applicant_emails").insert({
         applicant_id: applicant.id,

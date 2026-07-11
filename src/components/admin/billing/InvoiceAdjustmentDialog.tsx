@@ -20,6 +20,7 @@ import { Plus, Minus, Loader2, FileText, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fetchInvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface AdjustmentLine {
   type: "charge" | "credit";
   description: string;
@@ -96,12 +97,12 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
 
       // 4. Notify client via email queue (if enabled)
       if (notifyClient && invoice.customer?.email) {
-        await supabase.from("email_queue").insert({
-          to_email: invoice.customer.email,
-          to_name: `${invoice.customer.first_name || ""} ${invoice.customer.last_name || ""}`.trim(),
-          subject: `Ajustement de facture ${invoice.invoice_number}`,
-          template_key: "invoice_adjustment",
-          template_data: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "invoice_adjustment",
+          recipient: invoice.customer.email,
+          idempotencyKey: `adj-${invoice.id}-${Date.now()}`,
+          templateVars: {
             invoice_number: invoice.invoice_number,
             adjustment_lines: validLines,
             net_adjustment: netAdjustment,
@@ -109,8 +110,9 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
             new_balance_due: breakdown.balance_due,
             reason: reason || "Correction administrative",
           },
+          subject: `Ajustement de facture ${invoice.invoice_number}`,
           priority: "normal",
-          event_key: `adj-${invoice.id}-${Date.now()}`,
+          toName: `${invoice.customer.first_name || ""} ${invoice.customer.last_name || ""}`.trim(),
         });
       }
 

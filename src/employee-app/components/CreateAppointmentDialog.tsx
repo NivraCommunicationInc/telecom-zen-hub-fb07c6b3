@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -84,19 +85,19 @@ export function CreateAppointmentDialog({ open, onOpenChange, presetClientId, pr
       if (error) throw error;
 
       if (selectedClient.email) {
-        await supabase.from("email_queue").insert({
-          event_key: `appointment_confirmed_${appointment.id}`,
-          to_email: selectedClient.email,
-          template_key: "appointment_confirmed",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "appointment_confirmed",
+          recipient: selectedClient.email,
+          idempotencyKey: `appointment_confirmed_${appointment.id}`,
+          templateVars: {
             client_name: selectedClient.full_name ?? "Client",
             appointment_date: when.toISOString(),
             appointment_time: when.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }),
             technician_name: selectedTech?.full_name ?? "À confirmer",
             address,
           },
-          status: "queued",
-        } as any);
+        });
       }
       return appointment;
     },

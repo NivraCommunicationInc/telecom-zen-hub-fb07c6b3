@@ -20,6 +20,7 @@ import { generateInvoicePDF, generateReceiptPDF, type InvoiceDataV2 } from "@/li
 import { safePDFDownload, safePDFOpen } from "@/lib/pdfUtils";
 import { CoreSquarePaymentDialog } from "@/core-app/components/account-360/CoreSquarePaymentDialog";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const fmt = (n: number) =>
   Number(n || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
 
@@ -415,11 +416,13 @@ function HistoryTab() {
     }
     setSendingId(row.id);
     try {
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `resend_receipt_${row.id}_${Date.now()}`,
-        to_email: row.email,
-        template_key: "payment_receipt",
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "payment_receipt",
+        recipient: row.email,
+        idempotencyKey: `resend_receipt_${row.id}_${Date.now()}`,
+        templateVars: {
           client_name: row.client || "Client",
           first_name: (row.client || "Client").split(" ")[0],
           invoice_number: row.invoice || row.nivra,
@@ -431,10 +434,7 @@ function HistoryTab() {
           invoice_url: row.receipt || undefined,
           receipt_url: row.receipt || undefined,
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success("Reçu envoyé à " + row.email);
     } catch (e: any) {
@@ -449,11 +449,13 @@ function HistoryTab() {
     setSendingId(row.id);
     try {
       const url = publicPayUrl(row.token);
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `public_pay_resend_${row.id}_${Date.now()}`,
-        to_email: row.email,
-        template_key: "invoice_payment_link",
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "invoice_payment_link",
+        recipient: row.email,
+        idempotencyKey: `public_pay_resend_${row.id}_${Date.now()}`,
+        templateVars: {
           client_name: row.client || "Client",
           first_name: (row.client || "Client").split(" ")[0],
           order_number: row.nivra,
@@ -467,10 +469,7 @@ function HistoryTab() {
           agent_name: "Nivra Telecom",
           valid_until: row.expires_at ? new Date(row.expires_at).toLocaleString("fr-CA") : "30 jours",
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       await supabase.from("public_payment_links").update({ sent_at: new Date().toISOString() }).eq("id", row.id);
       toast.success("Lien envoyé à " + row.email);
@@ -835,11 +834,13 @@ function CoreInvoicesTab() {
     if (!email) return toast.error("Email client manquant.");
     setSendingId(row.id);
     try {
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `core_invoice_send_${row.id}_${Date.now()}`,
-        to_email: email,
-        template_key: "invoice_sent",
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "invoice_sent",
+        recipient: email,
+        idempotencyKey: `core_invoice_send_${row.id}_${Date.now()}`,
+        templateVars: {
           client_name: `${row.customer?.first_name || ""} ${row.customer?.last_name || ""}`.trim() || "Client",
           first_name: row.customer?.first_name || "Client",
           invoice_number: row.invoice_number,
@@ -853,10 +854,7 @@ function CoreInvoicesTab() {
           portal_url: window.location.origin,
           payment_url: `${window.location.origin}/payer`,
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success("Facture envoyée à " + email);
     } catch (e: any) {
@@ -1081,11 +1079,13 @@ function CreateLinkForm({ withCustomerSearch }: { withCustomerSearch: boolean })
     setSending(true);
     try {
       const expiresIn24h = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleString("fr-CA");
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `public_pay_link_${result.token}`,
-        to_email: customerEmail.trim(),
-        template_key: "invoice_payment_link",
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "invoice_payment_link",
+        recipient: customerEmail.trim(),
+        idempotencyKey: `public_pay_link_${result.token}`,
+        templateVars: {
           client_name: customerName.trim(),
           first_name: customerName.trim().split(" ")[0],
           order_number: result.nvr,
@@ -1099,10 +1099,7 @@ function CreateLinkForm({ withCustomerSearch }: { withCustomerSearch: boolean })
           agent_name: "Nivra Telecom",
           valid_until: expiresIn24h,
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success("Email envoyé à " + customerEmail);
     } catch (err: any) {

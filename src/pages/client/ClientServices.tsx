@@ -18,6 +18,7 @@ import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 type Subscription = {
   id: string;
   customer_id: string;
@@ -107,12 +108,12 @@ const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: st
         .eq("id", subscription.id);
       if (updErr) throw updErr;
 
-      await portalSupabase.from("email_queue").insert({
-        to_email: (await portalSupabase.auth.getUser()).data.user?.email,
-        template_key: "service_pause_requested",
-        event_key: "service_pause_requested",
-        message_type: "transactional",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "service_pause_requested",
+        recipient: (await portalSupabase.auth.getUser()).data.user?.email,
+        idempotencyKey: "service_pause_requested",
+        templateVars: {
           client_name: (await portalSupabase.auth.getUser()).data.user?.user_metadata?.first_name || "Client",
           pause_from: todayLabel,
           pause_until: resumeLabel,
@@ -120,12 +121,12 @@ const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: st
         },
       });
 
-      await portalSupabase.from("email_queue").insert({
-        to_email: "support@nivra-telecom.ca",
-        template_key: "service_pause_admin_alert",
-        event_key: "service_pause_admin_alert",
-        message_type: "transactional",
-        template_vars: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "service_pause_admin_alert",
+        recipient: "support@nivra-telecom.ca",
+        idempotencyKey: "service_pause_admin_alert",
+        templateVars: {
           client_name: (await portalSupabase.auth.getUser()).data.user?.user_metadata?.first_name || "Client",
           account_number: accountNumber,
           pause_from: todayLabel,

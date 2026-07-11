@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface Props {
   invoice: AdminInvoice | null;
   onClose: () => void;
@@ -118,23 +119,23 @@ export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
         return;
       }
       const eventKey = `manual_invoice_sent_${inv.id}_${Date.now()}`;
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: eventKey,
-        template_key: "invoice_sent",
-        to_email: recipientEmail,
-        subject: `Facture ${inv.invoice_number}`,
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "invoice_sent",
+        recipient: recipientEmail,
+        idempotencyKey: eventKey,
+        templateVars: {
           invoice_number: inv.invoice_number,
           total: inv.total,
           due_date: inv.due_date,
           balance_due: inv.balance_due,
           manual_send: true,
         },
-        entity_type: "invoice",
-        entity_id: inv.id,
-        message_type: "invoice_sent",
-        status: "queued",
-      });
+        subject: `Facture ${inv.invoice_number}`,
+        entityType: "invoice",
+        entityId: inv.id,
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success(`Facture envoyée à ${recipientEmail}`);
       refreshAll();

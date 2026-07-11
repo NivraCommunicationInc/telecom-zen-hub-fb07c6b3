@@ -40,6 +40,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 type FilterKey = "pending" | "approved" | "rejected" | "all";
 type ActionKind = "approve" | "reject" | "view" | null;
 
@@ -424,12 +425,12 @@ export default function CorePlanChangesPage() {
       const client = clients?.[r.client_id];
       const effLabel = effDate ? format(effDate, "d MMMM yyyy", { locale: fr }) : "votre prochain renouvellement";
       if (client?.email) {
-        await supabase.from("email_queue").insert({
-          to_email: client.email,
-          template_key: "plan_change_approved",
-          event_key: "plan_change_approved",
-          message_type: "transactional",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "plan_change_approved",
+          recipient: client.email,
+          idempotencyKey: "plan_change_approved",
+          templateVars: {
             client_name: client.first_name || client.email,
             current_plan_name: r.current_plan_name || "—",
             requested_plan_name: r.requested_plan_name,
@@ -477,12 +478,12 @@ export default function CorePlanChangesPage() {
 
       const client = clients?.[r.client_id];
       if (client?.email) {
-        await supabase.from("email_queue").insert({
-          to_email: client.email,
-          template_key: "plan_change_rejected",
-          event_key: "plan_change_rejected",
-          message_type: "transactional",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "plan_change_rejected",
+          recipient: client.email,
+          idempotencyKey: "plan_change_rejected",
+          templateVars: {
             client_name: client.first_name || client.email,
             requested_plan_name: r.requested_plan_name,
             reason: rejectReason.trim(),

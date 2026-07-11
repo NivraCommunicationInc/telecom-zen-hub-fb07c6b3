@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { AdminPayment } from "@/core-app/hooks/useAdminPayments";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface Props {
   payments: AdminPayment[];
   isLoading: boolean;
@@ -45,11 +46,13 @@ export function PaymentTable({ payments, isLoading, onSelect }: Props) {
     if (!p.customer_email) { toast.error("Aucun courriel client."); return; }
     setSending(p.id);
     try {
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `resend_receipt_${p.id}_${Date.now()}`,
-        to_email: p.customer_email,
-        template_key: "payment_receipt",
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "payment_receipt",
+        recipient: p.customer_email,
+        idempotencyKey: `resend_receipt_${p.id}_${Date.now()}`,
+        templateVars: {
           client_name: p.customer_name || "Client",
           first_name: (p.customer_name || "Client").split(" ")[0],
           invoice_number: p.invoice_number || p.nivra_reference || p.payment_number,
@@ -60,10 +63,7 @@ export function PaymentTable({ payments, isLoading, onSelect }: Props) {
           payment_date: p.received_at || p.created_at,
           receipt_url: p.square_receipt_url || undefined,
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success("Reçu envoyé à " + p.customer_email);
     } catch (e: any) {

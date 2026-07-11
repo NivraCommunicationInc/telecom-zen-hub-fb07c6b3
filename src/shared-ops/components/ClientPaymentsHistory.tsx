@@ -18,6 +18,7 @@ import { CreditCard, Send, ExternalLink, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const SOURCE_LABELS: Record<string, string> = {
   admin: "Nivra Core",
   admin_confirm: "Nivra Core",
@@ -164,11 +165,13 @@ export function ClientPaymentsHistory({
     if (!email) { toast.error("Aucun courriel client."); return; }
     setSending(p.id);
     try {
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `resend_receipt_${p.id}_${Date.now()}`,
-        to_email: email,
-        template_key: "payment_receipt",
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "payment_receipt",
+        recipient: email,
+        idempotencyKey: `resend_receipt_${p.id}_${Date.now()}`,
+        templateVars: {
           client_name: "Client",
           invoice_number: p.invoice?.invoice_number || p.nivra_reference || p.payment_number,
           amount: p.amount,
@@ -178,10 +181,7 @@ export function ClientPaymentsHistory({
           payment_date: p.received_at || p.created_at,
           receipt_url: p.square_receipt_url || undefined,
         },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success("Reçu envoyé à " + email);
     } catch (e: any) {

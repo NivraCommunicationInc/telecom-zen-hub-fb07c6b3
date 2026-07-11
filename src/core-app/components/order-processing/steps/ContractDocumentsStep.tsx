@@ -14,6 +14,7 @@ import { SignatureStatusBlock } from "./SignatureStatusBlock";
 import { StepCompletionCard } from "../StepCompletionCard";
 import { supabase } from "@/integrations/supabase/client";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface Props { proc: any; }
 
 export function ContractDocumentsStep({ proc }: Props) {
@@ -242,11 +243,13 @@ export function ContractDocumentsStep({ proc }: Props) {
 
           const sign_url = `https://nivra-telecom.ca/signer/${signature_token}`;
 
-          const { error: qErr } = await supabase.from("email_queue").insert({
-            event_key: `contract_sign_request_${contractId}`,
-            to_email: clientEmail,
-            template_key: "contract_sign_request",
-            template_vars: {
+          let qErr: any = null;
+          try { await enqueueCommunication({
+            channel: "email",
+            templateKey: "contract_sign_request",
+            recipient: clientEmail,
+            idempotencyKey: `contract_sign_request_${contractId}`,
+            templateVars: {
               client_first_name: order?.client_first_name || proc?.profile?.first_name || "",
               client_last_name: order?.client_last_name || proc?.profile?.last_name || "",
               client_name:
@@ -260,8 +263,7 @@ export function ContractDocumentsStep({ proc }: Props) {
               sign_url,
               signature_url: sign_url,
             },
-            status: "queued",
-          });
+          }); } catch (__e) { qErr = __e; }
           if (qErr) {
             console.error("[ContractSignRequest] enqueue error:", qErr);
           } else {

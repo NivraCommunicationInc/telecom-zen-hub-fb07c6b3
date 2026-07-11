@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface PlanChangeRequestsProps {
   clientId: string;
   accountId?: string;
@@ -219,11 +220,12 @@ export default function PlanChangeRequests({ clientId }: PlanChangeRequestsProps
                     line_type: "service",
                   });
                   if (client?.email) {
-                    await supabase.from("email_queue").insert({
-                      to_email: client.email,
-                      template_key: "invoice_created",
-                      event_key: `proration_invoice_${invoice.id}`,
-                      template_vars: {
+                    await enqueueCommunication({
+                      channel: "email",
+                      templateKey: "invoice_created",
+                      recipient: client.email,
+                      idempotencyKey: `proration_invoice_${invoice.id}`,
+                      templateVars: {
                         client_name: client.first_name || client.email,
                         invoice_number: invoiceNumber,
                         plan_name: req.requested_plan_name,
@@ -248,12 +250,12 @@ export default function PlanChangeRequests({ clientId }: PlanChangeRequestsProps
         : "votre prochain renouvellement";
 
       if (client?.email) {
-        await supabase.from("email_queue").insert({
-          to_email: client.email,
-          template_key: "plan_change_approved",
-          event_key: "plan_change_approved",
-          message_type: "transactional",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "plan_change_approved",
+          recipient: client.email,
+          idempotencyKey: "plan_change_approved",
+          templateVars: {
             client_name: client.first_name || client.email,
             current_plan_name: req.current_plan_name || "—",
             requested_plan_name: req.requested_plan_name,
