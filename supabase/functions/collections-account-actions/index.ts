@@ -336,9 +336,10 @@ serve(async (req) => {
         }
         const { data, error } = await insertAction("writeoff", { notes: body.reason });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:writeoff`;
         await audit("writeoff", { reason: body.reason });
-        await activity("collections_writeoff", invoice_id, `Radiation — facture ${invRef}`, { reason: body.reason });
-        await internalNote(`Recouvrement — RADIATION (bad debt) sur facture ${invRef} par ${callerName}. Motif: ${body.reason.slice(0, 200)}`);
+        await activity("collections_writeoff", invoice_id, `Radiation — facture ${invRef}`, { reason: body.reason }, aid);
+        await internalNote(`Recouvrement — RADIATION (bad debt) sur facture ${invRef} par ${callerName}. Motif: ${body.reason.slice(0, 200)}`, aid);
         return json(200, { ok: true, id: data?.id });
       }
 
