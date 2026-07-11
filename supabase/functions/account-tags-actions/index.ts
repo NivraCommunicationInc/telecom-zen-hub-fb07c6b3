@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
           reason,
           idempotency_key: body.idempotency_key ?? null,
         });
-        await writeParityLogs("tag_add", body.account_id ?? null, { tag: row }, reason);
+        await writeParityLogs("tag_add", body.account_id ?? null, { tag: row }, reason, (data as any).id);
 
         return json({ ok: true, tag: data });
       }
