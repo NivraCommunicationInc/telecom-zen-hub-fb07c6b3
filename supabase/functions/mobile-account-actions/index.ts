@@ -38,6 +38,15 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Minute bucket in base36 — reserved for actions with no stable per-write id.
+// Every mobile action here has a stable business id (mobile_topups.id,
+// mobile_addons.id, sim_actions.id) so it is not currently used, but kept
+// available to mirror the internet-account-actions reference pattern.
+function isoMinuteBucket36(d: Date = new Date()): string {
+  return Math.floor(d.getTime() / 60_000).toString(36);
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
