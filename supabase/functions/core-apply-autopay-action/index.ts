@@ -238,6 +238,7 @@ serve(async (req) => {
         `Carte Square retirée (•••• ${bcBefore.square_card_last4 ?? "?"}) + AutoPay désactivé — motif: ${reason}`,
         "autopay_card_detached",
         { square_card_id: null, autopay_enabled: false },
+        `card_detached:${isoMinuteBucket36()}`,
       );
       return json({ ok: true });
     }
