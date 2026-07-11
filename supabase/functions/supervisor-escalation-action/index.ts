@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
         clientName ??= [cp?.first_name, cp?.last_name].filter(Boolean).join(" ").trim() || cp?.email || null;
       }
       if (clientEmail) {
-        try { await enqueueCommunication({
+        try { await enqueueCommunication(admin, {
           channel: "email", templateKey: "supervisor_escalation",
           recipient: clientEmail, idempotencyKey: b.idempotency_key,
           templateVars: { client_name: clientName, subject: b.subject, description: b.description, ticket_number: ticketNumber, escalation_type: b.escalation_type, language: "fr" },
@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
         }); } catch (e) { console.error("[m45] email failed:", (e as Error).message); }
       }
       // Internal supervisor notification (best-effort)
-      try { await enqueueCommunication({
+      try { await enqueueCommunication(admin, {
         channel: "notification", templateKey: "supervisor_escalation_created_internal",
         recipient: `internal:supervisor`, idempotencyKey: `${b.idempotency_key}:internal`,
         templateVars: { ticket_id: ticketId, ticket_number: ticketNumber, escalation_type: b.escalation_type, subject: b.subject, actor: authorName },
@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
       if (b.new_status === "assigned" && b.assignee_id) {
         const { data: ap } = await admin.from("profiles").select("email, first_name, last_name").eq("id", b.assignee_id).maybeSingle();
         if (ap?.email) {
-          await enqueueCommunication({
+          await enqueueCommunication(admin, {
             channel: "email", templateKey: "supervisor_escalation_assigned",
             recipient: ap.email, idempotencyKey: `${b.idempotency_key}:notif`,
             templateVars: { ticket_number: row.ticket_number, actor: authorName, reason: b.reason },
@@ -312,7 +312,7 @@ Deno.serve(async (req) => {
         }
       } else if (b.new_status === "resolved" || b.new_status === "closed") {
         if (row.created_by_email) {
-          await enqueueCommunication({
+          await enqueueCommunication(admin, {
             channel: "email", templateKey: `supervisor_escalation_${b.new_status}`,
             recipient: row.created_by_email, idempotencyKey: `${b.idempotency_key}:notif`,
             templateVars: { ticket_number: row.ticket_number, actor: authorName, reason: b.reason, new_status: b.new_status },
