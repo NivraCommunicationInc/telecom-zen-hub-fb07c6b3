@@ -171,5 +171,9 @@ export function useAccountAddresses(accountId: string | null | undefined) {
     creating: create.isPending,
     softDelete: softDelete.mutateAsync,
     deleting: softDelete.isPending,
+    restore: restore.mutateAsync,
+    restoring: restore.isPending,
+    update: update.mutateAsync,
+    updating: update.isPending,
   };
 }
