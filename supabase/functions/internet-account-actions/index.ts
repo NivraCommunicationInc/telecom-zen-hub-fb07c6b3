@@ -997,13 +997,17 @@ serve(async (req) => {
         const after = { assignment_id: data.id, ip_address, monthly_price, status: "active" };
         await audit("static_ip_assign", after);
         await activity(
+          `internet:static_ip:${data.id}:assigned:activity`,
           "internet_static_ip_assign",
           data.id,
           "internet_static_ip",
           `IP statique attribuée — ${ip_address} (${fmtMoney(monthly_price)}/mois)`,
           after,
         );
-        await sysNote(`[INTERNET] IP statique attribuée — ${ip_address} · ${fmtMoney(monthly_price)}/mois · Raison: ${reasonStr}`);
+        await sysNote(
+          `internet:static_ip:${data.id}:assigned:note`,
+          `[INTERNET] IP statique attribuée — ${ip_address} · ${fmtMoney(monthly_price)}/mois · Raison: ${reasonStr}`,
+        );
         await enqueueEmail("client_internet_static_ip", {
           mode: "assigned",
           ip_address,
