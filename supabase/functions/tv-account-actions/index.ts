@@ -39,6 +39,15 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Minute bucket in base36 — reserved as a complement to a stable business
+// identity for actions with no natural per-write entity id (e.g. parental
+// controls upsert scoped on (user_id, account_id)). Never used alone.
+function isoMinuteBucket36(d: Date = new Date()): string {
+  return Math.floor(d.getTime() / 60_000).toString(36);
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
