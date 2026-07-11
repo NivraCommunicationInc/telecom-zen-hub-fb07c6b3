@@ -624,9 +624,9 @@ serve(async (req) => {
 
         const after = { addon_id: data.id, addon_code: pack.code, addon_name: pack.name, monthly_price: pack.price };
         await audit("add_themed_pack", after);
-        await activity("service_add", data.id, "service",
+        await activity(`tv:themed_pack:${data.id}:added:activity`, "service_add", data.id, "service",
           `Bouquet TV activé: ${pack.name} (${fmtMoney(pack.price)}/mois)`, after);
-        await sysNote(`[TV] Activation bouquet — ${pack.name} (${pack.code}) · ${fmtMoney(pack.price)}/mois. Motif: ${reasonStr}`);
+        await sysNote(`tv:themed_pack:${data.id}:added:note`, `[TV] Activation bouquet — ${pack.name} (${pack.code}) · ${fmtMoney(pack.price)}/mois. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_pack_change", {
           addon_name: pack.name, monthly_price: fmtMoney(pack.price), change_type: "activated",
         });
