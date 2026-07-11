@@ -217,6 +217,7 @@ serve(async (req) => {
         `AutoPay suspendu (carte conservée) — motif: ${reason}`,
         "autopay_disabled",
         { autopay_enabled: false },
+        `disabled:${isoMinuteBucket36()}`,
       );
       return json({ ok: true });
     }
