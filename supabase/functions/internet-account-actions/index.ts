@@ -858,7 +858,13 @@ serve(async (req) => {
           guest_ssid: body.guest_ssid ?? null,
         };
         await audit("set_wifi", after, before);
+        // WiFi upsert has no per-write natural id (scoped by user_id + account_id).
+        // Anchor on business identity; append minute bucket to permit legitimate
+        // subsequent updates while still deduping accidental double-clicks.
+        const wifiScope = `${client_user_id}:${body.account_id ?? "na"}`;
+        const wifiBucket = body.idempotency_key ?? isoMinuteBucket36();
         await activity(
+          `internet:wifi:${wifiScope}:updated:${wifiBucket}:activity`,
           "internet_wifi_change",
           null,
           "internet_wifi_settings",
@@ -867,6 +873,7 @@ serve(async (req) => {
           before,
         );
         await sysNote(
+          `internet:wifi:${wifiScope}:updated:${wifiBucket}:note`,
           `[INTERNET] WiFi mis à jour — bande ${band_mode}` +
           ` · SSID 2.4: ${body.ssid_24 ?? "—"} · SSID 5: ${body.ssid_5 ?? "—"}` +
           ` · Invité: ${body.guest_enabled ? `oui (${body.guest_ssid ?? "—"})` : "non"}`,
