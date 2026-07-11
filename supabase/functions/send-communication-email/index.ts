@@ -29,12 +29,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY not configured");
-    }
-
+    // RESEND_API_KEY is no longer read here — the drain worker owns delivery.
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get the authenticated user. Default sender is the public support
