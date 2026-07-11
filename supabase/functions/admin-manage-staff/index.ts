@@ -3923,13 +3923,22 @@ serve(async (req: Request) => {
             ].filter(Boolean).join("\n");
 
             if (noteContent) {
-              await adminClient.from("client_internal_notes").insert({
-                client_id: userId,
-                body: noteContent,
-                note_type: "field_sales_info",
-                created_by_user_id: callingUser.id,
-                created_by_role: "admin",
-                created_by_name: callingUser.email,
+              await writeAccountJournal(adminClient, {
+                targetTable: "client_internal_notes",
+                payload: {
+                  client_id: userId,
+                  body: noteContent,
+                  note_type: "field_sales_info",
+                  created_by_user_id: callingUser.id,
+                  created_by_role: "admin",
+                  created_by_name: callingUser.email,
+                },
+                eventKey: `staff:${userId}:field_sales_info:onboarding_note`,
+                actor: {
+                  userId: callingUser.id,
+                  role: "admin",
+                  email: callingUser.email ?? null,
+                },
               });
             }
           } catch (e) {
