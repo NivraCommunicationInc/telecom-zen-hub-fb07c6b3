@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { toast } from "sonner";
 
