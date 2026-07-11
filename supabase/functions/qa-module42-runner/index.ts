@@ -93,25 +93,30 @@ Deno.serve(async (req) => {
   // ---------- Fixtures ----------
   const sessionA = crypto.randomUUID();
   const sessionB = crypto.randomUUID();
-  await admin.from("customer_access_sessions").insert([
-    { id: sessionA, customer_id: fakeClientA, employee_id: actor.id, ip_address: "127.0.0.1", user_agent: `qa-${runId}` },
-    { id: sessionB, customer_id: fakeClientB, employee_id: actor.id, ip_address: "127.0.0.1", user_agent: `qa-${runId}` },
+  const expiresAt = new Date(Date.now() + 24 * 3600_000).toISOString();
+  const { error: sessInsErr } = await admin.from("customer_access_sessions").insert([
+    { id: sessionA, customer_id: fakeClientA, employee_id: actor.id, ip_address: "127.0.0.1", user_agent: `qa-${runId}`, expires_at: expiresAt },
+    { id: sessionB, customer_id: fakeClientB, employee_id: actor.id, ip_address: "127.0.0.1", user_agent: `qa-${runId}`, expires_at: expiresAt },
   ]);
+  if (sessInsErr) return json({ error: "fixture sessions failed: " + sessInsErr.message }, 500);
   cleanup.push({ table: "customer_access_sessions", column: "user_agent", value: `qa-${runId}` });
 
   const secId = crypto.randomUUID();
-  await admin.from("customer_security").insert({
+  const { error: secInsErr } = await admin.from("customer_security").insert({
     id: secId, customer_id: fakeClientA, pin_attempts: 5,
+    pin_hash: "qa-hash-" + runId, pin_salt: "qa-salt-" + runId,
     lock_until: new Date(Date.now() + 3600_000).toISOString(),
   });
+  if (secInsErr) return json({ error: "fixture security failed: " + secInsErr.message }, 500);
   cleanup.push({ table: "customer_security", column: "id", value: secId });
 
   const pinId = crypto.randomUUID();
-  await admin.from("client_login_pins").insert({
+  const { error: pinInsErr } = await admin.from("client_login_pins").insert({
     id: pinId, user_id: fakeClientA, email: `qa-${runId}@example.com`,
     pin_hash: "00", used: false,
     expires_at: new Date(Date.now() + 600_000).toISOString(),
   });
+  if (pinInsErr) return json({ error: "fixture pin failed: " + pinInsErr.message }, 500);
   cleanup.push({ table: "client_login_pins", column: "id", value: pinId });
 
   // ---------- Tests ----------
