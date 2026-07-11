@@ -79,13 +79,18 @@ serve(async (req) => {
             expired_at: now.toISOString(),
           }).eq("id", c.id);
 
-          await supabase.from("client_internal_notes").insert({
-            client_user_id: c.user_id,
-            category: "contract",
-            note: `Contrat ${c.contract_number || c.id.slice(0, 8)} EXPIRÉ après 14 jours sans signature. Suivi manuel requis.`,
-            created_by: null,
-            author_name: "Système — relance auto",
-          } as any);
+          await writeAccountJournal(supabase, {
+            targetTable: "client_internal_notes",
+            eventKey: `contract:${c.id}:expired:note`,
+            payload: {
+              client_user_id: c.user_id,
+              category: "contract",
+              note: `Contrat ${c.contract_number || c.id.slice(0, 8)} EXPIRÉ après 14 jours sans signature. Suivi manuel requis.`,
+              created_by: null,
+              author_name: "Système — relance auto",
+            },
+            actor: SYSTEM_ACTOR,
+          });
 
           stats.expired++;
           continue;
