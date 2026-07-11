@@ -800,6 +800,7 @@ serve(async (req) => {
         };
         await audit("sim_action", after, before, meta.critical ? "critical" : "info");
         await activity(
+          `mobile:sim_action:${data.id}:activity`,
           "service_change",
           data.id,
           "sim_action",
@@ -807,7 +808,7 @@ serve(async (req) => {
           after,
           before,
         );
-        await sysNote(`[MOBILE.SIM_ACTION] ${meta.label}${body.msisdn ? ` — ${body.msisdn}` : ""} — Motif: ${reasonStr}${body.new_iccid ? ` — Nouvelle ICCID: ${body.new_iccid}` : ""}`);
+        await sysNote(`mobile:sim_action:${data.id}:note`, `[MOBILE.SIM_ACTION] ${meta.label}${body.msisdn ? ` — ${body.msisdn}` : ""} — Motif: ${reasonStr}${body.new_iccid ? ` — Nouvelle ICCID: ${body.new_iccid}` : ""}`);
         await enqueueEmail("client_mobile_sim_action", {
           action_label: meta.label,
           reason: reasonStr,
