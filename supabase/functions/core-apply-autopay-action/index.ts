@@ -23,6 +23,13 @@
 // ============================================================================
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Minute bucket in base36 — used only when no stable business identity
+// exists to anchor idempotency (e.g. record_replace_card, non-scoped retry).
+function isoMinuteBucket36(d: Date = new Date()): string {
+  return Math.floor(d.getTime() / 60_000).toString(36);
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
