@@ -790,9 +790,9 @@ serve(async (req) => {
 
         const after = { terminal_action_id: data.id, action_type, terminal_serial: body.terminal_serial ?? null, critical: meta.critical };
         await audit("terminal_action", after);
-        await activity("equipment_change", data.id, "equipment",
+        await activity(`tv:terminal_action:${data.id}:activity`, "equipment_change", data.id, "equipment",
           `${meta.label}${body.terminal_serial ? ` (SN ${body.terminal_serial})` : ""}`, after);
-        await sysNote(`[TV] ${meta.label} — SN ${body.terminal_serial || "—"}. Motif: ${reasonStr}${meta.critical ? " [CRITIQUE]" : ""}`);
+        await sysNote(`tv:terminal_action:${data.id}:note`, `[TV] ${meta.label} — SN ${body.terminal_serial || "—"}. Motif: ${reasonStr}${meta.critical ? " [CRITIQUE]" : ""}`);
         await enqueueEmail("client_tv_terminal_action", {
           action_label: meta.label,
           terminal_serial: body.terminal_serial || "—",
