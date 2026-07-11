@@ -8547,7 +8547,11 @@ export type Database = {
           actor_user_id: string | null
           attachments: Json | null
           attempts: number
+          bcc: Json | null
+          body_html: string | null
+          body_text: string | null
           bounced_at: string | null
+          cc: Json | null
           clicked_at: string | null
           complained_at: string | null
           correlation_id: string | null
@@ -8572,8 +8576,10 @@ export type Database = {
           provider_message_id: string | null
           provider_response: Json | null
           provider_status: string | null
+          reply_to: string | null
           resend_response: Json | null
           retry_count: number | null
+          scheduled_for: string | null
           sent_at: string | null
           sent_count: number | null
           status: string
@@ -8588,7 +8594,11 @@ export type Database = {
           actor_user_id?: string | null
           attachments?: Json | null
           attempts?: number
+          bcc?: Json | null
+          body_html?: string | null
+          body_text?: string | null
           bounced_at?: string | null
+          cc?: Json | null
           clicked_at?: string | null
           complained_at?: string | null
           correlation_id?: string | null
@@ -8613,8 +8623,10 @@ export type Database = {
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
+          reply_to?: string | null
           resend_response?: Json | null
           retry_count?: number | null
+          scheduled_for?: string | null
           sent_at?: string | null
           sent_count?: number | null
           status?: string
@@ -8629,7 +8641,11 @@ export type Database = {
           actor_user_id?: string | null
           attachments?: Json | null
           attempts?: number
+          bcc?: Json | null
+          body_html?: string | null
+          body_text?: string | null
           bounced_at?: string | null
+          cc?: Json | null
           clicked_at?: string | null
           complained_at?: string | null
           correlation_id?: string | null
@@ -8654,8 +8670,10 @@ export type Database = {
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
+          reply_to?: string | null
           resend_response?: Json | null
           retry_count?: number | null
+          scheduled_for?: string | null
           sent_at?: string | null
           sent_count?: number | null
           status?: string
@@ -17323,8 +17341,10 @@ export type Database = {
           idempotency_key: string | null
           payload_json: Json
           preferences_snapshot: Json | null
+          priority: number
           recipient: string
           retry_count: number
+          scheduled_for: string | null
           sent_at: string | null
           status: string
           subject: string
@@ -17344,8 +17364,10 @@ export type Database = {
           idempotency_key?: string | null
           payload_json?: Json
           preferences_snapshot?: Json | null
+          priority?: number
           recipient?: string
           retry_count?: number
+          scheduled_for?: string | null
           sent_at?: string | null
           status?: string
           subject: string
@@ -17365,8 +17387,10 @@ export type Database = {
           idempotency_key?: string | null
           payload_json?: Json
           preferences_snapshot?: Json | null
+          priority?: number
           recipient?: string
           retry_count?: number
+          scheduled_for?: string | null
           sent_at?: string | null
           status?: string
           subject?: string
@@ -24843,6 +24867,8 @@ export type Database = {
           idempotency_key: string | null
           message: string
           preferences_snapshot: Json | null
+          priority: number
+          scheduled_for: string | null
           sent_at: string | null
           status: string
           suppressed_reason: string | null
@@ -24861,6 +24887,8 @@ export type Database = {
           idempotency_key?: string | null
           message: string
           preferences_snapshot?: Json | null
+          priority?: number
+          scheduled_for?: string | null
           sent_at?: string | null
           status?: string
           suppressed_reason?: string | null
@@ -24879,6 +24907,8 @@ export type Database = {
           idempotency_key?: string | null
           message?: string
           preferences_snapshot?: Json | null
+          priority?: number
+          scheduled_for?: string | null
           sent_at?: string | null
           status?: string
           suppressed_reason?: string | null
@@ -32302,17 +32332,27 @@ export type Database = {
         Args: {
           p_actor_role?: string
           p_actor_user_id?: string
+          p_attachments?: Json
+          p_bcc?: Json
+          p_body_html?: string
+          p_body_text?: string
           p_category?: string
+          p_cc?: Json
           p_channel: string
           p_client_id?: string
           p_correlation_id?: string
           p_entity_id?: string
           p_entity_type?: string
           p_idempotency_key?: string
+          p_priority?: number
           p_reason?: string
           p_recipient: string
+          p_reply_to?: string
+          p_scheduled_for?: string
+          p_subject?: string
           p_template_key: string
           p_template_vars?: Json
+          p_to_name?: string
         }
         Returns: Json
       }
