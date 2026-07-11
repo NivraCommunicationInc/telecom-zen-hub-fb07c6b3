@@ -78,37 +78,37 @@ export function useAccountAddresses(accountId: string | null | undefined) {
     };
   }, [accountId, qc, backend]);
 
+  // Module 49 Phase B2: all writes go through client-account-actions gateway.
+  const invokeGateway = async <T = any>(body: Record<string, unknown>): Promise<T> => {
+    const { data, error } = await (backend as any).functions.invoke("client-account-actions", { body });
+    if (error) {
+      const detail = (error as any)?.context?.text ? await (error as any).context.text() : error.message;
+      throw new Error(detail || error.message || "Gateway error");
+    }
+    return data as T;
+  };
+
   const create = useMutation({
     mutationFn: async (input: CreateAddressInput) => {
       if (!accountId) throw new Error("accountId required");
-      const { data, error } = await backend.rpc("resolve_or_create_service_address", {
-        p_account_id: accountId,
-        p_address: input.address_line,
-        p_city: input.city,
-        p_province: input.province ?? "QC",
-        p_postal: input.postal_code,
-        p_created_via: typeof window !== "undefined" && window.location.pathname.startsWith("/portal") ? "portal" : "core",
-        p_actor_user_id: null,
-        p_order_id: null,
-        p_employee_id: null,
-        p_field_agent_id: null,
-        p_label: input.notes ?? null,
-      } as any);
-      if (error) throw error;
-      if (!data) throw new Error("La création de l'adresse a échoué silencieusement (RPC a retourné null).");
-      const { data: confirmed, error: confirmError } = await backend
-        .from("service_addresses")
-        .select("*")
-        .eq("id", data as string)
-        .eq("account_id", accountId)
-        .is("deleted_at", null)
-        .maybeSingle();
-      if (confirmError) throw confirmError;
-      if (!confirmed) {
-        throw new Error("Adresse créée, mais non visible dans ce compte. Succès annulé.");
-      }
-      // Attendre le refetch AVANT de résoudre → la liste est à jour quand
-      // l'UI appelante fait setSelectedId(id) juste après.
+      const idempotencyKey = `sa-create:${accountId}:${(input.address_line || "").toLowerCase().replace(/\s+/g, "-").slice(0, 60)}:${Date.now()}`;
+      const res = await invokeGateway<{ ok: boolean; service_address: ServiceAddress; correlation_id: string }>({
+        action: "service_address.create",
+        account_id: accountId,
+        payload: {
+          address_line: input.address_line,
+          city: input.city,
+          province: input.province ?? "QC",
+          postal_code: input.postal_code,
+          contact_name: input.contact_name,
+          contact_phone: input.contact_phone,
+          notes: input.notes,
+          label: input.notes ?? undefined,
+        },
+        idempotency_key: idempotencyKey,
+      });
+      const confirmed = res?.service_address;
+      if (!confirmed?.id) throw new Error("La création de l'adresse a échoué (gateway).");
       qc.setQueryData<ServiceAddress[]>(queryKey, (current = []) => {
         const next = current.filter((address) => address.id !== confirmed.id);
         next.push(confirmed as ServiceAddress);
@@ -116,17 +116,47 @@ export function useAccountAddresses(accountId: string | null | undefined) {
       });
       await qc.invalidateQueries({ queryKey });
       await qc.refetchQueries({ queryKey });
-      return data as string;
+      return confirmed.id;
     },
   });
 
   const softDelete = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await backend
-        .from("service_addresses")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
+      if (!accountId) throw new Error("accountId required");
+      await invokeGateway({
+        action: "service_address.soft_delete",
+        account_id: accountId,
+        payload: { service_address_id: id },
+        idempotency_key: `sa-delete:${accountId}:${id}:${Date.now()}`,
+      });
+      await qc.invalidateQueries({ queryKey });
+      await qc.refetchQueries({ queryKey });
+    },
+  });
+
+  const restore = useMutation({
+    mutationFn: async (id: string) => {
+      if (!accountId) throw new Error("accountId required");
+      await invokeGateway({
+        action: "service_address.restore",
+        account_id: accountId,
+        payload: { service_address_id: id },
+        idempotency_key: `sa-restore:${accountId}:${id}:${Date.now()}`,
+      });
+      await qc.invalidateQueries({ queryKey });
+      await qc.refetchQueries({ queryKey });
+    },
+  });
+
+  const update = useMutation({
+    mutationFn: async (input: { id: string; patch: Partial<CreateAddressInput> & { label?: string; is_primary?: boolean } }) => {
+      if (!accountId) throw new Error("accountId required");
+      await invokeGateway({
+        action: "service_address.update",
+        account_id: accountId,
+        payload: { service_address_id: input.id, ...input.patch },
+        idempotency_key: `sa-update:${accountId}:${input.id}:${Date.now()}`,
+      });
       await qc.invalidateQueries({ queryKey });
       await qc.refetchQueries({ queryKey });
     },

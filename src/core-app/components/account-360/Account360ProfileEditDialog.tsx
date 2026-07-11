@@ -1,10 +1,22 @@
 /**
- * Account360ProfileEditDialog — Direct client profile/account editing from Core Account 360.
+ * Account360ProfileEditDialog — Core Account 360 client profile editor.
+ *
+ * Module 49 Phase B2: routes all writes through the canonical
+ * `client-account-actions` Edge Function via callCoreAction.
+ * No more direct .from("profiles").update / .from("accounts").update.
+ *
+ * Scope of this dialog is now PROFILE FIELDS ONLY:
+ *   first_name, last_name, phone, date_of_birth, preferred_language
+ *
+ * Address editing (service + billing) has its own dedicated managers
+ * (ServiceAddressPicker + ClientBillingAddressSection) which also use the gateway.
+ * Email change goes through the email_change_requests workflow (unchanged).
  */
 import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -20,10 +32,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, UserPen } from "lucide-react";
-import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import { callCoreAction } from "@/core-app/lib/callCoreAction";
 
 interface Props {
   open: boolean;
@@ -35,50 +46,29 @@ interface Props {
   isAdminCore?: boolean;
 }
 
-const PROVINCES = ["QC", "ON", "BC", "AB", "MB", "NB", "NL", "NS", "PE", "SK", "NT", "NU", "YT"];
-
 const formSchema = z.object({
-  first_name: z.string().trim().min(1, "Prénom requis").max(100),
-  last_name: z.string().trim().min(1, "Nom requis").max(100),
-  email: z.string().trim().email("Email invalide").max(255),
-  phone: z.string().trim().max(25).optional().or(z.literal("")),
+  first_name: z.string().trim().min(1, "Prénom requis").max(80),
+  last_name: z.string().trim().min(1, "Nom requis").max(80),
+  phone: z.string().trim().max(30).optional().or(z.literal("")),
   date_of_birth: z.string().optional().or(z.literal("")),
-  primary_service_address: z.string().trim().max(255).optional().or(z.literal("")),
-  primary_service_city: z.string().trim().max(100).optional().or(z.literal("")),
-  primary_service_province: z.string().trim().max(8).optional().or(z.literal("")),
-  primary_service_postal_code: z.string().trim().max(12).optional().or(z.literal("")),
-  billing_address: z.string().trim().max(255).optional().or(z.literal("")),
-  billing_city: z.string().trim().max(100).optional().or(z.literal("")),
-  billing_province: z.string().trim().max(8).optional().or(z.literal("")),
-  billing_postal_code: z.string().trim().max(12).optional().or(z.literal("")),
+  preferred_language: z.enum(["fr", "en"]).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-const normalizePostal = (v?: string | null) => (v || "").trim().toUpperCase();
-const normalizeEmail = (v?: string | null) => (v || "").trim().toLowerCase();
-
-const buildInitial = (account: any, profile: any): FormValues => ({
+const buildInitial = (profile: any): FormValues => ({
   first_name: profile?.first_name || "",
   last_name: profile?.last_name || "",
-  email: profile?.email || "",
   phone: profile?.phone || "",
   date_of_birth: profile?.date_of_birth || "",
-  primary_service_address: account?.primary_service_address || "",
-  primary_service_city: account?.primary_service_city || "",
-  primary_service_province: account?.primary_service_province || "QC",
-  primary_service_postal_code: account?.primary_service_postal_code || "",
-  billing_address: account?.billing_address || "",
-  billing_city: account?.billing_city || "",
-  billing_province: account?.billing_province || "QC",
-  billing_postal_code: account?.billing_postal_code || "",
+  preferred_language: (profile?.preferred_language as "fr" | "en") || "fr",
 });
 
 export function Account360ProfileEditDialog({ open, onOpenChange, account, profile, clientId, onSaved, isAdminCore = false }: Props) {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const initial = useMemo(() => buildInitial(account, profile), [account, profile]);
+  const initial = useMemo(() => buildInitial(profile), [profile]);
   const [form, setForm] = useState<FormValues>(initial);
 
   useEffect(() => {
@@ -89,7 +79,7 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
   }, [open, initial]);
 
   const setField = (key: keyof FormValues, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => ({ ...prev, [key]: value as any }));
     setErrors((prev) => {
       if (!prev[key]) return prev;
       const next = { ...prev };
@@ -99,14 +89,7 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
   };
 
   const validate = () => {
-    const candidate: FormValues = {
-      ...form,
-      email: normalizeEmail(form.email),
-      primary_service_postal_code: normalizePostal(form.primary_service_postal_code),
-      billing_postal_code: normalizePostal(form.billing_postal_code),
-    };
-
-    const parsed = formSchema.safeParse(candidate);
+    const parsed = formSchema.safeParse(form);
     if (!parsed.success) {
       const nextErrors: Record<string, string> = {};
       parsed.error.issues.forEach((issue) => {
@@ -116,48 +99,39 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
       setErrors(nextErrors);
       return null;
     }
-
-    if (candidate.phone && !/^[0-9+()\-\s]{7,25}$/.test(candidate.phone)) {
+    if (parsed.data.phone && !/^[0-9+()\-\s]{7,25}$/.test(parsed.data.phone)) {
       setErrors((prev) => ({ ...prev, phone: "Téléphone invalide" }));
       return null;
     }
-
-    if (candidate.date_of_birth && Number.isNaN(new Date(candidate.date_of_birth).getTime())) {
+    if (parsed.data.date_of_birth && Number.isNaN(new Date(parsed.data.date_of_birth).getTime())) {
       setErrors((prev) => ({ ...prev, date_of_birth: "Date de naissance invalide" }));
       return null;
     }
-
     return parsed.data;
   };
 
-  const diffMap = (base: FormValues, current: FormValues) => {
-    const changed: Record<string, { before: string; after: string }> = {};
+  const buildDiffPayload = (base: FormValues, current: FormValues): Record<string, string | null> => {
+    const patch: Record<string, string | null> = {};
     (Object.keys(current) as (keyof FormValues)[]).forEach((k) => {
-      if ((base[k] || "") !== (current[k] || "")) {
-        changed[k] = { before: base[k] || "", after: current[k] || "" };
+      const before = (base[k] ?? "") as string;
+      const after = (current[k] ?? "") as string;
+      if (before !== after) {
+        patch[k] = (after || null) as any;
       }
     });
-    return changed;
+    return patch;
   };
 
   const handleSave = async () => {
-    if (!account?.id || !clientId) {
+    if (!account?.id) {
       toast.error("Contexte client introuvable");
       return;
     }
-
     const valid = validate();
     if (!valid) return;
 
-    const cleaned: FormValues = {
-      ...valid,
-      email: normalizeEmail(valid.email),
-      primary_service_postal_code: normalizePostal(valid.primary_service_postal_code),
-      billing_postal_code: normalizePostal(valid.billing_postal_code),
-    };
-
-    const changed = diffMap(initial, cleaned);
-    if (Object.keys(changed).length === 0) {
+    const patch = buildDiffPayload(initial, valid);
+    if (Object.keys(patch).length === 0) {
       toast.info("Aucune modification détectée");
       onOpenChange(false);
       return;
@@ -165,98 +139,24 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
 
     setSaving(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!authData.user?.id) throw new Error("Session admin invalide");
-
-      const profilePatch: Record<string, any> = {};
-      const accountPatch: Record<string, any> = {};
-
-      ["first_name", "last_name", "email", "phone", "date_of_birth"].forEach((k) => {
-        if (changed[k]) profilePatch[k] = cleaned[k as keyof FormValues] || null;
+      const idempotencyKey = `profile-update:${account.id}:${new Date().toISOString().slice(0, 16)}:${Object.keys(patch).sort().join(",")}`;
+      const correlationId = crypto.randomUUID();
+      const res = await callCoreAction("client-account-actions", {
+        action: "profile.update",
+        account_id: account.id,
+        payload: patch,
+        idempotency_key: idempotencyKey,
+        correlation_id: correlationId,
+      }, {
+        reason: `Modification du profil client (${Object.keys(patch).join(", ")})`,
+        successMessage: "Profil client mis à jour",
+        errorMessage: "Échec de la mise à jour du profil",
       });
-
-      [
-        "primary_service_address", "primary_service_city", "primary_service_province", "primary_service_postal_code",
-        "billing_address", "billing_city", "billing_province", "billing_postal_code",
-      ].forEach((k) => {
-        if (changed[k]) accountPatch[k] = cleaned[k as keyof FormValues] || null;
-      });
-
-      if (Object.keys(profilePatch).length > 0) {
-        if (changed.first_name || changed.last_name) {
-          profilePatch.full_name = `${cleaned.first_name} ${cleaned.last_name}`.trim();
-        }
-        const { error } = await supabase
-          .from("profiles")
-          .update(profilePatch)
-          .eq("user_id", clientId);
-        if (error) throw error;
-      }
-
-      if (Object.keys(accountPatch).length > 0) {
-        const { error } = await supabase
-          .from("accounts")
-          .update({ ...accountPatch, updated_at: new Date().toISOString() })
-          .eq("id", account.id);
-        if (error) throw error;
-      }
-
-      const changedFields = Object.keys(changed);
-      const beforeData = Object.fromEntries(changedFields.map((f) => [f, changed[f].before]));
-      const afterData = Object.fromEntries(changedFields.map((f) => [f, changed[f].after]));
-
-      const { writeAccountJournal } = await import("@/lib/writeAccountJournal");
-      await writeAccountJournal({
-        targetTable: "client_activity_logs",
-        eventKey: `account:${account.id}:profile_update:${authData.user.id}:${new Date().toISOString().slice(0, 16)}`,
-        visibility: "staff",
-        payload: {
-          client_id: clientId,
-          action_type: "profile_update",
-          summary: `Mise à jour profil client (${changedFields.join(", ")})`,
-          entity_type: "account_profile",
-          entity_id: account.id,
-          before_data: beforeData,
-          after_data: afterData,
-        },
-      });
-
-      // Admin audit log (required by Client 360 DoD)
-      await supabase.from("admin_audit_log").insert({
-        admin_user_id: authData.user.id,
-        admin_email: authData.user.email || null,
-        action: "client_profile_update",
-        target_type: "profile",
-        target_id: clientId,
-        target_email: cleaned.email || null,
-        details: {
-          account_id: account.id,
-          changed_fields: changedFields,
-          before: beforeData,
-          after: afterData,
-        },
-      });
-
-      addClientAutoNote({
-        clientId,
-        event: "personal_info_updated",
-        detail: `Champs modifiés: ${changedFields.join(", ")}`,
-      });
-      toast.success("Profil client mis à jour");
+      if (!res.ok) return; // toast already shown
       onOpenChange(false);
       onSaved();
     } catch (e: any) {
-      const msg = e?.message || "Erreur pendant la sauvegarde";
-      if (msg.includes("IDENTITY_FIELD_LOCKED")) {
-        toast.error("Champ identité verrouillé — un admin peut le débloquer via la page KYC.");
-      } else if (msg.includes("not allowed:")) {
-        toast.error(`Modification refusée: ${msg.replace(/^.*not allowed:\s*/, "")}`);
-      } else if (msg.toLowerCase().includes("duplicate") || msg.includes("unique")) {
-        toast.error("Cette adresse courriel est déjà utilisée par un autre compte.");
-      } else {
-        toast.error(msg);
-      }
+      toast.error(e?.message || "Erreur pendant la sauvegarde");
     } finally {
       setSaving(false);
     }
@@ -264,12 +164,16 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPen className="h-4 w-4 text-primary" />
             Modifier le profil client
           </DialogTitle>
+          <DialogDescription className="text-[11px] text-muted-foreground">
+            L'adresse de service et l'adresse de facturation se gèrent via leurs modules dédiés.
+            Le changement d'email suit le flux <code>email_change_requests</code>.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -278,7 +182,6 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Prénom" value={form.first_name} onChange={(v) => setField("first_name", v)} error={errors.first_name} />
               <Field label="Nom" value={form.last_name} onChange={(v) => setField("last_name", v)} error={errors.last_name} />
-              <Field label="Email" type="email" value={form.email} onChange={(v) => setField("email", v)} error={errors.email} />
               <Field label="Téléphone" value={form.phone || ""} onChange={(v) => setField("phone", v)} error={errors.phone} />
               {profile?.dob_locked && !isAdminCore ? (
                 <div>
@@ -291,33 +194,15 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
               ) : (
                 <Field label="Date de naissance" type="date" value={form.date_of_birth || ""} onChange={(v) => setField("date_of_birth", v)} error={errors.date_of_birth} />
               )}
-            </div>
-          </section>
-
-          <section className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Adresse service</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <Field label="Adresse service" value={form.primary_service_address || ""} onChange={(v) => setField("primary_service_address", v)} error={errors.primary_service_address} />
-              </div>
-              <Field label="Ville" value={form.primary_service_city || ""} onChange={(v) => setField("primary_service_city", v)} error={errors.primary_service_city} />
-              <div className="grid grid-cols-2 gap-3">
-                <SelectField label="Province" value={form.primary_service_province || "QC"} onChange={(v) => setField("primary_service_province", v)} options={PROVINCES} />
-                <Field label="Code postal" value={form.primary_service_postal_code || ""} onChange={(v) => setField("primary_service_postal_code", v)} error={errors.primary_service_postal_code} />
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Adresse facturation</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <Field label="Adresse facturation" value={form.billing_address || ""} onChange={(v) => setField("billing_address", v)} error={errors.billing_address} />
-              </div>
-              <Field label="Ville" value={form.billing_city || ""} onChange={(v) => setField("billing_city", v)} error={errors.billing_city} />
-              <div className="grid grid-cols-2 gap-3">
-                <SelectField label="Province" value={form.billing_province || "QC"} onChange={(v) => setField("billing_province", v)} options={PROVINCES} />
-                <Field label="Code postal" value={form.billing_postal_code || ""} onChange={(v) => setField("billing_postal_code", v)} error={errors.billing_postal_code} />
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Langue préférée</Label>
+                <Select value={form.preferred_language || "fr"} onValueChange={(v) => setField("preferred_language", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fr">Français</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </section>
@@ -352,34 +237,6 @@ function Field({
       <Label className="text-[11px] text-muted-foreground">{label}</Label>
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className={error ? "border-destructive" : ""} />
       {error ? <p className="text-[10px] text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((o) => (
-            <SelectItem key={o} value={o}>{o}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
     </div>
   );
 }
