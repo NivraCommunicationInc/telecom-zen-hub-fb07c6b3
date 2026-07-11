@@ -6,6 +6,7 @@
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { sendOfficialEmail } from "../_shared/officialEmail.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface Payload {
   clientEmail: string;
@@ -54,18 +55,25 @@ Deno.serve(async (req) => {
     });
 
     try {
-      await supabase.from("activity_logs").insert({
-        user_id: body.clientUserId ?? null,
-        action: `core_action.${body.actionKey}`,
-        entity_type: "account",
-        entity_id: body.accountId ?? null,
-        actor_role: "core_staff",
-        reason: body.reason ?? null,
-        details: {
-          subject: body.subject,
-          email_result: result.success ? "sent" : "failed",
-          email_id: result.id,
+      const anchor = body.accountId ?? body.clientUserId ?? body.clientEmail;
+      const minute = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+      await writeAccountJournal(supabase, {
+        targetTable: "activity_logs",
+        payload: {
+          user_id: body.clientUserId ?? null,
+          action: `core_action.${body.actionKey}`,
+          entity_type: "account",
+          entity_id: body.accountId ?? null,
+          actor_role: "core_staff",
+          reason: body.reason ?? null,
+          details: {
+            subject: body.subject,
+            email_result: result.success ? "sent" : "failed",
+            email_id: result.id,
+          },
         },
+        eventKey: `core_notify:${anchor}:${body.actionKey}:${minute}`,
+        actor: { userId: body.clientUserId ?? "00000000-0000-0000-0000-000000000000", role: "core_staff", name: "core_staff", email: null },
       });
     } catch (e) {
       console.error("[core-client-notify] audit insert failed", e);

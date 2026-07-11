@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface CreateUserRequest {
   email: string;
@@ -206,19 +207,24 @@ Deno.serve(async (req) => {
     }
 
     // Log the activity
-    await supabaseAdmin.from("activity_logs").insert({
-      user_id: callingUser.id,
-      entity_type: "client",
-      entity_id: authData.user.id,
-      action: "create",
-      new_value: JSON.stringify({ 
-        email: body.email, 
-        full_name: body.full_name,
-        created_via: "admin_edge_function"
-      }),
-      reason: "Nouveau client créé par admin (server-side)",
-      actor_email: callingUser.email,
-      actor_role: callerRole || "admin",
+    await writeAccountJournal(supabaseAdmin, {
+      targetTable: "activity_logs",
+      payload: {
+        user_id: callingUser.id,
+        entity_type: "client",
+        entity_id: authData.user.id,
+        action: "create",
+        new_value: JSON.stringify({
+          email: body.email,
+          full_name: body.full_name,
+          created_via: "admin_edge_function",
+        }),
+        reason: "Nouveau client créé par admin (server-side)",
+        actor_email: callingUser.email,
+        actor_role: callerRole || "admin",
+      },
+      eventKey: `client:${authData.user.id}:created_by_admin`,
+      actor: { userId: callingUser.id, role: callerRole || "admin", name: callingUser.email ?? "admin", email: callingUser.email ?? null },
     });
 
     console.log(`User creation completed successfully for ${body.email}`);
