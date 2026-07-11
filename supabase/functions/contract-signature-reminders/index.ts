@@ -120,12 +120,17 @@ serve(async (req) => {
             last_reminder_at: now.toISOString(),
             reminder_count: (c.reminder_count ?? 0) + 1,
           }).eq("id", c.id);
-          await supabase.from("client_internal_notes").insert({
-            client_user_id: c.user_id,
-            category: "contract",
-            note: `Rappel FINAL de signature (J+7) envoyé pour contrat ${c.contract_number || c.id.slice(0, 8)}.`,
-            author_name: "Système — relance auto",
-          } as any);
+          await writeAccountJournal(supabase, {
+            targetTable: "client_internal_notes",
+            eventKey: `contract:${c.id}:reminder:final:note`,
+            payload: {
+              client_user_id: c.user_id,
+              category: "contract",
+              note: `Rappel FINAL de signature (J+7) envoyé pour contrat ${c.contract_number || c.id.slice(0, 8)}.`,
+              author_name: "Système — relance auto",
+            },
+            actor: SYSTEM_ACTOR,
+          });
           stats.reminded_j7++;
           continue;
         }
