@@ -46,11 +46,21 @@ export type AccountJournalTable =
   | "order_status_history"
   | "order_internal_notes";
 
+export type AccountJournalVisibility = "client" | "staff" | "admin";
+
 export interface WriteAccountJournalInput {
   targetTable: AccountJournalTable;
   payload: Record<string, unknown>;
   eventKey: string;
   correlationId?: string | null;
+  /**
+   * Module 44 visibility contract:
+   *   - "client" : event surfaces in the client portal timeline
+   *   - "staff"  : internal, staff-only
+   *   - "admin"  : sensitive (fraud, security, kyc, consent, privacy, docs)
+   * Defaults inferred by targetTable when omitted.
+   */
+  visibility?: AccountJournalVisibility;
 }
 
 export interface WriteAccountJournalResult {
