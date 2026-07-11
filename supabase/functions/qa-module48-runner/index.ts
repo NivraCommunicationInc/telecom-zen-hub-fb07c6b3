@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     // 9. timeline view includes account_ownership_transfers — insert synthetic row, verify appearance, cleanup
     {
       // Need a real account_id + old_client_id. Pick any existing account.
-      const { data: acct } = await admin.from('accounts').select('id,user_id').limit(1).maybeSingle();
+      const { data: acct } = await admin.from('accounts').select('id,client_id').not('client_id', 'is', null).limit(1).maybeSingle();
       if (!acct) {
         push('T09', 'v_customer_timeline includes account_transfer', false, 'no account to probe');
       } else {
