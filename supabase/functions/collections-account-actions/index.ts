@@ -236,9 +236,10 @@ serve(async (req) => {
         const action_type = ch === "phone" ? "contact_phone" : ch === "sms" ? "contact_sms" : "contact_email";
         const { data, error } = await insertAction(action_type, { notes: body.notes ?? null });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:${action_type}`;
         await audit("log_contact", { channel: ch });
-        await activity(`collections_${action_type}`, invoice_id, `Contact ${ch} pour facture ${invRef}`, { channel: ch });
-        await internalNote(`Recouvrement — contact ${ch} sur facture ${invRef} par ${callerName}.${body.notes ? ` Note: ${body.notes.slice(0, 200)}` : ""}`);
+        await activity(`collections_${action_type}`, invoice_id, `Contact ${ch} pour facture ${invRef}`, { channel: ch }, aid);
+        await internalNote(`Recouvrement — contact ${ch} sur facture ${invRef} par ${callerName}.${body.notes ? ` Note: ${body.notes.slice(0, 200)}` : ""}`, aid);
         if (ch === "email") {
           await enqueueEmail("client_collections_reminder", {
             subject: `Rappel — Facture #${inv.invoice_number}`,
