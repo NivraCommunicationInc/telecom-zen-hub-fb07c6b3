@@ -48,7 +48,7 @@ export async function executeNovaAction(
 
       case "send_email": {
         const { to_email, template_key, vars } = action.payload;
-        const { error } = await supabaseenqueueCommunication({
+        const { error } = await enqueueCommunication({
           channel: "email",
           templateKey: template_key,
           recipient: to_email,

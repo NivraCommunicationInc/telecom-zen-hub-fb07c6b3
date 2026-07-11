@@ -120,7 +120,7 @@ export default function ClientPhoneOrders() {
 
       // Best-effort acknowledgement email
       if (target.orders?.client_email) {
-        await supabaseenqueueCommunication({
+        await enqueueCommunication({
           channel: "email",
           templateKey: "phone_return_requested_ack",
           recipient: target.orders.client_email,

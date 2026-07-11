@@ -552,7 +552,7 @@ async function queuePhoneEmail(args: {
 }) {
   if (!args.recipient) return;
   try {
-    await supabaseenqueueCommunication({
+    await enqueueCommunication({
       channel: "email",
       templateKey: args.templateKey,
       recipient: args.recipient,

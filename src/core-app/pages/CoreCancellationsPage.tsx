@@ -433,7 +433,7 @@ export default function CoreCancellationsPage() {
               planName = subRow?.plan_name ?? null;
             }
 
-            await supabaseenqueueCommunication({
+            await enqueueCommunication({
               channel: "email",
               templateKey: "service_cancelled",
               recipient: clientProfile.email,

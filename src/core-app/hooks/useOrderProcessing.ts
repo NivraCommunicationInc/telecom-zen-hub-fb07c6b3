@@ -13,7 +13,6 @@ import { orderEmails } from "@/core-app/lib/emails/orderEmails";
 import { addClientAutoNote, fmtMoney } from "@/core-app/lib/clientAutoNotes";
 
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
-import { enqueueCommunication } from "@/lib/enqueueCommunication";
 /**
  * Append-only email enqueue. NEVER throws — an email failure must not break
  * any order mutation. Logs to console on failure.

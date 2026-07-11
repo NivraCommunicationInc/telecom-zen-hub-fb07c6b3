@@ -157,7 +157,7 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
       const { data: profile } = await supabase.from("profiles").select("email, full_name").eq("user_id", clientId).maybeSingle();
       if (!profile?.email) { toast.error("Email client introuvable"); return; }
 
-      await supabaseenqueueCommunication({
+      await enqueueCommunication({
         channel: "email",
         templateKey: "contract_ready_for_signature",
         recipient: profile.email,

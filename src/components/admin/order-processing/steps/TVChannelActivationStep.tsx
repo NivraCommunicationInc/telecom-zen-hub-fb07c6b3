@@ -20,7 +20,7 @@ async function queueChannelConfirmedEmail(order: any, channels: { name: string; 
     const email = order.client_email || profile?.email;
     if (!email) return;
 
-    await supabaseenqueueCommunication({
+    await enqueueCommunication({
       channel: "email",
       templateKey: "client_tv_channels_confirmed",
       recipient: email,

@@ -176,7 +176,7 @@ export function AccountProfileHeader({
     }
     setSaving(true);
     try {
-      const { error } = await supabaseenqueueCommunication({
+      const { error } = await enqueueCommunication({
         channel: "email",
         templateKey: "admin_manual_communication",
         recipient: profile.email,

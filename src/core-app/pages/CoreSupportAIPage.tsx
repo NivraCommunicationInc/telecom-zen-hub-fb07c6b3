@@ -96,7 +96,7 @@ export default function CoreSupportAIPage() {
 
   const sendReply = async () => {
     if (!selected || !reply.trim()) return;
-    const { error: emailErr } = await supabaseenqueueCommunication({
+    const { error: emailErr } = await enqueueCommunication({
       channel: "email",
       templateKey: "support_ai_response",
       recipient: selected.from_email,

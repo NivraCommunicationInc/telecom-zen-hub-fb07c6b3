@@ -127,7 +127,7 @@ export function AccountClosureDialog({
 
       // 3) Queue closure-requested email
       if (clientEmail) {
-        await supabaseenqueueCommunication({
+        await enqueueCommunication({
           channel: "email",
           templateKey: "account_closure_requested",
           recipient: clientEmail,
