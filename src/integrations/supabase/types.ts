@@ -872,6 +872,8 @@ export type Database = {
           billing_cycle_timezone: string | null
           billing_postal_code: string | null
           billing_province: string | null
+          billing_same_as_service: boolean
+          billing_service_address_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           chargeback_last_interest_at: string | null
@@ -917,6 +919,8 @@ export type Database = {
           billing_cycle_timezone?: string | null
           billing_postal_code?: string | null
           billing_province?: string | null
+          billing_same_as_service?: boolean
+          billing_service_address_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           chargeback_last_interest_at?: string | null
@@ -962,6 +966,8 @@ export type Database = {
           billing_cycle_timezone?: string | null
           billing_postal_code?: string | null
           billing_province?: string | null
+          billing_same_as_service?: boolean
+          billing_service_address_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           chargeback_last_interest_at?: string | null
@@ -997,6 +1003,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "accounts_billing_service_address_id_fkey"
+            columns: ["billing_service_address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_billing_service_address_id_fkey"
+            columns: ["billing_service_address_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_address_summary"
+            referencedColumns: ["service_address_id"]
+          },
           {
             foreignKeyName: "accounts_client_id_fkey"
             columns: ["client_id"]
@@ -4524,6 +4544,47 @@ export type Database = {
           staff_user_id?: string
         }
         Relationships: []
+      }
+      client_account_action_idempotency: {
+        Row: {
+          account_id: string
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          request_hash: string | null
+          result: Json | null
+        }
+        Insert: {
+          account_id: string
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          request_hash?: string | null
+          result?: Json | null
+        }
+        Update: {
+          account_id?: string
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          request_hash?: string | null
+          result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_account_action_idempotency_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_activity_logs: {
         Row: {
