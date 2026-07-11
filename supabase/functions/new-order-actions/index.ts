@@ -897,11 +897,23 @@ serve(async (req) => {
         .update({ status: "on_hold" } as any).eq("id", body.order_id);
       if (uErr) return err(500, "DB_UPDATE_FAILED", uErr.message);
 
-      await admin.from("activity_logs").insert({
-        user_id: user.id, entity_type: "order", entity_id: body.order_id,
-        action: "order_on_hold", reason,
-        details: { source: "new_order_actions", actor_role: primaryRole,
-                   simulated: !!body.simulated },
+      await writeAccountJournal(admin, {
+        targetTable: "activity_logs",
+        eventKey: `order:${body.order_id}:status:on_hold`,
+        payload: {
+          entity_type: "order",
+          entity_id: body.order_id,
+          action: "order_on_hold",
+          reason,
+          details: { source: "new_order_actions", actor_role: primaryRole,
+                     simulated: !!body.simulated },
+        },
+        actor: {
+          userId: user.id,
+          role: primaryRole,
+          name: callerName ?? callerProfile?.email ?? "system",
+          email: callerProfile?.email ?? null,
+        },
       });
       await audit("hold_transaction", { order_id: body.order_id, reason }, "warning");
       await clientActivity("order_on_hold", body.order_id, "order",
