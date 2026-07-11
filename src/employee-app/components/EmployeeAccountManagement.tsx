@@ -48,17 +48,18 @@ export function EmployeeAccountManagement({ account, profile, subscriptions, equ
       const { data: sessionData } = await supabase.auth.getSession();
       const actorId = sessionData.session?.user.id;
       if (!actorId) throw new Error("Non authentifié");
-      const { data: actor } = await supabase.from("profiles").select("full_name").eq("user_id", actorId).maybeSingle();
-      const { error } = await supabase.from("client_internal_notes").insert({
-        client_id: account.client_id,
-        account_id: account.id,
-        note_type: noteCategory,
-        body: noteText,
-        created_by_user_id: actorId,
-        created_by_role: "employee",
-        created_by_name: actor?.full_name ?? sessionData.session?.user.email ?? "Employé",
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `note:${account.id}:${noteCategory}:${actorId}:${minuteBucket}`,
+        visibility: "staff",
+        payload: {
+          client_id: account.client_id,
+          account_id: account.id,
+          note_type: noteCategory,
+          body: noteText,
+        },
       });
-      if (error) throw error;
     },
     onSuccess: () => { setNoteText(""); queryClient.invalidateQueries({ queryKey: ["employee-account-notes", account.id] }); toast.success("Note interne ajoutée"); },
     onError: (e: any) => toast.error(e.message),
