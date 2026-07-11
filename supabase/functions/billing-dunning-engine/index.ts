@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -169,21 +170,31 @@ Deno.serve(async (req) => {
         }
 
         // Log action in activity_logs (idempotency key)
-        await supabase.from("activity_logs").insert({
-          entity_type: "billing_invoice",
-          entity_id: inv.id,
-          action: `dunning_${actionType}`,
-          actor_name: "billing-dunning-engine",
-          actor_role: "system",
-          user_id: customer.user_id || "00000000-0000-0000-0000-000000000000",
-          details: {
-            invoice_number: inv.invoice_number,
-            days_overdue: daysOverdue,
-            amount: inv.balance_due || inv.total,
-            customer_email: customer.email,
-            template_key: templateKey,
-            subscription_suspended: actionType === "j14_final" && !!inv.subscription_id,
-            test_mode: !!testEmailOverride,
+        await writeAccountJournal(supabase, {
+          targetTable: "activity_logs",
+          payload: {
+            entity_type: "billing_invoice",
+            entity_id: inv.id,
+            action: `dunning_${actionType}`,
+            actor_name: "billing-dunning-engine",
+            actor_role: "system",
+            user_id: customer.user_id || "00000000-0000-0000-0000-000000000000",
+            details: {
+              invoice_number: inv.invoice_number,
+              days_overdue: daysOverdue,
+              amount: inv.balance_due || inv.total,
+              customer_email: customer.email,
+              template_key: templateKey,
+              subscription_suspended: actionType === "j14_final" && !!inv.subscription_id,
+              test_mode: !!testEmailOverride,
+            },
+          },
+          eventKey: `billing_dunning:${inv.id}:${actionType}:${todayStr}`,
+          actor: {
+            userId: customer.user_id || "00000000-0000-0000-0000-000000000000",
+            role: "system",
+            name: "billing-dunning-engine",
+            email: null,
           },
         });
 

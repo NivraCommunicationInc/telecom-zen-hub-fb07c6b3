@@ -8,6 +8,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { violetShell, violetEsc } from "../_shared/violetEmailShell.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface Body {
   appointment_id: string;
@@ -151,12 +152,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    await supabase.from("activity_logs").insert({
-      user_id: staffId,
-      entity_type: "appointment",
-      entity_id: apt.id,
-      action: "appointment_rescheduled",
-      reason: body.changes ? JSON.stringify(body.changes) : "Rendez-vous modifié",
+    const rescheduledMinute = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+    await writeAccountJournal(supabase, {
+      targetTable: "activity_logs",
+      payload: {
+        user_id: staffId,
+        entity_type: "appointment",
+        entity_id: apt.id,
+        action: "appointment_rescheduled",
+        reason: body.changes ? JSON.stringify(body.changes) : "Rendez-vous modifié",
+      },
+      eventKey: `appointment:${apt.id}:rescheduled:${rescheduledMinute}`,
+      actor: { userId: staffId, role: "staff", name: "staff", email: null },
     });
 
     return new Response(JSON.stringify({ success: true }), {

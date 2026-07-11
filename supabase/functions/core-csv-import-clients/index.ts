@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 interface CsvClient {
   name: string;
@@ -287,13 +288,18 @@ Deno.serve(async (req) => {
       details: results,
     });
 
-    await admin.from("activity_logs").insert({
-      user_id: user.id,
-      action: "csv_import_crm_contacts",
-      entity_type: "crm_contacts",
-      actor_email: user.email,
-      actor_role: "admin",
-      details: { file_name: fileName, batch_id: batchId, total: clients.length, imported, duplicates, invalid, failed },
+    await writeAccountJournal(admin, {
+      targetTable: "activity_logs",
+      payload: {
+        user_id: user.id,
+        action: "csv_import_crm_contacts",
+        entity_type: "crm_contacts",
+        actor_email: user.email,
+        actor_role: "admin",
+        details: { file_name: fileName, batch_id: batchId, total: clients.length, imported, duplicates, invalid, failed },
+      },
+      eventKey: `csv_import:${batchId}:crm_contacts:summary`,
+      actor: { userId: user.id, role: "admin", name: user.email ?? "admin", email: user.email ?? null },
     });
 
     return json({ imported, duplicates, invalid, failed, total: clients.length, batch_id: batchId, results });
