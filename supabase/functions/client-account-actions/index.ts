@@ -340,28 +340,23 @@ async function handleProfileUpdate(svc: any, actor: any, actorRole: string, inpu
   const { data: acct } = await svc.from('accounts').select('client_id').eq('id', input.account_id).maybeSingle();
   if (!acct?.client_id) throw new Error('account not found');
 
-  const { data: before } = await svc
-    .from('profiles')
-    .select('first_name,last_name,date_of_birth,preferred_language')
-    .eq('user_id', acct.client_id)
-    .maybeSingle();
-  if (!before) throw new Error('profile not found for account.client_id');
-
-  const patch: Record<string, unknown> = { ...input.payload };
-  // Derive full_name when name parts change.
-  if (patch.first_name !== undefined || patch.last_name !== undefined) {
-    const fn = (patch.first_name ?? before.first_name ?? '').toString().trim();
-    const ln = (patch.last_name ?? before.last_name ?? '').toString().trim();
-    (patch as any).full_name = `${fn} ${ln}`.trim();
-  }
-
-  const { data: after, error } = await svc
-    .from('profiles')
-    .update(patch)
-    .eq('user_id', acct.client_id)
-    .select('first_name,last_name,date_of_birth,preferred_language,full_name')
-    .maybeSingle();
-  if (error) throw error;
+  // Module 50 — Phase B2 P0 fix:
+  // A direct `svc.from('profiles').update(...)` runs under the service_role
+  // JWT, so inside the BEFORE UPDATE trigger `fn_lock_identity_fields`
+  // `auth.uid()` is NULL and `has_role(NULL,'admin')` is false — the admin
+  // bypass is never taken and identity-verified profiles raise
+  // IDENTITY_FIELD_LOCKED (P0001). We now delegate to the SECURITY DEFINER
+  // RPC `rpc_client_apply_profile_update`, which impersonates the real staff
+  // actor via `set_config('request.jwt.claims', ...)` so the trigger's
+  // business rules (unchanged) resolve the correct role.
+  const { data: rpcRes, error: rpcErr } = await svc.rpc('rpc_client_apply_profile_update', {
+    _client_id: acct.client_id,
+    _actor_id: actor.id,
+    _patch: input.payload,
+  });
+  if (rpcErr) throw rpcErr;
+  const before = (rpcRes as any)?.before ?? null;
+  const after = (rpcRes as any)?.after ?? null;
   if (!after) throw new Error('profile update matched no row');
 
   await auditAndJournal(svc, {

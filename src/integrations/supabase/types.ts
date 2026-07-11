@@ -32983,6 +32983,10 @@ export type Database = {
         Args: { _admin_id: string; _client_id: string; _patch: Json }
         Returns: Json
       }
+      rpc_client_apply_profile_update: {
+        Args: { _actor_id: string; _client_id: string; _patch: Json }
+        Returns: Json
+      }
       rpc_commission_ledger_transition: {
         Args: {
           p_actor_id: string
