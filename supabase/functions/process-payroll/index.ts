@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildPaystubPdf } from "../_shared/pdf/paystubTemplate.ts";
 import { buildPaymentConfirmationPdf } from "../_shared/pdf/paymentConfirmationTemplate.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
