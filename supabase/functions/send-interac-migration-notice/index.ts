@@ -111,7 +111,6 @@ Deno.serve(async (req) => {
           templateKey: row.template_key,
           templateVars: row.template_vars,
           idempotencyKey: row.event_key,
-          maxAttempts: row.max_attempts,
         });
         enqueued++;
       } catch (e) {
