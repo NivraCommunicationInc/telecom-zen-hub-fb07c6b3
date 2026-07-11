@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { differenceInCalendarDays, format } from "date-fns";
 import { Loader2 } from "lucide-react";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 type RefundMode = "none" | "full" | "partial" | "credit";
 
 interface Subscription {
@@ -126,19 +127,19 @@ export function AccountClosureDialog({
 
       // 3) Queue closure-requested email
       if (clientEmail) {
-        await supabase.from("email_queue").insert({
-          event_key: `account-closure-requested:${accountId ?? clientEmail}`,
-          to_email: clientEmail,
-          template_key: "account_closure_requested",
-          variables: {
+        await supabaseenqueueCommunication({
+          channel: "email",
+          templateKey: "account_closure_requested",
+          recipient: clientEmail,
+          idempotencyKey: `account-closure-requested:${accountId ?? clientEmail}`,
+          templateVars: {
             client_name: clientName,
             reason: reasonText || "Demande du client",
             refund_amount: refundAmount,
             refund_mode: refundMode,
             subscriptions_count: subscriptions.length,
           },
-          status: "pending",
-        } as any);
+        });
       }
 
       toast.success("Demande de fermeture de compte créée");

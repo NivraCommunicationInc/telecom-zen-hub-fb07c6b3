@@ -30,6 +30,7 @@ import { adminClient as supabase } from "@/integrations/backend";
 import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { toast } from "sonner";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active: { label: "Actif", variant: "default" },
   suspended: { label: "Suspendu", variant: "secondary" },
@@ -175,14 +176,14 @@ export function AccountProfileHeader({
     }
     setSaving(true);
     try {
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `manual-comm:${profile.user_id ?? profile.email}:${commSubject.trim().slice(0, 40)}:${commBody.trim().length}`,
-        to_email: profile.email,
-        to_name: profile.full_name || "",
+      const { error } = await supabaseenqueueCommunication({
+        channel: "email",
+        templateKey: "admin_manual_communication",
+        recipient: profile.email,
+        idempotencyKey: `manual-comm:${profile.user_id ?? profile.email}:${commSubject.trim().slice(0, 40)}:${commBody.trim().length}`,
         subject: commSubject.trim(),
-        html_body: `<p>${commBody.trim().replace(/\n/g, "<br/>")}</p>`,
-        template_key: "admin_manual_communication",
-        status: "pending",
+        bodyHtml: `<p>${commBody.trim().replace(/\n/g, "<br/>")}</p>`,
+        toName: profile.full_name || "",
       });
       if (error) throw error;
       toast.success("Communication ajoutée à la file d'envoi");

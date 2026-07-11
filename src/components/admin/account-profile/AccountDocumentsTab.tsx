@@ -15,6 +15,7 @@ import { generateContractPDF, type ContractData } from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
 import { useNavigate } from "react-router-dom";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface AccountDocumentsTabProps {
   clientId: string;
   accountId: string;
@@ -156,14 +157,14 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
       const { data: profile } = await supabase.from("profiles").select("email, full_name").eq("user_id", clientId).maybeSingle();
       if (!profile?.email) { toast.error("Email client introuvable"); return; }
 
-      await supabase.from("email_queue").insert({
-        event_key: `contract-send:${contract.id}`,
-        to_email: profile.email,
-        to_name: profile.full_name || "",
+      await supabaseenqueueCommunication({
+        channel: "email",
+        templateKey: "contract_ready_for_signature",
+        recipient: profile.email,
+        idempotencyKey: `contract-send:${contract.id}`,
+        templateVars: { order_id: contract.order_id, contract_id: contract.id },
         subject: `Votre contrat Nivra`,
-        template_key: "contract_ready_for_signature",
-        status: "pending",
-        metadata: { order_id: contract.order_id, contract_id: contract.id },
+        toName: profile.full_name || "",
       });
       toast.success("Email de contrat envoyé au client");
     } catch (e: any) {

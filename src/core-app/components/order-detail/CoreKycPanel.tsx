@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ShieldCheck, Loader2, CheckCircle2, XCircle, Clock, FileSearch } from "lucide-react";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface Props {
   order: any;
   onRefresh: () => void;
@@ -81,19 +82,20 @@ export function CoreKycPanel({ order, onRefresh }: Props) {
       if (kycErr) throw kycErr;
 
       // Queue the email
-      await (supabase as any).from("email_queue").insert({
-        event_key: `kyc-request:${kycRow?.id ?? order.id}`,
-        template_key: "kyc_request",
-        to_email: order.client_email,
-        entity_type: "kyc_request",
-        entity_id: kycRow?.id ?? null,
-        variables: {
+      await (supabase as any)enqueueCommunication({
+        channel: "email",
+        templateKey: "kyc_request",
+        recipient: order.client_email,
+        idempotencyKey: `kyc-request:${kycRow?.id ?? order.id}`,
+        templateVars: {
           order_number: order.order_number ?? order.id?.slice(0, 8),
           kyc_link: `https://nivra-telecom.ca/verification/${token}`,
           expires_hours: 48,
           notes: notes.trim() || null,
         },
         priority: 1,
+        entityType: "kyc_request",
+        entityId: kycRow?.id ?? null,
       });
 
       // Update order kyc_status

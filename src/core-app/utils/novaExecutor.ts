@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 export type NovaActionType =
   | "send_email"
   | "launch_campaign"
@@ -47,12 +48,12 @@ export async function executeNovaAction(
 
       case "send_email": {
         const { to_email, template_key, vars } = action.payload;
-        const { error } = await supabase.from("email_queue").insert({
-          event_key: `nova-send-email:${to_email}:${template_key}`,
-          to_email,
-          template_key,
-          template_vars: vars ?? {},
-          status: "queued",
+        const { error } = await supabaseenqueueCommunication({
+          channel: "email",
+          templateKey: template_key,
+          recipient: to_email,
+          idempotencyKey: `nova-send-email:${to_email}:${template_key}`,
+          templateVars: vars ?? {},
         });
         if (error) throw error;
         return { success: true, message: "Email mis en file d'attente" };

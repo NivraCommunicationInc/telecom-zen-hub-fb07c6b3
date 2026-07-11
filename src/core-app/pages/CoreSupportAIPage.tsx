@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Bot, RefreshCw, Send, CheckCircle2 } from "lucide-react";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const STATUS_LABEL: Record<string, string> = {
   new: "Nouveau",
   ai_responded: "Répondu IA",
@@ -95,18 +96,18 @@ export default function CoreSupportAIPage() {
 
   const sendReply = async () => {
     if (!selected || !reply.trim()) return;
-    const { error: emailErr } = await supabase.from("email_queue").insert({
-      event_key: `support-ai-reply:${selected.id}`,
-      to_email: selected.from_email,
-      template_key: "support_ai_response",
-      subject: `Réponse — Ticket ${selected.ticket_number}`,
-      template_vars: {
+    const { error: emailErr } = await supabaseenqueueCommunication({
+      channel: "email",
+      templateKey: "support_ai_response",
+      recipient: selected.from_email,
+      idempotencyKey: `support-ai-reply:${selected.id}`,
+      templateVars: {
         client_name: selected.from_name ?? "Client",
         first_name: selected.from_name ?? "Client",
         ticket_number: selected.ticket_number,
         ai_response: reply,
       },
-      status: "queued",
+      subject: `Réponse — Ticket ${selected.ticket_number}`,
     });
     if (emailErr) { toast.error(emailErr.message); return; }
     await supabase.from("support_tickets_ai").update({
