@@ -74,10 +74,17 @@ serve(async (req) => {
           .join("")
       : "";
     try {
-      await supabase.from("activity_logs").insert({
-        action: success ? "public_pay_lookup_success" : "public_pay_lookup_failed",
-        entity_type: "billing_invoice",
-        details: { ip, user_agent: userAgent, reference_hash: refHash, ...extra },
+      const minute = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+      const action = success ? "public_pay_lookup_success" : "public_pay_lookup_failed";
+      await writeAccountJournal(supabase, {
+        targetTable: "activity_logs",
+        payload: {
+          action,
+          entity_type: "billing_invoice",
+          details: { ip, user_agent: userAgent, reference_hash: refHash, ...extra },
+        },
+        eventKey: `public_pay_lookup:${refHash || "empty"}:${ip}:${success ? "ok" : "fail"}:${minute}`,
+        actor: { userId: "00000000-0000-0000-0000-000000000000", role: "public", name: "public-invoice-lookup", email: null },
       });
     } catch (e) {
       console.warn("[public-invoice-lookup] log failed:", e);
