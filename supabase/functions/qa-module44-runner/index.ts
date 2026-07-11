@@ -125,6 +125,13 @@ Deno.serve(async (req) => {
   // ---------- 2. WRITE TO EACH TARGET TABLE ----------
   // Create a real order fixture for order-scoped tables
   const testOrderId = crypto.randomUUID();
+  const testAccountId = crypto.randomUUID();
+  const { error: acctErr } = await admin.from("accounts").insert({
+    id: testAccountId,
+    client_id: adminUser.id,
+    account_number: `QAM44-${runId.slice(0, 8)}`,
+  });
+  if (acctErr) throw new Error(`account fixture insert failed: ${acctErr.message}`);
   const { error: orderErr } = await admin.from("orders").insert({
     id: testOrderId,
     order_number: `QA-M44-${runId.slice(0, 8)}`,
@@ -134,7 +141,7 @@ Deno.serve(async (req) => {
     client_last_name: "M44",
     total_amount: 0,
     user_id: adminUser.id,
-    account_id: clientA,
+    account_id: testAccountId,
     service_type: "internet",
   });
   if (orderErr) throw new Error(`order fixture insert failed: ${orderErr.message}`);
