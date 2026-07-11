@@ -643,6 +643,7 @@ serve(async (req) => {
         const after = { addon_id, status: "cancelled", reason: reasonStr };
         await audit("remove_addon", { addon_id, addon_name: existing.addon_name, reason: reasonStr }, before);
         await activity(
+          `mobile:addon:${addon_id}:removed:activity`,
           "service_remove",
           addon_id,
           "mobile_addon",
@@ -650,7 +651,7 @@ serve(async (req) => {
           after,
           before,
         );
-        await sysNote(`[MOBILE.REMOVE_ADDON] ${existing.addon_name} — Motif: ${reasonStr}`);
+        await sysNote(`mobile:addon:${addon_id}:removed:note`, `[MOBILE.REMOVE_ADDON] ${existing.addon_name} — Motif: ${reasonStr}`);
         await enqueueEmail("client_mobile_addon_change", {
           addon_name: existing.addon_name,
           monthly_price: fmtMoney(Number(existing.monthly_price ?? 0)),
