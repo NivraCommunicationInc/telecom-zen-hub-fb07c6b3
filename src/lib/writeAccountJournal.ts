@@ -95,6 +95,15 @@ function assertDeterministicEventKey(eventKey: string): void {
   }
 }
 
+const DEFAULT_VISIBILITY: Record<AccountJournalTable, AccountJournalVisibility> = {
+  client_activity_logs: "client",
+  activity_logs: "admin",
+  client_internal_notes: "staff",
+  account_followups: "staff",
+  order_status_history: "client",
+  order_internal_notes: "staff",
+};
+
 export async function writeAccountJournal(
   input: WriteAccountJournalInput,
 ): Promise<WriteAccountJournalResult> {
@@ -103,9 +112,12 @@ export async function writeAccountJournal(
   }
   assertDeterministicEventKey(input.eventKey);
 
+  const visibility = input.visibility ?? DEFAULT_VISIBILITY[input.targetTable];
+  const payload: Record<string, unknown> = { ...(input.payload ?? {}), visibility };
+
   const { data, error } = await supabase.rpc("rpc_account_journal_write", {
     p_target_table: input.targetTable,
-    p_payload: input.payload ?? {},
+    p_payload: payload,
     p_event_key: input.eventKey,
     p_correlation_id: input.correlationId ?? null,
   });
