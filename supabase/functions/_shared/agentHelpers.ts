@@ -191,33 +191,32 @@ export async function queueEmail(
       k.includes("sequence");
     const skipBcc = args.skipBcc === true || isMarketingKey;
 
-    const eventKey = args.eventKey || `${args.templateKey}-${crypto.randomUUID()}`;
-    const rows: Record<string, unknown>[] = [
-      {
-        event_key: eventKey,
-        to_email: args.toEmail,
-        template_key: args.templateKey,
-        subject: args.subject,
-        template_vars: args.templateVars,
-        status: "queued",
-      },
-    ];
+    // Deterministic dedup key required — no random UUID fallback (Module 40 B.2.1).
+    if (!args.eventKey || args.eventKey.length < 8) {
+      return { ok: false, error: "agentHelpers.queueEmail requires args.eventKey (deterministic, ≥ 8 chars)" };
+    }
+    const eventKey = args.eventKey;
+    await enqueueCommunication(supabase, {
+      channel: "email",
+      templateKey: args.templateKey,
+      recipient: args.toEmail,
+      subject: args.subject,
+      templateVars: args.templateVars,
+      idempotencyKey: eventKey,
+    });
 
     // Transactional / admin templates keep the oversight BCC. Marketing
     // templates do not — operators get a daily/weekly digest instead.
     if (!skipBcc) {
-      rows.push({
-        event_key: `${eventKey}-bcc`,
-        to_email: SUPPORT_BCC,
-        template_key: args.templateKey,
+      await enqueueCommunication(supabase, {
+        channel: "email",
+        templateKey: args.templateKey,
+        recipient: SUPPORT_BCC,
         subject: `[BCC] ${args.subject}`,
-        template_vars: { ...args.templateVars, _bcc_original_recipient: args.toEmail },
-        status: "queued",
+        templateVars: { ...args.templateVars, _bcc_original_recipient: args.toEmail },
+        idempotencyKey: `${eventKey}-bcc`,
       });
     }
-
-    const { error } = await supabase.from("email_queue").insert(rows);
-    if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e) };
