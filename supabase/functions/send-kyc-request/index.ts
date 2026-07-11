@@ -127,12 +127,17 @@ Deno.serve(async (req) => {
       eventKey: `kyc_request_${kycReq.id}`,
     });
 
-    await supabaseService.from("activity_logs").insert({
-      user_id: adminId,
-      entity_type: "order",
-      entity_id: order.id,
-      action: "kyc_requested",
-      reason: `Vérification d'identité demandée â€” envoyée Ã  ${clientEmail}`,
+    await writeAccountJournal(supabaseService, {
+      targetTable: "activity_logs",
+      eventKey: `kyc:request:${kycReq.id}:sent:activity`,
+      payload: {
+        user_id: adminId,
+        entity_type: "order",
+        entity_id: order.id,
+        action: "kyc_requested",
+        reason: `Vérification d'identité demandée â€” envoyée Ã  ${clientEmail}`,
+      },
+      actor: { userId: adminId, role: "admin" },
     });
 
     return new Response(JSON.stringify({ success: true, kyc_request_id: kycReq.id, expires_at: kycReq.expires_at }), {
