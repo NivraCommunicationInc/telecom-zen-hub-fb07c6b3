@@ -38,7 +38,7 @@ import { AccountTagsDialog } from "@/shared-ops/components/AccountTagsDialog";
 import { AccountFollowupsDialog } from "@/shared-ops/components/AccountFollowupsDialog";
 import { AccountPrivacyRequestsDialog } from "@/shared-ops/components/AccountPrivacyRequestsDialog";
 import { AccountFraudRiskDialog } from "@/shared-ops/components/AccountFraudRiskDialog";
-import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch, RotateCcw, Undo2, Banknote, Repeat, Activity, TrendingUp, Home, ArrowUpCircle, TicketCheck, Sparkles, Star, ChevronDown, ChevronRight } from "lucide-react";
+import { UserCog, ShieldCheck, History, FolderOpen, ShieldAlert, Send, MessageCircle, PhoneCall, Settings2, Tag, ListTodo, ShieldQuestion, ScanSearch, RotateCcw, Undo2, Banknote, Repeat, Activity, TrendingUp, Home, ArrowUpCircle, TicketCheck, Sparkles, Star, ChevronDown, ChevronRight, ArrowRightLeft } from "lucide-react";
 import {
   PaymentPlanDialog, AutopayRetryDialog,
   RemoteRebootDialog, LineDiagnosticDialog, QuickPlanChangeDialog, ServiceMoveDialog,
@@ -53,6 +53,7 @@ import { RefundModule } from "@/core-app/components/account-360/modules/RefundMo
 import { AutopayModule } from "@/core-app/components/account-360/modules/AutopayModule";
 import { PaymentPlanModule } from "@/core-app/components/account-360/modules/PaymentPlanModule";
 import { ReviewDiscountModule } from "@/core-app/components/account-360/modules/ReviewDiscountModule";
+import { AccountOwnershipTransferDialog } from "@/core-app/components/account-360/AccountOwnershipTransferDialog";
 
 
 
@@ -126,6 +127,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [autopayOpen, setAutopayOpen] = useState(false);
   const [reviewDiscountOpen, setReviewDiscountOpen] = useState(false);
+  const [ownershipTransferOpen, setOwnershipTransferOpen] = useState(false);
 
   const handleImpersonate = async () => {
     if (!clientId) return;
@@ -156,6 +158,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         ...(accountStatus !== "cancelled"
           ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
           : []),
+        { icon: ArrowRightLeft, label: "Transfert de propriété", onClick: () => setOwnershipTransferOpen(true), color: "violet" as const },
       ],
     },
     {
@@ -768,6 +771,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         onMutationSuccess={onRefresh}
       />
 
+      {accountId && clientId && (
+        <AccountOwnershipTransferDialog
+          open={ownershipTransferOpen}
+          onClose={() => setOwnershipTransferOpen(false)}
+          accountId={accountId}
+          oldClientId={clientId}
+          oldClientName={clientName}
+          canonicalData={canonicalData}
+        />
+      )}
     </>
   );
 }
