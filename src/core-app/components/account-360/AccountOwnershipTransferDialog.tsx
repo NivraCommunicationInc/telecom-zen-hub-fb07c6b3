@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
+import { useIsCoreAdminOrSupervisor } from "@/core-app/hooks/useIsCoreAdmin";
 
 interface Props {
   open: boolean;
@@ -39,7 +39,7 @@ interface NewClient {
 export function AccountOwnershipTransferDialog({
   open, onClose, accountId, oldClientId, oldClientName, canonicalData,
 }: Props) {
-  const { isAdmin } = useIsCoreAdmin();
+  const { canManageAccountTransfer } = useIsCoreAdminOrSupervisor();
   const [step, setStep] = useState<Step>(1);
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [searchTerm, setSearchTerm] = useState("");
@@ -59,7 +59,7 @@ export function AccountOwnershipTransferDialog({
   const [adminOverride, setAdminOverride] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  if (!isAdmin) return null;
+  if (!canManageAccountTransfer) return null;
 
   const doSearch = async () => {
     if (!searchTerm.trim()) return;
