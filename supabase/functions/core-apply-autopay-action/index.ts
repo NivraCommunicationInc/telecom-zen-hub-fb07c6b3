@@ -132,28 +132,47 @@ serve(async (req) => {
       summary: string,
       actionType: string,
       afterData: Record<string, unknown>,
+      eventScope: string,
     ) => {
       if (!effectiveClientId) return;
+      const actor = {
+        userId: user.id,
+        role: "admin",
+        name: user.email ?? "core-admin",
+        email: user.email ?? null,
+      };
       try {
-        await admin.from("client_activity_logs").insert({
-          client_id:     effectiveClientId,
-          actor_user_id: user.id,
-          actor_name:    user.email ?? null,
-          actor_role:    "admin",
-          action_type:   actionType,
-          entity_type:   "billing_customer",
-          entity_id:     customer_id,
-          summary,
-          after_data:    afterData,
+        await writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          eventKey: `autopay:${customer_id}:${eventScope}:activity`,
+          correlationId: reason ?? null,
+          actor,
+          payload: {
+            client_id:     effectiveClientId,
+            actor_user_id: user.id,
+            actor_name:    user.email ?? null,
+            actor_role:    "admin",
+            action_type:   actionType,
+            entity_type:   "billing_customer",
+            entity_id:     customer_id,
+            summary,
+            after_data:    afterData,
+          },
         });
-        await admin.from("client_internal_notes").insert({
-          client_id:          effectiveClientId,
-          account_id:         account_id ?? null,
-          note_type:          "system",
-          body:               `${summary} — par ${user.email ?? user.id}`,
-          created_by_user_id: user.id,
-          created_by_role:    "admin",
-          created_by_name:    user.email ?? null,
+        await writeAccountJournal(admin, {
+          targetTable: "client_internal_notes",
+          eventKey: `autopay:${customer_id}:${eventScope}:note`,
+          correlationId: reason ?? null,
+          actor,
+          payload: {
+            client_id:          effectiveClientId,
+            account_id:         account_id ?? null,
+            note_type:          "system",
+            body:               `${summary} — par ${user.email ?? user.id}`,
+            created_by_user_id: user.id,
+            created_by_role:    "admin",
+            created_by_name:    user.email ?? null,
+          },
         });
       } catch (e) { console.error("[autopay-activity-note]", e); }
     };
