@@ -278,6 +278,7 @@ serve(async (req) => {
         `Relance AutoPay forcée — ${updated?.length ?? 0} facture(s) reprogrammée(s) — motif: ${reason}`,
         "autopay_retry_forced",
         { invoices_rescheduled_count: updated?.length ?? 0, invoice_id: invoice_id ?? null },
+        `retry:${invoice_id ?? "all"}:${isoMinuteBucket36()}`,
       );
       return json({ ok: true, invoices_rescheduled: updated ?? [], executor });
     }
