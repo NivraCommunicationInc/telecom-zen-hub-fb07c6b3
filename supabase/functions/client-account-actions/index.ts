@@ -580,6 +580,8 @@ Deno.serve(async (req) => {
         await releaseIdempotency(svc, reservedForCleanup.accountId, reservedForCleanup.key);
       } catch (_) { /* ignore */ }
     }
-    return j({ error: (e as Error).message || 'internal_error' }, 500);
+    const status = (e as any)?.status && Number.isInteger((e as any).status) ? (e as any).status : 500;
+    const code = (e as any)?.code;
+    return j({ error: (e as Error).message || 'internal_error', ...(code ? { code } : {}) }, status);
   }
 });
