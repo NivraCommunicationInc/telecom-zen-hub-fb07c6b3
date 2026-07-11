@@ -251,12 +251,15 @@ export type Database = {
           completed_at: string | null
           completed_by: string | null
           completion_note: string | null
+          correlation_id: string | null
           created_at: string
           created_by: string
           created_by_email: string | null
           description: string | null
           due_at: string | null
+          event_key: string | null
           id: string
+          metadata: Json | null
           priority: string
           status: string
           title: string
@@ -271,12 +274,15 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           completion_note?: string | null
+          correlation_id?: string | null
           created_at?: string
           created_by: string
           created_by_email?: string | null
           description?: string | null
           due_at?: string | null
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           priority?: string
           status?: string
           title: string
@@ -291,12 +297,15 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           completion_note?: string | null
+          correlation_id?: string | null
           created_at?: string
           created_by?: string
           created_by_email?: string | null
           description?: string | null
           due_at?: string | null
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           priority?: string
           status?: string
           title?: string
@@ -364,6 +373,129 @@ export type Database = {
           severity?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      account_journal_audit_log: {
+        Row: {
+          account_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          actor_user_id: string | null
+          client_id: string | null
+          correlation_id: string | null
+          created_at: string
+          enforcement_mode: string
+          event_key: string | null
+          id: string
+          operation: string
+          order_id: string | null
+          payload: Json | null
+          session_user_name: string | null
+          target_id: string | null
+          target_table: string
+          via_gateway: boolean
+          violation_reason: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id?: string | null
+          client_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          enforcement_mode?: string
+          event_key?: string | null
+          id?: string
+          operation: string
+          order_id?: string | null
+          payload?: Json | null
+          session_user_name?: string | null
+          target_id?: string | null
+          target_table: string
+          via_gateway?: boolean
+          violation_reason?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id?: string | null
+          client_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          enforcement_mode?: string
+          event_key?: string | null
+          id?: string
+          operation?: string
+          order_id?: string | null
+          payload?: Json | null
+          session_user_name?: string | null
+          target_id?: string | null
+          target_table?: string
+          via_gateway?: boolean
+          violation_reason?: string | null
+        }
+        Relationships: []
+      }
+      account_journal_gateway_config: {
+        Row: {
+          audit_mode: boolean
+          enforce_single_door: boolean
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          audit_mode?: boolean
+          enforce_single_door?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          audit_mode?: boolean
+          enforce_single_door?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      account_journal_idempotency: {
+        Row: {
+          actor_user_id: string | null
+          correlation_id: string | null
+          created_at: string
+          event_key: string
+          expires_at: string
+          id: string
+          result: Json | null
+          target_id: string | null
+          target_table: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          event_key: string
+          expires_at?: string
+          id?: string
+          result?: Json | null
+          target_id?: string | null
+          target_table: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          event_key?: string
+          expires_at?: string
+          id?: string
+          result?: Json | null
+          target_id?: string | null
+          target_table?: string
         }
         Relationships: []
       }
@@ -875,11 +1007,14 @@ export type Database = {
           actor_name: string | null
           actor_role: string | null
           changed_field: string | null
+          correlation_id: string | null
           created_at: string
           details: Json | null
           entity_id: string | null
           entity_type: string
+          event_key: string | null
           id: string
+          metadata: Json | null
           new_value: string | null
           old_value: string | null
           reason: string | null
@@ -891,11 +1026,14 @@ export type Database = {
           actor_name?: string | null
           actor_role?: string | null
           changed_field?: string | null
+          correlation_id?: string | null
           created_at?: string
           details?: Json | null
           entity_id?: string | null
           entity_type: string
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           new_value?: string | null
           old_value?: string | null
           reason?: string | null
@@ -907,11 +1045,14 @@ export type Database = {
           actor_name?: string | null
           actor_role?: string | null
           changed_field?: string | null
+          correlation_id?: string | null
           created_at?: string
           details?: Json | null
           entity_id?: string | null
           entity_type?: string
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           new_value?: string | null
           old_value?: string | null
           reason?: string | null
@@ -4264,10 +4405,13 @@ export type Database = {
           after_data: Json | null
           before_data: Json | null
           client_id: string
+          correlation_id: string | null
           created_at: string
           entity_id: string | null
           entity_type: string | null
+          event_key: string | null
           id: string
+          metadata: Json | null
           summary: string
         }
         Insert: {
@@ -4278,10 +4422,13 @@ export type Database = {
           after_data?: Json | null
           before_data?: Json | null
           client_id: string
+          correlation_id?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           summary: string
         }
         Update: {
@@ -4292,10 +4439,13 @@ export type Database = {
           after_data?: Json | null
           before_data?: Json | null
           client_id?: string
+          correlation_id?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           summary?: string
         }
         Relationships: []
@@ -4794,33 +4944,42 @@ export type Database = {
           account_id: string | null
           body: string
           client_id: string
+          correlation_id: string | null
           created_at: string
           created_by_name: string | null
           created_by_role: string
           created_by_user_id: string
+          event_key: string | null
           id: string
+          metadata: Json | null
           note_type: string
         }
         Insert: {
           account_id?: string | null
           body: string
           client_id: string
+          correlation_id?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_role: string
           created_by_user_id: string
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           note_type: string
         }
         Update: {
           account_id?: string | null
           body?: string
           client_id?: string
+          correlation_id?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_role?: string
           created_by_user_id?: string
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           note_type?: string
         }
         Relationships: [
@@ -18047,31 +18206,40 @@ export type Database = {
       order_internal_notes: {
         Row: {
           body: string
+          correlation_id: string | null
           created_at: string
           created_by_name: string | null
           created_by_role: string
           created_by_user_id: string
+          event_key: string | null
           id: string
+          metadata: Json | null
           order_id: string
           updated_at: string
         }
         Insert: {
           body: string
+          correlation_id?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_role?: string
           created_by_user_id: string
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           order_id: string
           updated_at?: string
         }
         Update: {
           body?: string
+          correlation_id?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_role?: string
           created_by_user_id?: string
+          event_key?: string | null
           id?: string
+          metadata?: Json | null
           order_id?: string
           updated_at?: string
         }
@@ -18338,7 +18506,9 @@ export type Database = {
           actor_role: string | null
           actor_user_id: string | null
           change_reason: string | null
+          correlation_id: string | null
           created_at: string
+          event_key: string | null
           id: string
           metadata: Json | null
           new_status: string
@@ -18351,7 +18521,9 @@ export type Database = {
           actor_role?: string | null
           actor_user_id?: string | null
           change_reason?: string | null
+          correlation_id?: string | null
           created_at?: string
+          event_key?: string | null
           id?: string
           metadata?: Json | null
           new_status: string
@@ -18364,7 +18536,9 @@ export type Database = {
           actor_role?: string | null
           actor_user_id?: string | null
           change_reason?: string | null
+          correlation_id?: string | null
           created_at?: string
+          event_key?: string | null
           id?: string
           metadata?: Json | null
           new_status?: string
@@ -32318,6 +32492,26 @@ export type Database = {
         Returns: string
       }
       reveal_supplier_password: { Args: { p_id: string }; Returns: string }
+      rpc_account_journal_write:
+        | {
+            Args: {
+              p_correlation_id?: string
+              p_event_key?: string
+              p_payload: Json
+              p_target_table: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_correlation_id: string
+              p_event_key: string
+              p_gateway_marker: boolean
+              p_payload: Json
+              p_target_table: string
+            }
+            Returns: Json
+          }
       rpc_commission_ledger_transition: {
         Args: {
           p_actor_id: string
