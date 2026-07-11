@@ -117,7 +117,8 @@ Deno.serve(async (req) => {
   const authorRole =
     actorRoles.find((r) => ["core_admin","admin"].includes(r)) ??
     actorRoles.find((r) => ["core_staff","supervisor","support"].includes(r)) ??
-    actorRoles[0];
+    actorRoles.find((r) => ["employee","technician"].includes(r)) ??
+    "employee";
 
   // Author display name
   const { data: profile } = await admin.from("profiles")
