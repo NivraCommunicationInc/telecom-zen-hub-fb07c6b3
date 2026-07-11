@@ -340,10 +340,13 @@ Deno.serve(async (req) => {
   try {
     await admin.from("account_journal_idempotency").delete().in("event_key", eventKeys);
     await admin.from("account_journal_audit_log").delete().in("event_key", eventKeys);
+    await admin.from("order_status_history").delete().eq("order_id", testOrderId);
+    await admin.from("order_internal_notes").delete().eq("order_id", testOrderId);
+    await admin.from("orders").delete().eq("id", testOrderId);
     await admin.from("activity_logs").delete().eq("entity_id", clientA);
     await admin.from("client_activity_logs").delete().eq("client_id", clientA);
     await admin.from("client_internal_notes").delete().eq("client_id", clientA);
-    await admin.from("account_followups").delete().eq("account_id", clientA);
+    await admin.from("account_followups").delete().eq("client_user_id", clientA);
     for (const u of [adminUser, employeeUser, plainUser]) {
       await admin.from("user_roles").delete().eq("user_id", u.id);
       await admin.auth.admin.deleteUser(u.id);
