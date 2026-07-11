@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
   // ---------- 2. WRITE TO EACH TARGET TABLE ----------
   // Create a real order fixture for order-scoped tables
   const testOrderId = crypto.randomUUID();
-  await admin.from("orders").insert({
+  const { error: orderErr } = await admin.from("orders").insert({
     id: testOrderId,
     order_number: `QA-M44-${runId.slice(0, 8)}`,
     status: "pending",
@@ -133,14 +133,18 @@ Deno.serve(async (req) => {
     customer_first_name: "QA",
     customer_last_name: "M44",
     total_amount: 0,
+    user_id: clientA,
+    account_id: clientA,
+    service_type: "internet",
   });
+  if (orderErr) throw new Error(`order fixture insert failed: ${orderErr.message}`);
 
   const writeCases: Array<{ table: string; payload: Record<string, unknown>; visibility: string; expectedVisibility?: string }> = [
     {
       table: "activity_logs",
       payload: { entity_type: "test", entity_id: clientA, action: "qa_touch", actor_name: "qa", actor_role: "admin", details: { run: runId } },
       visibility: "staff",
-      expectedVisibility: "admin", // RPC derives visibility from actor_role
+      expectedVisibility: "admin",
     },
     {
       table: "client_activity_logs",
@@ -156,7 +160,7 @@ Deno.serve(async (req) => {
     },
     {
       table: "account_followups",
-      payload: { client_user_id: clientA, account_id: clientA, category: "qa", title: "qa followup " + runId.slice(0, 6), priority: "normal", status: "open" },
+      payload: { client_id: clientA, account_id: clientA, category: "qa", title: "qa followup " + runId.slice(0, 6), priority: "normal", status: "open" },
       visibility: "staff",
       expectedVisibility: "staff",
     },
@@ -168,7 +172,7 @@ Deno.serve(async (req) => {
     },
     {
       table: "order_status_history",
-      payload: { order_id: testOrderId, status_domain: "fulfillment", new_status: "confirmed", from_status: "pending", to_status: "confirmed", changed_by: adminUser.id },
+      payload: { order_id: testOrderId, status_domain: "order", new_status: "confirmed", old_status: "pending", change_reason: "qa" },
       visibility: "client",
       expectedVisibility: "client",
     },
