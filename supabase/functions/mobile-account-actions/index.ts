@@ -496,13 +496,14 @@ serve(async (req) => {
         const after = { topup_id: data.id, amount, currency, msisdn: body.msisdn ?? null, payment_method, payment_reference };
         await audit("topup", after);
         await activity(
+          `mobile:topup:${data.id}:activity`,
           "balance_add",
           data.id,
           "mobile_topup",
           `Recharge mobile ${fmtMoney(amount, currency)}${body.msisdn ? ` — ${body.msisdn}` : ""}`,
           after,
         );
-        await sysNote(`[MOBILE.TOPUP] ${fmtMoney(amount, currency)} — ${payment_method} — réf ${payment_reference}${body.msisdn ? ` — ${body.msisdn}` : ""}`);
+        await sysNote(`mobile:topup:${data.id}:note`, `[MOBILE.TOPUP] ${fmtMoney(amount, currency)} — ${payment_method} — réf ${payment_reference}${body.msisdn ? ` — ${body.msisdn}` : ""}`);
         await enqueueEmail("client_mobile_topup_confirmation", {
           amount: fmtMoney(amount, currency),
           msisdn: body.msisdn,
