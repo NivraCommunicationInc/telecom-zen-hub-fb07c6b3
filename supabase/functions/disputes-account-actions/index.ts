@@ -353,8 +353,10 @@ serve(async (req) => {
         if (err) return json(400, { error: err });
         await audit("resolve_approved", { dispute_id: row.id, dispute_number: row.dispute_number });
         await activity("dispute_resolved_approved", "payment_dispute", row.id,
-          `Litige ${row.dispute_number} approuvé`, null, { status: "resolved_approved" });
-        await internalNote(`Litige ${row.dispute_number} APPROUVÉ par ${callerName}. Résolution: ${body.resolution_notes.trim().slice(0, 200)}`);
+          `Litige ${row.dispute_number} approuvé`, null, { status: "resolved_approved" },
+          `dispute:${row.id}:status:resolved_approved:activity`);
+        await internalNote(`Litige ${row.dispute_number} APPROUVÉ par ${callerName}. Résolution: ${body.resolution_notes.trim().slice(0, 200)}`,
+          `dispute:${row.id}:status:resolved_approved:note`, row.id);
         await enqueueStatusEmail(row.dispute_number, "resolved_approved", row.reason_code, body.public_message ?? body.resolution_notes);
         return json(200, { ok: true });
       }
