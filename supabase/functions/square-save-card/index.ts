@@ -16,6 +16,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
