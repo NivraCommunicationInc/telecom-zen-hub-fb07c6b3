@@ -13,6 +13,14 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+const SYSTEM_ACTOR = {
+  userId: "00000000-0000-0000-0000-000000000000",
+  role: "system",
+  name: "Système — relance auto",
+  email: null,
+} as const;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, apikey",
@@ -71,13 +79,18 @@ serve(async (req) => {
             expired_at: now.toISOString(),
           }).eq("id", c.id);
 
-          await supabase.from("client_internal_notes").insert({
-            client_user_id: c.user_id,
-            category: "contract",
-            note: `Contrat ${c.contract_number || c.id.slice(0, 8)} EXPIRÉ après 14 jours sans signature. Suivi manuel requis.`,
-            created_by: null,
-            author_name: "Système — relance auto",
-          } as any);
+          await writeAccountJournal(supabase, {
+            targetTable: "client_internal_notes",
+            eventKey: `contract:${c.id}:expired:note`,
+            payload: {
+              client_user_id: c.user_id,
+              category: "contract",
+              note: `Contrat ${c.contract_number || c.id.slice(0, 8)} EXPIRÉ après 14 jours sans signature. Suivi manuel requis.`,
+              created_by: null,
+              author_name: "Système — relance auto",
+            },
+            actor: SYSTEM_ACTOR,
+          });
 
           stats.expired++;
           continue;
@@ -107,12 +120,17 @@ serve(async (req) => {
             last_reminder_at: now.toISOString(),
             reminder_count: (c.reminder_count ?? 0) + 1,
           }).eq("id", c.id);
-          await supabase.from("client_internal_notes").insert({
-            client_user_id: c.user_id,
-            category: "contract",
-            note: `Rappel FINAL de signature (J+7) envoyé pour contrat ${c.contract_number || c.id.slice(0, 8)}.`,
-            author_name: "Système — relance auto",
-          } as any);
+          await writeAccountJournal(supabase, {
+            targetTable: "client_internal_notes",
+            eventKey: `contract:${c.id}:reminder:final:note`,
+            payload: {
+              client_user_id: c.user_id,
+              category: "contract",
+              note: `Rappel FINAL de signature (J+7) envoyé pour contrat ${c.contract_number || c.id.slice(0, 8)}.`,
+              author_name: "Système — relance auto",
+            },
+            actor: SYSTEM_ACTOR,
+          });
           stats.reminded_j7++;
           continue;
         }
@@ -141,12 +159,17 @@ serve(async (req) => {
             last_reminder_at: now.toISOString(),
             reminder_count: (c.reminder_count ?? 0) + 1,
           }).eq("id", c.id);
-          await supabase.from("client_internal_notes").insert({
-            client_user_id: c.user_id,
-            category: "contract",
-            note: `Rappel de signature (J+3) envoyé pour contrat ${c.contract_number || c.id.slice(0, 8)}.`,
-            author_name: "Système — relance auto",
-          } as any);
+          await writeAccountJournal(supabase, {
+            targetTable: "client_internal_notes",
+            eventKey: `contract:${c.id}:reminder:first:note`,
+            payload: {
+              client_user_id: c.user_id,
+              category: "contract",
+              note: `Rappel de signature (J+3) envoyé pour contrat ${c.contract_number || c.id.slice(0, 8)}.`,
+              author_name: "Système — relance auto",
+            },
+            actor: SYSTEM_ACTOR,
+          });
           stats.reminded_j3++;
         }
       } catch (e) {
