@@ -223,40 +223,31 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
     enabled: reviewerIds.length > 0,
   });
 
-  // ── Activity logs (across all orders of this client) ──
-  const orderIds = useMemo(() => (ordersQ.data || []).map((o: any) => o.id), [ordersQ.data]);
+  // ── Unified timeline (Module 44 canonical) — Module 47 D47-H ──
+  // Reads exclusively from v_customer_timeline. No more direct activity_logs.
   const activityQ = useQuery({
-    queryKey: ["client-history-activity", clientId, orderIds.join(",")],
+    queryKey: ["client-history-timeline", clientId],
     queryFn: async () => {
-      // Combine: logs where user_id = clientId OR entity_id in orderIds
-      const promises: Promise<any>[] = [
-        Promise.resolve(
-          supabase
-            .from("activity_logs")
-            .select("id, action, entity_type, entity_id, created_at, actor_name, actor_role, details, changed_field, old_value, new_value")
-            .eq("user_id", clientId)
-            .order("created_at", { ascending: false })
-            .limit(200),
-        ),
-      ];
-      if (orderIds.length > 0) {
-        promises.push(
-          Promise.resolve(
-            supabase
-              .from("activity_logs")
-              .select("id, action, entity_type, entity_id, created_at, actor_name, actor_role, details, changed_field, old_value, new_value")
-              .in("entity_id", orderIds)
-              .order("created_at", { ascending: false })
-              .limit(200),
-          ),
-        );
-      }
-      const results = await Promise.all(promises);
-      const merged = new Map<string, any>();
-      results.forEach((r) => (r.data || []).forEach((row: any) => merged.set(row.id, row)));
-      return Array.from(merged.values()).sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
+      const { data, error } = await supabase
+        .from("v_customer_timeline" as any)
+        .select("event_id, occurred_at, event_type, severity, summary, actor_name, actor_role, source_table, source_id, details, visibility")
+        .eq("client_id", clientId)
+        .order("occurred_at", { ascending: false })
+        .limit(400);
+      if (error) throw error;
+      // Adapter to previous activity_logs shape used by the UI
+      return ((data as any[]) || []).map((row) => ({
+        id: row.event_id,
+        action: row.summary || row.event_type,
+        entity_type: row.event_type,
+        entity_id: row.source_id,
+        created_at: row.occurred_at,
+        actor_name: row.actor_name,
+        actor_role: row.actor_role,
+        details: row.details,
+        source_table: row.source_table,
+        visibility: row.visibility,
+      }));
     },
     enabled: !!clientId,
   });

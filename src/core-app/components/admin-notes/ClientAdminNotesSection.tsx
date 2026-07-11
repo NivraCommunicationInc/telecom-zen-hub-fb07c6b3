@@ -67,10 +67,14 @@ export function ClientAdminNotesSection({ clientId }: { clientId: string }) {
       const { data: u } = await adminClient.auth.getUser();
       const uid = u.user?.id;
       if (!uid) throw new Error("Session admin requise");
-      const { error } = await adminClient
-        .from("client_admin_notes")
-        .insert({ client_id: clientId, note: text.trim(), created_by: uid });
-      if (error) throw error;
+      const { writeAccountJournal } = await import("@/lib/writeAccountJournal");
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "client_admin_notes",
+        eventKey: `admin_note:${clientId}:${uid}:${minuteBucket}`,
+        visibility: "admin",
+        payload: { client_id: clientId, note: text.trim() },
+      });
     },
     onSuccess: () => {
       setDraft("");

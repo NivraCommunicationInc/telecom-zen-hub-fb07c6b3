@@ -37,6 +37,7 @@ export type AccountJournalTable =
   | "client_activity_logs"
   | "activity_logs"
   | "client_internal_notes"
+  | "client_admin_notes"
   | "account_followups"
   | "order_status_history"
   | "order_internal_notes";
@@ -84,6 +85,7 @@ const ALLOWED_TABLES: ReadonlySet<AccountJournalTable> = new Set([
   "client_activity_logs",
   "activity_logs",
   "client_internal_notes",
+  "client_admin_notes",
   "account_followups",
   "order_status_history",
   "order_internal_notes",
@@ -115,6 +117,7 @@ export async function writeAccountJournal(
     client_activity_logs: "client",
     activity_logs: "admin",
     client_internal_notes: "staff",
+    client_admin_notes: "admin",
     account_followups: "staff",
     order_status_history: "client",
     order_internal_notes: "staff",
