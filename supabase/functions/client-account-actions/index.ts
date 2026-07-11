@@ -163,6 +163,10 @@ const InputSchema = z.discriminatedUnion('action', [
   BillingSameAsService,
   BillingSetCustom,
   BillingLinkToServiceAddress,
+  EmailRequestChange,
+  EmailConfirmChange,
+  PhoneRequestChange,
+  PhoneVerifyOtp,
 ]);
 
 // ---------- Helpers ----------
