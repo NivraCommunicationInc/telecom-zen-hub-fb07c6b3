@@ -21,6 +21,8 @@
  */
 // deno-lint-ignore-file no-explicit-any
 
+import { writeAccountJournal } from "./writeAccountJournal.ts";
+
 const COMMISSION_TYPE = "field_sale";
 
 export interface EnsureFieldCommissionInput {
@@ -146,19 +148,25 @@ export async function ensureFieldCommissionAfterCapture(
 
     // Audit trace — proves the row was created AFTER capture (F31-6).
     try {
-      await supabaseAdmin.from("activity_logs").insert({
-        user_id: agentId,
-        action: "field_commission_created_post_capture",
-        entity_type: "field_commission",
-        entity_id: inserted?.id ?? orderId,
-        actor_role: "system",
-        actor_name: "ensureFieldCommissionAfterCapture",
-        details: {
-          sale_id: sale.id,
-          order_id: orderId,
-          amount,
-          reason: input.reason ?? null,
-          square_payment_id: input.square_payment_id ?? null,
+      await writeAccountJournal(supabaseAdmin, {
+        targetTable: "activity_logs",
+        eventKey: `commission:${inserted?.id ?? orderId}:post_capture`,
+        actor: {
+          userId: agentId,
+          role: "system",
+          name: "ensureFieldCommissionAfterCapture",
+        },
+        payload: {
+          action: "field_commission_created_post_capture",
+          entity_type: "field_commission",
+          entity_id: inserted?.id ?? orderId,
+          details: {
+            sale_id: sale.id,
+            order_id: orderId,
+            amount,
+            reason: input.reason ?? null,
+            square_payment_id: input.square_payment_id ?? null,
+          },
         },
       });
     } catch (_) { /* non-blocking */ }

@@ -3,18 +3,19 @@
  * to client_internal_notes whenever a significant action occurs.
  *
  * • All calls are FIRE-AND-FORGET (never throw, never block the caller).
- * • Notes are tagged with note_type='system', created_by_role='system_auto'.
- * • A short de-dup window prevents identical notes within 5 seconds.
- *
- * This is the canonical replacement for inline note writing scattered
- * across mutations. Used by useOrderProcessing.ts and other surfaces.
+ * • Notes are tagged with note_type='system'.
+ * • A short in-memory de-dup window prevents identical notes within 5 s
+ *   (round-trip avoidance; DB-level idempotency is also enforced by
+ *   `event_key` in `rpc_account_journal_write`).
  */
-import { supabase } from "@/integrations/supabase/client";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 
 const DEDUP_WINDOW_MS = 5000;
-const SYSTEM_ACTOR_ID = "00000000-0000-0000-0000-000000000000";
-const SYSTEM_ACTOR_NAME = "Système Nivra";
 const recent = new Map<string, number>();
+
+function minuteBucket(): string {
+  return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+}
 
 export type AutoNoteEvent =
   | "payment_confirmed"
@@ -132,18 +133,12 @@ export interface AutoNoteParams {
   actorId?: string | null;
   /** Display name of actor (defaults to "Système") */
   actorName?: string | null;
-  /** Optional order id — when provided, also mirrored to activity_logs entity_type='order' so it shows in the order timeline */
+  /** Optional order id — when provided, also mirrored to activity_logs entity_type='order' */
   orderId?: string | null;
 }
 
 /**
  * Write an automatic system note. Never throws.
- * Returns void to discourage await-chaining errors.
- *
- * Writes to TWO surfaces:
- *  1. client_internal_notes — visible on the client profile (note_type='system')
- *  2. activity_logs (entity_type='order' if orderId provided, else entity_type='client')
- *     — visible on the order detail timeline
  */
 export function addClientAutoNote(params: AutoNoteParams): void {
   const { clientId, event, detail, metadata, orderId } = params;
@@ -155,7 +150,6 @@ export function addClientAutoNote(params: AutoNoteParams): void {
   if (last && now - last < DEDUP_WINDOW_MS) return;
   recent.set(dedupKey, now);
 
-  // Periodic cleanup
   if (recent.size > 200) {
     for (const [k, ts] of recent) {
       if (now - ts > DEDUP_WINDOW_MS * 4) recent.delete(k);
@@ -164,35 +158,37 @@ export function addClientAutoNote(params: AutoNoteParams): void {
 
   const label = EVENT_LABELS[event] ?? event;
   const body = detail ? `${label} — ${detail}` : label;
+  const bucket = minuteBucket();
 
-  // Fire-and-forget. We deliberately do NOT await.
+  // Fire-and-forget.
   void (async () => {
     // 1. Client-profile note
     try {
-      await supabase.from("client_internal_notes").insert({
-        client_id: clientId,
-        note_type: "system",
-        body,
-        created_by_user_id: SYSTEM_ACTOR_ID,
-        created_by_role: "system_auto",
-        created_by_name: SYSTEM_ACTOR_NAME,
-      } as any);
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `autonote:${clientId}:${event}:${orderId || "none"}:${bucket}`,
+        payload: {
+          client_id: clientId,
+          note_type: "system",
+          body,
+        },
+      });
     } catch (err: any) {
       console.warn("[autoNote] client_internal_notes insert failed:", err?.message, { event, clientId });
     }
 
-    // 2. Activity log mirror — so it appears on the order's timeline + audit trail
+    // 2. Activity log mirror
     try {
-      await supabase.from("activity_logs").insert({
-        user_id: clientId,
-        action: event,
-        entity_type: orderId ? "order" : "client",
-        entity_id: orderId || clientId,
-        actor_role: "system_auto",
-        actor_name: SYSTEM_ACTOR_NAME,
-        actor_email: null,
-        details: { note: body, ...(metadata || {}) } as any,
-      } as any);
+      await writeAccountJournal({
+        targetTable: "activity_logs",
+        eventKey: `autolog:${clientId}:${event}:${orderId || "none"}:${bucket}`,
+        payload: {
+          action: event,
+          entity_type: orderId ? "order" : "client",
+          entity_id: orderId || clientId,
+          details: { note: body, target_client_id: clientId, ...(metadata || {}) },
+        },
+      });
     } catch (err: any) {
       console.warn("[autoNote] activity_logs insert failed:", err?.message, { event, clientId });
     }

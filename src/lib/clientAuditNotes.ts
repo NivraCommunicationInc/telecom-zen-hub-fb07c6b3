@@ -3,10 +3,10 @@
  * Creates automatic notes for all key actions on client accounts
  */
 
-import { adminClient as supabase } from "@/integrations/backend/adminClient";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 
 // Event types for audit trail
-export type AuditEventType = 
+export type AuditEventType =
   | 'equipment_assigned'
   | 'technician_assigned'
   | 'status_changed'
@@ -31,9 +31,25 @@ interface CreateAuditNoteParams {
   actorName?: string;
 }
 
-// Anti-duplication: track recent notes to avoid duplicates
+// Anti-duplication: keep the in-memory window for round-trip avoidance.
+// (The RPC also enforces DB-level idempotency via event_key.)
 const recentNotes = new Map<string, number>();
 const DEDUP_WINDOW_MS = 5000; // 5 seconds
+
+function minuteBucket(): string {
+  return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+}
+
+function hashMetadata(meta: Record<string, any>): string {
+  // Short, stable, deterministic — order-independent JSON hash (no crypto).
+  const keys = Object.keys(meta).sort();
+  const parts = keys.map((k) => `${k}=${JSON.stringify(meta[k])}`).join("|");
+  let h = 0;
+  for (let i = 0; i < parts.length; i++) {
+    h = ((h << 5) - h + parts.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
 
 /**
  * Create an automatic audit note for a client action
@@ -46,70 +62,55 @@ export async function createAuditNote({
   metadata = {},
   actorId,
   actorRole = 'system',
-  actorName
+  actorName,
 }: CreateAuditNoteParams): Promise<{ success: boolean; error?: string }> {
   try {
-    // Create dedup key
     const dedupKey = `${clientId}:${eventType}:${JSON.stringify(metadata)}`;
     const now = Date.now();
     const lastCreated = recentNotes.get(dedupKey);
-    
-    // Check for duplicate within window
+
     if (lastCreated && (now - lastCreated) < DEDUP_WINDOW_MS) {
       console.log('[AuditNote] Skipping duplicate note:', dedupKey);
-      return { success: true }; // Silently skip
+      return { success: true };
     }
-    
-    // Mark as created
+
     recentNotes.set(dedupKey, now);
-    
-    // Clean old entries
     for (const [key, timestamp] of recentNotes) {
       if (now - timestamp > DEDUP_WINDOW_MS * 2) {
         recentNotes.delete(key);
       }
     }
-    
-    // Get actor info if not provided
-    let resolvedActorName = actorName;
-    if (!resolvedActorName && actorId) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("user_id", actorId)
-        .maybeSingle();
-      resolvedActorName = profile?.full_name || profile?.email || 'Inconnu';
-    }
-    
-    // Create the internal note
-    const { error } = await supabase
-      .from("client_internal_notes")
-      .insert({
+
+    const metaHash = hashMetadata(metadata);
+    const bucket = minuteBucket();
+
+    // 1. Client-profile note
+    await writeAccountJournal({
+      targetTable: "client_internal_notes",
+      eventKey: `auditnote:${clientId}:${eventType}:${metaHash}:${bucket}`,
+      payload: {
         client_id: clientId,
         note_type: actorRole === 'admin' ? 'admin' : 'employee',
         body: `[${eventType.toUpperCase()}] ${message}`,
-        created_by_user_id: actorId || '00000000-0000-0000-0000-000000000000',
-        created_by_role: actorRole,
-        created_by_name: resolvedActorName || 'Système',
-      });
-    
-    if (error) throw error;
-    
-    // Also log to activity_logs for comprehensive tracking
-    await supabase.from("activity_logs").insert({
-      user_id: actorId || '00000000-0000-0000-0000-000000000000',
-      action: eventType,
-      entity_type: 'client',
-      entity_id: clientId,
-      details: { message, ...metadata },
-      actor_role: actorRole,
-      actor_name: resolvedActorName || 'Système',
+      },
     });
-    
+
+    // 2. Activity log mirror
+    await writeAccountJournal({
+      targetTable: "activity_logs",
+      eventKey: `auditlog:${clientId}:${eventType}:${metaHash}:${bucket}`,
+      payload: {
+        action: eventType,
+        entity_type: 'client',
+        entity_id: clientId,
+        details: { message, target_client_id: clientId, ...metadata },
+      },
+    });
+
     return { success: true };
   } catch (error: any) {
     console.error('[AuditNote] Error creating audit note:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message };
   }
 }
 
@@ -121,7 +122,7 @@ export const AuditNotes = {
     const parts = [];
     if (equipment.terminalSerial) parts.push(`Terminal: ${equipment.terminalSerial}`);
     if (equipment.routerSerial) parts.push(`Borne WiFi: ${equipment.routerSerial}`);
-    
+
     return createAuditNote({
       clientId,
       eventType: 'equipment_assigned',
@@ -131,7 +132,7 @@ export const AuditNotes = {
       actorRole,
     });
   },
-  
+
   technicianAssigned: (clientId: string, orderId: string, technicianName: string, actorId: string, actorRole: 'admin' | 'employee' = 'admin') => {
     return createAuditNote({
       clientId,
@@ -142,7 +143,7 @@ export const AuditNotes = {
       actorRole,
     });
   },
-  
+
   statusChanged: (clientId: string, orderId: string, oldStatus: string, newStatus: string, actorId: string, actorRole: 'admin' | 'employee' = 'admin') => {
     return createAuditNote({
       clientId,
@@ -153,7 +154,7 @@ export const AuditNotes = {
       actorRole,
     });
   },
-  
+
   installationScheduled: (clientId: string, orderId: string, scheduledDate: string, actorId: string, actorRole: 'admin' | 'employee' = 'admin') => {
     return createAuditNote({
       clientId,
@@ -164,7 +165,7 @@ export const AuditNotes = {
       actorRole,
     });
   },
-  
+
   paymentRecorded: (clientId: string, amount: number, method: string, reference: string, actorId: string, actorRole: 'admin' | 'employee' = 'admin') => {
     return createAuditNote({
       clientId,
@@ -175,7 +176,7 @@ export const AuditNotes = {
       actorRole,
     });
   },
-  
+
   profileUpdated: (clientId: string, changedFields: string[], actorId: string, actorRole: 'admin' | 'employee' = 'admin') => {
     return createAuditNote({
       clientId,
@@ -186,7 +187,7 @@ export const AuditNotes = {
       actorRole,
     });
   },
-  
+
   serviceModified: (clientId: string, serviceName: string, action: 'added' | 'removed' | 'modified', actorId: string, actorRole: 'admin' | 'employee' = 'admin') => {
     const actionLabels = { added: 'ajouté', removed: 'retiré', modified: 'modifié' };
     return createAuditNote({
@@ -198,7 +199,7 @@ export const AuditNotes = {
       actorRole,
     });
   },
-  
+
   promoApplied: (clientId: string, orderId: string, promoCode: string, discountAmount: number, actorId?: string) => {
     return createAuditNote({
       clientId,

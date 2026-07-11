@@ -3,30 +3,31 @@
  * system note to client_internal_notes + mirror to activity_logs whenever
  * a payment is confirmed on any channel.
  *
- * Fire-and-forget: never throws. Safe to call after any successful billing_payments write.
- *
- * Standard note body:
- *   "Paiement reçu — X$ — [méthode] — Facture #XXXX — Réf NVR-XXXX — via [canal]"
+ * Fire-and-forget: never throws.
  */
+
+import { writeAccountJournal } from "./writeAccountJournal.ts";
 
 const SYSTEM_ACTOR_ID = "00000000-0000-0000-0000-000000000000";
 const SYSTEM_ACTOR_NAME = "Système Nivra";
 
 export interface PaymentNoteParams {
+  // deno-lint-ignore no-explicit-any
   supabase: any;
   billingCustomerId?: string | null;
   clientAuthUserId?: string | null;
   amount: number | string | null | undefined;
-  method: string | null | undefined;   // card | paypal | interac | manual | internal
-  provider?: string | null;             // square | paypal | manual | etc.
+  method: string | null | undefined;
+  provider?: string | null;
   invoiceNumber?: string | null;
   invoiceId?: string | null;
-  nivraReference?: string | null;      // NVR-XXXX
+  nivraReference?: string | null;
   paymentNumber?: string | null;
-  channel: string;                      // "Autopay Square", "PayPal legacy", "Field", "Caisse publique", etc.
+  channel: string;
   event?: "payment_confirmed" | "payment_recorded" | "payment_invalid";
 }
 
+// deno-lint-ignore no-explicit-any
 function fmtMoney(n: any): string {
   const v = Number(n);
   return Number.isFinite(v) ? `${v.toFixed(2)} $` : "—";
@@ -45,10 +46,6 @@ function methodLabel(method?: string | null, provider?: string | null): string {
   return `${base}${tag}`;
 }
 
-/**
- * Write a payment auto-note. Never throws. Resolves customer auth id from
- * billing_customers when only billingCustomerId is provided.
- */
 export async function writePaymentAutoNote(params: PaymentNoteParams): Promise<void> {
   try {
     const {
@@ -85,31 +82,40 @@ export async function writePaymentAutoNote(params: PaymentNoteParams): Promise<v
     ].filter(Boolean);
     const body = parts.join(" — ");
 
-    await supabase.from("client_internal_notes").insert({
-      client_id: clientId,
-      note_type: "system",
-      body,
-      created_by_user_id: SYSTEM_ACTOR_ID,
-      created_by_role: "system_auto",
-      created_by_name: SYSTEM_ACTOR_NAME,
+    // Deterministic dedup anchor: invoice > payment number > client fallback
+    const anchor = invoiceId || invoiceNumber || paymentNumber || `client-${clientId}`;
+    const actor = { userId: SYSTEM_ACTOR_ID, role: "system_auto", name: SYSTEM_ACTOR_NAME };
+
+    await writeAccountJournal(supabase, {
+      targetTable: "client_internal_notes",
+      eventKey: `paymentnote:${anchor}:${event}`,
+      actor,
+      payload: {
+        client_id: clientId,
+        note_type: "system",
+        body,
+      },
     });
 
-    await supabase.from("activity_logs").insert({
-      user_id: clientId,
-      action: event,
-      entity_type: invoiceId ? "invoice" : "client",
-      entity_id: invoiceId || clientId,
-      actor_role: "system_auto",
-      actor_name: SYSTEM_ACTOR_NAME,
-      details: {
-        note: body,
-        amount: Number(amount) || null,
-        method,
-        provider,
-        invoice_number: invoiceNumber,
-        nivra_reference: nivraReference,
-        payment_number: paymentNumber,
-        channel,
+    await writeAccountJournal(supabase, {
+      targetTable: "activity_logs",
+      eventKey: `paymentlog:${anchor}:${event}`,
+      actor,
+      payload: {
+        action: event,
+        entity_type: invoiceId ? "invoice" : "client",
+        entity_id: invoiceId || clientId,
+        details: {
+          note: body,
+          target_client_id: clientId,
+          amount: Number(amount) || null,
+          method,
+          provider,
+          invoice_number: invoiceNumber,
+          nivra_reference: nivraReference,
+          payment_number: paymentNumber,
+          channel,
+        },
       },
     });
   } catch (err: any) {
