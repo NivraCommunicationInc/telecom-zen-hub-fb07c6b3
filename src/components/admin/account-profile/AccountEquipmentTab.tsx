@@ -22,6 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import {
   Router, Tv, Smartphone, HardDrive, Loader2, PlusCircle, MoreHorizontal,
   Unlink, MapPin, RefreshCw, ArrowRightLeft, Edit,

@@ -27,6 +27,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { adminClient as supabase } from "@/integrations/backend";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";

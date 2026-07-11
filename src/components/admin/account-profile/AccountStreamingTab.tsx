@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Play, Tv, MoreHorizontal, Pause, RotateCcw, XCircle, Eye, CheckCircle2, Loader2, ListChecks } from "lucide-react";
 import { adminClient as supabase } from "@/integrations/backend";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
