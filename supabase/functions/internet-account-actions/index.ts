@@ -931,6 +931,7 @@ serve(async (req) => {
 
           await audit("static_ip_release", { assignment_id: id, ...after }, before);
           await activity(
+            `internet:static_ip:${id}:released:activity`,
             "internet_static_ip_release",
             id,
             "internet_static_ip",
@@ -938,7 +939,10 @@ serve(async (req) => {
             after,
             before,
           );
-          await sysNote(`[INTERNET] IP statique libérée — ${existing.ip_address ?? "—"} · Raison: ${reasonStr}`);
+          await sysNote(
+            `internet:static_ip:${id}:released:note`,
+            `[INTERNET] IP statique libérée — ${existing.ip_address ?? "—"} · Raison: ${reasonStr}`,
+          );
           await enqueueEmail("client_internet_static_ip", {
             mode: "released",
             ip_address: existing.ip_address || "—",
