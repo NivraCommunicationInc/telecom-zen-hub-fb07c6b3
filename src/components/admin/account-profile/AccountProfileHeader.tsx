@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { adminClient as supabase } from "@/integrations/backend";
 import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { toast } from "sonner";
 
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
