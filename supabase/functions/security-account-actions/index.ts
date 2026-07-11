@@ -179,9 +179,9 @@ Deno.serve(async (req) => {
           eventKey: activityKey,
           actor: journalActor,
           payload: {
-            client_user_id: clientId,
-            activity_type: `security_${opts.eventPrefix}`,
-            description: opts.summary,
+            client_id: clientId,
+            action_type: `security_${opts.eventPrefix}`,
+            summary: opts.summary,
             metadata: opts.details,
           },
         });
@@ -194,9 +194,9 @@ Deno.serve(async (req) => {
           eventKey: noteKey,
           actor: journalActor,
           payload: {
-            client_user_id: clientId,
+            client_id: clientId,
             note_type: "security",
-            content: opts.summary,
+            body: opts.summary,
             metadata: opts.details,
           },
         });
