@@ -201,6 +201,7 @@ export function AccountFraudRiskDialog({ open, onClose, clientUserId, clientName
           riskLevel,
           notes: scoreNotes.trim() || undefined,
           reason: scoreReason.trim(),
+          idempotency_key: crypto.randomUUID(),
         },
       });
       if (error) throw error;
