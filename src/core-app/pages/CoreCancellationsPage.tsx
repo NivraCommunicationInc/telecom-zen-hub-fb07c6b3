@@ -160,6 +160,7 @@ export default function CoreCancellationsPage() {
             : { data: null };
           if (cp?.email) {
             await (supabase as any).from("email_queue").insert({
+              event_key: `cancellation-lifecycle:${id}:${fields.status}`,
               template_key: fields.status === "declined" ? "cancellation_declined" : "cancellation_completed",
               to_email: cp.email,
               entity_type: "cancellation_request",
