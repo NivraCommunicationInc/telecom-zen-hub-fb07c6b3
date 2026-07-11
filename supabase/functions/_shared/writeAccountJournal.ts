@@ -41,11 +41,24 @@ export type AccountJournalTable =
   | "order_status_history"
   | "order_internal_notes";
 
+export interface WriteAccountJournalActor {
+  userId: string;
+  role?: string;
+  name?: string;
+  email?: string | null;
+}
+
 export interface WriteAccountJournalInput {
   targetTable: AccountJournalTable;
   payload: Record<string, unknown>;
   eventKey: string;
   correlationId?: string | null;
+  /**
+   * Optional actor override. Only honored when the RPC is called under a
+   * service_role JWT (Edge Functions). Ignored for authenticated frontend
+   * calls (auth.uid() wins). Serialized as `payload._actor` for the RPC.
+   */
+  actor?: WriteAccountJournalActor | null;
 }
 
 export interface WriteAccountJournalResult {
