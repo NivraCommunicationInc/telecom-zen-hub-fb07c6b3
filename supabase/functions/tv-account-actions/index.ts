@@ -673,9 +673,9 @@ serve(async (req) => {
 
         const after = { addon_id, addon_name: existing.addon_name };
         await audit("remove_themed_pack", after, { status: "active" });
-        await activity("service_remove", addon_id, "service",
+        await activity(`tv:themed_pack:${addon_id}:removed:activity`, "service_remove", addon_id, "service",
           `Bouquet TV annulé: ${existing.addon_name}`, after, { status: "active" });
-        await sysNote(`[TV] Annulation bouquet — ${existing.addon_name}. Motif: ${reasonStr}`);
+        await sysNote(`tv:themed_pack:${addon_id}:removed:note`, `[TV] Annulation bouquet — ${existing.addon_name}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_pack_change", {
           addon_name: existing.addon_name,
           monthly_price: fmtMoney(Number(existing.monthly_price ?? 0)),
