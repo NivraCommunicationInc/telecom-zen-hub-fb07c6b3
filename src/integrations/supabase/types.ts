@@ -10593,6 +10593,30 @@ export type Database = {
           },
         ]
       }
+      escalation_action_idempotency: {
+        Row: {
+          created_at: string
+          expires_at: string
+          idempotency_key: string
+          request_hash: string
+          response: Json
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          idempotency_key: string
+          request_hash: string
+          response: Json
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          idempotency_key?: string
+          request_hash?: string
+          response?: Json
+        }
+        Relationships: []
+      }
       field_agent_discounts: {
         Row: {
           agent_id: string
@@ -32773,6 +32797,28 @@ export type Database = {
           p_referral_id: string
         }
         Returns: Json
+      }
+      rpc_supervisor_escalation_transition: {
+        Args: {
+          p_actor_id: string
+          p_actor_name: string
+          p_actor_role: string
+          p_assignee_id?: string
+          p_assignee_name?: string
+          p_new_status: string
+          p_reason: string
+          p_ticket_id: string
+        }
+        Returns: {
+          account_id: string
+          client_user_id: string
+          created_by_email: string
+          created_by_id: string
+          id: string
+          new_status: string
+          old_status: string
+          ticket_number: string
+        }[]
       }
       rpc_ticket_add_attachment: {
         Args: {
