@@ -158,6 +158,7 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         ...(accountStatus !== "cancelled"
           ? [{ icon: XCircle, label: "Annuler le compte", onClick: () => setCancelOpen(true), color: "danger" as const }]
           : []),
+        { icon: ArrowRightLeft, label: "Transfert de propriété", onClick: () => setOwnershipTransferOpen(true), color: "violet" as const },
       ],
     },
     {
