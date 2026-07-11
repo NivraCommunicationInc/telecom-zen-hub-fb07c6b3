@@ -346,9 +346,10 @@ serve(async (req) => {
       case "mark_resolved": {
         const { data, error } = await insertAction("resolved", { notes: body.notes ?? null });
         if (error) return json(500, { error: error.message });
+        const aid = (data?.id as string) ?? `${invoice_id}:resolved`;
         await audit("resolved", {});
-        await activity("collections_resolved", invoice_id, `Dossier résolu — facture ${invRef}`, null);
-        await internalNote(`Recouvrement — dossier résolu sur facture ${invRef} par ${callerName}.${body.notes ? ` Note: ${body.notes.slice(0, 200)}` : ""}`);
+        await activity("collections_resolved", invoice_id, `Dossier résolu — facture ${invRef}`, null, aid);
+        await internalNote(`Recouvrement — dossier résolu sur facture ${invRef} par ${callerName}.${body.notes ? ` Note: ${body.notes.slice(0, 200)}` : ""}`, aid);
         return json(200, { ok: true, id: data?.id });
       }
 
