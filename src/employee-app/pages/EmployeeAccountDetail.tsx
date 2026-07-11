@@ -553,6 +553,7 @@ export default function EmployeeAccountDetail() {
       {showEscalation && (
         <EscalationRequestDialog
           clientId={account.client_id}
+          accountId={account.id}
           clientName={profile?.full_name ?? undefined}
           accountNumber={account.account_number}
           orderId={latestOrder?.id}

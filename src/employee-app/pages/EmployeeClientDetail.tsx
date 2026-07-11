@@ -223,7 +223,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
       <KYCRequestDialog open={showKycRequest} onOpenChange={setShowKycRequest} clientId={clientId} accountId={account?.id} clientName={profile.full_name} clientEmail={profile.email} />
       {showEscalation && (
         <EscalationRequestDialog
-          clientId={clientId} clientName={profile.full_name ?? undefined} accountNumber={account?.account_number}
+          clientId={clientId} accountId={account?.id} clientName={profile.full_name ?? undefined} accountNumber={account?.account_number}
           initialCategory={escalationPreset?.category} initialSubject={escalationPreset?.subject} initialDescription={escalationPreset?.desc}
           onClose={() => { setShowEscalation(false); setEscalationPreset(null); }}
         />
