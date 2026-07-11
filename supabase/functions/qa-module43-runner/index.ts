@@ -415,7 +415,7 @@ Deno.serve(async (req) => {
 
   // ---------- 10. PHONE FRAUD SCORE ----------
   // Pause to let auth/rate windows drain from the fraud-actions burst above.
-  await new Promise((r) => setTimeout(r, 8000));
+  await new Promise((r) => setTimeout(r, 40000));
 
   await check("T28 phone-fraud-score rejects invalid JWT (401)", async () => {
     const r = await fetch(`${SUPABASE_URL}/functions/v1/calculate-phone-fraud-score`, {
