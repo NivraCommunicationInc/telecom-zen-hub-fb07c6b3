@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 // Loose Supabase client type — the generated Database type isn't available
 // in edge-function context, so we use `any` for schema generics. Without this,
 // `ReturnType<typeof createClient>` collapses to `never` for table rows.
@@ -3923,13 +3924,22 @@ serve(async (req: Request) => {
             ].filter(Boolean).join("\n");
 
             if (noteContent) {
-              await adminClient.from("client_internal_notes").insert({
-                client_id: userId,
-                body: noteContent,
-                note_type: "field_sales_info",
-                created_by_user_id: callingUser.id,
-                created_by_role: "admin",
-                created_by_name: callingUser.email,
+              await writeAccountJournal(adminClient, {
+                targetTable: "client_internal_notes",
+                payload: {
+                  client_id: userId,
+                  body: noteContent,
+                  note_type: "field_sales_info",
+                  created_by_user_id: callingUser.id,
+                  created_by_role: "admin",
+                  created_by_name: callingUser.email,
+                },
+                eventKey: `staff:${userId}:field_sales_info:onboarding_note`,
+                actor: {
+                  userId: callingUser.id,
+                  role: "admin",
+                  email: callingUser.email ?? null,
+                },
               });
             }
           } catch (e) {

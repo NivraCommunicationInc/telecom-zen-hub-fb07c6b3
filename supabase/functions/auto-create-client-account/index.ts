@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 
 /**
  * AUTO-CREATE CLIENT ACCOUNT
@@ -120,19 +121,31 @@ serve(async (req) => {
     if (phoneMatchDifferentEmail) {
       try {
         const noteBody = `Commande liée par correspondance téléphone — email fourni différent : ${email} vs ${phoneMatchDifferentEmail.matchedEmail}. Vérification agent requise.`;
-        await supabase.from("client_internal_notes").insert({
-          client_id: userId,
-          author_name: "Système Nivra",
-          author_role: "system",
-          note: noteBody,
-          category: "identity",
+        const actor = { userId: userId, role: "system", name: "Système Nivra", email: null };
+        await writeAccountJournal(supabase, {
+          targetTable: "client_internal_notes",
+          payload: {
+            client_id: userId,
+            body: noteBody,
+            note_type: "identity",
+            created_by_user_id: userId,
+            created_by_role: "system",
+            created_by_name: "Système Nivra",
+          },
+          eventKey: `client:${userId}:phone_match_diff_email:note`,
+          actor,
         });
-        await supabase.from("activity_logs").insert({
-          entity_id: userId,
-          entity_type: "client",
-          action: noteBody,
-          actor_name: "Système Nivra",
-          actor_role: "system",
+        await writeAccountJournal(supabase, {
+          targetTable: "activity_logs",
+          payload: {
+            entity_id: userId,
+            entity_type: "client",
+            action: noteBody,
+            actor_name: "Système Nivra",
+            actor_role: "system",
+          },
+          eventKey: `client:${userId}:phone_match_diff_email:activity`,
+          actor,
         });
       } catch (e) {
         console.warn("[auto-create-client-account] phone-match note failed:", e);
