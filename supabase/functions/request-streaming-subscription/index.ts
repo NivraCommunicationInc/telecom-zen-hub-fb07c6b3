@@ -76,11 +76,18 @@ serve(async (req) => {
 
     // 5. Notify Core via system note + activity log (fire and forget)
     try {
-      await supabase.from("client_internal_notes").insert({
-        client_id: user.id,
-        note_type: "system",
-        content: `🎬 Nouvel abonnement streaming demandé : ${svc.name} (${Number(svc.monthly_price).toFixed(2)} $/mois)${promo_code ? ` — Code promo : ${promo_code}` : ""}`,
-        created_by_role: "system_auto",
+      await writeAccountJournal(supabase, {
+        targetTable: "client_internal_notes",
+        payload: {
+          client_id: user.id,
+          note_type: "system",
+          body: `🎬 Nouvel abonnement streaming demandé : ${svc.name} (${Number(svc.monthly_price).toFixed(2)} $/mois)${promo_code ? ` — Code promo : ${promo_code}` : ""}`,
+          created_by_user_id: user.id,
+          created_by_role: "system_auto",
+          created_by_name: "Système Nivra",
+        },
+        eventKey: `streaming_subscription:${subscription.id}:requested:note`,
+        actor: { userId: user.id, role: "system_auto", name: "Système Nivra", email: null },
       });
     } catch (e) {
       console.warn("[request-streaming] note insert failed", e);
