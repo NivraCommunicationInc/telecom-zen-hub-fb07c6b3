@@ -19,9 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
-import { enqueueCommunication } from "@/lib/enqueueCommunication";
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 
 const CATEGORIES: { value: string; label: string; emoji: string }[] = [
   { value: "technique", label: "Problème technique", emoji: "🔧" },
