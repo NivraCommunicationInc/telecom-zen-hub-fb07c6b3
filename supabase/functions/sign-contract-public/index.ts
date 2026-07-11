@@ -15,6 +15,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -188,22 +189,29 @@ serve(async (req: Request) => {
         }
 
         // 1. Activity log
-        await supabase.from("activity_logs").insert({
-          action: "contract_signed_by_client",
-          entity_type: "contract",
-          entity_id: payload.contract_id,
-          actor_name: signerName || "Client",
-          actor_role: "client",
-          user_id: payload.contract_id, // placeholder for required user_id col
-          details: {
-            order_id: payload.order_id,
-            ip: clientIp,
-            user_agent: userAgent,
-            method: "click_to_sign",
-            signed_at: payload.signed_at,
+        await writeAccountJournal(supabase, {
+          targetTable: "activity_logs",
+          payload: {
+            action: "contract_signed_by_client",
+            entity_type: "contract",
+            entity_id: payload.contract_id,
+            actor_name: signerName || "Client",
+            actor_role: "client",
+            user_id: payload.contract_id, // placeholder for required user_id col
+            details: {
+              order_id: payload.order_id,
+              ip: clientIp,
+              user_agent: userAgent,
+              method: "click_to_sign",
+              signed_at: payload.signed_at,
+            },
           },
-        }).then(({ error: logErr }) => {
-          if (logErr) console.warn("[sign-contract-public] activity_logs insert failed:", logErr.message);
+          eventKey: `contract:${payload.contract_id}:signed_by_client`,
+          actor: { userId: payload.contract_id, role: "client", name: signerName || "Client", email: null },
+        }).then(({ ok }: { ok: boolean }) => {
+          if (!ok) console.warn("[sign-contract-public] activity_logs write not ok");
+        }, (err: unknown) => {
+          console.warn("[sign-contract-public] activity_logs write failed:", err);
         });
 
         // 2. Email confirmation to client + admin via canonical email_queue
