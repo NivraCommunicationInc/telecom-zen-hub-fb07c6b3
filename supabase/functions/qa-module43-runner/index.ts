@@ -463,7 +463,7 @@ Deno.serve(async (req) => {
     await admin.from("rate_limits").insert({
       identifier: plainUser.id,
       action_type: "calculate-phone-fraud-score",
-      attempts: 25,
+      request_count: 25,
       window_start: new Date().toISOString(),
     });
     const r = await invokePhoneScoreAs(plainUser.token, {
