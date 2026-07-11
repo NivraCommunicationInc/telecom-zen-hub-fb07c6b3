@@ -5,6 +5,7 @@
  * - Queues emails via email_queue with BCC support@nivra-telecom.ca
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enqueueCommunication } from "./enqueueCommunication.ts";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
