@@ -502,6 +502,96 @@ export type Database = {
         }
         Relationships: []
       }
+      account_ownership_transfers: {
+        Row: {
+          account_id: string
+          admin_override: boolean
+          admin_override_reason: string | null
+          billing_transfer_option: string
+          cancelled_at: string | null
+          completed_at: string | null
+          confirmation_token_new: string | null
+          confirmation_token_old: string | null
+          correlation_id: string
+          created_at: string
+          equipment_transfer_option: string
+          expires_at: string
+          id: string
+          new_client_email: string | null
+          new_client_id: string | null
+          new_client_payload: Json | null
+          new_owner_confirmed_at: string | null
+          new_service_address: Json | null
+          old_client_id: string
+          old_owner_confirmed_at: string | null
+          reason: string | null
+          requested_by: string
+          service_address_option: string
+          services_transferred: Json
+          status: Database["public"]["Enums"]["account_transfer_status"]
+          transfer_type: Database["public"]["Enums"]["account_transfer_type"]
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          admin_override?: boolean
+          admin_override_reason?: string | null
+          billing_transfer_option: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          confirmation_token_new?: string | null
+          confirmation_token_old?: string | null
+          correlation_id?: string
+          created_at?: string
+          equipment_transfer_option?: string
+          expires_at?: string
+          id?: string
+          new_client_email?: string | null
+          new_client_id?: string | null
+          new_client_payload?: Json | null
+          new_owner_confirmed_at?: string | null
+          new_service_address?: Json | null
+          old_client_id: string
+          old_owner_confirmed_at?: string | null
+          reason?: string | null
+          requested_by: string
+          service_address_option?: string
+          services_transferred?: Json
+          status?: Database["public"]["Enums"]["account_transfer_status"]
+          transfer_type?: Database["public"]["Enums"]["account_transfer_type"]
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          admin_override?: boolean
+          admin_override_reason?: string | null
+          billing_transfer_option?: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          confirmation_token_new?: string | null
+          confirmation_token_old?: string | null
+          correlation_id?: string
+          created_at?: string
+          equipment_transfer_option?: string
+          expires_at?: string
+          id?: string
+          new_client_email?: string | null
+          new_client_id?: string | null
+          new_client_payload?: Json | null
+          new_owner_confirmed_at?: string | null
+          new_service_address?: Json | null
+          old_client_id?: string
+          old_owner_confirmed_at?: string | null
+          reason?: string | null
+          requested_by?: string
+          service_address_option?: string
+          services_transferred?: Json
+          status?: Database["public"]["Enums"]["account_transfer_status"]
+          transfer_type?: Database["public"]["Enums"]["account_transfer_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       account_promotions: {
         Row: {
           account_id: string
@@ -734,6 +824,39 @@ export type Database = {
           severity?: string
           tag_key?: string
           tag_label?: string
+        }
+        Relationships: []
+      }
+      account_transfer_idempotency: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          request_hash: string
+          result: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          request_hash: string
+          result?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          request_hash?: string
+          result?: Json | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -32722,6 +32845,14 @@ export type Database = {
             }
             Returns: Json
           }
+      rpc_account_transfer_transition: {
+        Args: {
+          p_actor: string
+          p_next_status: Database["public"]["Enums"]["account_transfer_status"]
+          p_transfer_id: string
+        }
+        Returns: Json
+      }
       rpc_commission_ledger_transition: {
         Args: {
           p_actor_id: string
@@ -33639,6 +33770,18 @@ export type Database = {
       }
     }
     Enums: {
+      account_transfer_status:
+        | "pending_review"
+        | "awaiting_old_owner_confirmation"
+        | "awaiting_new_owner_confirmation"
+        | "approved"
+        | "processing"
+        | "completed"
+        | "cancelled"
+        | "rejected"
+        | "expired"
+        | "failed"
+      account_transfer_type: "personal_transfer" | "business_transfer"
       app_role:
         | "admin"
         | "client"
@@ -34166,6 +34309,19 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_transfer_status: [
+        "pending_review",
+        "awaiting_old_owner_confirmation",
+        "awaiting_new_owner_confirmation",
+        "approved",
+        "processing",
+        "completed",
+        "cancelled",
+        "rejected",
+        "expired",
+        "failed",
+      ],
+      account_transfer_type: ["personal_transfer", "business_transfer"],
       app_role: [
         "admin",
         "client",
