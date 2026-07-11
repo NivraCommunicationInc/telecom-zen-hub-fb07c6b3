@@ -113,28 +113,22 @@ serve(async (req) => {
       <p><strong>Démarré:</strong> ${startedAt}</p>
       <p>Vérifier immédiatement les fichiers récemment modifiés et les logs des Edge Functions.</p>
     `;
-    await supabase.from("email_queue").insert([
-      {
-        event_key: `health_check_${Date.now()}_support`,
-        to_email: "support@nivra-telecom.ca",
-        template_key: "custom_html",
+    // Failure fingerprint = list of failed check names → deterministic dedup per day.
+    const failureFingerprint = failures.map((f) => f.name).sort().join("|");
+    const today = startedAt.slice(0, 10); // YYYY-MM-DD
+    const baseKey = `health-check:${today}:${failureFingerprint}`;
+    try {
+      await enqueueCommunication(supabase, {
+        channel: "email",
+        recipient: "support@nivra-telecom.ca",
+        templateKey: "custom_html",
         subject,
-        template_vars: { subject, html },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      },
-      {
-        event_key: `health_check_${Date.now()}_alt`,
-        to_email: "support@nivra-telecom.ca",
-        template_key: "custom_html",
-        subject,
-        template_vars: { subject, html },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 5,
-      },
-    ]);
+        templateVars: { subject, html },
+        idempotencyKey: baseKey,
+      });
+    } catch (e) {
+      console.error("[nivra-health-check] enqueue failed:", e);
+    }
   }
 
   return new Response(
