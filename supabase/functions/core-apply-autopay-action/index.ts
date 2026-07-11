@@ -198,6 +198,7 @@ serve(async (req) => {
         `AutoPay activé sur la carte ${bcBefore.square_card_brand} •••• ${bcBefore.square_card_last4} — motif: ${reason}`,
         "autopay_enabled",
         { autopay_enabled: true, card_last4: bcBefore.square_card_last4 },
+        `enabled:${isoMinuteBucket36()}`,
       );
       return json({ ok: true });
     }
