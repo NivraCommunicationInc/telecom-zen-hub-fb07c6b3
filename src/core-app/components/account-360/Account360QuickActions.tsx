@@ -771,6 +771,16 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, cus
         onMutationSuccess={onRefresh}
       />
 
+      {accountId && clientId && (
+        <AccountOwnershipTransferDialog
+          open={ownershipTransferOpen}
+          onClose={() => setOwnershipTransferOpen(false)}
+          accountId={accountId}
+          oldClientId={clientId}
+          oldClientName={clientName}
+          canonicalData={canonicalData}
+        />
+      )}
     </>
   );
 }
