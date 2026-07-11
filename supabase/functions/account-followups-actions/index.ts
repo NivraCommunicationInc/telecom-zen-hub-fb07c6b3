@@ -61,8 +61,8 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-      const { isStaff } = await checkStaffAuth(admin, user.id);
-  if (!isStaff) return json(403, { error: "Action réservée au personnel autorisé" });
+    const { isStaff } = await checkStaffAuth(admin, userData.user.id);
+    if (!isStaff) return json({ error: "Action réservée au personnel autorisé" }, 403);
     const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
 
     const body = (await req.json()) as Body;
