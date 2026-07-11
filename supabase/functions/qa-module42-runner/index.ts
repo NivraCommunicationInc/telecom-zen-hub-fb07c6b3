@@ -265,9 +265,10 @@ Deno.serve(async (req) => {
   // T15 event keys deterministic (idempotent replay does not duplicate journal)
   await check("T15 journal idempotency: no duplicate for same event_key", async () => {
     const { data } = await admin.from("client_activity_logs")
-      .select("action_type").eq("client_id", fakeClientA);
-    const revokeRows = (data ?? []).filter((r: any) => r.action_type === "security_session_revoked");
-    if (revokeRows.length > 1) throw new Error(`duplicate journal rows for session revoke: ${revokeRows.length}`);
+      .select("event_key, action_type").eq("client_id", fakeClientA);
+    const keys = (data ?? []).map((r: any) => r.event_key).filter(Boolean);
+    const dup = keys.filter((k: string, i: number) => keys.indexOf(k) !== i);
+    if (dup.length > 0) throw new Error(`duplicate event_keys: ${JSON.stringify(dup)}`);
   });
 
   // T16 RLS blocks anonymous UPDATE on customer_access_sessions
