@@ -528,6 +528,7 @@ serve(async (req) => {
           `Paiement automatique ${enabled ? "activé" : "désactivé"} — décalage ${charge_day_offset}j${body.reason ? ` — motif: ${body.reason}` : ""}`,
           null,
           { enabled, payment_method_id, charge_day_offset, reason: body.reason ?? null },
+          `billing:autopay:${client_user_id}:${enabled ? "on" : "off"}:${body.idempotency_key ?? isoMinuteBucket()}`,
         );
         await enqueueEmail("client_autopay_change", {
           enabled: enabled ? "true" : "false",
