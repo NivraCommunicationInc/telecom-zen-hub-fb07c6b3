@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
 
 const SLA_THRESHOLD_HOURS = 48;
 
