@@ -304,6 +304,7 @@ Deno.serve(async (req) => {
 
       case "unsubscribe_all": {
         if (!body.reason?.trim()) return json({ error: "Motif requis" }, 400);
+        const beforeSnapshot = await loadAll();
         const off: Record<string, unknown> = {
           marketing_emails: false, promotional_emails: false, newsletter: false,
           sms_reminders: false, sms_invoices: false, sms_service_updates: false,
@@ -327,16 +328,34 @@ Deno.serve(async (req) => {
           user_agent: req.headers.get("user-agent"),
         }).catch(() => {});
 
+        const correlationId = crypto.randomUUID();
         await admin.from("admin_audit_log").insert({
           admin_user_id: userData.user.id,
           admin_email: userData.user.email,
           action: "account_ops.preferences_unsubscribe_all",
           target_type: "user",
           target_id: body.client_user_id,
-          details: { account_id: body.account_id ?? null, reason: body.reason.trim() },
+          details: {
+            account_id: body.account_id ?? null,
+            reason: body.reason.trim(),
+            correlation_id: correlationId,
+            module_tag: "module_51",
+          },
         });
 
         const data = await loadAll();
+        await journalPrefsChange(admin, {
+          clientId: body.client_user_id,
+          accountId: body.account_id ?? null,
+          action: "preferences_unsubscribe_all",
+          before: beforeSnapshot as Record<string, unknown>,
+          after: data as Record<string, unknown>,
+          reason: body.reason.trim(),
+          actorId: userData.user.id,
+          actorEmail: userData.user.email ?? null,
+          actorRole: "staff",
+          correlationId,
+        });
         return json({ ok: true, ...data });
       }
 
