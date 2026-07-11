@@ -76,12 +76,17 @@ export function AccountSecurityDialog({ open, onClose, clientUserId, clientName,
     }
     setActing(action);
     try {
+      const idempotencyKey =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const { data: res, error } = await supabase.functions.invoke("security-account-actions", {
         body: {
           action,
           client_user_id: clientUserId,
           client_email: clientEmail ?? null,
           reason: reason.trim(),
+          idempotency_key: idempotencyKey,
           ...extra,
         },
       });
