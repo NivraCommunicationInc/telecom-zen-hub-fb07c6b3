@@ -29,13 +29,14 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
   const auth = req.headers.get("Authorization");
-  if (!auth) return json({ error: "unauthorized" }, 401);
-  const bearer = auth.replace(/^Bearer\s+/i, "").trim();
-  const isServiceRole = bearer === SERVICE_ROLE;
+  const qaSecret = req.headers.get("x-qa-secret");
+  const bootstrapToken = Deno.env.get("BOOTSTRAP_TOKEN") ?? "";
+  const isServiceRole = !!auth && auth.replace(/^Bearer\s+/i, "").trim() === (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+  const isQaSecret = !!qaSecret && !!bootstrapToken && qaSecret === bootstrapToken;
+
   let actor: { id: string; email?: string } | null = null;
-  if (isServiceRole) {
-    actor = { id: "00000000-0000-0000-0000-000000000000", email: "qa-runner@service" };
-  } else {
+  if (!isServiceRole && !isQaSecret) {
+    if (!auth) return json({ error: "unauthorized" }, 401);
     const userClient = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: auth } },
     });
