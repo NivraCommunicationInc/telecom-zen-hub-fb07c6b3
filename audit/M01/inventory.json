@@ -1,0 +1,38 @@
+{
+  "module": 1,
+  "name": "Modifier le profil",
+  "objective": "Modifier informations client (profil, coordonnées, données admin)",
+  "frontend": {
+    "profile_edit_dialogs": [
+      "src/core-app/components/account-360/Account360ProfileEditDialog.tsx",
+      "src/components/admin/account-profile/AccountProfileEditDialog.tsx",
+      "src/pages/client/ClientProfile.tsx (self-service)",
+      "src/core-app/pages/CoreClientProfile.tsx (read view + edits)",
+      "src/core-app/pages/CoreMyAccountPage.tsx",
+      "src/pages/admin/AdminClients.tsx (balance/credit only)"
+    ],
+    "direct_write_sites": 7,
+    "portal_access_dialog": "src/shared-ops/components/ClientAccountAccessDialog.tsx"
+  },
+  "edge_functions": {
+    "client-account-admin": {
+      "size_lines": 627,
+      "actions": ["send_password_reset","send_invite","force_confirm_email","change_email","force_logout","set_temporary_password","resend_welcome","disable_portal_access","enable_portal_access"],
+      "note": "Portal access only — DOES NOT edit profile fields"
+    }
+  },
+  "rpcs": [],
+  "views": [],
+  "tables": ["profiles (91 cols)", "accounts", "client_profile_changes"],
+  "triggers_on_profiles": 13,
+  "notable_triggers": [
+    "enforce_profiles_client_safe_update — rejects client writes to privileged cols",
+    "fn_lock_identity_fields — freezes name/dob/email after KYC verified",
+    "trg_profiles_validate_dob",
+    "trg_customer_portal_projection_profiles",
+    "trg_auto_referral_code"
+  ],
+  "check_constraints_profiles": 7,
+  "indexes_profiles": 12,
+  "policies_profiles": 11
+}

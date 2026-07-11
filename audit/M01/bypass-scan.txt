@@ -1,0 +1,19 @@
+# M01 — Direct profile writes bypass scan
+## Frontend .from('profiles').update|upsert
+src/hooks/useClientAuth.tsx:347:        await portalSupabase.from("profiles").upsert({
+src/core-app/pages/CoreFieldAgentsPage.tsx:560:        await supabase.from("profiles").update(profileUpdate as any).eq("user_id", newUserId);
+src/field-app/pages/FieldProfile.tsx:147:      const { error } = await supabase.from("profiles").update({
+src/core-app/components/field-agents/AgentDetailTabs.tsx:357:      const { error: e2 } = await supabase.from("profiles").update(profileUpdate as any).eq("user_id", userId as any);
+src/core-app/components/account-actions/ResetClientPinDialog.tsx:59:      const { error } = await supabase.from("profiles").update({
+src/core-app/components/account-actions/ResetClientPinDialog.tsx:64:      await supabase.from("profiles").update({
+src/pages/admin/AdminClients.tsx:539:      const { error } = await supabase.from("profiles").update({ [field]: newValue }).eq("id", clientId);
+
+## Frontend .from('accounts').update|upsert
+src/core-app/hooks/useOrderProcessing.ts:1904:      await supabase.from("accounts").update({
+src/core-app/components/account-actions/AccountRestrictionsDialog.tsx:47:          const { error } = await supabase.from("accounts").update({
+src/core-app/components/account-actions/AccountRestrictionsDialog.tsx:62:            await supabase.from("accounts").update({
+src/components/admin/account-profile/AccountProfileHeader.tsx:123:      const { error } = await supabase.from("accounts").update({ status: newStatus }).eq("id", account.id);
+
+## Frontend .from('client_profile_changes').insert
+src/components/client/ClientProfileChangeHistory.tsx:54:        .from("client_profile_changes")
+src/pages/client/ClientProfile.tsx:236:          await portalSupabase.from("client_profile_changes").insert({
