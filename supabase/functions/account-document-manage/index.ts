@@ -10,6 +10,14 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+async function resolveAccountId(sb: any, clientUserId: string): Promise<string | null> {
+  try {
+    const { data } = await sb.from("accounts").select("id").eq("client_id", clientUserId).maybeSingle();
+    return (data as any)?.id ?? null;
+  } catch { return null; }
+}
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
