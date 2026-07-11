@@ -467,7 +467,7 @@ serve(async (req) => {
           catalog_item_id: body.catalog_item_id,
           price_client: canonicalPrice,
         });
-        await addSystemNote("EQUIPMENT.ASSIGN", `${canonicalName} (${fmtMoney(canonicalPrice)}) assigné`);
+        await addSystemNote("EQUIPMENT.ASSIGN", `${canonicalName} (${fmtMoney(canonicalPrice)}) assigné`, { action_type: "equipment_assigned", inventory_id: inventoryId });
         await enqueueEmail("client_equipment_assigned", {
           equipment_name: canonicalName,
           equipment_price: fmtMoney(canonicalPrice),
