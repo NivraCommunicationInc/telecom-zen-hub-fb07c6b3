@@ -176,19 +176,31 @@ Deno.serve(async (req) => {
     const noteBody = `Paiement automatique activé — carte ${cardBrand} •••• ${last4} — via ${noteActor}`;
     if (bc.user_id) {
       try {
-        await supabase.from("client_internal_notes").insert({
-          client_id: bc.user_id,
-          author_name: "Système Nivra",
-          author_role: "system",
-          note: noteBody,
-          category: "billing",
+        const actor = { userId: bc.user_id, role: "system", name: "Système Nivra", email: null };
+        await writeAccountJournal(supabase, {
+          targetTable: "client_internal_notes",
+          payload: {
+            client_id: bc.user_id,
+            body: noteBody,
+            note_type: "billing",
+            created_by_user_id: bc.user_id,
+            created_by_role: "system",
+            created_by_name: "Système Nivra",
+          },
+          eventKey: `square_card:${squareCardId}:autopay_activated:note`,
+          actor,
         });
-        await supabase.from("activity_logs").insert({
-          entity_id: bc.user_id,
-          entity_type: "client",
-          action: noteBody,
-          actor_name: "Système Nivra",
-          actor_role: "system",
+        await writeAccountJournal(supabase, {
+          targetTable: "activity_logs",
+          payload: {
+            entity_id: bc.user_id,
+            entity_type: "client",
+            action: noteBody,
+            actor_name: "Système Nivra",
+            actor_role: "system",
+          },
+          eventKey: `square_card:${squareCardId}:autopay_activated:activity`,
+          actor,
         });
       } catch (noteErr) {
         console.warn("[square-save-card] note write failed:", noteErr);
