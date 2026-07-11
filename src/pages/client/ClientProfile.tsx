@@ -167,98 +167,71 @@ const ClientProfile = () => {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Log changes to client_profile_changes table
-      const changedFields: { field: string; oldValue: string | null; newValue: string | null }[] = [];
-      
-      if (profile) {
-        const fieldsToCheck = [
-          { key: "phone", old: profile.phone, new: data.phone },
-          { key: "service_address", old: profile.service_address, new: data.service_address },
-          { key: "service_city", old: profile.service_city, new: data.service_city },
-          { key: "service_postal_code", old: profile.service_postal_code, new: data.service_postal_code },
-        ];
+      // Module 49 Phase B2: all writes go through the canonical
+      // client-account-actions gateway. Journal + admin_audit_log +
+      // client_profile_changes are handled server-side.
+      if (!user?.id) throw new Error("Session invalide");
 
-        // Only track identity fields if not yet verified (one-time set)
-        if (!isIdentityVerified) {
-          fieldsToCheck.push(
-            { key: "first_name", old: profile.first_name, new: data.first_name },
-            { key: "last_name", old: profile.last_name, new: data.last_name },
-            { key: "date_of_birth", old: profile.date_of_birth, new: data.date_of_birth },
-          );
-        }
-        
-        for (const field of fieldsToCheck) {
-          if (field.old !== field.new && (field.old || field.new)) {
-            changedFields.push({
-              field: field.key,
-              oldValue: field.old || null,
-              newValue: field.new || null,
-            });
-          }
-        }
-      }
+      // Resolve account_id for the current user.
+      const { data: acct, error: acctErr } = await portalSupabase
+        .from("accounts")
+        .select("id")
+        .eq("client_id", user.id)
+        .maybeSingle();
+      if (acctErr) throw acctErr;
+      if (!acct?.id) throw new Error("Compte introuvable");
 
-      // Build update payload — NEVER send identity fields if already verified
-      const updatePayload: Record<string, any> = {
-        phone: data.phone,
-        service_address: data.service_address || null,
-        service_city: data.service_city || null,
-        service_province: data.service_province || null,
-        service_postal_code: data.service_postal_code || null,
-      };
+      // Only fields supported by the gateway `profile.update` action.
+      const patch: Record<string, string | null> = {};
+      if ((profile?.phone || "") !== (data.phone || "")) patch.phone = data.phone || null;
 
       if (!isIdentityVerified) {
-        // One-time set: include identity fields only if they were previously empty
-        if (!profile?.first_name) updatePayload.first_name = data.first_name || null;
-        if (!profile?.last_name) updatePayload.last_name = data.last_name || null;
-        if (!profile?.date_of_birth) updatePayload.date_of_birth = data.date_of_birth || null;
-        // Rebuild full_name
-        const fn = updatePayload.first_name ?? profile?.first_name ?? "";
-        const ln = updatePayload.last_name ?? profile?.last_name ?? "";
-        updatePayload.full_name = `${fn} ${ln}`.trim() || data.full_name;
+        if (!profile?.first_name && data.first_name) patch.first_name = data.first_name;
+        if (!profile?.last_name && data.last_name) patch.last_name = data.last_name;
+        if (!profile?.date_of_birth && data.date_of_birth) patch.date_of_birth = data.date_of_birth;
       }
 
-      const { error } = await portalSupabase
-        .from("profiles")
-        .update(updatePayload)
-        .eq("user_id", user?.id);
+      if (Object.keys(patch).length === 0) {
+        // Nothing gateway-supported changed. (Service address is edited via the
+        // dedicated ServiceAddressPicker + useAccountAddresses hook.)
+        return { skipped: true };
+      }
+
+      const idempotencyKey = `client-portal-profile:${acct.id}:${new Date().toISOString().slice(0, 16)}:${Object.keys(patch).sort().join(",")}`;
+      const correlationId = crypto.randomUUID();
+
+      const { data: resp, error } = await portalSupabase.functions.invoke("client-account-actions", {
+        body: {
+          action: "profile.update",
+          account_id: acct.id,
+          payload: patch,
+          idempotency_key: idempotencyKey,
+          correlation_id: correlationId,
+        },
+      });
       if (error) {
-        // Catch identity lock errors and show a clear message
-        if (error.message?.includes("IDENTITY_FIELD_LOCKED")) {
-          throw new Error("IDENTITY_LOCKED");
-        }
-        throw error;
+        const detail = (error as any)?.context?.text ? await (error as any).context.text() : error.message;
+        if ((detail || "").includes("IDENTITY_FIELD_LOCKED")) throw new Error("IDENTITY_LOCKED");
+        throw new Error(detail || error.message);
       }
-
-      // Log changes
-      if (changedFields.length > 0 && user?.id) {
-        for (const change of changedFields) {
-          await portalSupabase.from("client_profile_changes").insert({
-            client_id: user.id,
-            changed_by_id: user.id,
-            changed_by_role: "client",
-            field_name: change.field,
-            old_value: change.oldValue,
-            new_value: change.newValue,
-          });
-        }
-      }
+      return resp;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["canonical-client-data"] });
       queryClient.invalidateQueries({ queryKey: ["client-profile-changes"] });
       toast({ title: "Profil mis à jour avec succès" });
       setPendingProfileUpdate(null);
     },
     onError: (error: any) => {
       if (error?.message === "IDENTITY_LOCKED" || error?.message?.includes("IDENTITY_FIELD_LOCKED")) {
-        toast({ 
-          title: "Champs d'identité verrouillés", 
+        toast({
+          title: "Champs d'identité verrouillés",
           description: "Les informations d'identité (prénom, nom, date de naissance) ne peuvent être modifiées que par le support. Contactez-nous pour toute correction.",
-          variant: "destructive" 
+          variant: "destructive"
         });
       } else {
-        toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+        toast({ title: "Erreur lors de la mise à jour", description: error?.message, variant: "destructive" });
       }
       setPendingProfileUpdate(null);
     },
