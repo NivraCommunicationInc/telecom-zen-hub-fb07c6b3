@@ -267,40 +267,57 @@ serve(async (req) => {
         const summaryLabel = kind === "credit" ? "Crédit récurrent"
           : kind === "fee" ? "Frais récurrent"
           : "Promotion durée";
-        await admin.from("client_activity_logs").insert({
-          client_id,
-          actor_user_id: user.id,
-          actor_name: user.email ?? "Admin Core",
-          actor_role: "admin_core",
-          action_type: `adjustment_${kind}`,
-          entity_type: target_table,
-          entity_id: inserted_id,
-          summary: `${summaryLabel} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} »`,
-          before_data: {
-            adjustments: adjBefore ?? [],
-            promotions: promoBefore ?? [],
+        const actor = {
+          userId: user.id,
+          role: "admin_core",
+          name: user.email ?? "Admin Core",
+          email: user.email ?? null,
+        };
+        const journalEntityId = inserted_id ?? account_id;
+        await writeAccountJournal(admin, {
+          targetTable: "client_activity_logs",
+          eventKey: `adjustment:${kind}:${journalEntityId}:activity`,
+          payload: {
+            client_id,
+            actor_user_id: user.id,
+            actor_name: user.email ?? "Admin Core",
+            actor_role: "admin_core",
+            action_type: `adjustment_${kind}`,
+            entity_type: target_table,
+            entity_id: inserted_id,
+            summary: `${summaryLabel} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} »`,
+            before_data: {
+              adjustments: adjBefore ?? [],
+              promotions: promoBefore ?? [],
+            },
+            after_data: {
+              module_tag: "adjustments",
+              kind,
+              account_id,
+              amount: amt,
+              months: m,
+              description: desc,
+              promotion_type: kind === "promotion" ? (promotion_type ?? "monthly_discount") : null,
+              target_id: inserted_id,
+              reason,
+            },
           },
-          after_data: {
-            module_tag: "adjustments",
-            kind,
-            account_id,
-            amount: amt,
-            months: m,
-            description: desc,
-            promotion_type: kind === "promotion" ? (promotion_type ?? "monthly_discount") : null,
-            target_id: inserted_id,
-            reason,
-          },
+          actor,
         });
         if (kind !== "promotion") {
           const label = kind === "credit" ? "Crédit récurrent" : "Frais récurrent";
-          await admin.from("client_internal_notes").insert({
-            client_id,
-            note_type: "system",
-            body: `${label} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} » — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: "admin_core",
-            created_by_name: user.email ?? "Admin Core",
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `adjustment:${kind}:${journalEntityId}:note`,
+            payload: {
+              client_id,
+              note_type: "system",
+              body: `${label} — ${amt.toFixed(2)}$ × ${m} mois — « ${desc} » — motif: ${reason}`,
+              created_by_user_id: user.id,
+              created_by_role: "admin_core",
+              created_by_name: user.email ?? "Admin Core",
+            },
+            actor,
           });
         }
       } catch (e) {
