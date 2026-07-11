@@ -55,9 +55,9 @@ Deno.serve(async (req) => {
 
   // If invoked via service_role, mint a temp admin auth user and sign in
   // to get a real JWT that the target EF's auth.getUser() will accept.
-  let callerAuth = auth;
+  let callerAuth = auth ?? "";
   let tempAdminId: string | null = null;
-  if (isServiceRole) {
+  if (isServiceRole || isQaSecret) {
     const tempEmail = `qa-m42-${runId}@qa.local`;
     const tempPass = crypto.randomUUID() + "Aa1!";
     const { data: created, error: cErr } = await admin.auth.admin.createUser({
