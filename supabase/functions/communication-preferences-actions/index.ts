@@ -22,7 +22,7 @@ type BoolKey =
   | "sms_service_updates";
 
 interface Body {
-  action: "get" | "update" | "unsubscribe_all";
+  action: "get" | "update" | "unsubscribe_all" | "client_self_sms_master";
   client_user_id: string;
   account_id?: string | null;
   reason?: string | null;
@@ -30,6 +30,7 @@ interface Body {
     preferred_contact_method?: "email" | "sms" | "both";
     preferred_language?: "fr" | "en";
     notification_channel?: "email" | "sms" | "push";
+    sms_master?: boolean;
   };
 }
 
