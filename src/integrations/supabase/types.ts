@@ -5921,6 +5921,117 @@ export type Database = {
         }
         Relationships: []
       }
+      communication_audit_log: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          channel: string
+          correlation_id: string
+          created_at: string
+          decision: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          idempotency_key: string | null
+          payload: Json | null
+          queue_row_id: string | null
+          reason: string | null
+          recipient: string | null
+          template_key: string | null
+        }
+        Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          channel: string
+          correlation_id?: string
+          created_at?: string
+          decision: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          idempotency_key?: string | null
+          payload?: Json | null
+          queue_row_id?: string | null
+          reason?: string | null
+          recipient?: string | null
+          template_key?: string | null
+        }
+        Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          channel?: string
+          correlation_id?: string
+          created_at?: string
+          decision?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          idempotency_key?: string | null
+          payload?: Json | null
+          queue_row_id?: string | null
+          reason?: string | null
+          recipient?: string | null
+          template_key?: string | null
+        }
+        Relationships: []
+      }
+      communication_gateway_config: {
+        Row: {
+          enforce_single_door: boolean
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enforce_single_door?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enforce_single_door?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      communication_idempotency: {
+        Row: {
+          channel: string
+          correlation_id: string
+          decision: string
+          first_seen_at: string
+          hit_count: number
+          idempotency_key: string
+          last_seen_at: string
+          queue_row_id: string | null
+          response: Json | null
+        }
+        Insert: {
+          channel: string
+          correlation_id: string
+          decision: string
+          first_seen_at?: string
+          hit_count?: number
+          idempotency_key: string
+          last_seen_at?: string
+          queue_row_id?: string | null
+          response?: Json | null
+        }
+        Update: {
+          channel?: string
+          correlation_id?: string
+          decision?: string
+          first_seen_at?: string
+          hit_count?: number
+          idempotency_key?: string
+          last_seen_at?: string
+          queue_row_id?: string | null
+          response?: Json | null
+        }
+        Relationships: []
+      }
       complaint_attachments: {
         Row: {
           complaint_id: string
@@ -8432,11 +8543,14 @@ export type Database = {
       }
       email_queue: {
         Row: {
+          actor_role: string | null
+          actor_user_id: string | null
           attachments: Json | null
           attempts: number
           bounced_at: string | null
           clicked_at: string | null
           complained_at: string | null
+          correlation_id: string | null
           created_at: string
           delivered_at: string | null
           entity_id: string | null
@@ -8452,6 +8566,7 @@ export type Database = {
           message_type: string | null
           next_retry_at: string | null
           opened_at: string | null
+          preferences_snapshot: Json | null
           preview_text: string | null
           priority: number
           provider_message_id: string | null
@@ -8463,16 +8578,20 @@ export type Database = {
           sent_count: number | null
           status: string
           subject: string | null
+          suppressed_reason: string | null
           template_key: string
           template_vars: Json | null
           to_email: string
         }
         Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
           attachments?: Json | null
           attempts?: number
           bounced_at?: string | null
           clicked_at?: string | null
           complained_at?: string | null
+          correlation_id?: string | null
           created_at?: string
           delivered_at?: string | null
           entity_id?: string | null
@@ -8488,6 +8607,7 @@ export type Database = {
           message_type?: string | null
           next_retry_at?: string | null
           opened_at?: string | null
+          preferences_snapshot?: Json | null
           preview_text?: string | null
           priority?: number
           provider_message_id?: string | null
@@ -8499,16 +8619,20 @@ export type Database = {
           sent_count?: number | null
           status?: string
           subject?: string | null
+          suppressed_reason?: string | null
           template_key: string
           template_vars?: Json | null
           to_email: string
         }
         Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
           attachments?: Json | null
           attempts?: number
           bounced_at?: string | null
           clicked_at?: string | null
           complained_at?: string | null
+          correlation_id?: string | null
           created_at?: string
           delivered_at?: string | null
           entity_id?: string | null
@@ -8524,6 +8648,7 @@ export type Database = {
           message_type?: string | null
           next_retry_at?: string | null
           opened_at?: string | null
+          preferences_snapshot?: Json | null
           preview_text?: string | null
           priority?: number
           provider_message_id?: string | null
@@ -8535,6 +8660,7 @@ export type Database = {
           sent_count?: number | null
           status?: string
           subject?: string | null
+          suppressed_reason?: string | null
           template_key?: string
           template_vars?: Json | null
           to_email?: string
@@ -17185,13 +17311,18 @@ export type Database = {
       }
       notification_outbox: {
         Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          correlation_id: string | null
           created_at: string
           entity_id: string | null
           entity_type: string | null
           error_message: string | null
           event_type: string
           id: string
+          idempotency_key: string | null
           payload_json: Json
+          preferences_snapshot: Json | null
           recipient: string
           retry_count: number
           sent_at: string | null
@@ -17201,13 +17332,18 @@ export type Database = {
           to_name: string | null
         }
         Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          correlation_id?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
           error_message?: string | null
           event_type: string
           id?: string
+          idempotency_key?: string | null
           payload_json?: Json
+          preferences_snapshot?: Json | null
           recipient?: string
           retry_count?: number
           sent_at?: string | null
@@ -17217,13 +17353,18 @@ export type Database = {
           to_name?: string | null
         }
         Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          correlation_id?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
           error_message?: string | null
           event_type?: string
           id?: string
+          idempotency_key?: string | null
           payload_json?: Json
+          preferences_snapshot?: Json | null
           recipient?: string
           retry_count?: number
           sent_at?: string | null
@@ -24691,38 +24832,56 @@ export type Database = {
       }
       sms_queue: {
         Row: {
+          actor_role: string | null
+          actor_user_id: string | null
           attempts: number
+          correlation_id: string | null
           created_at: string
           error_message: string | null
           event_key: string
           id: string
+          idempotency_key: string | null
           message: string
+          preferences_snapshot: Json | null
           sent_at: string | null
           status: string
+          suppressed_reason: string | null
           to_phone: string
           to_user_id: string | null
         }
         Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
           attempts?: number
+          correlation_id?: string | null
           created_at?: string
           error_message?: string | null
           event_key: string
           id?: string
+          idempotency_key?: string | null
           message: string
+          preferences_snapshot?: Json | null
           sent_at?: string | null
           status?: string
+          suppressed_reason?: string | null
           to_phone: string
           to_user_id?: string | null
         }
         Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
           attempts?: number
+          correlation_id?: string | null
           created_at?: string
           error_message?: string | null
           event_key?: string
           id?: string
+          idempotency_key?: string | null
           message?: string
+          preferences_snapshot?: Json | null
           sent_at?: string | null
           status?: string
+          suppressed_reason?: string | null
           to_phone?: string
           to_user_id?: string | null
         }
@@ -32136,6 +32295,34 @@ export type Database = {
           p_event_key: string
           p_reason: string
           p_target_status: string
+        }
+        Returns: Json
+      }
+      rpc_communication_enqueue: {
+        Args: {
+          p_actor_role?: string
+          p_actor_user_id?: string
+          p_category?: string
+          p_channel: string
+          p_client_id?: string
+          p_correlation_id?: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_idempotency_key?: string
+          p_reason?: string
+          p_recipient: string
+          p_template_key: string
+          p_template_vars?: Json
+        }
+        Returns: Json
+      }
+      rpc_communication_should_send: {
+        Args: {
+          p_category?: string
+          p_channel: string
+          p_client_id?: string
+          p_recipient: string
+          p_template_key: string
         }
         Returns: Json
       }
