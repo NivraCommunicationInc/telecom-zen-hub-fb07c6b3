@@ -333,8 +333,10 @@ serve(async (req) => {
         if (err) return json(400, { error: err });
         await audit("request_client_info", { dispute_id: row.id, dispute_number: row.dispute_number });
         await activity("dispute_status_changed", "payment_dispute", row.id,
-          `Litige ${row.dispute_number} → Attend le client`, null, { status: "awaiting_client" });
-        await internalNote(`Litige ${row.dispute_number} — demande d'info au client: ${body.public_message.trim().slice(0, 200)}`);
+          `Litige ${row.dispute_number} → Attend le client`, null, { status: "awaiting_client" },
+          `dispute:${row.id}:status:awaiting_client:activity`);
+        await internalNote(`Litige ${row.dispute_number} — demande d'info au client: ${body.public_message.trim().slice(0, 200)}`,
+          `dispute:${row.id}:status:awaiting_client:note`, row.id);
         await enqueueStatusEmail(row.dispute_number, "awaiting_client", row.reason_code, body.public_message);
         return json(200, { ok: true });
       }
