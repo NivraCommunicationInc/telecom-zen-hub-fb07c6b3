@@ -130,14 +130,19 @@ Deno.serve(async (req) => {
     );
 
     // Audit row
-    await supabase.from("order_status_history").insert({
-      order_id,
-      status_domain: "order",
-      old_status: null,
-      new_status: `email_sent:${event}`,
-      actor_role: "system",
-      change_reason: `${config.label} notification dispatched`,
-      metadata: { event, template: config.templateKey, recipient: recipientEmail, idempotent: result.alreadyQueued },
+    await writeAccountJournal(supabase, {
+      targetTable: "order_status_history",
+      payload: {
+        order_id,
+        status_domain: "order",
+        old_status: null,
+        new_status: `email_sent:${event}`,
+        actor_role: "system",
+        change_reason: `${config.label} notification dispatched`,
+        metadata: { event, template: config.templateKey, recipient: recipientEmail, idempotent: result.alreadyQueued },
+      },
+      eventKey: `order:${order_id}:email_sent:${event}`,
+      actor: { userId: "00000000-0000-0000-0000-000000000000", role: "system", name: "order-status-notifications", email: null },
     });
 
     return new Response(
