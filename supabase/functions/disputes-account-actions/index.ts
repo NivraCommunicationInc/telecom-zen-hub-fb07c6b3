@@ -295,9 +295,12 @@ serve(async (req) => {
           `Litige ${data.dispute_number} ouvert au nom du client (motif: ${REASON_LABEL[body.reason_code] ?? body.reason_code})`,
           null,
           { dispute_id: data.id, payment_id: body.payment_id, reason_code: body.reason_code, status: "submitted" },
+          `dispute:${data.id}:opened_on_behalf:activity`,
         );
         await internalNote(
           `Litige ${data.dispute_number} ouvert au nom du client par ${callerName} — motif: ${REASON_LABEL[body.reason_code] ?? body.reason_code}.`,
+          `dispute:${data.id}:opened_on_behalf:note`,
+          data.id,
         );
         return json(200, { ok: true, dispute_id: data.id, dispute_number: data.dispute_number });
       }
