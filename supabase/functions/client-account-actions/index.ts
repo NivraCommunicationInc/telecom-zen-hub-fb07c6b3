@@ -93,6 +93,7 @@ const AddressFields = {
 const AddressCreate = z.object({
   action: z.literal('service_address.create'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({
     ...AddressFields,
     is_primary: z.boolean().optional(),
@@ -102,6 +103,7 @@ const AddressCreate = z.object({
 const AddressUpdate = z.object({
   action: z.literal('service_address.update'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({
     service_address_id: z.string().uuid(),
     label: z.string().trim().min(1).max(80).optional(),
@@ -119,27 +121,31 @@ const AddressUpdate = z.object({
 const AddressSoftDelete = z.object({
   action: z.literal('service_address.soft_delete'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({
     service_address_id: z.string().uuid(),
-    reason: z.string().max(500).optional(),
+    reason: z.string().trim().min(3).max(500),
   }),
 });
 
 const AddressRestore = z.object({
   action: z.literal('service_address.restore'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({ service_address_id: z.string().uuid() }),
 });
 
 const BillingSameAsService = z.object({
   action: z.literal('billing_address.set_same_as_service'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({}).default({}),
 });
 
 const BillingSetCustom = z.object({
   action: z.literal('billing_address.set_custom'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({
     billing_address: z.string().trim().min(3).max(300),
     billing_city: z.string().trim().min(1).max(120),
@@ -151,8 +157,10 @@ const BillingSetCustom = z.object({
 const BillingLinkToServiceAddress = z.object({
   action: z.literal('billing_address.link_to_service_address'),
   ...Base,
+  reason: z.string().trim().min(3).max(500),
   payload: z.object({ service_address_id: z.string().uuid() }),
 });
+
 
 const InputSchema = z.discriminatedUnion('action', [
   ProfileUpdate,
