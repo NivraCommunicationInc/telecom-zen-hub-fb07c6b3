@@ -44,13 +44,16 @@ export async function logAppointmentNote(
     }
     if (!clientId) return; // guest appointment — nothing to attach to
 
-    await supabase.from("client_internal_notes").insert({
-      client_id: clientId,
-      note_type: "system",
-      body: `[RDV ${apt.appointment_number || apt.id.slice(0, 8)}] ${body}`,
-      created_by_user_id: user.id,
-      created_by_role: role,
-      created_by_name: user.email || "Core",
+    const minuteBucket = new Date().toISOString().slice(0, 16);
+    await writeAccountJournal({
+      targetTable: "client_internal_notes",
+      eventKey: `note:appointment:${apt.id}:${user.id}:${minuteBucket}`,
+      visibility: "staff",
+      payload: {
+        client_id: clientId,
+        note_type: "system",
+        body: `[RDV ${apt.appointment_number || apt.id.slice(0, 8)}] ${body}`,
+      },
     });
   } catch (e) {
     // best-effort; do not block the primary action
