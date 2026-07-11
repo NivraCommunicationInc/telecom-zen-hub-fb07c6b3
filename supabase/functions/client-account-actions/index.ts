@@ -340,7 +340,7 @@ async function handleAddressCreate(svc: any, actor: any, actorRole: string, inpu
     is_primary: willBePrimary,
     is_active: true,
     created_by_user_id: actor.id,
-    created_via: 'client-account-actions',
+    created_via: 'core',
   }).select('*').maybeSingle();
   if (error) throw error;
 
