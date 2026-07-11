@@ -500,31 +500,18 @@ serve(async (req) => {
           reason,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: callerName,
-            actor_role: callerRole,
+        {
+          const untilDay = until.toISOString().split("T")[0];
+          await logActivityNote({
             action_type: "account_pause",
             entity_type: "account",
             entity_id: body.account_id,
-            summary: `Pause temporaire appliquée jusqu'au ${until.toISOString().split("T")[0]}`,
+            summary: `Pause temporaire appliquée jusqu'au ${untilDay}`,
             after_data: { paused_until: until.toISOString(), reason },
+            noteBody: `Pause temporaire — par ${user.email || callerName} — jusqu'au ${untilDay} — motif: ${reason}`,
+            eventBase: `ops:account:${body.account_id}:pause:${untilDay}`,
           });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: `Pause temporaire — par ${user.email || callerName} — jusqu'au ${until.toISOString().split("T")[0]} — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
-          });
-        } catch (_e) { /* swallow */ }
+        }
 
         // F6 — Notification client via email_queue uniquement.
         await enqueueEmail("client_account_paused", {
