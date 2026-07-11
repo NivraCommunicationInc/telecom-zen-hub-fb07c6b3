@@ -882,16 +882,14 @@ serve(async (req) => {
           equipment_acknowledged: equipmentCount > 0 ? acknowledgeEquipment : null,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: callerName,
-            actor_role: callerRole,
+        {
+          const cancelSummary = `Compte annulé — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement` : ""}`;
+          const cancelNote = `Compte annulé — par ${user.email || callerName} — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement demandé(s)` : ""}${balanceDue > 0 ? ` — Solde impayé ${balanceDue.toFixed(2)} $ reste dû` : ""}`;
+          await logActivityNote({
             action_type: "account_cancel",
             entity_type: "account",
             entity_id: body.account_id,
-            summary: `Compte annulé — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement` : ""}`,
+            summary: cancelSummary,
             before_data: { status: previousStatus, balance_due: balanceDue, subscriptions: subsBefore.length },
             after_data: {
               status: "cancelled",
@@ -900,20 +898,11 @@ serve(async (req) => {
               autopay_disabled: autopayDisabled,
               equipment_return_requests: equipmentReturnRequests,
             },
+            noteBody: cancelNote,
+            // Transition unique active→cancelled ; guard upstream empêche re-cancel.
+            eventBase: `ops:account:${body.account_id}:cancel`,
           });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: `Compte annulé — par ${user.email || callerName} — motif: ${reason}${cancelledSubs ? ` — ${cancelledSubs} service(s) résilié(s)` : ""}${autopayDisabled ? " — AutoPay désactivé" : ""}${equipmentReturnRequests ? ` — ${equipmentReturnRequests} retour(s) équipement demandé(s)` : ""}${balanceDue > 0 ? ` — Solde impayé ${balanceDue.toFixed(2)} $ reste dû` : ""}`,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
-          });
-        } catch (_e) { /* swallow */ }
+        }
 
         // F26-3 — email bilingue via email_queue
         await enqueueEmail("client_account_cancelled", {
