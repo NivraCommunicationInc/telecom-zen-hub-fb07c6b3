@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Smartphone, RefreshCw } from "lucide-react";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface Row {
   id: string;
   status: string;
@@ -119,22 +120,18 @@ export default function ClientPhoneOrders() {
 
       // Best-effort acknowledgement email
       if (target.orders?.client_email) {
-        await supabase.from("email_queue").insert({
-          event_key: `phone-return-requested-${target.id}`,
-          idempotency_key: `phone-return-requested-${target.id}`,
-          to_email: target.orders.client_email,
-          from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-          subject: "Demande de retour reçue",
-          template_key: "phone_return_requested_ack",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "phone_return_requested_ack",
+          recipient: target.orders.client_email,
+          idempotencyKey: `phone-return-requested-${target.id}`,
+          templateVars: {
             order_number: target.orders.order_number ?? "",
             brand: target.phone_inventory?.brand ?? "",
             model: target.phone_inventory?.model ?? "",
           },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 3,
-        } as never);
+          subject: "Demande de retour reçue",
+        });
       }
 
       toast.success("Demande de retour envoyée");

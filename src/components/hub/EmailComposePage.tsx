@@ -6,6 +6,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Mail, Send, X, Loader2, Search } from "lucide-react";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 
 interface RecipientOption { user_id: string; full_name: string | null; email: string; }
 
@@ -50,19 +51,21 @@ export default function EmailComposePage() {
       const { data: meProf } = await supabase.from("profiles").select("full_name").eq("user_id", user?.id || "").maybeSingle();
       const senderName = (meProf as any)?.full_name || "Équipe Nivra";
       const all = [...recipients, ...cc];
-      const rows = all.map((r) => ({
-        template_key: "internal_email_compose",
-        to_email: r.email,
-        template_vars: {
-          client_name: r.full_name || "Collègue",
-          subject,
-          message_html: message.replace(/\n/g, "<br/>"),
-          sender_name: senderName,
-        },
-        status: "queued",
-      }));
-      const { error } = await supabase.from("email_queue").insert(rows);
-      if (error) throw error;
+      const messageDigest = subject.trim().slice(0, 40) + ":" + message.trim().length;
+      for (const r of all) {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "internal_email_compose",
+          recipient: r.email,
+          idempotencyKey: `internal-compose:${user?.id ?? "anon"}:${r.user_id ?? r.email}:${messageDigest}`,
+          templateVars: {
+            client_name: r.full_name || "Collègue",
+            subject,
+            message_html: message.replace(/\n/g, "<br/>"),
+            sender_name: senderName,
+          },
+        });
+      }
       toast.success(`Courriel envoyé à ${all.length} destinataire(s)`);
       setRecipients([]); setCc([]); setSubject(""); setMessage("");
     } catch (e: any) {

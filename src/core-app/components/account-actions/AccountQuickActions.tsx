@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Mail, MessageSquare, Calendar, Wrench } from "lucide-react";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const inputCls = "w-full rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-white placeholder:text-[hsl(220,10%,30%)] outline-none focus:border-emerald-500/50";
 const textareaCls = `${inputCls} resize-none`;
 const btnPrimary = "rounded-md bg-emerald-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors";
@@ -73,18 +74,19 @@ function SendEmailModal({ clientEmail, clientName, onClose }: { clientEmail?: st
     }
     setLoading(true);
     try {
-      const { error } = await supabase.from("email_queue").insert({
-        event_key: `manual-email-${clientEmail}-${Date.now()}`,
-        template_key: "admin_manual_email",
-        to_email: clientEmail,
-        template_vars: {
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "admin_manual_email",
+        recipient: clientEmail,
+        idempotencyKey: `manual-email-${clientEmail}-${Date.now()}`,
+        templateVars: {
           client_name: clientName,
           subject: subject.trim(),
           message: body.trim(),
           manual_send: true,
         },
-        status: "queued",
-      });
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success("Courriel ajouté à la file d'envoi");
       onClose();

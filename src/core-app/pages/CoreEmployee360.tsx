@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 // ─── Constants ──────────────────────────────────────────────────────────────
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active: { label: "Actif", variant: "default" },
@@ -163,14 +164,17 @@ function Employee360Inner({
     if (!email) { toast.error("Aucun email pour cet employé"); return; }
     setResending(true);
     try {
-      const { error } = await (supabase as any).from("email_queue").insert({
-        template_key: "employee_invite",
-        to_email: email,
-        entity_type: "employee",
-        entity_id: empId,
-        variables: { employee_id: empId, invite_link: `https://app.nivra-telecom.ca/employee-onboarding/${empId}` },
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "employee_invite",
+        recipient: email,
+        idempotencyKey: `employee-invite-resend:${empId}`,
+        templateVars: { employee_id: empId, invite_link: `https://app.nivra-telecom.ca/employee-onboarding/${empId}` },
         priority: 1,
-      });
+        entityType: "employee",
+        entityId: empId,
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success(`Invitation renvoyée à ${email}`);
       qc.invalidateQueries({ queryKey: ["employee-360-record", empId] });

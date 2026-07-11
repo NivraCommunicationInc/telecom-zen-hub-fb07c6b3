@@ -29,6 +29,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 import {
   FileX, Search, CheckCircle, XCircle, AlertTriangle, Clock,
   RefreshCw, Calendar, Loader2,
@@ -159,12 +160,12 @@ export default function CoreCancellationsPage() {
             ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
             : { data: null };
           if (cp?.email) {
-            await (supabase as any).from("email_queue").insert({
-              template_key: fields.status === "declined" ? "cancellation_declined" : "cancellation_completed",
-              to_email: cp.email,
-              entity_type: "cancellation_request",
-              entity_id: id,
-              variables: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: fields.status === "declined" ? "cancellation_declined" : "cancellation_completed",
+              recipient: cp.email,
+              idempotencyKey: `cancellation-lifecycle:${id}:${fields.status}`,
+              templateVars: {
                 client_name: cp.full_name ?? "Client",
                 request_number: req.request_number ?? id.slice(0, 8),
                 service_type: req.service_type,
@@ -173,6 +174,8 @@ export default function CoreCancellationsPage() {
                 public_message: (fields.public_message as string) || "",
               },
               priority: 1,
+              entityType: "cancellation_request",
+              entityId: id,
             });
             result._sideEffects.email = true;
           }
@@ -389,12 +392,13 @@ export default function CoreCancellationsPage() {
           ? await supabase.from("profiles").select("email, full_name").eq("user_id", req.user_id).maybeSingle()
           : { data: null };
         if (clientProfile?.email) {
-          const { error: emailErr } = await (supabase as any).from("email_queue").insert({
-            template_key: "cancellation_scheduled",
-            to_email: clientProfile.email,
-            entity_type: "cancellation_request",
-            entity_id: id,
-            variables: {
+          let emailErr: any = null;
+          try { await enqueueCommunication({
+            channel: "email",
+            templateKey: "cancellation_scheduled",
+            recipient: clientProfile.email,
+            idempotencyKey: `cancellation-scheduled:${id}`,
+            templateVars: {
               client_name: clientProfile.full_name ?? "Client",
               request_number: req.request_number ?? id.slice(0, 8),
               service_type: req.service_type,
@@ -402,7 +406,9 @@ export default function CoreCancellationsPage() {
               public_message: fields.public_message ?? null,
             },
             priority: 1,
-          });
+            entityType: "cancellation_request",
+            entityId: id,
+          }); } catch (__e) { emailErr = __e; }
           if (emailErr) throw emailErr;
           result._sideEffects.email = true;
         }
@@ -428,17 +434,18 @@ export default function CoreCancellationsPage() {
               planName = subRow?.plan_name ?? null;
             }
 
-            await supabase.from("email_queue").insert({
-              to_email: clientProfile.email,
-              template_key: "service_cancelled",
-              variables: {
+            await enqueueCommunication({
+              channel: "email",
+              templateKey: "service_cancelled",
+              recipient: clientProfile.email,
+              idempotencyKey: `service-cancelled-brand:${id}`,
+              templateVars: {
                 client_name: clientProfile.full_name ?? "Client",
                 service_name: planName ?? req.service_type,
                 cancellation_date: effective,
                 refund_amount: refundAmt,
               },
-              status: "pending",
-            } as any);
+            });
           } catch (qErr: any) {
             console.error("[CoreCancellations] STEP 8b service_cancelled email queue failed:", qErr?.message ?? qErr);
           }

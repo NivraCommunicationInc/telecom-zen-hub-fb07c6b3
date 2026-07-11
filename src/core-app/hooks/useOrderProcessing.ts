@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { orderEmails } from "@/core-app/lib/emails/orderEmails";
 import { addClientAutoNote, fmtMoney } from "@/core-app/lib/clientAutoNotes";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 /**
  * Append-only email enqueue. NEVER throws — an email failure must not break
  * any order mutation. Logs to console on failure.
@@ -19,15 +20,30 @@ import { addClientAutoNote, fmtMoney } from "@/core-app/lib/clientAutoNotes";
 async function enqueueOrderEmail(row: Record<string, any> | null | undefined) {
   if (!row || !row.to_email || !row.entity_id) return;
   try {
-    const { error } = await supabase.from("email_queue").insert(row as any);
-    if (error) {
-      console.error("[orderEmails] enqueue failed:", error.message, {
-        template: row.template_key,
-        entity: row.entity_id,
-      });
-    }
+    const idempotencyKey: string = row.idempotency_key
+      ?? row.event_key
+      ?? `order-email:${row.template_key ?? "generic"}:${row.entity_id}`;
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: row.template_key,
+      recipient: row.to_email,
+      idempotencyKey,
+      templateVars: row.template_vars ?? row.variables ?? {},
+      entityType: row.entity_type ?? "order",
+      entityId: row.entity_id,
+      subject: row.subject ?? null,
+      priority: typeof row.priority === "number" ? row.priority : 0,
+      toName: row.to_name ?? null,
+      cc: row.cc ?? null,
+      bcc: row.bcc ?? null,
+      replyTo: row.reply_to ?? null,
+      attachments: row.attachments ?? null,
+    });
   } catch (err: any) {
-    console.error("[orderEmails] enqueue exception:", err?.message);
+    console.error("[orderEmails] enqueue exception:", err?.message, {
+      template: row.template_key,
+      entity: row.entity_id,
+    });
   }
 }
 
@@ -347,17 +363,17 @@ async function queueClientEmail(params: {
       ...(params.mode === "manual" ? { manual_send: true } : {}),
     };
 
-    const { error } = await supabase.from("email_queue").insert({
-      to_email: params.to_email,
-      template_key: params.template_key,
-      event_key: params.event_key,
-      idempotency_key: params.idempotency_key,
+    let error: any = null;
+    try { await enqueueCommunication({
+      channel: "email",
+      templateKey: params.template_key,
+      recipient: params.to_email,
+      idempotencyKey: params.idempotency_key,
+      templateVars: templateVars,
       subject: params.subject,
-      entity_type: params.entity_type || "order",
-      entity_id: params.entity_id,
-      template_vars: templateVars,
-      status: "queued",
-    });
+      entityType: params.entity_type || "order",
+      entityId: params.entity_id,
+    }); } catch (__e) { error = __e; }
     if (error) {
       console.error("[GUARDRAIL][EmailQueue] Insert failed:", error.message, { template: params.template_key, entity: params.entity_id });
       toast.warning(`⚠ Courriel non envoyé (${params.template_key}) — ${error.message}`);
@@ -2305,17 +2321,19 @@ export function useOrderProcessing(orderId: string | undefined) {
         .maybeSingle();
       if (kycErr) throw kycErr;
 
-      await (supabase as any).from("email_queue").insert({
-        template_key: "kyc_request",
-        to_email: recipientEmail,
-        entity_type: "kyc_request",
-        entity_id: kycRow?.id ?? null,
-        variables: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "kyc_request",
+        recipient: recipientEmail,
+        idempotencyKey: `kyc-request:${kycRow?.id ?? orderId}`,
+        templateVars: {
           kyc_link: `https://nivra-telecom.ca/verification/${token}`,
           expires_hours: 48,
           notes: opts?.notes || null,
         },
         priority: 1,
+        entityType: "kyc_request",
+        entityId: kycRow?.id ?? null,
       });
 
       await (supabase as any).from("orders").update({ kyc_status: "pending", kyc_request_id: kycRow?.id }).eq("id", orderId);
@@ -2349,7 +2367,16 @@ export function useOrderProcessing(orderId: string | undefined) {
           .from("kyc_requests")
           .upsert({ order_id: orderId, client_email: recipientEmailResub, token, status: "pending", requested_at: new Date().toISOString(), expires_at: expiresAt, notes: opts?.reason || null }, { onConflict: "order_id" })
           .select("id").maybeSingle();
-        await (supabase as any).from("email_queue").insert({ template_key: "kyc_request", to_email: recipientEmailResub, entity_type: "kyc_request", entity_id: kycRow?.id ?? null, variables: { kyc_link: `https://nivra-telecom.ca/verification/${token}`, expires_hours: 48 }, priority: 1 });
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "kyc_request",
+          recipient: recipientEmailResub,
+          idempotencyKey: `kyc-request-resubmit:${kycRow?.id ?? orderId}`,
+          templateVars: { kyc_link: `https://nivra-telecom.ca/verification/${token}`, expires_hours: 48 },
+          priority: 1,
+          entityType: "kyc_request",
+          entityId: kycRow?.id ?? null,
+        });
         await (supabase as any).from("orders").update({ kyc_status: "pending", kyc_request_id: kycRow?.id }).eq("id", orderId);
       }
 

@@ -12,6 +12,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 export type HrTemplateKey =
   | "hr_payroll_issued"
   | "hr_payslip_issued"
@@ -64,16 +65,16 @@ export async function notifyEmployee(opts: NotifyEmployeeOptions): Promise<void>
       portal_url: opts.vars?.portal_url ?? "https://nivra-telecom.ca/hr",
     };
 
-    const { error } = await supabase.from("email_queue").insert({
-      event_key: opts.eventKey,
-      to_email: email,
-      template_key: opts.templateKey,
-      template_vars: templateVars,
-      message_type: opts.templateKey,
-      entity_type: opts.entityType ?? "employee",
-      entity_id: opts.entityId ?? opts.employeeId,
-      status: "queued",
-    });
+    let error: any = null;
+    try { await enqueueCommunication({
+      channel: "email",
+      templateKey: opts.templateKey,
+      recipient: email,
+      idempotencyKey: opts.eventKey,
+      templateVars: templateVars,
+      entityType: opts.entityType ?? "employee",
+      entityId: opts.entityId ?? opts.employeeId,
+    }); } catch (__e) { error = __e; }
 
     if (error) {
       // Idempotency conflict on event_key is expected for retries — silent.

@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 import {
   Select,
   SelectContent,
@@ -551,18 +552,14 @@ async function queuePhoneEmail(args: {
 }) {
   if (!args.recipient) return;
   try {
-    await supabase.from("email_queue").insert({
-      event_key: args.eventKey,
-      idempotency_key: args.eventKey,
-      to_email: args.recipient,
-      from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: args.templateKey,
+      recipient: args.recipient,
+      idempotencyKey: args.eventKey,
+      templateVars: args.vars,
       subject: args.subject,
-      template_key: args.templateKey,
-      template_vars: args.vars,
-      status: "queued",
-      attempts: 0,
-      max_attempts: 3,
-    } as never);
+    });
   } catch (e) {
     console.warn("[queuePhoneEmail] failed", e);
   }

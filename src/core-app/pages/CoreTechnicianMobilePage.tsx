@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import TechnicianLocationShare from "@/core-app/components/TechnicianLocationShare";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 /* ─── Helpers ─── */
 const todayBoundsIso = () => {
   const now = new Date();
@@ -380,16 +381,15 @@ export default function CoreTechnicianMobilePage() {
     template_vars: Record<string, any>;
   }) => {
     try {
-      await supabase.from("email_queue").insert({
-        to_email: params.to_email,
-        template_key: params.template_key,
-        event_key: params.event_key,
-        idempotency_key: `${params.event_key}_${params.entity_id}`,
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: params.template_key,
+        recipient: params.to_email,
+        idempotencyKey: `${params.event_key}_${params.entity_id}`,
+        templateVars: params.template_vars,
         subject: params.subject,
-        entity_type: "appointment",
-        entity_id: params.entity_id,
-        template_vars: params.template_vars,
-        status: "queued",
+        entityType: "appointment",
+        entityId: params.entity_id,
       });
     } catch (e: any) {
       console.warn("[Technician] email queue failed:", e?.message);

@@ -27,6 +27,7 @@ import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
 // Checkbox removed - no longer needed for manual selection
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -694,16 +695,18 @@ const AdminContracts = () => {
       
       // Queue email to client
       const portalUrl = `${window.location.origin}/portal/contracts/${contract.id}/sign`;
-      await supabase.from("email_queue").insert({
-        to_email: client.email,
-        template_type: "contract_ready_for_signature",
-        template_data: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "contract_ready_for_signature",
+        recipient: client.email,
+        idempotencyKey: `contract-send:${contract.id}`,
+        templateVars: {
           clientName: client.full_name || "Client",
           contractNumber: contract.contract_number || contract.contract_url,
           orderNumber: contract.linkedOrder?.order_number || "N/A",
           signatureUrl: portalUrl,
         },
-        priority: "high",
+        priority: 10,
       });
       
       return { contract, client, token };
@@ -846,15 +849,13 @@ const AdminContracts = () => {
       // 2. Queue the branded contract_sign_request email through the canonical
       //    pipeline. Stable event_key (UNIQUE in email_queue) prevents duplicate
       //    sends if the button is clicked multiple times.
-      const { error: qErr } = await supabase.from("email_queue").insert({
-        event_key: `contract_sign_request_${contract.id}_${token.slice(0, 12)}`,
-        to_email: client.email,
-        template_key: "contract_sign_request",
-        subject: "Votre contrat est prêt à signer — Nivra",
-        entity_type: "contract",
-        entity_id: contract.id,
-        message_type: "contract_signature_request",
-        template_vars: {
+      let qErr: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "contract_sign_request",
+        recipient: client.email,
+        idempotencyKey: `contract_sign_request_${contract.id}_${token.slice(0, 12)}`,
+        templateVars: {
           client_name: client.full_name || "Client",
           contract_name: contract.contract_name,
           contract_number: contract.contract_number || "",
@@ -862,9 +863,11 @@ const AdminContracts = () => {
           signature_url: signUrl,
           sign_url: signUrl,
         } as any,
+        subject: "Votre contrat est prêt à signer — Nivra",
         priority: 10,
-        status: "queued",
-      } as any);
+        entityType: "contract",
+        entityId: contract.id,
+      }); } catch (__e) { qErr = __e; }
       if (qErr && !String(qErr.message || "").toLowerCase().includes("duplicate")) throw qErr;
 
       await supabase

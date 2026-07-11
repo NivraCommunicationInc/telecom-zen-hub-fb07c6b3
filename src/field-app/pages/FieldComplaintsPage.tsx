@@ -34,6 +34,7 @@ import { fr } from "date-fns/locale";
 import { ComplaintDetailDialog } from "@/core-app/pages/CoreComplaintsPage";
 import { cn } from "@/lib/utils";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 type Complaint = {
   id: string;
   ticket_number: string;
@@ -317,18 +318,18 @@ export function SubmitComplaintForClientDialog({
 
       // Confirmation to client
       if (prof?.email) {
-        await supabase.from("email_queue").insert({
-          event_key: `complaint_confirmation_${(created as any).id}`,
-          to_email: prof.email,
-          template_key: "complaint_confirmation",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "complaint_confirmation",
+          recipient: prof.email,
+          idempotencyKey: `complaint_confirmation_${(created as any).id}`,
+          templateVars: {
             first_name: (prof.full_name ?? "Client").split(" ")[0],
             ticket_number: (created as any).ticket_number,
             subject: subject.trim(),
             category_label: category,
           },
-          status: "queued",
-        } as any);
+        });
       }
       toast.success(`Plainte ${(created as any).ticket_number} créée`);
       onCreated();

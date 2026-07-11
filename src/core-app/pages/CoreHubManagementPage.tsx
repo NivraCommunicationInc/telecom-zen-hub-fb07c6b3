@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 // ============================================================
 // Tabs
 // ============================================================
@@ -799,12 +800,12 @@ function OrdersAdmin() {
 
   const enqueueStatusEmail = async (o: any, newStatus: string, tracking?: { num?: string; url?: string }) => {
     if (!o.delivery_email) return;
-    await supabase.from("email_queue").insert({
-      to_email: o.delivery_email,
-      to_name: o.delivery_name || "",
-      subject: `Mise à jour commande ${o.order_number} — Nivra Telecom`,
-      template_key: "hub_order_status_update",
-      template_data: {
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: "hub_order_status_update",
+      recipient: o.delivery_email,
+      idempotencyKey: `hub-order-${o.id}-${newStatus}-${Date.now()}`,
+      templateVars: {
         order_number: o.order_number,
         product_name: o.hub_store_items?.name || "Article",
         size: o.size || "",
@@ -814,8 +815,9 @@ function OrdersAdmin() {
         delivery_name: o.delivery_name || "",
         delivery_address: [o.delivery_address, o.delivery_city, o.delivery_province, o.delivery_postal_code].filter(Boolean).join(", "),
       },
-      priority: "normal",
-      event_key: `hub-order-${o.id}-${newStatus}-${Date.now()}`,
+      subject: `Mise à jour commande ${o.order_number} — Nivra Telecom`,
+      priority: 0,
+      toName: o.delivery_name || "",
     });
   };
 

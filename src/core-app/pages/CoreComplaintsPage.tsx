@@ -33,6 +33,7 @@ import { fr } from "date-fns/locale";
 import { useProfileName, ProfileName } from "@/hooks/useProfileName";
 import { cn } from "@/lib/utils";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 type Complaint = {
   id: string;
   ticket_number: string;
@@ -390,18 +391,18 @@ export function ComplaintDetailDialog({
     const trackingUrl = complaint.public_token
       ? `${origin}/plainte/suivi/${complaint.public_token}`
       : `${origin}/plainte`;
-    await supabase.from("email_queue").insert({
-      event_key: `${template_key}_${complaint.id}_${suffix || Date.now()}`,
-      to_email: complaint.submitted_by_email,
-      template_key,
-      template_vars: {
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: template_key,
+      recipient: complaint.submitted_by_email,
+      idempotencyKey: `${template_key}_${complaint.id}_${suffix || Date.now()}`,
+      templateVars: {
         first_name: (complaint.submitted_by_name ?? "Client").split(" ")[0],
         ticket_number: complaint.ticket_number,
         portal_url: trackingUrl,
         ...vars,
       },
-      status: "queued",
-    } as any);
+    });
   };
 
   const sendResponse = async () => {
@@ -449,11 +450,12 @@ export function ComplaintDetailDialog({
           resolution_summary: "Notre équipe a résolu votre plainte.",
         }, "resolved");
       } else if (newStatus === "escalated") {
-        await supabase.from("email_queue").insert({
-          event_key: `complaint_escalated_${complaint.id}_${Date.now()}`,
-          to_email: "support@nivra-telecom.ca",
-          template_key: "complaint_escalated",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "complaint_escalated",
+          recipient: "support@nivra-telecom.ca",
+          idempotencyKey: `complaint_escalated_${complaint.id}_${Date.now()}`,
+          templateVars: {
             ticket_number: complaint.ticket_number,
             client_name: complaint.submitted_by_name,
             submitted_by_email: complaint.submitted_by_email,
@@ -464,8 +466,7 @@ export function ComplaintDetailDialog({
             description: complaint.description,
             core_complaint_url: typeof window !== "undefined" ? `${window.location.origin}/core/complaints` : "/core/complaints",
           },
-          status: "queued",
-        } as any);
+        });
       } else {
         await queueEmail("complaint_status_update", {
           new_status_label: STATUS_LABELS[newStatus] ?? newStatus,

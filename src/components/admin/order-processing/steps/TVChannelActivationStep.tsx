@@ -20,17 +20,18 @@ async function queueChannelConfirmedEmail(order: any, channels: { name: string; 
     const email = order.client_email || profile?.email;
     if (!email) return;
 
-    await supabase.from("email_queue").insert({
-      to_email: email,
-      template_key: "client_tv_channels_confirmed",
-      template_vars: {
+    await enqueueCommunication({
+      channel: "email",
+      templateKey: "client_tv_channels_confirmed",
+      recipient: email,
+      idempotencyKey: `tv-channels-confirmed:${order.id}`,
+      templateVars: {
         first_name: profile?.first_name || order.client_first_name || "",
         order_number: order.order_number || order.id?.slice(0, 8),
         channel_count: channels.length,
         channels: channels.slice(0, 30),
         premium_total: premiumTotal > 0 ? `${premiumTotal.toFixed(2)} $` : "0,00 $",
       },
-      status: "pending",
     });
   } catch (e) {
     console.error("[TVChannels] email queue error:", e);
@@ -70,6 +71,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 interface Props {
   proc: any;
 }

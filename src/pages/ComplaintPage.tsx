@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 
@@ -164,45 +165,48 @@ export default function ComplaintPage() {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const portalUrl = `${origin}/plainte/suivi/${(complaint as any).public_token}`;
 
-      await supabase.from("email_queue").insert([
-        {
-          event_key: `complaint_confirmation_${complaint.id}`,
-          to_email: email.trim(),
-          template_key: "complaint_confirmation",
-          template_vars: {
-            first_name: firstName.trim(),
-            ticket_number: complaint.ticket_number,
-            category_label: CATEGORY_LABEL[category],
-            category,
-            priority_label: priorityLabel,
-            sla_label: slaLabel,
-            portal_url: portalUrl,
-          },
-          status: "queued",
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "complaint_confirmation",
+        recipient: email.trim(),
+        idempotencyKey: `complaint_confirmation:${complaint.id}`,
+        templateVars: {
+          first_name: firstName.trim(),
+          ticket_number: complaint.ticket_number,
+          category_label: CATEGORY_LABEL[category],
+          category,
+          priority_label: priorityLabel,
+          sla_label: slaLabel,
+          portal_url: portalUrl,
         },
-        {
-          event_key: `complaint_escalated_${complaint.id}`,
-          to_email: "support@nivra-telecom.ca",
-          template_key: "complaint_escalated",
-          template_vars: {
-            ticket_number: complaint.ticket_number,
-            client_name: fullName,
-            submitted_by_email: email.trim(),
-            submitted_by_phone: phone.trim() || "—",
-            category_label: CATEGORY_LABEL[category],
-            category,
-            priority_label: priorityLabel,
-            priority: "normal",
-            subject: subject.trim(),
-            description: description.trim(),
-            core_complaint_url:
-              typeof window !== "undefined"
-                ? `${window.location.origin}/core/complaints`
-                : "/core/complaints",
-          },
-          status: "queued",
+        entityType: "complaint",
+        entityId: complaint.id,
+      });
+
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "complaint_escalated",
+        recipient: "support@nivra-telecom.ca",
+        idempotencyKey: `complaint_escalated:${complaint.id}`,
+        templateVars: {
+          ticket_number: complaint.ticket_number,
+          client_name: fullName,
+          submitted_by_email: email.trim(),
+          submitted_by_phone: phone.trim() || "—",
+          category_label: CATEGORY_LABEL[category],
+          category,
+          priority_label: priorityLabel,
+          priority: "normal",
+          subject: subject.trim(),
+          description: description.trim(),
+          core_complaint_url:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/core/complaints`
+              : "/core/complaints",
         },
-      ] as any);
+        entityType: "complaint",
+        entityId: complaint.id,
+      });
 
       setSuccess({ ticket: complaint.ticket_number, trackingUrl: portalUrl });
     } catch (err: any) {

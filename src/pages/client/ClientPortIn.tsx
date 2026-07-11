@@ -22,6 +22,7 @@ import {
   Building2, Hash, Lock, Clock, Info,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 
 const CARRIERS = [
   "Rogers", "Bell", "Telus", "Fido", "Koodo",
@@ -98,41 +99,41 @@ export default function ClientPortIn() {
       const clientName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Client";
       const clientEmail = user.email || "";
 
-      await supabase.from("email_queue").insert([
-        {
-          to_email: "support@nivra-telecom.ca",
-          template_key: "port_in_admin_alert",
-          variables: {
-            client_name: clientName,
-            client_email: clientEmail,
-            number_to_port: digits,
-            current_carrier: carrier,
-            account_number_at_carrier: accountNumber.trim(),
-            pin_at_carrier: pin.trim() || "N/A",
-            request_id: req.id,
-            core_url: `https://nivra-telecom.ca/core/accounts`,
-          },
-          event_key: `port_in_admin_${req.id}`,
-          status: "queued",
-        } as any,
-      ]);
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "port_in_admin_alert",
+        recipient: "support@nivra-telecom.ca",
+        idempotencyKey: `port_in_admin:${req.id}`,
+        templateVars: {
+          client_name: clientName,
+          client_email: clientEmail,
+          number_to_port: digits,
+          current_carrier: carrier,
+          account_number_at_carrier: accountNumber.trim(),
+          pin_at_carrier: pin.trim() || "N/A",
+          request_id: req.id,
+          core_url: `https://nivra-telecom.ca/core/accounts`,
+        },
+        entityType: "port_in_request",
+        entityId: req.id,
+      });
 
       // Queue client confirmation email
       if (clientEmail) {
-        await supabase.from("email_queue").insert([
-          {
-            to_email: clientEmail,
-            template_key: "port_in_request_received",
-            variables: {
-              first_name: profile?.first_name || "Client",
-              number_to_port: digits,
-              current_carrier: carrier,
-              request_id: req.id,
-            },
-            event_key: `port_in_client_${req.id}`,
-            status: "queued",
-          } as any,
-        ]);
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "port_in_request_received",
+          recipient: clientEmail,
+          idempotencyKey: `port_in_client:${req.id}`,
+          templateVars: {
+            first_name: profile?.first_name || "Client",
+            number_to_port: digits,
+            current_carrier: carrier,
+            request_id: req.id,
+          },
+          entityType: "port_in_request",
+          entityId: req.id,
+        });
       }
 
       setSubmitted(req as PortInRequest);

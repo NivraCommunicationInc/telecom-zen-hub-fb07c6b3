@@ -28,6 +28,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { corePath } from "@/core-app/lib/corePaths";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const STAGES = [
   { key: "new", label: "Nouvelles", color: "bg-sky-500/15 text-sky-600 border-sky-500/30" },
   { key: "reviewing", label: "Examen", color: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
@@ -242,13 +243,15 @@ export default function CoreApplicationsPage() {
       if (insertErr) throw insertErr;
 
       // Queue invite email
-      await (supabase as any).from("email_queue").insert({
-        template_key: "employee_invite",
-        to_email: hireForm.work_email.trim().toLowerCase(),
-        entity_type: "employee",
-        entity_id: empRecord.id,
-        variables: { first_name: hireForm.first_name, employee_number: empNum },
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "employee_invite",
+        recipient: hireForm.work_email.trim().toLowerCase(),
+        idempotencyKey: `employee-invite:${empRecord.id}`,
+        templateVars: { first_name: hireForm.first_name, employee_number: empNum },
         priority: 1,
+        entityType: "employee",
+        entityId: empRecord.id,
       });
 
       // Link application to new employee record

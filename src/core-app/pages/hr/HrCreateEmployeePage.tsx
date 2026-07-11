@@ -22,6 +22,7 @@ import {
 import { corePath } from "@/core-app/lib/corePaths";
 import { toast } from "sonner";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const DEPARTMENTS = [
   "Ventes", "Support", "Technique", "Administration", "Finance",
   "Marketing", "Opérations", "RH", "Logistique",
@@ -143,17 +144,19 @@ export default function HrCreateEmployeePage() {
       if (insertErr) throw insertErr;
 
       // Queue invite email
-      await (supabase as any).from("email_queue").insert({
-        template_key: "employee_invite",
-        to_email: form.work_email.trim().toLowerCase(),
-        entity_type: "employee",
-        entity_id: empRecord.id,
-        variables: {
+      await enqueueCommunication({
+        channel: "email",
+        templateKey: "employee_invite",
+        recipient: form.work_email.trim().toLowerCase(),
+        idempotencyKey: `employee-invite:${empRecord.id}`,
+        templateVars: {
           first_name: form.first_name.trim(),
           employee_number: empNum,
           invite_link: `https://app.nivra-telecom.ca/employee-onboarding/${empRecord.id}`,
         },
         priority: 1,
+        entityType: "employee",
+        entityId: empRecord.id,
       });
 
       return { success: true, employee: empRecord };

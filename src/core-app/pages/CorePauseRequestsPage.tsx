@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { format, differenceInCalendarDays, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 type FilterKey = "pending" | "active" | "resumed" | "rejected" | "all";
 type ActionKind = "approve" | "reject" | "resume" | null;
 
@@ -262,12 +263,12 @@ export default function CorePauseRequestsPage() {
 
       const client = clients?.[r.client_id];
       if (client?.email) {
-        await supabase.from("email_queue").insert({
-          to_email: client.email,
-          template_key: "service_pause_approved",
-          event_key: "service_pause_approved",
-          message_type: "transactional",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "service_pause_approved",
+          recipient: client.email,
+          idempotencyKey: "service_pause_approved",
+          templateVars: {
             client_name: client.first_name || client.email,
             pause_from: format(now, "d MMMM yyyy", { locale: fr }),
             pause_until: pauseUntil ? format(pauseUntil, "d MMMM yyyy", { locale: fr }) : "—",
@@ -310,12 +311,12 @@ export default function CorePauseRequestsPage() {
 
       const client = clients?.[r.client_id];
       if (client?.email) {
-        await supabase.from("email_queue").insert({
-          to_email: client.email,
-          template_key: "service_pause_rejected",
-          event_key: "service_pause_rejected",
-          message_type: "transactional",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "service_pause_rejected",
+          recipient: client.email,
+          idempotencyKey: "service_pause_rejected",
+          templateVars: {
             client_name: client.first_name || client.email,
             reason: rejectReason.trim(),
           },
@@ -364,12 +365,12 @@ export default function CorePauseRequestsPage() {
 
       const client = clients?.[r.client_id];
       if (client?.email) {
-        await supabase.from("email_queue").insert({
-          to_email: client.email,
-          template_key: "service_pause_resumed",
-          event_key: "service_pause_resumed",
-          message_type: "transactional",
-          template_vars: {
+        await enqueueCommunication({
+          channel: "email",
+          templateKey: "service_pause_resumed",
+          recipient: client.email,
+          idempotencyKey: "service_pause_resumed",
+          templateVars: {
             client_name: client.first_name || client.email,
             resumed_at: format(now, "d MMMM yyyy", { locale: fr }),
           },

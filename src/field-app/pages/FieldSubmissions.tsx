@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { useState } from "react";
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 
 const STATUS_BADGE: Record<string, { label: string; classes: string }> = {
   pending_client: { label: "En attente client", classes: "bg-amber-50 text-amber-700 border-amber-200" },
@@ -62,35 +63,40 @@ export default function FieldSubmissions() {
         ? new Date(sub.expires_at).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" })
         : "7 jours à compter de ce courriel";
 
-      const payload = {
-        event_key: `field_resend_${sub.id}_${Date.now()}`,
-        to_email: sub.customer_email,
-        template_key: "payment_link_employee",
-        template_vars: {
-          client_name: sub.customer_name || "Client",
-          first_name: (sub.customer_name || "Client").split(" ")[0],
-          order_number: orderNumber,
-          services: servicesList,
-          summary: servicesList,
-          equipment: equipmentList,
-          subtotal: Number(sub.subtotal || 0).toFixed(2),
-          tps: Number(sub.tps || 0).toFixed(2),
-          tvq: Number(sub.tvq || 0).toFixed(2),
-          total: Number(sub.total || 0).toFixed(2),
-          approval_url: payerUrl,
-          payment_url: payerUrl,
-          valid_until: validUntil,
-          agent_name: sub.agent_name || "Votre conseiller Nivra",
-        },
-        status: "queued",
+      const idempotencyKey = `field_resend:${sub.id}:${sub.email_sent_count ?? 0}`;
+      const templateVars = {
+        client_name: sub.customer_name || "Client",
+        first_name: (sub.customer_name || "Client").split(" ")[0],
+        order_number: orderNumber,
+        services: servicesList,
+        summary: servicesList,
+        equipment: equipmentList,
+        subtotal: Number(sub.subtotal || 0).toFixed(2),
+        tps: Number(sub.tps || 0).toFixed(2),
+        tvq: Number(sub.tvq || 0).toFixed(2),
+        total: Number(sub.total || 0).toFixed(2),
+        approval_url: payerUrl,
+        payment_url: payerUrl,
+        valid_until: validUntil,
+        agent_name: sub.agent_name || "Votre conseiller Nivra",
       };
 
       let lastErr: any = null;
       for (let i = 1; i <= 3; i++) {
-        const { error } = await supabase.from("email_queue").insert(payload as any);
-        if (!error) { lastErr = null; break; }
-        lastErr = error;
-        if (i < 3) await new Promise((r) => setTimeout(r, 1500));
+        try {
+          await enqueueCommunication({
+            channel: "email",
+            templateKey: "payment_link_employee",
+            recipient: sub.customer_email,
+            idempotencyKey,
+            templateVars,
+          });
+          lastErr = null;
+          break;
+        } catch (e: any) {
+          lastErr = e;
+          if (i < 3) await new Promise((r) => setTimeout(r, 1500));
+        }
       }
       if (lastErr) throw lastErr;
 

@@ -25,6 +25,7 @@ import { fr } from "date-fns/locale";
 import { supabase as sb } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import { enqueueCommunication } from "@/lib/enqueueCommunication";
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending_invitation: { label: "Invitation en attente", variant: "outline" },
   onboarding: { label: "Onboarding", variant: "secondary" },
@@ -57,14 +58,17 @@ export default function HrEmployeesPage() {
     }
     setResendingId(empId);
     try {
-      const { error } = await (sb as any).from("email_queue").insert({
-        template_key: "employee_invite",
-        to_email: email,
-        entity_type: "employee",
-        entity_id: empId,
-        variables: { employee_id: empId, invite_link: `https://app.nivra-telecom.ca/employee-onboarding/${empId}` },
+      let error: any = null;
+      try { await enqueueCommunication({
+        channel: "email",
+        templateKey: "employee_invite",
+        recipient: email,
+        idempotencyKey: `employee-invite-resend:${empId}`,
+        templateVars: { employee_id: empId, invite_link: `https://app.nivra-telecom.ca/employee-onboarding/${empId}` },
         priority: 1,
-      });
+        entityType: "employee",
+        entityId: empId,
+      }); } catch (__e) { error = __e; }
       if (error) throw error;
       toast.success(`Invitation envoyée à ${email}`);
     } catch (err: any) {
