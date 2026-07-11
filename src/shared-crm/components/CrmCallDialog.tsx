@@ -81,16 +81,26 @@ export function CrmCallDialog({ contact, portal, onClose, onSold }: Props) {
     }
     toast.success(`Résultat enregistré : ${OUTCOME_META[outcome].label}`);
 
-    // Auto-SMS after a voicemail is left
+    // Auto-SMS after a voicemail is left — D46-B: passes through the
+    // canonical gateway (rpc_communication_enqueue). The sms-queue-drain
+    // worker is the only path that ultimately calls OpenPhone.
     if (outcome === "voicemail" && sendSms && contact.phone) {
       const firstName = contact.first_name ?? displayName(contact).split(" ")[0] ?? "";
       const text = `Bonjour ${firstName}, ici Nivra Télécom. Je viens de vous laisser un message vocal. Internet/TV/Mobile prépayés — premier mois GRATUIT avec BIENVENUE2026. Détails : nivra-telecom.ca | Rép. STOP pour ne plus recevoir.`;
+      const startTs = new Date(Date.now() - elapsed * 1000).toISOString();
       try {
-        const { error: smsErr } = await supabase.functions.invoke("openphone-sms", {
-          body: { to: contact.phone, text, clientId: contact.id },
+        const { enqueueCommunication } = await import("@/lib/enqueueCommunication");
+        await enqueueCommunication({
+          channel: "sms",
+          templateKey: "crm_voicemail_followup",
+          recipient: contact.phone,
+          idempotencyKey: `call:${contact.id}:${startTs}`,
+          bodyText: text,
+          entityType: "crm_contact",
+          entityId: contact.id,
+          reason: "CRM voicemail follow-up",
         });
-        if (smsErr) toast.warning("SMS de suivi non envoyé");
-        else toast.success("📱 SMS de suivi envoyé");
+        toast.success("📱 SMS de suivi mis en file");
       } catch {
         toast.warning("SMS de suivi non envoyé");
       }
