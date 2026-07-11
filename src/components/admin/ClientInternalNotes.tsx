@@ -67,31 +67,24 @@ export const ClientInternalNotes = ({ clientId, clientEmail }: ClientInternalNot
     enabled: !!clientId,
   });
 
-  // Add note mutation
+  // Add note mutation — canonical gateway (Module 47)
   const addNoteMutation = useMutation({
     mutationFn: async (noteData: { body: string; note_type: "admin" | "employee" }) => {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error("Not authenticated");
 
-      // Get user profile for name
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("user_id", currentUser.id)
-        .single();
-
-      const { error } = await supabase
-        .from("client_internal_notes")
-        .insert({
+      const { writeAccountJournal } = await import("@/lib/writeAccountJournal");
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `note:${clientId}:${noteData.note_type}:${currentUser.id}:${minuteBucket}`,
+        visibility: "staff",
+        payload: {
           client_id: clientId,
           note_type: noteData.note_type,
           body: noteData.body,
-          created_by_user_id: currentUser.id,
-          created_by_role: isAdmin ? "admin" : "employee",
-          created_by_name: profile?.full_name || currentUser.email,
-        });
-
-      if (error) throw error;
+        },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-internal-notes", clientId] });

@@ -236,20 +236,21 @@ const AdminRecouvrement = () => {
     totalOwed: recoveryAccounts?.reduce((sum, a) => sum + (a.latest_invoice_amount || 0), 0) || 0,
   };
 
-  // Add internal note mutation
+  // Add internal note mutation — canonical gateway (Module 47)
   const addNoteMutation = useMutation({
     mutationFn: async ({ clientId, note }: { clientId: string; note: string }) => {
-      const { error } = await supabase
-        .from("client_internal_notes")
-        .insert({
+      const { writeAccountJournal } = await import("@/lib/writeAccountJournal");
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "client_internal_notes",
+        eventKey: `note:${clientId}:recouvrement:${user?.id || "anon"}:${minuteBucket}`,
+        visibility: "staff",
+        payload: {
           client_id: clientId,
+          note_type: "Suivi",
           body: note,
-          note_type: "recouvrement",
-          created_by_role: "admin",
-          created_by_user_id: user?.id || "",
-          created_by_name: "Admin",
-        });
-      if (error) throw error;
+        },
+      });
     },
     onSuccess: () => {
       toast.success("Note ajoutée avec succès");
