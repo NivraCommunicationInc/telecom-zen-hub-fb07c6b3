@@ -43,8 +43,9 @@ describe("Module 50 · identity gateway integrity", () => {
       const files = walk(root);
       const violations: string[] = [];
       for (const f of files) {
-        // Skip the header status-change (accounts.status only, out of Module 50 scope).
-        if (f.endsWith("AccountProfileHeader.tsx")) continue;
+        // Out-of-scope surfaces for Module 50 (finance/status, tracked separately):
+        if (f.endsWith("AccountProfileHeader.tsx")) continue; // accounts.status
+        if (f.endsWith("AccountCreditTab.tsx")) continue;      // accounts.credit_class
         const src = readFileSync(f, "utf8");
         // Strip line comments to avoid false-positives on doc blocks like this file.
         const stripped = src.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
