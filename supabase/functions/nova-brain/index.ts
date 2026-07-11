@@ -579,13 +579,18 @@ async function executeTool(
           .update({ status: "active", updated_at: new Date().toISOString() })
           .eq("id", accountId);
         if (error) return { ok: false, error: error.message };
-        await supabase.from("activity_logs").insert({
-          entity_type: "account",
-          entity_id: accountId,
-          action: "reactivate",
-          actor_name: "NOVA Digital Brain",
-          actor_role: "ai_agent",
-          details: { reason: input.reason },
+        await writeAccountJournal(supabase, {
+          targetTable: "activity_logs",
+          payload: {
+            entity_type: "account",
+            entity_id: accountId,
+            action: "reactivate",
+            actor_name: "NOVA Digital Brain",
+            actor_role: "ai_agent",
+            details: { reason: input.reason },
+          },
+          eventKey: `account:${accountId}:nova_reactivate:${new Date().toISOString().slice(0,16).replace(/[-:T]/g,"")}`,
+          actor: { userId: "00000000-0000-0000-0000-000000000000", role: "ai_agent", name: "NOVA Digital Brain", email: null },
         }).then(() => undefined, () => undefined);
         return { ok: true, result: { reactivated: true, account_id: accountId } };
       }
