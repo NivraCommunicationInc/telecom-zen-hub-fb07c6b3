@@ -128,12 +128,15 @@ export function AccountStreamingTab({ subscriptions, clientId }: AccountStreamin
       }
 
       if (clientId) {
-        await supabase.from("client_activity_logs").insert({
-          client_id: clientId,
-          actor_user_id: user?.id || "",
-          actor_role: "admin",
-          action_type: `streaming_${actionType}`,
-          summary: `Service "${isClientStreaming ? actionSub.streaming_services?.name : actionSub.plan_name}" ${actionType === "suspend" ? "suspendu" : actionType === "resume" ? "réactivé" : "annulé"}`,
+        await writeAccountJournal({
+          targetTable: "client_activity_logs",
+          eventKey: `streaming:${actionSub.id}:${actionType}:${new Date().toISOString().slice(0, 16)}`,
+          visibility: "staff",
+          payload: {
+            client_id: clientId,
+            action_type: `streaming_${actionType}`,
+            summary: `Service "${isClientStreaming ? actionSub.streaming_services?.name : actionSub.plan_name}" ${actionType === "suspend" ? "suspendu" : actionType === "resume" ? "réactivé" : "annulé"}`,
+          },
         });
       }
 

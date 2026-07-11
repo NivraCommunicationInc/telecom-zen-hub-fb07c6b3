@@ -203,12 +203,15 @@ export function AccountEquipmentTab({ accountId, clientId }: AccountEquipmentTab
       }).eq("id", editEq.id);
       if (error) throw error;
 
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        action_type: "equipment_updated",
-        summary: `Équipement "${eqName || editEq.name}" modifié. S/N: ${eqSerial || "N/A"}`,
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `equipment:${clientId}:updated:${editEq.id}:${new Date().toISOString().slice(0, 16)}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: "equipment_updated",
+          summary: `Équipement "${eqName || editEq.name}" modifié. S/N: ${eqSerial || "N/A"}`,
+        },
       });
 
       toast.success("Équipement mis à jour");
@@ -233,12 +236,15 @@ export function AccountEquipmentTab({ accountId, clientId }: AccountEquipmentTab
       const { error } = await supabase.from("equipment_order_lines").delete().eq("id", removeEq.id);
       if (error) throw error;
 
-      await supabase.from("client_activity_logs").insert({
-        client_id: clientId,
-        actor_user_id: user?.id || "",
-        actor_role: "admin",
-        action_type: "equipment_removed",
-        summary: `Équipement "${removeEq.name}" retiré du compte`,
+      await writeAccountJournal({
+        targetTable: "client_activity_logs",
+        eventKey: `equipment:${clientId}:removed:${removeEq.id}`,
+        visibility: "staff",
+        payload: {
+          client_id: clientId,
+          action_type: "equipment_removed",
+          summary: `Équipement "${removeEq.name}" retiré du compte`,
+        },
       });
 
       toast.success("Équipement retiré");
