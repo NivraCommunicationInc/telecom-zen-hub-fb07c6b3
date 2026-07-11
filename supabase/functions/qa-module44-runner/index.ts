@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     client_first_name: "QA",
     client_last_name: "M44",
     total_amount: 0,
-    user_id: clientA,
+    user_id: adminUser.id,
     account_id: clientA,
     service_type: "internet",
   });
