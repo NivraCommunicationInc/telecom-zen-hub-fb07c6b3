@@ -365,24 +365,39 @@ serve(async (req) => {
         const txt = (body.body || "").trim();
         if (!txt) return json(400, { error: "Note requise" });
 
-        const { data, error } = await admin
-          .from("client_internal_notes")
-          .insert({
-            client_id: client_user_id,
-            account_id: body.account_id ?? null,
-            note_type,
-            body: txt,
-            created_by_user_id: user.id,
-            created_by_role: callerRole,
-            created_by_name: callerName,
-          })
-          .select("id")
-          .single();
-        if (error) return json(500, { error: error.message });
+        // Deterministic short hash of the note body for event_key discriminant.
+        // Allows two identical retries within the same minute to dedupe, while
+        // distinct note bodies stay unique.
+        let h = 0;
+        for (let i = 0; i < txt.length; i++) h = ((h << 5) - h + txt.charCodeAt(i)) | 0;
+        const bodyHash = (h >>> 0).toString(36);
+        const disc = body.idempotency_key ?? `${bodyHash}:${isoMinuteBucket()}`;
+        const eventKey = `note:${client_user_id}:${note_type}:${disc}`;
 
-        await audit("add_internal_note", { note_id: data.id, note_type, length: txt.length });
+        let noteId: string | undefined;
+        try {
+          const res = await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey,
+            actor: defaultActor,
+            payload: {
+              client_id: client_user_id,
+              account_id: body.account_id ?? null,
+              note_type,
+              body: txt,
+              created_by_user_id: user.id,
+              created_by_role: callerRole,
+              created_by_name: callerName,
+            },
+          });
+          noteId = res.id;
+        } catch (e: any) {
+          return json(500, { error: e?.message ?? "Erreur écriture note" });
+        }
+
+        await audit("add_internal_note", { note_id: noteId, note_type, length: txt.length });
         // No client email — internal only.
-        return json(200, { ok: true, note_id: data.id });
+        return json(200, { ok: true, note_id: noteId });
       }
 
       // ============================================================
