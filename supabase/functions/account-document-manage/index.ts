@@ -10,6 +10,14 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+async function resolveAccountId(sb: any, clientUserId: string): Promise<string | null> {
+  try {
+    const { data } = await sb.from("accounts").select("id").eq("client_id", clientUserId).maybeSingle();
+    return (data as any)?.id ?? null;
+  } catch { return null; }
+}
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -91,13 +99,24 @@ serve(async (req) => {
         status: contract.status === "draft" ? "sent" : contract.status,
       } as any).eq("id", contractId);
 
-      await supabase.from("client_internal_notes").insert({
-        client_user_id: contract.user_id,
-        category: "contract",
-        note: `Contrat ${contract.contract_number || contractId.slice(0, 8)} renvoyé pour signature (action manuelle).`,
-        created_by: userData.user.id,
-        author_name: userData.user.email || "Staff",
-      } as any);
+      const newSentCount = ((contract as any).sent_count ?? 0) + 1;
+      const accountIdC = await resolveAccountId(supabase, contract.user_id);
+      try {
+        await writeAccountJournal(supabase as any, {
+          targetTable: "client_internal_notes",
+          eventKey: `contract:${contractId}:resend:${newSentCount}:note`,
+          actor: { userId: userData.user.id, role: "admin", name: userData.user.email || "Staff", email: userData.user.email ?? null },
+          payload: {
+            account_id: accountIdC,
+            client_id: contract.user_id,
+            note_type: "system",
+            body: `Contrat ${contract.contract_number || contractId.slice(0, 8)} renvoyé pour signature (action manuelle).`,
+            created_by_user_id: userData.user.id,
+            created_by_name: userData.user.email || "Staff",
+            created_by_role: "admin",
+          },
+        });
+      } catch (_e) { /* best-effort */ }
 
       return new Response(JSON.stringify({ ok: true, action, contract_id: contractId }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -129,13 +148,23 @@ serve(async (req) => {
       } as any).select("id").maybeSingle();
       if (dErr) throw dErr;
 
-      await supabase.from("client_internal_notes").insert({
-        client_user_id: clientUserId,
-        category: "document",
-        note: `Document manuel « ${filename} » téléversé par ${userData.user.email || "admin"}.`,
-        created_by: userData.user.id,
-        author_name: userData.user.email || "Admin",
-      } as any);
+      const accountIdU = await resolveAccountId(supabase, clientUserId);
+      try {
+        await writeAccountJournal(supabase as any, {
+          targetTable: "client_internal_notes",
+          eventKey: `client_document:${(doc as any)?.id}:upload:note`,
+          actor: { userId: userData.user.id, role: "admin", name: userData.user.email || "Admin", email: userData.user.email ?? null },
+          payload: {
+            account_id: accountIdU,
+            client_id: clientUserId,
+            note_type: "system",
+            body: `Document manuel « ${filename} » téléversé par ${userData.user.email || "admin"}.`,
+            created_by_user_id: userData.user.id,
+            created_by_name: userData.user.email || "Admin",
+            created_by_role: "admin",
+          },
+        });
+      } catch (_e) { /* best-effort */ }
 
       return new Response(JSON.stringify({ ok: true, action, document_id: doc?.id, path }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -152,13 +181,23 @@ serve(async (req) => {
         await supabase.storage.from(BUCKET).remove([doc.document_url]).catch(() => {});
       }
       await supabase.from("client_documents").delete().eq("id", documentId);
-      await supabase.from("client_internal_notes").insert({
-        client_user_id: doc.user_id,
-        category: "document",
-        note: `Document « ${doc.document_name || documentId} » supprimé par ${userData.user.email || "admin"}.`,
-        created_by: userData.user.id,
-        author_name: userData.user.email || "Admin",
-      } as any);
+      const accountIdD = await resolveAccountId(supabase, doc.user_id);
+      try {
+        await writeAccountJournal(supabase as any, {
+          targetTable: "client_internal_notes",
+          eventKey: `client_document:${documentId}:delete:note`,
+          actor: { userId: userData.user.id, role: "admin", name: userData.user.email || "Admin", email: userData.user.email ?? null },
+          payload: {
+            account_id: accountIdD,
+            client_id: doc.user_id,
+            note_type: "system",
+            body: `Document « ${doc.document_name || documentId} » supprimé par ${userData.user.email || "admin"}.`,
+            created_by_user_id: userData.user.id,
+            created_by_name: userData.user.email || "Admin",
+            created_by_role: "admin",
+          },
+        });
+      } catch (_e) { /* best-effort */ }
       return new Response(JSON.stringify({ ok: true, action }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
