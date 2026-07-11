@@ -137,14 +137,17 @@ export default function StaffOrderDetail() {
 
   const addNoteMutation = useMutation({
     mutationFn: async (body: string) => {
-      const { error } = await supabase.from("order_internal_notes").insert({
-        order_id: id,
-        body: body.trim(),
-        created_by_user_id: currentUser?.id,
-        created_by_role: "employee",
-        created_by_name: currentUser?.name || "Employé",
+      const { writeAccountJournal } = await import("@/lib/writeAccountJournal");
+      const minuteBucket = new Date().toISOString().slice(0, 16);
+      await writeAccountJournal({
+        targetTable: "order_internal_notes",
+        eventKey: `note:order:${id}:${currentUser?.id ?? "anon"}:${minuteBucket}`,
+        visibility: "staff",
+        payload: {
+          order_id: id,
+          body: body.trim(),
+        },
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Note ajoutée");
