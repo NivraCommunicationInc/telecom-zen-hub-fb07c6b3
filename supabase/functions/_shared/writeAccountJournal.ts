@@ -48,6 +48,8 @@ export interface WriteAccountJournalActor {
   email?: string | null;
 }
 
+export type AccountJournalVisibility = "client" | "staff" | "admin";
+
 export interface WriteAccountJournalInput {
   targetTable: AccountJournalTable;
   payload: Record<string, unknown>;
@@ -59,6 +61,14 @@ export interface WriteAccountJournalInput {
    * calls (auth.uid() wins). Serialized as `payload._actor` for the RPC.
    */
   actor?: WriteAccountJournalActor | null;
+  /**
+   * Module 44 visibility contract:
+   *   - "client" : surfaces in the client portal timeline
+   *   - "staff"  : internal, staff-only
+   *   - "admin"  : sensitive (fraud, security, kyc, consent, privacy, docs)
+   * Defaults inferred by targetTable when omitted.
+   */
+  visibility?: AccountJournalVisibility;
 }
 
 export interface WriteAccountJournalResult {
@@ -101,7 +111,17 @@ export async function writeAccountJournal(
   }
   assertDeterministicEventKey(input.eventKey);
 
-  const payload: Record<string, unknown> = { ...(input.payload ?? {}) };
+  const DEFAULT_VISIBILITY: Record<AccountJournalTable, AccountJournalVisibility> = {
+    client_activity_logs: "client",
+    activity_logs: "admin",
+    client_internal_notes: "staff",
+    account_followups: "staff",
+    order_status_history: "client",
+    order_internal_notes: "staff",
+  };
+  const visibility = input.visibility ?? DEFAULT_VISIBILITY[input.targetTable];
+
+  const payload: Record<string, unknown> = { ...(input.payload ?? {}), visibility };
   if (input.actor && input.actor.userId) {
     payload._actor = {
       user_id: input.actor.userId,

@@ -264,6 +264,7 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          visibility: string
         }
         Insert: {
           account_id?: string | null
@@ -287,6 +288,7 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          visibility?: string
         }
         Update: {
           account_id?: string | null
@@ -310,6 +312,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          visibility?: string
         }
         Relationships: []
       }
@@ -1019,6 +1022,7 @@ export type Database = {
           old_value: string | null
           reason: string | null
           user_id: string | null
+          visibility: string
         }
         Insert: {
           action: string
@@ -1038,6 +1042,7 @@ export type Database = {
           old_value?: string | null
           reason?: string | null
           user_id?: string | null
+          visibility?: string
         }
         Update: {
           action?: string
@@ -1057,6 +1062,7 @@ export type Database = {
           old_value?: string | null
           reason?: string | null
           user_id?: string | null
+          visibility?: string
         }
         Relationships: []
       }
@@ -4413,6 +4419,7 @@ export type Database = {
           id: string
           metadata: Json | null
           summary: string
+          visibility: string
         }
         Insert: {
           action_type: string
@@ -4430,6 +4437,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           summary: string
+          visibility?: string
         }
         Update: {
           action_type?: string
@@ -4447,6 +4455,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           summary?: string
+          visibility?: string
         }
         Relationships: []
       }
@@ -4953,6 +4962,7 @@ export type Database = {
           id: string
           metadata: Json | null
           note_type: string
+          visibility: string
         }
         Insert: {
           account_id?: string | null
@@ -4967,6 +4977,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           note_type: string
+          visibility?: string
         }
         Update: {
           account_id?: string | null
@@ -4981,6 +4992,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           note_type?: string
+          visibility?: string
         }
         Relationships: [
           {
@@ -30712,6 +30724,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_customer_timeline: {
+        Row: {
+          account_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          client_id: string | null
+          correlation_id: string | null
+          details: Json | null
+          event_id: string | null
+          event_type: string | null
+          occurred_at: string | null
+          severity: string | null
+          source_id: string | null
+          source_table: string | null
+          summary: string | null
+          visibility: string | null
+        }
+        Relationships: []
+      }
+      v_customer_timeline_client: {
+        Row: {
+          account_id: string | null
+          actor_name: string | null
+          client_id: string | null
+          details: Json | null
+          event_id: string | null
+          event_type: string | null
+          occurred_at: string | null
+          severity: string | null
+          source_id: string | null
+          source_table: string | null
+          summary: string | null
+        }
+        Relationships: []
       }
       v_growth_agent_health: {
         Row: {

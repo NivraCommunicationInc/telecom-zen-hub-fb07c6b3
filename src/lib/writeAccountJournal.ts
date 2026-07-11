@@ -46,11 +46,21 @@ export type AccountJournalTable =
   | "order_status_history"
   | "order_internal_notes";
 
+export type AccountJournalVisibility = "client" | "staff" | "admin";
+
 export interface WriteAccountJournalInput {
   targetTable: AccountJournalTable;
   payload: Record<string, unknown>;
   eventKey: string;
   correlationId?: string | null;
+  /**
+   * Module 44 visibility contract:
+   *   - "client" : event surfaces in the client portal timeline
+   *   - "staff"  : internal, staff-only
+   *   - "admin"  : sensitive (fraud, security, kyc, consent, privacy, docs)
+   * Defaults inferred by targetTable when omitted.
+   */
+  visibility?: AccountJournalVisibility;
 }
 
 export interface WriteAccountJournalResult {
@@ -85,6 +95,15 @@ function assertDeterministicEventKey(eventKey: string): void {
   }
 }
 
+const DEFAULT_VISIBILITY: Record<AccountJournalTable, AccountJournalVisibility> = {
+  client_activity_logs: "client",
+  activity_logs: "admin",
+  client_internal_notes: "staff",
+  account_followups: "staff",
+  order_status_history: "client",
+  order_internal_notes: "staff",
+};
+
 export async function writeAccountJournal(
   input: WriteAccountJournalInput,
 ): Promise<WriteAccountJournalResult> {
@@ -93,9 +112,12 @@ export async function writeAccountJournal(
   }
   assertDeterministicEventKey(input.eventKey);
 
+  const visibility = input.visibility ?? DEFAULT_VISIBILITY[input.targetTable];
+  const payload: Record<string, unknown> = { ...(input.payload ?? {}), visibility };
+
   const { data, error } = await supabase.rpc("rpc_account_journal_write", {
     p_target_table: input.targetTable,
-    p_payload: input.payload ?? {},
+    p_payload: payload,
     p_event_key: input.eventKey,
     p_correlation_id: input.correlationId ?? null,
   });
