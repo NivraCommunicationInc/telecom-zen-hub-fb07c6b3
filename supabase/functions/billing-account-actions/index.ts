@@ -617,29 +617,39 @@ serve(async (req) => {
         // ── Client activity log + system note (parity with Module 8/9) ──
         try {
           const summary = `Plan de paiement créé — ${count}× ${fmtMoney(installment_amount)} (${frequency}) · total ${fmtMoney(total)} · début ${first_due_date} — motif: ${reason}`;
-          await admin.from("client_activity_logs").insert({
-            client_id:     client_user_id,
-            actor_user_id: user.id,
-            actor_name:    user.email ?? null,
-            actor_role:    "admin",
-            action_type:   "payment_plan_created",
-            entity_type:   "client_payment_plan",
-            entity_id:     data.id,
-            summary,
-            after_data: {
-              plan_id: data.id, total_amount: total, installment_count: count,
-              installment_amount, frequency, first_due_date,
-              invoice_id: body.invoice_id ?? null,
+          await writeAccountJournal(admin, {
+            targetTable: "client_activity_logs",
+            eventKey: `billing:plan:${data.id}:created:activity`,
+            actor: journalActor,
+            payload: {
+              client_id:     client_user_id,
+              actor_user_id: user.id,
+              actor_name:    user.email ?? null,
+              actor_role:    "admin",
+              action_type:   "payment_plan_created",
+              entity_type:   "client_payment_plan",
+              entity_id:     data.id,
+              summary,
+              after_data: {
+                plan_id: data.id, total_amount: total, installment_count: count,
+                installment_amount, frequency, first_due_date,
+                invoice_id: body.invoice_id ?? null,
+              },
             },
           });
-          await admin.from("client_internal_notes").insert({
-            client_id:          client_user_id,
-            account_id:         body.account_id ?? null,
-            note_type:          "system",
-            body:               `${summary} — par ${user.email ?? user.id}`,
-            created_by_user_id: user.id,
-            created_by_role:    "admin",
-            created_by_name:    user.email ?? null,
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `billing:plan:${data.id}:created:note`,
+            actor: journalActor,
+            payload: {
+              client_id:          client_user_id,
+              account_id:         body.account_id ?? null,
+              note_type:          "system",
+              body:               `${summary} — par ${user.email ?? user.id}`,
+              created_by_user_id: user.id,
+              created_by_role:    "admin",
+              created_by_name:    user.email ?? null,
+            },
           });
         } catch (_e) { /* swallow */ }
 
