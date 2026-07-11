@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ChevronDown, ChevronUp, Copy, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { writeAccountJournal } from "@/lib/writeAccountJournal";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
