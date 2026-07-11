@@ -131,29 +131,45 @@ serve(async (req) => {
       // Traceability parity (Modules 5-8): activity + system note
       if (client_id) {
         try {
-          await admin.from("client_activity_logs").insert({
-            client_id,
-            actor_user_id: user.id,
-            actor_name: user.email ?? "Admin Core",
-            actor_role: "admin_core",
-            action_type: "adjustment_writeoff",
-            entity_type: "billing_invoice",
-            entity_id: invoice_id,
-            summary: `Radiation de facture ${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$`,
-            before_data: { invoice: invBefore ?? null },
-            after_data: {
-              module_tag: "adjustments",
-              collections_action_id: collJson?.id ?? null,
-              reason,
+          const actor = {
+            userId: user.id,
+            role: "admin_core",
+            name: user.email ?? "Admin Core",
+            email: user.email ?? null,
+          };
+          await writeAccountJournal(admin, {
+            targetTable: "client_activity_logs",
+            eventKey: `adjustment:writeoff:${invoice_id}:activity`,
+            payload: {
+              client_id,
+              actor_user_id: user.id,
+              actor_name: user.email ?? "Admin Core",
+              actor_role: "admin_core",
+              action_type: "adjustment_writeoff",
+              entity_type: "billing_invoice",
+              entity_id: invoice_id,
+              summary: `Radiation de facture ${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$`,
+              before_data: { invoice: invBefore ?? null },
+              after_data: {
+                module_tag: "adjustments",
+                collections_action_id: collJson?.id ?? null,
+                reason,
+              },
             },
+            actor,
           });
-          await admin.from("client_internal_notes").insert({
-            client_id,
-            note_type: "system",
-            body: `Radiation de facture — Facture #${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$ — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: "admin_core",
-            created_by_name: user.email ?? "Admin Core",
+          await writeAccountJournal(admin, {
+            targetTable: "client_internal_notes",
+            eventKey: `adjustment:writeoff:${invoice_id}:note`,
+            payload: {
+              client_id,
+              note_type: "system",
+              body: `Radiation de facture — Facture #${invBefore?.invoice_number ?? invoice_id.slice(0, 8)} — solde ${invBefore?.balance_due ?? 0}$ — motif: ${reason}`,
+              created_by_user_id: user.id,
+              created_by_role: "admin_core",
+              created_by_name: user.email ?? "Admin Core",
+            },
+            actor,
           });
         } catch (e) {
           console.warn("[core-apply-adjustment] writeoff traceability failed:", (e as any)?.message);
