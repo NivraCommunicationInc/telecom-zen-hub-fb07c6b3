@@ -629,12 +629,13 @@ serve(async (req) => {
           auto_resume: autoResume,
         });
 
-        try {
-          await admin.from("client_activity_logs").insert({
-            client_id: client_user_id,
-            actor_user_id: user.id,
-            actor_name: autoResume ? "Système (reprise automatique)" : callerName,
-            actor_role: autoResume ? "system" : callerRole,
+        {
+          const mode = autoResume ? "auto" : "manual";
+          // Discriminant: idempotency_key si fourni sinon bucket ISO minute.
+          // Fallback bucket nécessaire car unpause manuel n'a pas d'ID métier
+          // stable après coup (paused_until vient d'être remis à null).
+          const disc = body.idempotency_key ?? isoMinuteBucket();
+          await logActivityNote({
             action_type: "account_pause",
             entity_type: "account",
             entity_id: body.account_id,
@@ -642,22 +643,15 @@ serve(async (req) => {
               ? "Pause temporaire levée automatiquement (échéance atteinte)"
               : "Pause temporaire levée — compte réactivé",
             after_data: { reason: autoResume ? "auto_resume" : reason },
-          });
-        } catch (_e) { /* swallow */ }
-
-        try {
-          await admin.from("client_internal_notes").insert({
-            client_id: client_user_id,
-            account_id: body.account_id,
-            note_type: "system",
-            body: autoResume
+            noteBody: autoResume
               ? `Pause temporaire levée automatiquement (échéance atteinte)`
               : `Pause temporaire levée — par ${user.email || callerName} — motif: ${reason}`,
-            created_by_user_id: user.id,
-            created_by_role: autoResume ? "system" : callerRole,
-            created_by_name: autoResume ? "Système" : callerName,
+            eventBase: `ops:account:${body.account_id}:unpause:${mode}:${disc}`,
+            actorOverride: autoResume
+              ? { userId: user.id, role: "system", name: "Système (reprise automatique)", email: null }
+              : undefined,
           });
-        } catch (_e) { /* swallow */ }
+        }
 
         // F6 — Notification client
         await enqueueEmail("client_account_resumed", {
