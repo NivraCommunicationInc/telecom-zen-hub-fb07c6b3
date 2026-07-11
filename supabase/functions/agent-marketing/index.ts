@@ -238,6 +238,7 @@ Deno.serve(async (req) => {
           to_email: r.email,
           template_key: "marketing_promotion",
           subject: personalizedSubject,
+          idempotency_key: `mkt:${campaignId}:${r.account_id ?? r.email}`,
           template_vars: {
             client_name: r.full_name,
             first_name: r.first_name,
@@ -248,16 +249,31 @@ Deno.serve(async (req) => {
             promo_code: campaign.promo_code ?? "",
             offer_valid_until: validUntil,
           },
-          status: "queued",
         });
       }
 
-      // Insert in chunks
+      // Insert in chunks (campaign_sends stays direct — not a communication queue)
       for (let i = 0; i < sendsRows.length; i += 200) {
         await supabase.from("campaign_sends").insert(sendsRows.slice(i, i + 200));
       }
-      for (let i = 0; i < queueRows.length; i += 200) {
-        await supabase.from("email_queue").insert(queueRows.slice(i, i + 200));
+      // Marketing emails routed through canonical gateway (Module 40 SINGLE DOOR).
+      // category="marketing" enables suppression / unsubscribe checks.
+      for (const row of queueRows) {
+        try {
+          await enqueueCommunication(supabase, {
+            channel: "email",
+            templateKey: row.template_key,
+            recipient: row.to_email,
+            subject: row.subject,
+            idempotencyKey: row.idempotency_key,
+            templateVars: row.template_vars,
+            category: "marketing",
+            entityType: "marketing_campaign",
+            entityId: campaignId,
+          });
+        } catch (e) {
+          console.warn("[agent-marketing] enqueue failed for", row.to_email, e);
+        }
       }
       await supabase.from("marketing_campaigns").update({
         status: "running",
