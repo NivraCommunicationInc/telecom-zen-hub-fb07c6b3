@@ -627,6 +627,8 @@ const AppRoutes = () => {
       <Route path="/faq" element={<MaintenanceGuard><PublicLayout><FAQ /></PublicLayout></MaintenanceGuard>} />
       <Route path="/nps/:token" element={<MaintenanceGuard><PublicLayout><NPSSurvey /></PublicLayout></MaintenanceGuard>} />
       <Route path="/avis/:token" element={<ClientReviewPage />} />
+      <Route path="/account-transfer/confirm" element={<Suspense fallback={null}><AccountTransferConfirmPage /></Suspense>} />
+
       <Route path="/plainte" element={<Suspense fallback={null}><ComplaintPage /></Suspense>} />
       <Route path="/verifier-mon-numero" element={<Suspense fallback={null}><VerifierNumero /></Suspense>} />
       <Route path="/plainte/suivi/:token" element={<Suspense fallback={null}><ComplaintTrackingPage /></Suspense>} />
