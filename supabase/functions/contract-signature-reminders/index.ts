@@ -13,6 +13,14 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { recordHeartbeat } from "../_shared/cronHeartbeat.ts";
 
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+const SYSTEM_ACTOR = {
+  userId: "00000000-0000-0000-0000-000000000000",
+  role: "system",
+  name: "Système — relance auto",
+  email: null,
+} as const;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, apikey",
