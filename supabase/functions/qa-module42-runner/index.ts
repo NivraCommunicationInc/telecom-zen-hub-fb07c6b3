@@ -297,8 +297,8 @@ Deno.serve(async (req) => {
 
   // ---------- Cleanup ----------
   try {
-    await admin.from("client_activity_logs").delete().eq("client_user_id", fakeClientA);
-    await admin.from("client_internal_notes").delete().eq("client_user_id", fakeClientA);
+    await admin.from("client_activity_logs").delete().eq("client_id", fakeClientA);
+    await admin.from("client_internal_notes").delete().eq("client_id", fakeClientA);
     await admin.from("client_login_pins").delete().eq("id", pinId);
     await admin.from("customer_security").delete().eq("id", secId);
     await admin.from("customer_access_sessions").delete().eq("user_agent", `qa-${runId}`);
