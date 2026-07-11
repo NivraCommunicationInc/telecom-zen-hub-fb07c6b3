@@ -39,6 +39,15 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkStaffAuth } from "../_shared/adminAuth.ts";
 import { enqueueCommunication } from "../_shared/enqueueCommunication.ts";
+import { writeAccountJournal } from "../_shared/writeAccountJournal.ts";
+
+// Minute bucket in base36 — reserved as a complement to a stable business
+// identity for actions with no natural per-write entity id (e.g. parental
+// controls upsert scoped on (user_id, account_id)). Never used alone.
+function isoMinuteBucket36(d: Date = new Date()): string {
+  return Math.floor(d.getTime() / 60_000).toString(36);
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -308,6 +317,7 @@ serve(async (req) => {
   };
 
   const activity = async (
+    eventKey: string,
     action_type: string,
     entity_id: string | null,
     entity_type: string,
@@ -316,33 +326,56 @@ serve(async (req) => {
     before_data: Record<string, unknown> | null = null,
   ) => {
     try {
-      await admin.from("client_activity_logs").insert({
-        client_id: client_user_id,
-        actor_user_id: user.id,
-        actor_name: callerName,
-        actor_role: primaryRole,
-        action_type,
-        entity_type,
-        entity_id,
-        summary,
-        before_data,
-        after_data,
+      await writeAccountJournal(admin, {
+        targetTable: "client_activity_logs",
+        eventKey,
+        correlationId: body.idempotency_key ?? null,
+        actor: {
+          userId: user.id,
+          role: primaryRole ?? "system",
+          name: callerName ?? "system",
+          email: callerProfile?.email ?? null,
+        },
+        payload: {
+          client_id: client_user_id,
+          actor_user_id: user.id,
+          actor_name: callerName,
+          actor_role: primaryRole,
+          action_type,
+          entity_type,
+          entity_id,
+          summary,
+          before_data,
+          after_data,
+        },
       });
     } catch (_e) { /* swallow */ }
   };
 
-  const sysNote = async (body_text: string) => {
+  const sysNote = async (eventKey: string, body_text: string) => {
     try {
-      await admin.from("client_internal_notes").insert({
-        client_id: client_user_id,
-        note_type: "system",
-        body: body_text,
-        created_by_user_id: user.id,
-        created_by_role: primaryRole,
-        created_by_name: callerName,
+      await writeAccountJournal(admin, {
+        targetTable: "client_internal_notes",
+        eventKey,
+        correlationId: body.idempotency_key ?? null,
+        actor: {
+          userId: user.id,
+          role: primaryRole ?? "system",
+          name: callerName ?? "system",
+          email: callerProfile?.email ?? null,
+        },
+        payload: {
+          client_id: client_user_id,
+          note_type: "system",
+          body: body_text,
+          created_by_user_id: user.id,
+          created_by_role: primaryRole,
+          created_by_name: callerName,
+        },
       });
     } catch (_e) { /* swallow */ }
   };
+
 
   const enqueueEmail = async (template: string, vars: Record<string, unknown>) => {
     if (!clientEmail) return;
@@ -487,10 +520,10 @@ serve(async (req) => {
           change_type, effective_date,
         };
         await audit("change_plan", after, before);
-        await activity("plan_change", data.id, "subscription",
+        await activity(`tv:plan_change:${data.id}:activity`, "plan_change", data.id, "subscription",
           `Forfait TV: ${body.previous_plan_name || "—"} → ${new_plan_name} (${fmtMoney(new_monthly_price)})`,
           after, before);
-        await sysNote(`[TV] Changement forfait — ${body.previous_plan_name || "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}. Motif: ${reasonStr}`);
+        await sysNote(`tv:plan_change:${data.id}:note`, `[TV] Changement forfait — ${body.previous_plan_name || "—"} → ${new_plan_name} · ${fmtMoney(new_monthly_price)}/mois · ${change_type} · effectif ${effective_date}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_plan_change", {
           previous_plan_name: body.previous_plan_name || "—",
           new_plan_name,
@@ -591,9 +624,9 @@ serve(async (req) => {
 
         const after = { addon_id: data.id, addon_code: pack.code, addon_name: pack.name, monthly_price: pack.price };
         await audit("add_themed_pack", after);
-        await activity("service_add", data.id, "service",
+        await activity(`tv:themed_pack:${data.id}:added:activity`, "service_add", data.id, "service",
           `Bouquet TV activé: ${pack.name} (${fmtMoney(pack.price)}/mois)`, after);
-        await sysNote(`[TV] Activation bouquet — ${pack.name} (${pack.code}) · ${fmtMoney(pack.price)}/mois. Motif: ${reasonStr}`);
+        await sysNote(`tv:themed_pack:${data.id}:added:note`, `[TV] Activation bouquet — ${pack.name} (${pack.code}) · ${fmtMoney(pack.price)}/mois. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_pack_change", {
           addon_name: pack.name, monthly_price: fmtMoney(pack.price), change_type: "activated",
         });
@@ -640,9 +673,9 @@ serve(async (req) => {
 
         const after = { addon_id, addon_name: existing.addon_name };
         await audit("remove_themed_pack", after, { status: "active" });
-        await activity("service_remove", addon_id, "service",
+        await activity(`tv:themed_pack:${addon_id}:removed:activity`, "service_remove", addon_id, "service",
           `Bouquet TV annulé: ${existing.addon_name}`, after, { status: "active" });
-        await sysNote(`[TV] Annulation bouquet — ${existing.addon_name}. Motif: ${reasonStr}`);
+        await sysNote(`tv:themed_pack:${addon_id}:removed:note`, `[TV] Annulation bouquet — ${existing.addon_name}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_pack_change", {
           addon_name: existing.addon_name,
           monthly_price: fmtMoney(Number(existing.monthly_price ?? 0)),
@@ -693,9 +726,9 @@ serve(async (req) => {
 
         const after = { vod_id: data.id, title, amount, currency, payment_reference };
         await audit("purchase_vod", after);
-        await activity("service_add", data.id, "service",
+        await activity(`tv:vod:${data.id}:activity`, "service_add", data.id, "service",
           `Achat VOD/PPV: ${title} (${fmtMoney(amount, currency)})`, after);
-        await sysNote(`[TV] Achat VOD/PPV — ${title} (${content_type}) · ${fmtMoney(amount, currency)} · Réf: ${payment_reference}. Motif: ${reasonStr}`);
+        await sysNote(`tv:vod:${data.id}:note`, `[TV] Achat VOD/PPV — ${title} (${content_type}) · ${fmtMoney(amount, currency)} · Réf: ${payment_reference}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_vod_purchase", {
           title, content_type,
           amount: fmtMoney(amount, currency),
@@ -757,9 +790,9 @@ serve(async (req) => {
 
         const after = { terminal_action_id: data.id, action_type, terminal_serial: body.terminal_serial ?? null, critical: meta.critical };
         await audit("terminal_action", after);
-        await activity("equipment_change", data.id, "equipment",
+        await activity(`tv:terminal_action:${data.id}:activity`, "equipment_change", data.id, "equipment",
           `${meta.label}${body.terminal_serial ? ` (SN ${body.terminal_serial})` : ""}`, after);
-        await sysNote(`[TV] ${meta.label} — SN ${body.terminal_serial || "—"}. Motif: ${reasonStr}${meta.critical ? " [CRITIQUE]" : ""}`);
+        await sysNote(`tv:terminal_action:${data.id}:note`, `[TV] ${meta.label} — SN ${body.terminal_serial || "—"}. Motif: ${reasonStr}${meta.critical ? " [CRITIQUE]" : ""}`);
         await enqueueEmail("client_tv_terminal_action", {
           action_label: meta.label,
           terminal_serial: body.terminal_serial || "—",
@@ -841,10 +874,12 @@ serve(async (req) => {
           ? { enabled: existing.enabled, max_rating: existing.max_rating, blocked_count: (existing.blocked_channels as any[])?.length ?? 0 }
           : null;
         await audit("set_parental", after, before);
-        await activity("service_change", null, "service",
+        const parentalBucket = body.idempotency_key ?? isoMinuteBucket36();
+        const parentalKeyBase = `tv:parental:${client_user_id}:${accountFilter ?? "na"}:updated:${parentalBucket}`;
+        await activity(`${parentalKeyBase}:activity`, "service_change", null, "service",
           `Contrôles parentaux TV — ${enabled ? "activés" : "désactivés"} (rating ${max_rating}, ${blocked_channels.length} chaîne(s))`,
           after, before);
-        await sysNote(`[TV] Contrôles parentaux — ${enabled ? "activés" : "désactivés"} · rating=${max_rating} · bloquées=${blocked_channels.length}${body.pin ? " · NIP mis à jour" : ""}. Motif: ${reasonStr}`);
+        await sysNote(`${parentalKeyBase}:note`, `[TV] Contrôles parentaux — ${enabled ? "activés" : "désactivés"} · rating=${max_rating} · bloquées=${blocked_channels.length}${body.pin ? " · NIP mis à jour" : ""}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_parental_controls", {
           enabled: enabled ? "true" : "false",
           max_rating,
@@ -901,10 +936,10 @@ serve(async (req) => {
 
         const after = { selection_id: data.id, count: channelsJson.length, total_price };
         await audit("set_channels", after);
-        await activity("channels_change", data.id, "service",
+        await activity(`tv:channel_selection:${data.id}:created:activity`, "channels_change", data.id, "service",
           `Chaînes TV mises à jour — ${channelsJson.length} chaîne(s) (${fmtMoney(total_price)})`,
           { ...after, channels: channelsJson.map((c) => c.name) });
-        await sysNote(`[TV] Sélection chaînes — ${channelsJson.length} chaîne(s) · total ${fmtMoney(total_price)}. Motif: ${reasonStr}`);
+        await sysNote(`tv:channel_selection:${data.id}:created:note`, `[TV] Sélection chaînes — ${channelsJson.length} chaîne(s) · total ${fmtMoney(total_price)}. Motif: ${reasonStr}`);
         await enqueueEmail("client_tv_channels_updated", {
           channel_count: String(channelsJson.length),
           total_price: fmtMoney(total_price),
@@ -957,12 +992,12 @@ serve(async (req) => {
         const label = approve ? "approve_channel_selection" : "reject_channel_selection";
         const after = { selection_id, status: newStatus, total_price: sel.total_price };
         await audit(label, after, { status: "pending" });
-        await activity("channels_change", selection_id, "service",
+        await activity(`tv:channel_selection:${selection_id}:${approve ? "approved" : "rejected"}:activity`, "channels_change", selection_id, "service",
           approve
             ? `Sélection chaînes confirmée par ${callerName}`
             : `Sélection chaînes refusée par ${callerName}`,
           after, { status: "pending" });
-        await sysNote(`[TV] Sélection chaînes ${approve ? "confirmée" : "refusée"} — ${Array.isArray(sel.channels) ? sel.channels.length : 0} chaîne(s). Motif: ${reasonStr}`);
+        await sysNote(`tv:channel_selection:${selection_id}:${approve ? "approved" : "rejected"}:note`, `[TV] Sélection chaînes ${approve ? "confirmée" : "refusée"} — ${Array.isArray(sel.channels) ? sel.channels.length : 0} chaîne(s). Motif: ${reasonStr}`);
         await enqueueEmail(
           approve ? "client_tv_channels_updated" : "client_tv_channels_rejected",
           {
