@@ -22388,6 +22388,48 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_module54_e2e_log: {
+        Row: {
+          audit_row_id: string | null
+          created_at: string
+          details: Json | null
+          error: string | null
+          id: string
+          rpc_called: string | null
+          scenario: string
+          status_after: string | null
+          status_before: string | null
+          subscription_id: string | null
+          verdict: string | null
+        }
+        Insert: {
+          audit_row_id?: string | null
+          created_at?: string
+          details?: Json | null
+          error?: string | null
+          id?: string
+          rpc_called?: string | null
+          scenario: string
+          status_after?: string | null
+          status_before?: string | null
+          subscription_id?: string | null
+          verdict?: string | null
+        }
+        Update: {
+          audit_row_id?: string | null
+          created_at?: string
+          details?: Json | null
+          error?: string | null
+          id?: string
+          rpc_called?: string | null
+          scenario?: string
+          status_after?: string | null
+          status_before?: string | null
+          subscription_id?: string | null
+          verdict?: string | null
+        }
+        Relationships: []
+      }
       quote_adjustments: {
         Row: {
           adjustment_type: Database["public"]["Enums"]["quote_adjustment_type"]
