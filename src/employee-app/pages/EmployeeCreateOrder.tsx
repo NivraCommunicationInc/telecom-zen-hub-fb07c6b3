@@ -552,7 +552,9 @@ export default function EmployeeCreateOrder({
     onError: (err: any) => toast.error(`Erreur: ${err.message}`),
   });
 
-  const canSubmit = selectedClient && selectedPlan && address.street.trim().length > 0;
+  const canSubmit = selectedClient && selectedPlan && address.street.trim().length > 0 && (
+    installType !== "professional" || (installDate && installSlot)
+  );
   const STEP_ORDER: Step[] = ["client", "plan", "equipment", "install", "address", "review"];
 
   return (
