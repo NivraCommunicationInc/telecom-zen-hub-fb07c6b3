@@ -829,7 +829,8 @@ Deno.serve(async (req) => {
             const requiresInstall = Array.isArray(sale.services) && sale.services.some(
               (s: any) => ["internet", "tv"].includes(String(s?.category || "").toLowerCase())
             );
-            const slotDate: string | null = sale.appointment_date || sale.install_date || null;
+            const rawDate: string | null = sale.appointment_date || sale.install_date || null;
+            const slotDate: string | null = rawDate ? String(rawDate).slice(0, 10) : null; // YYYY-MM-DD
             const slotWindow: string | null = sale.appointment_notes || null; // e.g. "09:00-12:00"
             if (requiresInstall && slotDate && slotWindow && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(slotWindow)) {
               const startTime = slotWindow.split("-")[0]; // "HH:MM"
