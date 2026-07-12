@@ -574,6 +574,7 @@ async function handleBillingSetCustom(svc: any, actor: any, actorRole: string, i
     accountId: input.account_id,
     action: 'billing_address.set_custom',
     before, after,
+    reason: input.reason,
     correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
