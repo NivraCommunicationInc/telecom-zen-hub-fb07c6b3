@@ -121,6 +121,56 @@ serve(async (req) => {
       await supabase.from("quotes").update({ converted_order_id: order.id }).eq("id", quote_id);
     }
 
+    // ── BUG-CORE-002C Phase 1: appointments hold ONLY for technician installs ──
+    try {
+      const rawMode = String(checkout_data?.install_mode || checkout_data?.installation_mode || "").toLowerCase().trim();
+      let installationMethod: "auto" | "technician" | null = null;
+      if (rawMode === "technician") installationMethod = "technician";
+      else if (rawMode === "self") installationMethod = "auto";
+      else if (rawMode) {
+        console.warn(`[quote-checkout-finalize] invalid install_mode='${rawMode}' — no hold created`);
+      }
+
+      const SLOT_WINDOW: Record<string, string> = {
+        morning: "09:00-12:00",
+        afternoon: "13:00-17:00",
+        evening: "17:00-20:00",
+      };
+      const rawSlot = String(checkout_data?.install_slot || checkout_data?.time_slot || "").toLowerCase();
+      const explicitWindow = /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(rawSlot) ? rawSlot : null;
+      const slotWindow = explicitWindow || SLOT_WINDOW[rawSlot] || null;
+      const rawDate = checkout_data?.install_date || checkout_data?.installation_date || null;
+      const slotDate = rawDate ? String(rawDate).slice(0, 10) : null;
+
+      if (installationMethod === "technician" && slotDate && slotWindow) {
+        const startTime = slotWindow.split("-")[0];
+        const scheduledAt = new Date(`${slotDate}T${startTime}:00`).toISOString();
+        const { data: existingAppt } = await supabase
+          .from("appointments").select("id").eq("order_id", order.id).maybeSingle();
+        if (!existingAppt) {
+          const { error: apptErr } = await supabase.from("appointments").insert({
+            order_id: order.id,
+            client_id: orderUserId,
+            client_email: checkout_data.email,
+            client_phone: checkout_data.phone,
+            service_address: checkout_data.address || null,
+            service_city: checkout_data.city || null,
+            service_postal_code: checkout_data.postal_code || null,
+            title: `Installation — ${order.order_number}`,
+            scheduled_at: scheduledAt,
+            status: "hold",
+            installation_method: installationMethod,
+            internal_notes: `[BUG-CORE-002C] Hold technicien créé depuis quote checkout • quote=${quote_id} • window=${slotWindow}`,
+          } as any);
+          if (apptErr) console.warn(`[quote-checkout-finalize] appointment hold insert failed (non-blocking):`, apptErr.message);
+        }
+      } else if (installationMethod === "auto") {
+        console.log(`[quote-checkout-finalize] auto-install order ${order.order_number} — no appointment hold`);
+      }
+    } catch (holdErr) {
+      console.warn(`[quote-checkout-finalize] appointment hold exception (non-blocking):`, holdErr);
+    }
+
     // Ensure order is in a billable status for the invoice trigger guard
     if (!BILLABLE_ORDER_STATUSES.has(order.status)) {
       const { data: patchedOrder, error: patchErr } = await supabase
