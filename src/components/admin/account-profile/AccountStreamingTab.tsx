@@ -110,20 +110,17 @@ export function AccountStreamingTab({ subscriptions, clientId }: AccountStreamin
         if (error) throw error;
         queryClient.invalidateQueries({ queryKey: ["account-client-streaming"] });
       } else {
-        const { error } = await supabase
-          .from("billing_subscriptions")
-          .update({ status: newStatus, updated_at: new Date().toISOString() })
-          .eq("id", actionSub.id);
-        if (error) throw error;
-
-        await supabase.from("billing_subscription_trace_audit").insert({
-          subscription_id: actionSub.id,
-          customer_id: actionSub.customer_id,
-          action: `streaming_${actionType}`,
-          reason: reason || null,
-          actor_admin_id: user?.id || null,
-          details: { plan: actionSub.plan_name, new_status: newStatus },
+        // Phase 6.2 — canonical: state_machine RPC (audit written by the RPC)
+        const rpcName =
+          actionType === "suspend" ? "suspend_subscription" :
+          actionType === "resume" ? "reactivate_subscription" :
+          "cancel_subscription";
+        const { error } = await supabase.rpc(rpcName as any, {
+          p_subscription_id: actionSub.id,
+          p_reason: `streaming_${actionType}`,
+          p_context: { source: "AccountStreamingTab", plan: actionSub.plan_name, reason: reason || null },
         });
+        if (error) throw error;
         queryClient.invalidateQueries({ queryKey: ["account-profile-subscriptions"] });
       }
 

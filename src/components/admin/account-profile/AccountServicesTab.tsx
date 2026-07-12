@@ -170,10 +170,16 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
     setSaving(true);
     try {
       const newStatus = actionType === "suspend" ? "suspended" : actionType === "resume" ? "active" : "cancelled";
-      const { error } = await supabase
-        .from("billing_subscriptions")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", actionSub.id);
+      // Phase 6.2 — canonical: state_machine RPC (audit written by the RPC)
+      const rpcName =
+        actionType === "suspend" ? "suspend_subscription" :
+        actionType === "resume" ? "reactivate_subscription" :
+        "cancel_subscription";
+      const { error } = await supabase.rpc(rpcName as any, {
+        p_subscription_id: actionSub.id,
+        p_reason: `service_${actionType}`,
+        p_context: { source: "AccountServicesTab", plan: actionSub.plan_name, reason: actionReason || null },
+      });
       if (error) throw error;
 
       // Also update service_instance if exists
@@ -186,16 +192,6 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
           status_reason: actionReason || null,
         }).eq("id", si.id);
       }
-
-      // Audit trail
-      await supabase.from("billing_subscription_trace_audit").insert({
-        subscription_id: actionSub.id,
-        customer_id: actionSub.customer_id,
-        action: `service_${actionType}`,
-        reason: actionReason || null,
-        actor_admin_id: user?.id || null,
-        details: { plan: actionSub.plan_name, previous_status: actionSub.status, new_status: newStatus },
-      });
 
       // Activity log
       await writeAccountJournal({
@@ -231,15 +227,15 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
       const oldPlan = { name: changePlanSub.plan_name, code: changePlanSub.plan_code, price: changePlanSub.plan_price };
       const priceNum = parseFloat(newPlanPrice) || changePlanSub.plan_price;
 
-      const { error } = await supabase
-        .from("billing_subscriptions")
-        .update({
-          plan_name: newPlanName.trim(),
-          plan_code: newPlanCode.trim(),
-          plan_price: priceNum,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", changePlanSub.id);
+      // Phase 6.2 — canonical: rpc_admin_change_subscription_plan (audit written by the RPC)
+      const { error } = await supabase.rpc("rpc_admin_change_subscription_plan", {
+        p_subscription_id: changePlanSub.id,
+        p_new_plan_name: newPlanName.trim(),
+        p_new_plan_price: priceNum,
+        p_new_plan_code: newPlanCode.trim(),
+        p_reason: changePlanReason || "core_ui_plan_change",
+        p_context: { source: "AccountServicesTab", old_plan: oldPlan },
+      });
       if (error) throw error;
 
       // Update service_instance if exists
@@ -251,19 +247,6 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
           updated_at: new Date().toISOString(),
         }).eq("id", si.id);
       }
-
-      // Audit trail
-      await supabase.from("billing_subscription_trace_audit").insert({
-        subscription_id: changePlanSub.id,
-        customer_id: changePlanSub.customer_id,
-        action: "plan_change",
-        reason: changePlanReason || null,
-        actor_admin_id: user?.id || null,
-        details: {
-          old_plan: oldPlan,
-          new_plan: { name: newPlanName.trim(), code: newPlanCode.trim(), price: priceNum },
-        },
-      });
 
       await writeAccountJournal({
         targetTable: "client_activity_logs",

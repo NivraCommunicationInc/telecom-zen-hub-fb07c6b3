@@ -142,20 +142,20 @@ serve(async (req) => {
       return json(500, { error: insErr.message });
     }
 
-    // Activate discount on billing_subscription of the new order (server-side)
+    // Phase 6.2 — canonical: rpc_apply_referral_discount (referral columns only, allow-listed writer)
     const { data: bc } = await admin
       .from("billing_customers").select("id").eq("user_id", referred_user_id).limit(1).maybeSingle();
     if (bc?.id) {
-      await admin
-        .from("billing_subscriptions")
-        .update({
-          referral_discount_active: true,
-          referral_discount_amount: Number(code.referred_discount_amount ?? 5),
-          referral_discount_months_remaining: code.referred_discount_months ?? 10,
-          referral_code_used: code.code,
-        } as Record<string, unknown>)
-        .eq("customer_id", bc.id)
-        .eq("order_id", order_id);
+      const { error: discErr } = await admin.rpc("rpc_apply_referral_discount", {
+        p_customer_id: bc.id,
+        p_order_id: order_id,
+        p_code: code.code,
+        p_amount: Number(code.referred_discount_amount ?? 5),
+        p_months_remaining: code.referred_discount_months ?? 10,
+      });
+      if (discErr) {
+        console.error("[referrals-attach-on-order] rpc_apply_referral_discount error:", discErr.message);
+      }
     }
 
     // Increment code usage

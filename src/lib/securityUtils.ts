@@ -69,20 +69,25 @@ export const flagClientForRiskAtomic = async ({
       .eq("user_id", clientId)
       .maybeSingle();
 
-    let suspendedSubs: any[] | null = null;
+    let suspendedSubs: any[] = [];
     if (billingCustomer) {
-      const { data: subs, error: subsError } = await backendClient
+      // Phase 6.2 — canonical: loop via suspend_subscription RPC (no direct UPDATE)
+      const { data: activeSubs } = await backendClient
         .from("billing_subscriptions")
-        .update({
-          status: "suspended",
-          updated_at: new Date().toISOString(),
-        })
+        .select("id")
         .eq("customer_id", billingCustomer.id)
-        .eq("status", "active")
-        .select();
-      suspendedSubs = subs;
-      if (subsError) {
-        console.error("Error suspending billing subscriptions:", subsError);
+        .eq("status", "active");
+      for (const s of activeSubs ?? []) {
+        const { error: rpcErr } = await backendClient.rpc("suspend_subscription", {
+          p_subscription_id: (s as any).id,
+          p_reason: `security_flag_${alertLevel}`,
+          p_context: { source: "flagClientForRiskAtomic", alert_level: alertLevel, reason: reason ?? null },
+        });
+        if (rpcErr) {
+          console.error("Error suspending subscription:", (s as any).id, rpcErr);
+        } else {
+          suspendedSubs.push({ id: (s as any).id });
+        }
       }
     }
 
@@ -223,18 +228,22 @@ export const liftClientSuspensionAtomic = async (
         .eq("user_id", clientId)
         .maybeSingle();
       
-      let reactivatedSubs: any[] | null = null;
+      let reactivatedSubs: any[] = [];
       if (billingCust) {
-        const { data: subs } = await backendClient
+        // Phase 6.2 — canonical: loop via reactivate_subscription RPC
+        const { data: suspSubs } = await backendClient
           .from("billing_subscriptions")
-          .update({
-            status: "active",
-            updated_at: new Date().toISOString(),
-          })
+          .select("id")
           .eq("customer_id", billingCust.id)
-          .eq("status", "suspended")
-          .select();
-        reactivatedSubs = subs;
+          .eq("status", "suspended");
+        for (const s of suspSubs ?? []) {
+          const { error: rpcErr } = await backendClient.rpc("reactivate_subscription", {
+            p_subscription_id: (s as any).id,
+            p_reason: "security_review_cleared",
+            p_context: { source: "unflagClientAtomic" },
+          });
+          if (!rpcErr) reactivatedSubs.push({ id: (s as any).id });
+        }
       }
 
       const { data: reactivatedStreaming } = await backendClient
