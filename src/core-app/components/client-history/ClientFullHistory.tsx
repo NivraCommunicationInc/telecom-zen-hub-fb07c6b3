@@ -388,38 +388,11 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
         )}
       </HistorySection>
 
-      {/* ═══ ACTIVITY TIMELINE ═══ */}
-      <HistorySection title="Journal d'activité" icon={Clock} count={activityQ.data?.length || 0} loading={activityQ.isLoading} defaultOpen={false}>
-        {activityQ.data && activityQ.data.length > 0 ? (
-          <div className="space-y-1 mt-2 max-h-[500px] overflow-y-auto">
-            {activityQ.data.map((log: any) => (
-              <div key={log.id} className="flex items-start gap-3 py-2 border-b border-[hsl(220,15%,14%)] last:border-0">
-                <div className={cn("mt-1.5 h-1.5 w-1.5 rounded-full shrink-0", "bg-emerald-400/60")} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] text-white">
-                    <span className="text-emerald-400 font-medium">{formatAction(log.action)}</span>
-                    {log.entity_type && <span className="text-[hsl(220,10%,45%)]"> · {log.entity_type}</span>}
-                  </p>
-                  {log.changed_field && (
-                    <p className="text-[10px] text-[hsl(220,10%,45%)] mt-0.5">
-                      {log.changed_field}: <span className="text-[hsl(220,10%,55%)]">{log.old_value || "∅"}</span> → <span className="text-[hsl(220,10%,70%)]">{log.new_value || "∅"}</span>
-                    </p>
-                  )}
-                  {log.actor_name && (
-                    <p className="text-[10px] text-[hsl(220,10%,40%)] mt-0.5">
-                      par {log.actor_name}{log.actor_role ? ` (${log.actor_role})` : ""}
-                    </p>
-                  )}
-                </div>
-                <span className="text-[10px] text-[hsl(220,10%,35%)] shrink-0 whitespace-nowrap">
-                  {fmtDate(log.created_at)}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyRow label="Aucune activité enregistrée" />
-        )}
+      {/* ═══ ACTIVITY TIMELINE (Module 51 B2.3 canonical) ═══ */}
+      <HistorySection title="Journal d'activité" icon={Clock} count={activityQ.data ?? 0} loading={activityQ.isLoading} defaultOpen={false}>
+        <div className="mt-2">
+          <CustomerTimelineTable clientId={clientId} visibility="all" limit={400} />
+        </div>
       </HistorySection>
     </div>
   );
