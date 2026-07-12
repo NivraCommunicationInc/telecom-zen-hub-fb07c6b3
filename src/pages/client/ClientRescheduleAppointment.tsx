@@ -6,14 +6,13 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarDays, Clock, MapPin, Loader2, CheckCircle2, AlertCircle, User } from "lucide-react";
-import { format, addDays, isBefore, isWeekend, startOfDay } from "date-fns";
+import { format, addDays, isBefore } from "date-fns";
 import { fr } from "date-fns/locale";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 interface Appointment {
   id: string;
@@ -28,12 +27,12 @@ interface Appointment {
   appointment_number: string;
 }
 
-const TIME_SLOTS = [
-  { value: "08:00", label: "08h00 - 10h00" },
-  { value: "10:00", label: "10h00 - 12h00" },
-  { value: "13:00", label: "13h00 - 15h00" },
-  { value: "15:00", label: "15h00 - 17h00" },
-];
+// Parse "HH:MM-HH:MM" from the canonical RPC into a start time.
+const parseSlotStart = (timeSlot: string): { h: number; m: number } | null => {
+  const match = timeSlot.match(/^(\d{2}):(\d{2})/);
+  if (!match) return null;
+  return { h: Number(match[1]), m: Number(match[2]) };
+};
 
 const ClientRescheduleAppointment = () => {
   const { user } = useClientAuth();
@@ -42,7 +41,7 @@ const ClientRescheduleAppointment = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const appointmentId = searchParams.get("id");
   const appointmentNumber = searchParams.get("ref");
 
@@ -52,12 +51,13 @@ const ClientRescheduleAppointment = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedTime, setSelectedTime] = useState<string>("");
+  // Canonical slot selection { date: "YYYY-MM-DD", time_slot: "HH:MM-HH:MM" }
+  const [pickedSlot, setPickedSlot] = useState<{ date: string; time_slot: string } | null>(null);
   const [reason, setReason] = useState("");
 
   useEffect(() => {
     loadAppointment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointmentId, appointmentNumber, user?.id, canonicalLoading, canonicalData?.projection?.lastRefreshedAt]);
 
   const loadAppointment = async () => {
@@ -70,7 +70,7 @@ const ClientRescheduleAppointment = () => {
 
       if (canonicalLoading) return;
       const appointments = (canonicalData?.appointments || []).filter((row: any) =>
-        ["scheduled", "confirmed"].includes(String(row?.status || "").toLowerCase())
+        ["scheduled", "confirmed", "rescheduled"].includes(String(row?.status || "").toLowerCase())
       );
 
       const data = appointments.find((row: any) =>
@@ -90,10 +90,8 @@ const ClientRescheduleAppointment = () => {
         return;
       }
 
-      // Check if appointment is at least 24h away
       const appointmentDate = new Date(data.scheduled_at);
       const minRescheduleTime = addDays(new Date(), 1);
-      
       if (isBefore(appointmentDate, minRescheduleTime)) {
         setError("Ce rendez-vous ne peut plus être modifié (moins de 24h avant).");
         setLoading(false);
@@ -110,56 +108,49 @@ const ClientRescheduleAppointment = () => {
   };
 
   const handleReschedule = async () => {
-    if (!selectedDate || !selectedTime || !appointment) return;
+    if (!pickedSlot || !appointment) return;
+    const parsed = parseSlotStart(pickedSlot.time_slot);
+    if (!parsed) {
+      toast({ title: "Créneau invalide", variant: "destructive" });
+      return;
+    }
 
     setSubmitting(true);
-
     try {
-      // Combine date and time
-      const [hours, minutes] = selectedTime.split(":").map(Number);
-      const newDateTime = new Date(selectedDate);
-      newDateTime.setHours(hours, minutes, 0, 0);
+      // Compose the new local datetime (client tz) then store as ISO.
+      const [y, mo, d] = pickedSlot.date.split("-").map(Number);
+      const newDateTime = new Date(y, mo - 1, d, parsed.h, parsed.m, 0, 0);
 
-      // Update the appointment
       const { error: updateError } = await supabase
         .from("appointments")
         .update({
           scheduled_at: newDateTime.toISOString(),
-          status: "scheduled", // Reset to scheduled for admin confirmation
-          internal_notes: reason ? `Replanifié par le client: ${reason}` : "Replanifié par le client"
+          status: "rescheduled",
+          description: pickedSlot.time_slot,
+          internal_notes: reason ? `Replanifié par le client: ${reason}` : "Replanifié par le client",
+          updated_at: new Date().toISOString(),
         })
         .eq("id", appointment.id);
 
       if (updateError) throw updateError;
 
       queryClient.invalidateQueries({ queryKey: ["canonical-client-data", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["installation-slots"] });
       setSuccess(true);
       toast({
         title: "Rendez-vous replanifié",
-        description: `Votre rendez-vous a été déplacé au ${format(newDateTime, "d MMMM yyyy 'à' HH'h'mm", { locale: fr })}`
+        description: `Nouveau créneau : ${format(newDateTime, "d MMMM yyyy 'à' HH'h'mm", { locale: fr })}`,
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Reschedule error:", err);
       toast({
         title: "Erreur",
         description: "Impossible de replanifier le rendez-vous.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const isDateDisabled = (date: Date) => {
-    const today = startOfDay(new Date());
-    const minDate = addDays(today, 2); // At least 2 days from now
-    const maxDate = addDays(today, 30); // Maximum 30 days ahead
-    
-    return (
-      isBefore(date, minDate) ||
-      isBefore(maxDate, date) ||
-      isWeekend(date)
-    );
   };
 
   if (loading) {
@@ -183,9 +174,7 @@ const ClientRescheduleAppointment = () => {
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Button onClick={() => navigate("/portal/appointments")}>
-              Voir mes rendez-vous
-            </Button>
+            <Button onClick={() => navigate("/portal/appointments")}>Voir mes rendez-vous</Button>
           </CardContent>
         </Card>
       </div>
@@ -199,22 +188,20 @@ const ClientRescheduleAppointment = () => {
           <CardHeader className="text-center">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-2" />
             <CardTitle className="text-2xl">Rendez-vous replanifié!</CardTitle>
-            <CardDescription>
-              Votre demande de replanification a été enregistrée.
-            </CardDescription>
+            <CardDescription>Votre demande a été enregistrée.</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
-            <div className="bg-muted/50 rounded-lg p-4 text-left">
-              <p className="font-medium">Nouvelle date proposée:</p>
-              <p className="text-lg text-primary">
-                {selectedDate && format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
-              </p>
-              <p className="text-muted-foreground">
-                {TIME_SLOTS.find(t => t.value === selectedTime)?.label}
-              </p>
-            </div>
+            {pickedSlot && (
+              <div className="bg-muted/50 rounded-lg p-4 text-left">
+                <p className="font-medium">Nouveau créneau :</p>
+                <p className="text-lg text-primary">
+                  {format(new Date(pickedSlot.date + "T12:00:00"), "EEEE d MMMM yyyy", { locale: fr })}
+                </p>
+                <p className="text-muted-foreground">{pickedSlot.time_slot}</p>
+              </div>
+            )}
             <p className="text-sm text-muted-foreground">
-              Vous recevrez une confirmation par email une fois le rendez-vous confirmé par notre équipe.
+              Vous recevrez une confirmation par courriel dès que notre équipe validera le rendez-vous.
             </p>
             <Button onClick={() => navigate("/portal/appointments")} className="w-full">
               Voir mes rendez-vous
@@ -230,25 +217,16 @@ const ClientRescheduleAppointment = () => {
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
         <div className="text-center">
-          <img 
-            src="/icons/nivra-192.png" 
-            alt="Nivra Telecom" 
-            className="h-10 mx-auto mb-4"
-          />
+          <img src="/icons/nivra-192.png" alt="Nivra Telecom" className="h-10 mx-auto mb-4" />
           <h1 className="text-2xl font-bold">Replanifier mon rendez-vous</h1>
-          <p className="text-muted-foreground mt-1">
-            Choisissez une nouvelle date et heure
-          </p>
+          <p className="text-muted-foreground mt-1">Choisissez une nouvelle date et un créneau disponible.</p>
         </div>
 
-        {/* Current Appointment */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CalendarDays className="w-5 h-5 text-primary" />
-              Rendez-vous actuel
+              <CalendarDays className="w-5 h-5 text-primary" /> Rendez-vous actuel
             </CardTitle>
             <CardDescription>#{appointment.appointment_number}</CardDescription>
           </CardHeader>
@@ -272,43 +250,15 @@ const ClientRescheduleAppointment = () => {
           </CardContent>
         </Card>
 
-        {/* New Date Selection */}
         <Card>
           <CardHeader>
-            <CardTitle>Nouvelle date</CardTitle>
+            <CardTitle>Nouveau créneau</CardTitle>
             <CardDescription>
-              Sélectionnez une date disponible (du lundi au vendredi)
+              Disponibilités en temps réel — synchronisées avec le calendrier Nivra.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex justify-center">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                disabled={isDateDisabled}
-                locale={fr}
-                className="rounded-md border"
-              />
-            </div>
-
-            {selectedDate && (
-              <div className="space-y-2">
-                <Label>Créneau horaire</Label>
-                <Select value={selectedTime} onValueChange={setSelectedTime}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choisir un créneau" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_SLOTS.map(slot => (
-                      <SelectItem key={slot.value} value={slot.value}>
-                        {slot.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <InstallSlotPicker value={pickedSlot} onChange={setPickedSlot} variant="full" />
 
             <div className="space-y-2">
               <Label>Raison (optionnel)</Label>
@@ -321,31 +271,21 @@ const ClientRescheduleAppointment = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
-            <Button 
-              className="w-full" 
-              onClick={handleReschedule}
-              disabled={!selectedDate || !selectedTime || submitting}
-            >
+            <Button className="w-full" onClick={handleReschedule} disabled={!pickedSlot || submitting}>
               {submitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Replanification en cours...
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Replanification en cours...
                 </>
               ) : (
                 "Confirmer la nouvelle date"
               )}
             </Button>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => navigate("/portal/appointments")}
-            >
+            <Button variant="outline" className="w-full" onClick={() => navigate("/portal/appointments")}>
               Annuler
             </Button>
           </CardFooter>
         </Card>
 
-        {/* Footer */}
         <div className="text-center text-sm text-muted-foreground">
           <p>Besoin d'aide? Contactez-nous à support@nivra-telecom.ca</p>
         </div>
