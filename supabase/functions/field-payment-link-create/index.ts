@@ -197,27 +197,32 @@ serve(async (req) => {
 
       try {
         let mailErr: any = null;
-        try { await enqueueCommunication({
-          channel: "email",
-          templateKey: "field_payment_link",
-          recipient: resolvedEmail,
-          idempotencyKey: `field_payment_link_${intentId}`,
-          templateVars: {
-            client_name: resolvedName,
-            first_name: ci.first_name || ci.firstName || "Client",
-            agent_name: quote.agent_name || "Votre représentant Nivra",
-            order_number: intentId,
-            total: total.toFixed(2),
-            monthly_after: monthlyAfter,
-            install_date: installDateLabel,
-            equipment: equipmentLabel,
-            discount_label: (quote as any).discount?.name || (quote as any).discount?.label || null,
-            summary,
-            services: summary,
-            payment_url: paymentUrl,
-            approval_url: paymentUrl,
-          },
-        }); } catch (__e) { mailErr = __e; }
+        try {
+          await enqueueCommunication(supabase, {
+            channel: "email",
+            templateKey: "field_payment_link",
+            recipient: resolvedEmail,
+            idempotencyKey: `field_payment_link_${intentId}`,
+            category: "transactional",
+            entityType: "field_payment_intent",
+            entityId: intentId,
+            templateVars: {
+              client_name: resolvedName,
+              first_name: ci.first_name || ci.firstName || "Client",
+              agent_name: quote.agent_name || "Votre représentant Nivra",
+              order_number: intentId,
+              total: total.toFixed(2),
+              monthly_after: monthlyAfter,
+              install_date: installDateLabel,
+              equipment: equipmentLabel,
+              discount_label: (quote as any).discount?.name || (quote as any).discount?.label || null,
+              summary,
+              services: summary,
+              payment_url: paymentUrl,
+              approval_url: paymentUrl,
+            },
+          });
+        } catch (__e) { mailErr = __e; }
 
         if (mailErr) console.warn("[field-payment-link-create] email enqueue failed:", mailErr);
         else {
