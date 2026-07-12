@@ -846,7 +846,6 @@ Deno.serve(async (req) => {
                   .insert({
                     order_id: canonicalOrder.id,
                     client_id: clientUserId,
-                    account_id: accountId,
                     service_address_id: staffServiceAddress?.id || null,
                     client_email: customerEmail,
                     client_phone: sale.customer_phone || null,
