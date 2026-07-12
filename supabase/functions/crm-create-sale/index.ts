@@ -214,6 +214,18 @@ Deno.serve(async (req) => {
       name: e.name, unit_price: Number(e.price), quantity: Number(e.quantity ?? 1),
     }));
 
+    // BUG-CORE-002C Phase 2 — persist canonical fulfillment intent on orders
+    const rawInstallMode = String(payload.install?.mode || "").toLowerCase().trim();
+    let orderFulfillmentType: string | null = null;
+    let orderInstallationType: string | null = null;
+    if (rawInstallMode === "technician") {
+      orderFulfillmentType = "technician";
+      orderInstallationType = "technician";
+    } else if (rawInstallMode === "self") {
+      orderFulfillmentType = "self_install";
+      orderInstallationType = "auto";
+    }
+
     const { data: order, error: insertErr } = await admin.from("orders").insert({
       order_number: orderNumber,
       user_id: clientUserId,
@@ -241,6 +253,8 @@ Deno.serve(async (req) => {
       environment: "live",
       equipment_line_details: equipmentLines,
       installation_details: installDetails,
+      fulfillment_type: orderFulfillmentType,
+      installation_type: orderInstallationType,
       requested_activation_date: payload.install.date,
       internal_notes: payload.notes ?? null,
       discount_code: discountRow?.name ?? null,
