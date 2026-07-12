@@ -95,6 +95,7 @@ export interface FieldSaleDiscount {
   description?: string | null;
   duration_months?: number | null;
   min_plan_price?: number | null;
+  source?: "catalog" | "custom_core";
 }
 
 /**

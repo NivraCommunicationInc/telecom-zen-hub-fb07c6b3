@@ -89,7 +89,7 @@ interface Body {
   // Cart
   services?: Array<any>;     // {id, name, monthlyPrice|price_monthly, ...}
   equipment?: Array<any>;    // {id, name, price|price_setup, quantity, ...}
-  custom_adjustments?: Array<{ label?: string; amount?: number }>;
+  custom_adjustments?: Array<{ kind?: string; label?: string; amount?: number }>;
   discount?: any;
   activation_fee?: number;
 
@@ -500,7 +500,28 @@ serve(async (req) => {
     }
     for (const adj of body.custom_adjustments || []) {
       if (Number(adj?.amount || 0) !== 0) {
-        cart_items.push({ type: "one_time_fee", name: adj.label || "Ajustement", amount: Number(adj.amount), quantity: 1 });
+        const amount = Math.max(0, Number(adj.amount || 0));
+        const signedAmount = adj.kind === "fee" ? amount : -amount;
+        cart_items.push({ type: "one_time_fee", name: adj.label || "Ajustement", amount: signedAmount, quantity: 1 });
+      }
+    }
+    if (body.discount) {
+      const d = body.discount as any;
+      const dType = String(d.type || "").toLowerCase();
+      const dValue = Number(d.value ?? d.amount ?? 0);
+      let monthlyDiscount = 0;
+      if (["fixed", "fixed_monthly"].includes(dType)) {
+        monthlyDiscount = Math.min(monthly_before_discount, dValue);
+      } else if (dType === "percentage") {
+        monthlyDiscount = Math.min(monthly_before_discount, monthly_before_discount * dValue / 100);
+      }
+      if (monthlyDiscount > 0) {
+        cart_items.push({
+          type: "one_time_fee",
+          name: d.name || "Rabais agent",
+          amount: -Number(monthlyDiscount.toFixed(2)),
+          quantity: 1,
+        });
       }
     }
 
