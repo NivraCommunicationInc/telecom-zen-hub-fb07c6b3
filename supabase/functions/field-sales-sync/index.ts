@@ -827,7 +827,7 @@ Deno.serve(async (req) => {
           // Only when the sale has a chosen slot AND at least one installable service (internet/tv).
           try {
             const requiresInstall = Array.isArray(sale.services) && sale.services.some(
-              (s: any) => s?.category === "internet" || s?.category === "tv"
+              (s: any) => ["internet", "tv"].includes(String(s?.category || "").toLowerCase())
             );
             const slotDate: string | null = sale.appointment_date || sale.install_date || null;
             const slotWindow: string | null = sale.appointment_notes || null; // e.g. "09:00-12:00"
