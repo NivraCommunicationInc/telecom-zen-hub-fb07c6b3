@@ -83,7 +83,17 @@ export function Account360RightPanel({
         <PanelHeader icon={MapPin} title="Adresses" />
         <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
           <InfoLine label="Service" value={[acct.primary_service_address, acct.primary_service_city].filter(Boolean).join(", ") || "—"} />
-          <InfoLine label="Facturation" value={[acct.billing_address, acct.billing_city].filter(Boolean).join(", ") || "—"} />
+          {/* Module 52: canonical billing precedence — same_as_service → linked → legacy fallback. */}
+          <InfoLine
+            label="Facturation"
+            value={
+              acct.billing_same_as_service
+                ? "Identique au service"
+                : acct.billing_service_address_id
+                  ? `Liée (${String(acct.billing_service_address_id).slice(0, 8)}…)`
+                  : [acct.billing_address, acct.billing_city].filter(Boolean).join(", ") || "—"
+            }
+          />
         </div>
       </Panel>
 

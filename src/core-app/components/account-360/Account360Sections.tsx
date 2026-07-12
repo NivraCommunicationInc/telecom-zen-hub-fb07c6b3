@@ -54,7 +54,17 @@ export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: an
       <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
         <InfoLine label="Adresse de service" value={[acct.primary_service_address, acct.primary_service_city, acct.primary_service_postal_code].filter(Boolean).join(", ") || "—"} />
         <InfoLine label="Province" value={acct.primary_service_province || "QC"} />
-        <InfoLine label="Adresse facturation" value={[acct.billing_address, acct.billing_city, acct.billing_postal_code].filter(Boolean).join(", ") || "—"} />
+        {/* Module 52: canonical billing precedence — same_as_service → linked → legacy fallback. */}
+        <InfoLine
+          label="Adresse facturation"
+          value={
+            acct.billing_same_as_service
+              ? "Identique à l'adresse de service"
+              : acct.billing_service_address_id
+                ? `Liée à une adresse de service (${String(acct.billing_service_address_id).slice(0, 8)}…)`
+                : [acct.billing_address, acct.billing_city, acct.billing_postal_code].filter(Boolean).join(", ") || "—"
+          }
+        />
       </div>
     </Panel>
     {data.authorizedUsers.length > 0 && (
