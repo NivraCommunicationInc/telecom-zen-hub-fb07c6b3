@@ -23,6 +23,13 @@ interface Props {
   locked?: boolean;
   /** Optional label shown when locked, e.g. "Compte #200756 — Adresse principale". */
   lockedContext?: string;
+  /**
+   * BUG-CORE-002A: gate the InstallSlotPicker + CoaxialSurvey on the presence
+   * of ≥1 selected service that requires installation (Internet/TV). Mirrors
+   * the exact rule already used by Core POS (UnifiedPOSPage `requiresInstall`).
+   * Defaults to false so a fresh Step 1 never shows the calendar.
+   */
+  hasInstallableService?: boolean;
 }
 
 interface SearchResult {
