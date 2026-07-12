@@ -33272,6 +33272,10 @@ export type Database = {
         Args: { p_payload: Json }
         Returns: Json
       }
+      rpc_qa_purge_subscription_fixture: {
+        Args: { p_subscription_ids: string[] }
+        Returns: Json
+      }
       rpc_qa_reset_subscription_fixture: {
         Args: {
           p_customer_ids?: string[]
