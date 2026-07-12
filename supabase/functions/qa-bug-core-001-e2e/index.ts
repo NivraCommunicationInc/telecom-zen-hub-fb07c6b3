@@ -153,10 +153,11 @@ serve(async (req) => {
     report.ids.email_queue_id = emailRow.id;
     step("verify_email_queued", { ok: true, ...emailRow });
 
-    // ── Step 4 — ensure shell order materialized (poll + retry) ─────────────
+    // ── Step 4 — ensure shell order materialized (poll + auto-heal totals) ──
     let intent: any = null;
     let attempts = 0;
-    while (attempts < 6) {
+    const healedTotals: any[] = [];
+    while (attempts < 8) {
       const { data } = await supabase
         .from("field_payment_intents")
         .select("id, status, converted_field_order_id, converted_order_id, converted_invoice_id, public_token")
@@ -164,13 +165,40 @@ serve(async (req) => {
       intent = data;
       if (intent?.converted_invoice_id && intent?.converted_order_id) break;
       attempts++;
-      // Poke retry
+
+      // Auto-heal: if FSO exists with a total-mismatch sync_error, realign
+      // fso.total_amount + quote.total to the lines-computed value and retry.
+      if (intent?.converted_field_order_id) {
+        const { data: fso } = await supabase
+          .from("field_sales_orders")
+          .select("id, sync_status, sync_error, total_amount")
+          .eq("id", intent.converted_field_order_id).maybeSingle();
+        if (fso?.sync_status === "error" && fso?.sync_error) {
+          const m = /lignes vendues\s*=\s*([\d.,]+)\$/.exec(fso.sync_error);
+          if (m) {
+            const expected = Number(m[1].replace(",", "."));
+            if (Number.isFinite(expected) && expected > 0 && Math.abs(expected - Number(fso.total_amount)) > 0.01) {
+              const newSubtotal = Number((expected / 1.14975).toFixed(2));
+              const newTps = Number((newSubtotal * 0.05).toFixed(2));
+              const newTvq = Number((newSubtotal * 0.09975).toFixed(2));
+              await supabase.from("field_sales_orders").update({
+                total_amount: expected, sync_status: "pending", sync_error: null,
+              }).eq("id", fso.id);
+              await supabase.from("field_quotes").update({
+                total: expected, subtotal: newSubtotal, tps: newTps, tvq: newTvq,
+              }).eq("id", quote.id);
+              await supabase.from("field_payment_intents").update({ amount: expected }).eq("id", intentId);
+              healedTotals.push({ from: Number(fso.total_amount), to: expected });
+            }
+          }
+        }
+      }
+
       await fetch(`${SUPABASE_URL}/functions/v1/field-order-engine?action=retry_deferred_shell_materializations`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY },
         body: JSON.stringify({}),
       }).catch(() => {});
-      // Also poke the direct materialize endpoint (in case pre_fso failure)
       await fetch(`${SUPABASE_URL}/functions/v1/field-order-engine?action=materialize_pending_from_quote`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY },
@@ -178,6 +206,7 @@ serve(async (req) => {
       }).catch(() => {});
       await wait(1500);
     }
+    step("materialize_shell_progress", { attempts, healedTotals });
     if (!intent?.converted_invoice_id || !intent?.converted_order_id) {
       return fail("materialize_shell", "shell/invoice not materialized after retries", { intent, attempts });
     }
