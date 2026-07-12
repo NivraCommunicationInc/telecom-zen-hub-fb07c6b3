@@ -31514,6 +31514,14 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_active_account_promotions_to_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: {
+          discount_applied: number
+          months_left: number
+          promotion_id: string
+        }[]
+      }
       apply_balance_payment: {
         Args: {
           p_amount: number
