@@ -3614,6 +3614,39 @@ export type Database = {
           },
         ]
       }
+      billing_subscription_writer_allowlist: {
+        Row: {
+          active: boolean
+          allowed_operations: string[]
+          category: string
+          created_at: string
+          function_name: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          allowed_operations?: string[]
+          category: string
+          created_at?: string
+          function_name: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          allowed_operations?: string[]
+          category?: string
+          created_at?: string
+          function_name?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       billing_subscriptions: {
         Row: {
           address_id: string | null
@@ -32983,6 +33016,44 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_admin_change_subscription_plan: {
+        Args: {
+          p_context?: Json
+          p_new_plan_code?: string
+          p_new_plan_name: string
+          p_new_plan_price: number
+          p_reason?: string
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
+      rpc_admin_pause_subscription: {
+        Args: {
+          p_action: string
+          p_context?: Json
+          p_pause_until?: string
+          p_reason?: string
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
+      rpc_admin_set_subscription_last_invoice: {
+        Args: { p_invoice_id: string; p_subscription_id: string }
+        Returns: undefined
+      }
+      rpc_admin_transfer_subscription_ownership: {
+        Args: {
+          p_context?: Json
+          p_new_client_id: string
+          p_old_client_id: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      rpc_admin_upsert_field_sales_subscription: {
+        Args: { p_order_id: string; p_payload: Json }
+        Returns: Json
+      }
       rpc_client_apply_identity_update: {
         Args: { _admin_id: string; _client_id: string; _patch: Json }
         Returns: Json
@@ -33133,6 +33204,14 @@ export type Database = {
       rpc_privacy_request_create: { Args: { p_payload: Json }; Returns: Json }
       rpc_privacy_request_update_status: {
         Args: { p_payload: Json }
+        Returns: Json
+      }
+      rpc_qa_reset_subscription_fixture: {
+        Args: {
+          p_customer_ids?: string[]
+          p_order_ids?: string[]
+          p_subscription_ids?: string[]
+        }
         Returns: Json
       }
       rpc_referral_apply_action: {
