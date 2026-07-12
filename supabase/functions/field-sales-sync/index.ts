@@ -616,12 +616,14 @@ Deno.serve(async (req) => {
           const kind = String(item?.kind || "").toLowerCase();
           const type = String(item?.type || "").toLowerCase();
 
-          // ⛔ Refuse toute custom_adjustment négative. Un paiement déjà reçu
-          // ou un crédit n'est PAS une ligne de facture négative — il vit
-          // dans `billing_payments` (paiement) ou `account_adjustments`
-          // (crédit compte). C'est ce qui a produit la ligne fantôme
-          // « Paiement ID 7905998 = -126,47 » sur la commande 58953.
-          if (kind === "custom_adjustment" && unit < 0) {
+          // ⛔ Refuse les ajustements négatifs non catégorisés comme rabais.
+          // Les promotions/rabais Core arrivent ici comme custom_adjustment
+          // avec category='discount' (ou type credit/promotion) et doivent
+          // devenir des lignes de rabais. Les vrais paiements/crédits compte
+          // restent interdits comme lignes de facture.
+          const rawCategory = String(item?.category || "").toLowerCase();
+          const isPricingDiscount = rawCategory === "discount" || type === "promotion" || type === "credit";
+          if (kind === "custom_adjustment" && unit < 0 && !isPricingDiscount) {
             throw new Error(
               `Ligne d'ajustement négative refusée ("${item?.name || "sans nom"}", ${unit}$). ` +
               `Un paiement reçu ou un crédit ne peut pas être une ligne de facture. ` +
@@ -629,7 +631,7 @@ Deno.serve(async (req) => {
             );
           }
 
-          const category = String(item?.category || "").toLowerCase() === "discount" ? "discount" : "fee";
+          const category = isPricingDiscount ? "discount" : "fee";
           const name = String(item?.name || item?.label || (category === "fee" ? "Frais personnalisé" : "Crédit personnalisé"));
           lineItems.push({
             category,
@@ -643,7 +645,7 @@ Deno.serve(async (req) => {
           if (kind === "fulfillment_fee") {
             if (type === "installation") explicitInstallationFee += unit * qty;
             else explicitDeliveryFee += unit * qty;
-          } else {
+          } else if (category !== "discount") {
             customAdjustmentTotal += unit * qty;
           }
         }
@@ -683,9 +685,12 @@ Deno.serve(async (req) => {
         const saleTaxesHint = computeTaxes(saleSubtotalHint);
         const saleTotalHint = quoteTotalHint || numberFrom((sale as any)?.total_amount);
         const hasAuthoritativeSaleSubtotal = saleSubtotalHint > 0 && saleTotalHint > 0 && Math.abs(saleTaxesHint.total - saleTotalHint) <= 0.05;
+        const sumDiscountLines = () => lineItems
+          .filter((li) => li.category === "discount")
+          .reduce((sum, li) => sum + (Number(li.unit_price || 0) * (Number(li.qty || 1) || 1)), 0);
 
         if (!quoteAdjustmentProjected && hasAuthoritativeSaleSubtotal && monthlyTotal > 0) {
-          const projectedBaseBeforeWelcome = monthlyTotal + equipmentTotal + activationFee + explicitDeliveryFee + explicitInstallationFee + shippingFee + customAdjustmentTotal;
+          const projectedBaseBeforeWelcome = monthlyTotal + equipmentTotal + activationFee + explicitDeliveryFee + explicitInstallationFee + shippingFee + customAdjustmentTotal + sumDiscountLines();
           const welcomeCredit = Number((projectedBaseBeforeWelcome - saleSubtotalHint).toFixed(2));
           if (welcomeCredit > 0 && welcomeCredit <= monthlyTotal + 0.05) {
             lineItems.push({
@@ -712,9 +717,7 @@ Deno.serve(async (req) => {
         // "à l'envers" depuis un total cible. Aucune ligne fabriquée pour
         // combler un écart. Si le total agent diffère des lignes réelles,
         // la synchro échoue et l'ordre reste bloqué en `sync_error`.
-        const projectedDiscountTotal = lineItems
-          .filter((li) => li.category === "discount")
-          .reduce((sum, li) => sum + (Number(li.unit_price || 0) * (Number(li.qty || 1) || 1)), 0);
+        const projectedDiscountTotal = sumDiscountLines();
         const baseAmount = Number((subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal + projectedDiscountTotal).toFixed(2));
         const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
