@@ -540,15 +540,18 @@ Deno.serve(async (req) => {
         const services = rawItems; // backward-compat alias for downstream refs
         let quoteSubtotalHint = 0;
         let quoteTotalHint = 0;
+        let quoteActivationFeeHint: number | null = null;
 
         if (sale.source_quote_id) {
           const { data: quoteFinancials } = await supabaseAdmin
             .from("field_quotes")
-            .select("subtotal, total")
+            .select("subtotal, total, activation_fee")
             .eq("id", sale.source_quote_id)
             .maybeSingle();
           quoteSubtotalHint = numberFrom((quoteFinancials as any)?.subtotal);
           quoteTotalHint = numberFrom((quoteFinancials as any)?.total);
+          const quotedActivationFee = numberFrom((quoteFinancials as any)?.activation_fee);
+          quoteActivationFeeHint = Number.isFinite(quotedActivationFee) ? quotedActivationFee : null;
         }
 
         const isSpecialFeeLine = (x: any) => {
@@ -608,9 +611,11 @@ Deno.serve(async (req) => {
           });
         }
 
-        // 3) Canonical activation fee — 10$ (1 service) / 45$ (multi)
+        // 3) Canonical activation fee — prefer quote-validated fee, fallback legacy rule
         const serviceCount = serviceItems.length;
-        const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
+        const activationFee = quoteActivationFeeHint !== null
+          ? quoteActivationFeeHint
+          : serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
         if (activationFee > 0) {
           lineItems.push({
             category: "fee",
