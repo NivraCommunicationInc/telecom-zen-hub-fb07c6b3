@@ -53,6 +53,7 @@ export default function CorePromotionsPage() {
   const [formData, setFormData] = useState({ ...defaultForm });
   const [formTab, setFormTab] = useState<"general" | "restrictions" | "preview">("general");
   const [previewSubtotal, setPreviewSubtotal] = useState(100);
+  const [topTab, setTopTab] = useState<"catalog" | "assignments">("catalog");
 
   const { data: promotions = [], isLoading, refetch } = useQuery({
     queryKey: ["core-promotions"],
