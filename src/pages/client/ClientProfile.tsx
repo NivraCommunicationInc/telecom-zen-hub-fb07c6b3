@@ -31,7 +31,6 @@ import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkou
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 // Phase 2 components
 import ClientAvatarUpload from "@/components/client/ClientAvatarUpload";
-import ClientProfileChangeHistory from "@/components/client/ClientProfileChangeHistory";
 import { CustomerTimelineTable } from "@/components/timeline";
 import { portalClient } from "@/integrations/backend/portalClient";
 import ClientSessionInfo from "@/components/client/ClientSessionInfo";
