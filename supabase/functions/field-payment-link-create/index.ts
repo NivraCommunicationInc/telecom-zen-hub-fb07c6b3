@@ -261,6 +261,7 @@ serve(async (req) => {
       payment_url: paymentUrl,
       expires_at: expiresAt,
       email_sent: emailSent,
+      shell_deferred: shellDeferred,
     });
   } catch (err: any) {
     console.error("[field-payment-link-create] fatal:", err);
