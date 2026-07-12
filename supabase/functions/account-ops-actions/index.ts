@@ -816,15 +816,21 @@ serve(async (req) => {
         let subsAfter: any[] = [];
         if (customerId) {
           try {
-            const { data: subs, error: subErr } = await admin
+            // Phase 6A — canonical state-machine gateway (per-subscription)
+            const { data: subsToCancel } = await admin
               .from("billing_subscriptions")
-              .update({ status: "cancelled", updated_at: nowIso })
+              .select("id, plan_name")
               .eq("customer_id", customerId)
-              .in("status", NON_TERMINAL_STATES)
-              .select("id, plan_name");
-            if (subErr) console.error("cancel_account subs update", subErr);
-            cancelledSubs = subs?.length ?? 0;
-            subsAfter = subs ?? [];
+              .in("status", NON_TERMINAL_STATES);
+            for (const s of subsToCancel ?? []) {
+              const { error: subErr } = await admin.rpc("cancel_subscription", {
+                p_subscription_id: s.id,
+                p_reason: reason || "cancel_account",
+                p_context: { source: "account-ops-actions", account_id: body.account_id, idempotency_key: idempotencyKey },
+              });
+              if (subErr) console.error("cancel_account sub", s.id, subErr);
+              else { cancelledSubs++; subsAfter.push(s); }
+            }
           } catch (e) { console.error("cancel_account subs exception", e); }
         }
 
@@ -990,14 +996,20 @@ serve(async (req) => {
               .eq("user_id", client_user_id)
               .maybeSingle();
             if (bc?.id) {
-              const { data: subs, error: subErr } = await admin
+              // Phase 6A — canonical state-machine gateway (per-subscription)
+              const { data: subsToResume } = await admin
                 .from("billing_subscriptions")
-                .update({ status: "active", updated_at: nowIso })
+                .select("id")
                 .eq("customer_id", bc.id)
-                .in("status", targetStates)
-                .select("id");
-              if (subErr) console.error("reactivate_account subs update", subErr);
-              reactivatedSubs = subs?.length ?? 0;
+                .in("status", targetStates);
+              for (const s of subsToResume ?? []) {
+                const { error: subErr } = await admin.rpc("reactivate_subscription", {
+                  p_subscription_id: s.id,
+                  p_context: { source: "account-ops-actions", account_id: body.account_id, reason },
+                });
+                if (subErr) console.error("reactivate_account sub", s.id, subErr);
+                else reactivatedSubs++;
+              }
             }
           } catch (e) { console.error("reactivate_account subs exception", e); }
         }
