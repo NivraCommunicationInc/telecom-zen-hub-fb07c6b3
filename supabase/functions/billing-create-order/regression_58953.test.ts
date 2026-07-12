@@ -55,7 +55,8 @@ async function cleanup(orderId: string, userId: string) {
   const subIds = (subs ?? []).map((r: any) => r.id);
   if (subIds.length) {
     await admin.from("billing_provenance").delete().in("object_id", subIds);
-    await admin.from("billing_subscriptions").delete().in("id", subIds);
+    // Phase 6E — canonical QA fixture gateway (env=test only)
+    await admin.rpc("rpc_qa_reset_subscription_fixture", { p_subscription_ids: subIds });
   }
   await admin.from("order_items").delete().eq("order_id", orderId);
   await admin.from("orders").delete().eq("id", orderId);

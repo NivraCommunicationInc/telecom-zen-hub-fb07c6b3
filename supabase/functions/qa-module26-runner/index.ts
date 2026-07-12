@@ -172,7 +172,8 @@ Deno.serve(async (req) => {
     billingCustB = await ensureBillingCustomer(clientB, CLIENT_B_EMAIL);
 
     // Purge any leftover subs / equipment from prior runs
-    await admin.from("billing_subscriptions").delete().in("customer_id", [billingCustA, billingCustB]);
+    // Phase 6E — canonical QA fixture gateway (env=test only)
+    await admin.rpc("rpc_qa_reset_subscription_fixture", { p_customer_ids: [billingCustA, billingCustB] });
     await admin.from("equipment_inventory").delete().in("account_id", [accountA, accountB]);
     await admin.from("equipment_return_requests").delete().in("account_id", [accountA, accountB]);
 
@@ -204,21 +205,28 @@ Deno.serve(async (req) => {
       frozen_anchor_date: nowIso.slice(0, 10),
     });
     const traceBase = { source_type: "qa_module26" };
-    const { data: subs, error: subsSeedErr } = await admin.from("billing_subscriptions").insert([
+    // Phase 6E — QA seed rows tagged environment='test' and provenance for canonical trigger
+    const qaSeedRows = [
       { customer_id: billingCustA, plan_code: `QA26-INT-${Date.now()}-a`, plan_name: "QA Internet 50",
         plan_price: 49.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "Internet",
+        status: "active", service_category: "Internet", environment: "test",
         source_order_item_id: itemA1, source_id: itemA1, ...traceBase, ...frozen("QA Internet 50", "QA26-INT", 49.99) },
       { customer_id: billingCustA, plan_code: `QA26-TV-${Date.now()}-a`, plan_name: "QA TV Base",
         plan_price: 29.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "TV",
+        status: "active", service_category: "TV", environment: "test",
         source_order_item_id: itemA2, source_id: itemA2, ...traceBase, ...frozen("QA TV Base", "QA26-TV", 29.99) },
       { customer_id: billingCustB, plan_code: `QA26-INT-B-${Date.now()}`, plan_name: "QA B Internet",
         plan_price: 49.99, cycle_start_date: nowIso, cycle_end_date: inXDays(30),
-        status: "active", service_category: "Internet",
+        status: "active", service_category: "Internet", environment: "test",
         source_order_item_id: itemB1, source_id: itemB1, ...traceBase, ...frozen("QA B Internet", "QA26-INT-B", 49.99) },
-    ]).select("id, customer_id");
-    if (subsSeedErr) throw new Error(`seed_subs: ${subsSeedErr.message}`);
+    ];
+    // Seed via canonical QA gateway (allow-listed writer, env=test only)
+    const subs: Array<{ id: string; customer_id: string }> = [];
+    for (const row of qaSeedRows) {
+      const { data: newId, error: seedErr } = await admin.rpc("rpc_qa_seed_subscription_fixture", { p_row: row });
+      if (seedErr) throw new Error(`seed_subs: ${seedErr.message}`);
+      if (newId) subs.push({ id: newId as string, customer_id: row.customer_id });
+    }
     (subs ?? []).forEach((s: any) => createdSubIds.push(s.id));
 
     // Seed 2 equipment items assigned to account A
@@ -485,9 +493,9 @@ Deno.serve(async (req) => {
     for (const id of [billingCustA, billingCustB]) {
       await admin.from("billing_customers").update({ autopay_enabled: false, autopay_discount_active: false }).eq("id", id);
     }
-    const subsDel = await admin.from("billing_subscriptions").delete()
-      .in("customer_id", [billingCustA, billingCustB]).select("id");
-    del.billing_subscriptions = subsDel.data?.length ?? 0;
+    // Phase 6E — canonical QA fixture gateway (env=test only)
+    const { data: subsDelData } = await admin.rpc("rpc_qa_reset_subscription_fixture", { p_customer_ids: [billingCustA, billingCustB] });
+    del.billing_subscriptions = (subsDelData as any)?.deleted ?? 0;
     const invDel = await admin.from("billing_invoices").delete()
       .in("customer_id", [billingCustA, billingCustB]).select("id");
     del.billing_invoices = invDel.data?.length ?? 0;

@@ -53,10 +53,14 @@ toast.success("Compte bloqué");
         case "suspend_services": {
           const activeSubs = subscriptions.filter((s: any) => s.status === "active");
           if (activeSubs.length === 0) { toast.error("Aucun service actif à suspendre"); setLoading(false); return; }
+          // Phase 6A — canonical state-machine gateway
           for (const sub of activeSubs) {
-            await supabase.from("billing_subscriptions").update({
-              status: "suspended" as any, updated_at: new Date().toISOString(),
-            }).eq("id", sub.id);
+            await supabase.rpc("suspend_subscription", {
+              p_subscription_id: sub.id,
+              p_reason: "account_restriction",
+              p_pause_until: null,
+              p_context: { source: "account_restrictions_dialog", actor_id: actorId },
+            });
           }
           if (accountId) {
             await supabase.from("accounts").update({

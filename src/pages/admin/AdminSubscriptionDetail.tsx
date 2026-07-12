@@ -100,10 +100,15 @@ export default function AdminSubscriptionDetail() {
       return;
     }
     setSavingPlan(true);
-    const { error } = await adminClient
-      .from("billing_subscriptions")
-      .update({ plan_name: planName.trim(), plan_price: price, updated_at: nowIso() })
-      .eq("id", subscriptionId);
+    // Phase 6A — canonical admin plan-change gateway
+    const { error } = await adminClient.rpc("rpc_admin_change_subscription_plan", {
+      p_subscription_id: subscriptionId,
+      p_new_plan_name: planName.trim(),
+      p_new_plan_price: price,
+      p_new_plan_code: null,
+      p_reason: "admin_manual_edit",
+      p_context: { source: "AdminSubscriptionDetail" },
+    });
     setSavingPlan(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Forfait mis à jour — reflété à la prochaine facture");

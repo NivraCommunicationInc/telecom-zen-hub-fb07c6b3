@@ -215,13 +215,12 @@ if (!data?.length) return [];
           if (subRow) {
             cancelledSubscriptionId = subRow.id;
             paypalSubscriptionId = subRow.paypal_subscription_id ?? null;
-            const { error: subErr } = await supabase
-              .from("billing_subscriptions")
-              .update({
-                status: "cancelled",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", subRow.id);
+            // Phase 6A — canonical state-machine gateway
+            const { error: subErr } = await supabase.rpc("cancel_subscription", {
+              p_subscription_id: subRow.id,
+              p_reason: "core_cancellation_approved",
+              p_context: { source: "CoreCancellationsPage", request_id: id },
+            });
             if (subErr) throw subErr;
             result._sideEffects.subscription = true;
           }
@@ -234,15 +233,19 @@ if (!data?.length) return [];
             .eq("account_id", accountId);
           const orderIds = (orderRows ?? []).map((o: any) => o.id);
           if (orderIds.length) {
-            const { error: subErr } = await supabase
+            const { data: activeSubs } = await supabase
               .from("billing_subscriptions")
-              .update({
-                status: "cancelled",
-                updated_at: new Date().toISOString(),
-              })
+              .select("id")
               .in("order_id", orderIds)
               .eq("status", "active");
-            if (subErr) throw subErr;
+            for (const s of activeSubs ?? []) {
+              const { error: subErr } = await supabase.rpc("cancel_subscription", {
+                p_subscription_id: s.id,
+                p_reason: "core_cancellation_approved_bulk",
+                p_context: { source: "CoreCancellationsPage", request_id: id },
+              });
+              if (subErr) throw subErr;
+            }
             result._sideEffects.subscription = true;
           }
         }

@@ -74,18 +74,27 @@ export function SubscriptionDetailDrawer({ subscription, onClose }: Props) {
   const updateSubStatus = async (newStatus: string, actionKey: string) => {
     setActionLoading(actionKey);
     try {
-      const { error } = await supabase.from("billing_subscriptions")
-        .update({ status: newStatus as any, updated_at: new Date().toISOString() })
-        .eq("id", s.id);
-// Audit trail
-      if (s.customer_id) {
-        await supabase.from("billing_subscription_trace_audit").insert({
-          subscription_id: s.id,
-          customer_id: s.customer_id,
-          action: `service_${newStatus}`,
-          details: { source: "subscription_drawer" },
+      // Phase 6A — canonical state-machine gateway
+      let rpcRes;
+      if (newStatus === "suspended") {
+        rpcRes = await supabase.rpc("suspend_subscription", {
+          p_subscription_id: s.id, p_reason: "subscription_drawer",
+          p_pause_until: null, p_context: { source: "subscription_drawer" },
         });
+      } else if (newStatus === "cancelled") {
+        rpcRes = await supabase.rpc("cancel_subscription", {
+          p_subscription_id: s.id, p_reason: "subscription_drawer",
+          p_context: { source: "subscription_drawer" },
+        });
+      } else if (newStatus === "active") {
+        rpcRes = await supabase.rpc("reactivate_subscription", {
+          p_subscription_id: s.id, p_context: { source: "subscription_drawer" },
+        });
+      } else {
+        throw new Error(`Unsupported status transition: ${newStatus}`);
       }
+      const { error } = rpcRes;
+
 
       const labels: Record<string, string> = {
         active: "activé", suspended: "suspendu", cancelled: "annulé",

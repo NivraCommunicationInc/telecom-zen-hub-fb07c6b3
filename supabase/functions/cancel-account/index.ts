@@ -280,17 +280,13 @@ serve(async (req) => {
     for (const sub of subs ?? []) {
 
 
-      // 1b. Force-update the local status to 'cancelled' (covers the case
-      //     where paypal-cancel-subscription left the row in another state,
-      //     and the case where there was no PayPal binding to begin with).
-      const { error: updErr } = await supabase
-        .from("billing_subscriptions")
-        .update({
-          status: "cancelled",
-          auto_billing_enabled: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", sub.id);
+      // Phase 6A — canonical state-machine gateway
+      // 1b. Cancel via canonical RPC (writer-lock enforced at DB level).
+      const { error: updErr } = await supabase.rpc("cancel_subscription", {
+        p_subscription_id: sub.id,
+        p_reason: reason || "cancel-account",
+        p_context: { source: "cancel-account", scope, run_id: runId },
+      });
 
       if (updErr) {
         recordStep(`sub_update_${sub.id}`, false, { error: updErr.message });

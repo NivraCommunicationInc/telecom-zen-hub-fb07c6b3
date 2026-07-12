@@ -361,7 +361,13 @@ async function handleExecute(svc: any, actorId: string, input: z.infer<typeof Id
     await svc.from('equipment_inventory').update({ client_id: t.new_client_id }).eq('client_id', t.old_client_id);
 
     // 4. Billing: subscriptions always transfer; invoices depend on option
-    await svc.from('billing_subscriptions').update({ client_id: t.new_client_id }).eq('client_id', t.old_client_id);
+    // Phase 6A — canonical gateway
+    await svc.rpc('rpc_admin_transfer_subscription_ownership', {
+      p_old_client_id: t.old_client_id,
+      p_new_client_id: t.new_client_id,
+      p_reason: 'account_transfer_completed',
+      p_context: { transfer_id: t.id, account_id: t.account_id, actor_id: actorId },
+    });
     if (t.billing_transfer_option === 'full_transfer') {
       await svc.from('billing_invoices').update({ client_id: t.new_client_id }).eq('client_id', t.old_client_id);
       await svc.from('billing_payments').update({ client_id: t.new_client_id }).eq('client_id', t.old_client_id);
@@ -444,7 +450,13 @@ async function handleRollback(svc: any, actorId: string, input: z.infer<typeof I
   await svc.from('accounts').update({ client_id: t.old_client_id }).eq('id', t.account_id);
   await svc.from('orders').update({ user_id: t.old_client_id }).eq('user_id', t.new_client_id);
   await svc.from('equipment_inventory').update({ client_id: t.old_client_id }).eq('client_id', t.new_client_id);
-  await svc.from('billing_subscriptions').update({ client_id: t.old_client_id }).eq('client_id', t.new_client_id);
+  // Phase 6A — canonical gateway (reverse)
+  await svc.rpc('rpc_admin_transfer_subscription_ownership', {
+    p_old_client_id: t.new_client_id,
+    p_new_client_id: t.old_client_id,
+    p_reason: 'account_transfer_rollback',
+    p_context: { transfer_id: t.id, account_id: t.account_id, actor_id: actorId },
+  });
   if (t.billing_transfer_option === 'full_transfer') {
     await svc.from('billing_invoices').update({ client_id: t.old_client_id }).eq('client_id', t.new_client_id);
     await svc.from('billing_payments').update({ client_id: t.old_client_id }).eq('client_id', t.new_client_id);

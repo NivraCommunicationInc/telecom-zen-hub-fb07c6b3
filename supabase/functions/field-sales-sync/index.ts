@@ -1263,25 +1263,20 @@ Deno.serve(async (req) => {
               source_type: "field_sales",
             };
 
-            if (existingSubRow) {
-              const { error: subUpdErr } = await supabaseAdmin
-                .from("billing_subscriptions")
-                .update(subscriptionPayload)
-                .eq("id", existingSubRow.id);
-              if (subUpdErr) {
-                console.error("[field-sales-sync] subscription repair failed:", subUpdErr.message);
-              } else {
-                console.log(`[field-sales-sync] Subscription repaired for order ${canonicalOrder.order_number}`);
-              }
+            // Phase 6A — canonical gateway (upsert)
+            const { error: upsertErr } = await supabaseAdmin.rpc(
+              "rpc_admin_upsert_field_sales_subscription",
+              { p_order_id: canonicalOrder.id, p_payload: subscriptionPayload }
+            );
+            if (upsertErr) {
+              console.error(
+                `[field-sales-sync] subscription ${existingSubRow ? "repair" : "pre-create"} failed:`,
+                upsertErr.message
+              );
             } else {
-              const { error: subInsErr } = await supabaseAdmin
-                .from("billing_subscriptions")
-                .insert(subscriptionPayload);
-              if (subInsErr) {
-                console.error("[field-sales-sync] subscription pre-create failed:", subInsErr.message);
-              } else {
-                console.log(`[field-sales-sync] Subscription created for order ${canonicalOrder.order_number}`);
-              }
+              console.log(
+                `[field-sales-sync] Subscription ${existingSubRow ? "repaired" : "created"} for order ${canonicalOrder.order_number}`
+              );
             }
           }
         } catch (subErr) {

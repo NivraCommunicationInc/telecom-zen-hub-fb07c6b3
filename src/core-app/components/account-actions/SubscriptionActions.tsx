@@ -80,15 +80,19 @@ function StatusModal({ action, subs, customerId, clientId, onClose, onRefresh }:
     if (!selectedId) return;
     setLoading(true);
     try {
-      const { error } = await supabase.from("billing_subscriptions").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", selectedId);
+      // Phase 6A — canonical state-machine gateway
+      const { error } = isSuspend
+        ? await supabase.rpc("suspend_subscription", {
+            p_subscription_id: selectedId,
+            p_reason: reason || null,
+            p_pause_until: null,
+            p_context: { source: "account_360" },
+          })
+        : await supabase.rpc("reactivate_subscription", {
+            p_subscription_id: selectedId,
+            p_context: { source: "account_360", reason: reason || null },
+          });
       if (error) throw error;
-      if (customerId) {
-        await supabase.from("billing_subscription_trace_audit").insert({
-          subscription_id: selectedId, customer_id: customerId,
-          action: isSuspend ? "service_suspended" : "service_resumed",
-          reason: reason || null, details: { source: "account_360" },
-        });
-      }
       const planName = subs.find((s: any) => s.id === selectedId)?.plan_name;
       addClientAutoNote({
         clientId,
@@ -141,15 +145,13 @@ function CancelModal({ subs, customerId, clientId, onClose, onRefresh }: { subs:
     if (!selectedId || confirmText !== "ANNULER") return;
     setLoading(true);
     try {
-      const { error } = await supabase.from("billing_subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", selectedId);
+      // Phase 6A — canonical state-machine gateway
+      const { error } = await supabase.rpc("cancel_subscription", {
+        p_subscription_id: selectedId,
+        p_reason: reason || null,
+        p_context: { source: "account_360" },
+      });
       if (error) throw error;
-      if (customerId) {
-        await supabase.from("billing_subscription_trace_audit").insert({
-          subscription_id: selectedId, customer_id: customerId,
-          action: "subscription_cancelled", reason: reason || null,
-          details: { source: "account_360" },
-        });
-      }
       const planName = subs.find((s: any) => s.id === selectedId)?.plan_name;
       addClientAutoNote({
         clientId,
@@ -325,16 +327,19 @@ function ChangePlanModal({ subs, customerId, clientId, onClose, onRefresh }: { s
     setLoading(true);
     try {
       const price = Number(newPlan.price) || 0;
-      const { error } = await supabase.from("billing_subscriptions").update({
-        plan_name: newPlan.name, plan_code: newPlan.plan_code || newPlan.id, plan_price: price, updated_at: new Date().toISOString(),
-      }).eq("id", selectedId);
+      // Phase 6A — canonical admin plan-change gateway
+      const { error } = await supabase.rpc("rpc_admin_change_subscription_plan", {
+        p_subscription_id: selectedId,
+        p_new_plan_name: newPlan.name,
+        p_new_plan_price: price,
+        p_new_plan_code: newPlan.plan_code || newPlan.id,
+        p_reason: reason || null,
+        p_context: {
+          old_plan: sub?.plan_name, old_code: sub?.plan_code, old_price: sub?.plan_price,
+          catalog_id: newPlan.id, source: "account_360",
+        },
+      });
       if (error) throw error;
-      if (customerId) {
-        await supabase.from("billing_subscription_trace_audit").insert({
-          subscription_id: selectedId, customer_id: customerId, action: "plan_changed", reason: reason || null,
-          details: { old_plan: sub?.plan_name, old_code: sub?.plan_code, old_price: sub?.plan_price, new_plan: newPlan.name, new_code: newPlan.plan_code, new_price: price, catalog_id: newPlan.id, source: "account_360" },
-        });
-      }
       addClientAutoNote({
         clientId,
         event: "plan_changed",
