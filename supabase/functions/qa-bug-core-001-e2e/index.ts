@@ -236,16 +236,11 @@ serve(async (req) => {
       p_amount: amountPaid,
       p_method: "card",
       p_provider: "square",
-      p_external_reference: fakeSquareId,
+      p_provider_payment_id: fakeSquareId,
+      p_customer_id: invoice.customer_id,
       p_source: "qa_e2e_simulation",
-      p_context: {
-        qa_simulation: true,
-        bug: "BUG-CORE-001",
-        correlation_id: report.correlation_id,
-        square_payment_id: fakeSquareId,
-        idempotency_key: idempotencyKey,
-        invoice_number: invoice.invoice_number,
-      },
+      p_created_by_name: "QA Runner BUG-CORE-001",
+      p_created_by_role: "qa_bot",
     });
     if (rpcErr) return fail("apply_payment_to_invoice", rpcErr, { invoice });
     report.ids.canonical_payment_id = canonicalPaymentId as string;
