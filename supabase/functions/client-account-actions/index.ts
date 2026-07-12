@@ -856,7 +856,16 @@ Deno.serve(async (req) => {
     const rbac = await canWriteAccount(svc, actor.id, input.account_id);
     if (!rbac.ok) return j({ error: 'forbidden' }, 403);
 
-    const correlationId = input.correlation_id ?? crypto.randomUUID();
+    // F52-1 / F52-2 — Normalize correlation_id. Downstream columns
+    // (`client_activity_logs.correlation_id`, `phone_change_requests.correlation_id`,
+    // `rpc_account_journal_write.p_correlation_id`) are typed `uuid`. Any
+    // non-UUID input must be replaced with a freshly minted UUID so the
+    // gateway never produces a 500 and the same UUID is propagated to
+    // admin_audit_log.details.correlation_id, client_activity_logs, timeline,
+    // and the API response.
+    const UUID_RE_INPUT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const inputCorrId = input.correlation_id;
+    const correlationId = inputCorrId && UUID_RE_INPUT.test(inputCorrId) ? inputCorrId : crypto.randomUUID();
     const requestHash = await sha256(JSON.stringify({ action: input.action, account_id: input.account_id, payload: (input as any).payload ?? {} }));
     const reserved = await reserveIdempotency(svc, input.account_id, input.action, input.idempotency_key, requestHash, actor.id);
     if (reserved.replay) return j({ ok: true, replay: true, result: reserved.result });
