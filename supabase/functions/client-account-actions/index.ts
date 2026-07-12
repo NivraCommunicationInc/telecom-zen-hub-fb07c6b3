@@ -550,6 +550,7 @@ async function handleBillingSameAsService(svc: any, actor: any, actorRole: strin
     accountId: input.account_id,
     action: 'billing_address.set_same_as_service',
     before, after,
+    reason: input.reason,
     correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
