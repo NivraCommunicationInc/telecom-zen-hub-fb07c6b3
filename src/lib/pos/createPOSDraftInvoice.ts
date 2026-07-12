@@ -242,6 +242,36 @@ export async function createPOSDraftInvoice(
     throw new Error(`Échec de création de commande: ${orderErr?.message || "unknown"}`);
   }
 
+  // ── BUG-CORE-002B: create appointments hold when installation slot present ──
+  try {
+    const installation = (input.orderPayload as any)?.installation;
+    if (installation?.required && installation?.date && typeof installation?.time_slot === "string"
+        && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(installation.time_slot)) {
+      const startTime = installation.time_slot.split("-")[0];
+      const scheduledAt = new Date(`${installation.date}T${startTime}:00`).toISOString();
+      const { error: apptErr } = await supabase.from("appointments").insert({
+        order_id: newOrder.id,
+        client_id: input.customer.client_id || null,
+        account_id: accountId,
+        client_email: input.customer.email,
+        client_phone: input.customer.phone,
+        service_address: input.customer.service_address,
+        service_city: input.customer.service_city,
+        service_postal_code: input.customer.service_postal_code,
+        title: `Installation — ${newOrder.order_number}`,
+        scheduled_at: scheduledAt,
+        status: "hold",
+        installation_method: "auto",
+        internal_notes: `[BUG-CORE-002B] Hold auto-créé depuis POS ${input.portalType} • window=${installation.time_slot}`,
+      } as any);
+      if (apptErr) {
+        console.warn("[createPOSDraftInvoice] appointment hold insert failed (non-blocking):", apptErr.message);
+      }
+    }
+  } catch (holdErr) {
+    console.warn("[createPOSDraftInvoice] appointment hold exception (non-blocking):", holdErr);
+  }
+
   // ── 5. Generate invoice number ──
   const d = new Date();
   const dateStr = `${d.getFullYear().toString().slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
