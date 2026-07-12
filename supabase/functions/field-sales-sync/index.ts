@@ -317,6 +317,24 @@ Deno.serve(async (req) => {
               .eq("order_id", existingOrder.id);
 
             if (!invoiceCheckError && (existingInvoiceCount ?? 0) > 0) {
+              const { data: existingInvoice } = await supabaseAdmin
+                .from("billing_invoices")
+                .select("id")
+                .eq("order_id", existingOrder.id)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if ((sale as any).source_field_payment_intent_id && existingInvoice?.id) {
+                await supabaseAdmin
+                  .from("field_payment_intents")
+                  .update({
+                    converted_field_order_id: sale.id,
+                    converted_order_id: existingOrder.id,
+                    converted_invoice_id: existingInvoice.id,
+                  } as any)
+                  .eq("id", (sale as any).source_field_payment_intent_id)
+                  .is("converted_invoice_id", null);
+              }
               // F31-6 — even when the order+invoice already exist, we must still
               // guarantee the field_commissions row is created once Square captured.
               // Handles the resync path from square-charge-invoice / square-webhook.
@@ -326,7 +344,7 @@ Deno.serve(async (req) => {
               });
               console.log(`[field-sales-sync] F31-6 resync ensureFieldCommission → ${ensured.status}`);
               console.log(`[field-sales-sync] Sale ${sale.id} already fully synced (order + invoice): ${existingOrder.id}`);
-              return { success: true, orderId: existingOrder.id, order_number: existingOrder.order_number || undefined };
+              return { success: true, orderId: existingOrder.id, order_number: existingOrder.order_number || undefined, invoice_id: existingInvoice?.id };
             }
 
             console.warn(`[field-sales-sync] Sale ${sale.id} has order ${existingOrder.id} but no invoice yet â€” resuming billing pipeline`);
@@ -522,15 +540,18 @@ Deno.serve(async (req) => {
         const services = rawItems; // backward-compat alias for downstream refs
         let quoteSubtotalHint = 0;
         let quoteTotalHint = 0;
+        let quoteActivationFeeHint: number | null = null;
 
         if (sale.source_quote_id) {
           const { data: quoteFinancials } = await supabaseAdmin
             .from("field_quotes")
-            .select("subtotal, total")
+            .select("subtotal, total, activation_fee")
             .eq("id", sale.source_quote_id)
             .maybeSingle();
           quoteSubtotalHint = numberFrom((quoteFinancials as any)?.subtotal);
           quoteTotalHint = numberFrom((quoteFinancials as any)?.total);
+          const quotedActivationFee = numberFrom((quoteFinancials as any)?.activation_fee);
+          quoteActivationFeeHint = Number.isFinite(quotedActivationFee) ? quotedActivationFee : null;
         }
 
         const isSpecialFeeLine = (x: any) => {
@@ -590,9 +611,11 @@ Deno.serve(async (req) => {
           });
         }
 
-        // 3) Canonical activation fee — 10$ (1 service) / 45$ (multi)
+        // 3) Canonical activation fee — prefer quote-validated fee, fallback legacy rule
         const serviceCount = serviceItems.length;
-        const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
+        const activationFee = quoteActivationFeeHint !== null
+          ? quoteActivationFeeHint
+          : serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
         if (activationFee > 0) {
           lineItems.push({
             category: "fee",
@@ -681,35 +704,84 @@ Deno.serve(async (req) => {
           quoteAdjustmentProjected = true;
         }
 
-        const saleSubtotalHint = quoteSubtotalHint;
-        const saleTaxesHint = computeTaxes(saleSubtotalHint);
-        const saleTotalHint = quoteTotalHint || numberFrom((sale as any)?.total_amount);
-        const hasAuthoritativeSaleSubtotal = saleSubtotalHint > 0 && saleTotalHint > 0 && Math.abs(saleTaxesHint.total - saleTotalHint) <= 0.05;
         const sumDiscountLines = () => lineItems
           .filter((li) => li.category === "discount")
           .reduce((sum, li) => sum + (Number(li.unit_price || 0) * (Number(li.qty || 1) || 1)), 0);
 
-        if (!quoteAdjustmentProjected && hasAuthoritativeSaleSubtotal && monthlyTotal > 0) {
-          const projectedBaseBeforeWelcome = monthlyTotal + equipmentTotal + activationFee + explicitDeliveryFee + explicitInstallationFee + shippingFee + customAdjustmentTotal + sumDiscountLines();
-          const welcomeCredit = Number((projectedBaseBeforeWelcome - saleSubtotalHint).toFixed(2));
-          if (welcomeCredit > 0 && welcomeCredit <= monthlyTotal + 0.05) {
+        // Base fees model aligned to orders schema
+        let subtotal = monthlyTotal + equipmentTotal;
+        let deliveryFee = shippingFee + explicitDeliveryFee;
+        let installationFee = explicitInstallationFee;
+
+        const saleTotalHint = quoteTotalHint || numberFrom((sale as any)?.total_amount);
+        const hasFirstMonthDiscount = () => lineItems.some((li) =>
+          li.category === "discount"
+          && (String(li.type || "").toLowerCase() === "first_month_free" || String(li.name || "").toLowerCase().includes("1er mois"))
+        );
+        const feeTotal = () => deliveryFee + installationFee;
+        const computeBase = (includeWelcome: boolean) => Number((
+          subtotal
+          + activationFee
+          + feeTotal()
+          + customAdjustmentTotal
+          + sumDiscountLines()
+          - (includeWelcome ? monthlyTotal : 0)
+        ).toFixed(2));
+        const tryMatchTotal = (base: number) => {
+          const taxed = computeTaxes(base);
+          return saleTotalHint > 0 && Math.abs(taxed.total - saleTotalHint) <= 0.05;
+        };
+
+        // The quote total is the already validated pricing source of truth. The
+        // Core materializer may receive legacy quotes where the install option is
+        // workflow-only (technician appointment) and not a billed line, while new
+        // quotes may include it. Reconcile deterministically by selecting the only
+        // line set that matches the quote total; never fabricate a random delta.
+        if (saleTotalHint > 0) {
+          const welcomeAvailable = monthlyTotal > 0 && !quoteAdjustmentProjected && !hasFirstMonthDiscount();
+          const candidates = [
+            { includeFulfillment: true, includeWelcome: false },
+            { includeFulfillment: true, includeWelcome: welcomeAvailable },
+            { includeFulfillment: false, includeWelcome: false },
+            { includeFulfillment: false, includeWelcome: welcomeAvailable },
+          ].filter((c) => c.includeWelcome || !c.includeWelcome);
+
+          let selected: { includeFulfillment: boolean; includeWelcome: boolean } | null = null;
+          const originalDeliveryFee = deliveryFee;
+          const originalInstallationFee = installationFee;
+          for (const candidate of candidates) {
+            if (!candidate.includeWelcome && candidate.includeWelcome !== false) continue;
+            deliveryFee = candidate.includeFulfillment ? originalDeliveryFee : 0;
+            installationFee = candidate.includeFulfillment ? originalInstallationFee : 0;
+            if (tryMatchTotal(computeBase(candidate.includeWelcome))) {
+              selected = candidate;
+              break;
+            }
+          }
+          deliveryFee = selected?.includeFulfillment === false ? 0 : originalDeliveryFee;
+          installationFee = selected?.includeFulfillment === false ? 0 : originalInstallationFee;
+
+          if (selected?.includeFulfillment === false) {
+            for (let i = lineItems.length - 1; i >= 0; i--) {
+              const li = lineItems[i];
+              if (li.category === "fee" && ["shipping", "delivery", "installation"].includes(String(li.type || "").toLowerCase())) {
+                lineItems.splice(i, 1);
+              }
+            }
+          }
+          if (selected?.includeWelcome) {
             lineItems.push({
               category: "discount",
               type: "first_month_free",
-              name: `1er mois offert ✓ (automatique) — ${welcomeCredit.toFixed(2)}$/mois`,
+              name: `1er mois offert ✓ (automatique) — ${monthlyTotal.toFixed(2)}$/mois`,
               qty: 1,
-              unit_price: -welcomeCredit,
+              unit_price: -monthlyTotal,
               period: "one_time",
               taxable: true,
             });
             quoteAdjustmentProjected = true;
           }
         }
-
-        // Base fees model aligned to orders schema
-        let subtotal = monthlyTotal + equipmentTotal;
-        const deliveryFee = shippingFee + explicitDeliveryFee;
-        const installationFee = explicitInstallationFee;
 
 
         // Taxes (Quebec) — canonical tax module.
@@ -1468,6 +1540,18 @@ Deno.serve(async (req) => {
         if (updateError) {
           console.error(`[field-sales-sync] Error updating sale status:`, updateError);
           throw new Error(`Sync status update failed: ${updateError.message}`);
+        }
+
+        if ((sale as any).source_field_payment_intent_id) {
+          await supabaseAdmin
+            .from("field_payment_intents")
+            .update({
+              converted_field_order_id: sale.id,
+              converted_order_id: canonicalOrder.id,
+              converted_invoice_id: invoiceId,
+            } as any)
+            .eq("id", (sale as any).source_field_payment_intent_id)
+            .is("converted_order_id", null);
         }
 
         // â•â•â• COMMISSION ENGINE â€” Base % + tier lookup â•â•â•
