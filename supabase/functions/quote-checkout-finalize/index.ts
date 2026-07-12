@@ -92,6 +92,18 @@ serve(async (req) => {
     }
 
     if (!order) {
+      // BUG-CORE-002C Phase 2 — persist canonical fulfillment intent on orders
+      const rawModeForOrder = String(checkout_data?.install_mode || checkout_data?.installation_mode || "").toLowerCase().trim();
+      let orderFulfillmentType: string | null = null;
+      let orderInstallationType: string | null = null;
+      if (rawModeForOrder === "technician") {
+        orderFulfillmentType = "technician";
+        orderInstallationType = "technician";
+      } else if (rawModeForOrder === "self") {
+        orderFulfillmentType = "self_install";
+        orderInstallationType = "auto";
+      }
+
       const orderNumber = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
       const { data: newOrder, error: orderErr } = await supabase.from("orders").insert({
         user_id: orderUserId,
@@ -114,6 +126,8 @@ serve(async (req) => {
         client_email: checkout_data.email,
         client_phone: checkout_data.phone,
         environment: "live",
+        fulfillment_type: orderFulfillmentType,
+        installation_type: orderInstallationType,
       }).select().single();
       if (orderErr) throw new Error(`Order creation failed: ${orderErr.message}`);
       order = newOrder;
