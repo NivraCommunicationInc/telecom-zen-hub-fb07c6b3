@@ -716,9 +716,59 @@ Deno.serve(async (req) => {
       });
       const syncData = await syncResp.json().catch(() => null);
       if (!syncResp.ok || !syncData?.success || !syncData?.orderId) {
-        // Roll back to avoid orphan field_sales_orders row
-        await admin.from("field_sales_orders").delete().eq("id", fso.id);
-        throw new Error(syncData?.error || "Sync Core échoué");
+        // BUG-CORE-001: DO NOT roll back the field_sales_orders row anymore.
+        // Keep the FSO, mark it as sync error, register a retryable event in the
+        // canonical retry table `field_order_sync_events`, and return success
+        // with `deferred:true`. The caller (field-payment-link-create) must
+        // continue and deliver the payment link. Retry worker picks it up later.
+        const reason = syncData?.error || `HTTP ${syncResp.status}`;
+        await admin.from("field_sales_orders").update({
+          sync_status: "error",
+          sync_error: reason,
+        } as any).eq("id", fso.id);
+
+        await admin.from("field_order_sync_events").insert({
+          field_order_id: fso.id,
+          sync_target: "core",
+          sync_action: "materialize_shell",
+          sync_status: "pending",
+          attempt_count: 1,
+          last_attempt_at: new Date().toISOString(),
+          next_retry_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          error_message: reason,
+          request_payload: { intent_id: intent.id, quote_id: quote.id, field_order_id: fso.id } as any,
+          response_payload: syncData as any,
+        } as any).then(undefined, (e) => console.warn("[materialize] sync_event insert failed:", e));
+
+        await admin.from("billing_system_alerts").insert({
+          alert_type: "shell_materialization_deferred",
+          entity_type: "field_sales_order",
+          entity_id: fso.id,
+          entity_reference: intent.id,
+          details: { reason, intent_id: intent.id, quote_id: quote.id, stage: "post_fso" },
+          resolved: false,
+        } as any).then(undefined, () => {});
+
+        await admin.rpc("log_field_order_event" as never, {
+          p_intent_id: intent.id,
+          p_event_type: "shell_materialization_deferred",
+          p_payload: { reason, field_order_id: fso.id, stage: "post_fso" } as never,
+        }).then(undefined, () => {});
+
+        // Link intent → FSO even without Core order id (so retry can find it).
+        await admin.from("field_payment_intents").update({
+          converted_field_order_id: fso.id,
+        }).eq("id", intent.id);
+
+        console.warn("[materialize_pending_from_quote] DEFERRED intent", intent.id, "fso", fso.id, "reason:", reason);
+        return new Response(JSON.stringify({
+          success: true,
+          deferred: true,
+          field_order_id: fso.id,
+          order_id: null,
+          invoice_id: null,
+          error: reason,
+        }), { headers });
       }
 
       await admin.from("field_payment_intents").update({
