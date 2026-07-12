@@ -45,7 +45,7 @@ interface SearchResult {
 
 type Mode = "choose" | "search" | "new" | "form";
 
-export default function StepCustomer({ customer, onChange, onNext, onCancel, locked = false, lockedContext }: Props) {
+export default function StepCustomer({ customer, onChange, onNext, onCancel, locked = false, lockedContext, hasInstallableService = false }: Props) {
   const [mode, setMode] = useState<Mode>(locked || customer.first_name ? "form" : "choose");
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
