@@ -242,11 +242,25 @@ export async function createPOSDraftInvoice(
     throw new Error(`Échec de création de commande: ${orderErr?.message || "unknown"}`);
   }
 
-  // ── BUG-CORE-002B: create appointments hold when installation slot present ──
+  // ── BUG-CORE-002C Phase 1: appointments hold ONLY for technician installs ──
+  //   installation.mode: "self" → auto (no hold, ship path) | "technician" → hold created
   try {
     const installation = (input.orderPayload as any)?.installation;
-    if (installation?.required && installation?.date && typeof installation?.time_slot === "string"
-        && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(installation.time_slot)) {
+    const rawMode = String(installation?.mode || "").toLowerCase().trim();
+    let installationMethod: "auto" | "technician" | null = null;
+    if (rawMode === "technician") installationMethod = "technician";
+    else if (rawMode === "self") installationMethod = "auto";
+    else if (rawMode) {
+      console.warn(`[createPOSDraftInvoice] invalid installation.mode='${rawMode}' — no hold created`);
+    }
+
+    if (
+      installationMethod === "technician" &&
+      installation?.required &&
+      installation?.date &&
+      typeof installation?.time_slot === "string" &&
+      /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(installation.time_slot)
+    ) {
       const startTime = installation.time_slot.split("-")[0];
       const scheduledAt = new Date(`${installation.date}T${startTime}:00`).toISOString();
       const { error: apptErr } = await supabase.from("appointments").insert({
@@ -260,12 +274,14 @@ export async function createPOSDraftInvoice(
         title: `Installation — ${newOrder.order_number}`,
         scheduled_at: scheduledAt,
         status: "hold",
-        installation_method: "auto",
-        internal_notes: `[BUG-CORE-002B] Hold auto-créé depuis POS ${input.portalType} • window=${installation.time_slot}`,
+        installation_method: installationMethod,
+        internal_notes: `[BUG-CORE-002C] Hold technicien créé depuis POS ${input.portalType} • window=${installation.time_slot}`,
       } as any);
       if (apptErr) {
         console.warn("[createPOSDraftInvoice] appointment hold insert failed (non-blocking):", apptErr.message);
       }
+    } else if (installationMethod === "auto") {
+      console.log(`[createPOSDraftInvoice] auto-install order ${newOrder.order_number} — no appointment hold`);
     }
   } catch (holdErr) {
     console.warn("[createPOSDraftInvoice] appointment hold exception (non-blocking):", holdErr);
