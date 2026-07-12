@@ -716,8 +716,31 @@ const AdminClients = () => {
 
   const updateSubscriptionMutation = useMutation({
     mutationFn: async ({ id, status, reason }: { id: string; status: string; reason: string }) => {
-      // Use canonical billing_subscriptions table
-      const { error } = await supabase.from("billing_subscriptions").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+      const context = {
+        source: "admin_clients",
+        actor_user_id: user?.id ?? null,
+        reason,
+      };
+
+      const rpcName =
+        status === "suspended"
+          ? "suspend_subscription"
+          : status === "cancelled"
+            ? "cancel_subscription"
+            : status === "active"
+              ? "reactivate_subscription"
+              : null;
+
+      if (!rpcName) {
+        throw new Error(`Transition abonnement non supportée: ${status}`);
+      }
+
+      const args =
+        status === "active"
+          ? { p_subscription_id: id, p_context: context }
+          : { p_subscription_id: id, p_reason: reason, p_context: context };
+
+      const { error } = await (supabase as any).rpc(rpcName, args);
       if (error) throw error;
       return { id, status, reason };
     },

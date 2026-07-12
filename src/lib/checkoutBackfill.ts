@@ -37,54 +37,6 @@ const isPaidCheckout = (payload: NivraFullCheckoutPayload) => {
   return method === "promo_free" || cardCaptured;
 };
 
-async function resolveServiceAddressId(
-  supabase: SupabaseClient,
-  accountId: string,
-  payload: NivraFullCheckoutPayload,
-): Promise<string | null> {
-  const line = payload.service_address?.street?.trim() || null;
-  const city = payload.service_address?.city?.trim() || null;
-  const province = payload.service_address?.province?.trim() || "QC";
-  const postal = payload.service_address?.postal_code?.trim() || null;
-
-  if (!line) return null;
-
-  const { data: existing } = await supabase
-    .from("service_addresses")
-    .select("id")
-    .eq("account_id", accountId)
-    .eq("address_line", line)
-    .eq("city", city)
-    .eq("postal_code", postal)
-    .limit(1)
-    .maybeSingle();
-
-  if (existing?.id) return existing.id;
-
-  const { data: created, error } = await supabase
-    .from("service_addresses")
-    .insert({
-      account_id: accountId,
-      label: "Service principale",
-      address_line: line,
-      city,
-      province,
-      postal_code: postal,
-      is_primary: true,
-      is_default: true,
-      is_active: true,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error("[Backfill] service_addresses insert error:", error);
-    return null;
-  }
-
-  return created.id;
-}
-
 export async function backfillCheckoutToSupabase(
   supabase: SupabaseClient,
   payload: NivraFullCheckoutPayload,
@@ -465,94 +417,23 @@ export async function backfillCheckoutToSupabase(
     result.errors.push(`payment: ${e.message}`);
   }
 
-  // 6) subscription + service lines
+  // 6) subscription projection — canonical-only.
+  // Module 54.2 Phase 5.1: no frontend write is allowed against billing_subscriptions.
+  // The checkout projection function is idempotent and routes subscription creation
+  // through the backend canonical flow.
   if (payload.services.length > 0) {
     try {
-      const mainService = payload.services[0];
-      const serviceAddressId = await resolveServiceAddressId(supabase, resolvedAccountId, payload);
+      const { data, error } = await supabase.functions.invoke("checkout-canonical-sync", {
+        body: { payload, response },
+      });
 
-      const { data: existingSub } = await supabase
-        .from("billing_subscriptions")
-        .select("id")
-        .eq("order_id", response.order_id)
-        .maybeSingle();
-
-      let subscriptionId: string;
-
-      if (existingSub?.id) {
-        subscriptionId = existingSub.id;
-        result.subscription = true;
+      if (error) {
+        result.errors.push(`subscription: ${error.message}`);
+      } else if (data?.ok === false) {
+        const syncErrors = Array.isArray(data.errors) ? data.errors.join("; ") : "canonical sync failed";
+        result.errors.push(`subscription: ${syncErrors}`);
       } else {
-        subscriptionId = response.subscription_id || crypto.randomUUID();
-        const cycleDate = (response.created_at || now).split("T")[0];
-
-        // Calculate combined plan price from all recurring services
-        const combinedPlanPrice = payload.services.reduce(
-          (sum, svc) => sum + (Number(svc.plan_price) || 0), 0
-        );
-
-        const { error } = await supabase.from("billing_subscriptions").upsert(
-          {
-            id: subscriptionId,
-            customer_id: result.billing_customer_id,
-            order_id: response.order_id,
-            address_id: serviceAddressId,
-            plan_code: mainService.plan_code,
-            plan_name: payload.services.map(s => s.name).join(", "),
-            plan_price: combinedPlanPrice || mainService.plan_price,
-            status: "pending",
-            cycle_start_date: cycleDate,
-            cycle_end_date: cycleDate,
-            service_category: mainService.category?.toLowerCase() || null,
-            auto_billing_enabled: payload.payment.preauth_opt_in || false,
-            environment: "live",
-          },
-          { onConflict: "id" },
-        );
-
-        if (error) result.errors.push(`subscription: ${error.message}`);
-        else result.subscription = true;
-      }
-
-      // 6b) Create service lines for each recurring service
-      for (const svc of payload.services) {
-        try {
-          await supabase.from("billing_subscription_services").upsert(
-            {
-              subscription_id: subscriptionId,
-              service_name: svc.name,
-              service_code: svc.plan_code || svc.name.toLowerCase().replace(/\s+/g, '_'),
-              service_type: "recurring",
-              unit_price: Number(svc.plan_price) || 0,
-              quantity: 1,
-              is_active: true,
-            },
-            { onConflict: "id" },
-          );
-        } catch (svcErr: any) {
-          console.warn("[Backfill] Service line insert failed:", svc.name, svcErr?.message);
-        }
-      }
-
-      // 6c) Create equipment lines (one_time) from payload
-      const equipmentItems = payload.equipment || [];
-      for (const eq of equipmentItems) {
-        try {
-          await supabase.from("billing_subscription_services").upsert(
-            {
-              subscription_id: subscriptionId,
-              service_name: eq.name || "Équipement",
-              service_code: eq.sku || "equipment",
-              service_type: "one_time",
-              unit_price: Number(eq.unit_price) || 0,
-              quantity: Number(eq.quantity) || 1,
-              is_active: true,
-            },
-            { onConflict: "id" },
-          );
-        } catch (eqErr2: any) {
-          console.warn("[Backfill] Equipment one_time line insert failed:", eqErr2?.message);
-        }
+        result.subscription = Boolean(data?.results?.subscription || data?.results?.subscriptions);
       }
     } catch (e: any) {
       result.errors.push(`subscription: ${e.message}`);

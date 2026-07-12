@@ -1184,124 +1184,20 @@ serve(async (req) => {
       }
     }
 
-    // 7) Subscription
+    // 7) Subscription — canonical DB RPC only.
+    // Module 54.2 Phase 5.1 forbids Edge Function direct writes to billing_subscriptions.
     if (customerId && (payload.services || []).length > 0) {
       try {
-        const firstService = (payload.services || [])[0];
-        const cycleDate = toDateOnly(nowIso);
-        // â˜… FIX GAP 3: Compute proper cycle_end_date (1 month) and next_renewal_at
-        const cycleStartDate = new Date(cycleDate + "T00:00:00Z");
-        const cycleEndDate = new Date(cycleStartDate);
-        cycleEndDate.setUTCMonth(cycleEndDate.getUTCMonth() + 1);
-        const cycleEndStr = cycleEndDate.toISOString().split("T")[0];
-        // next_renewal_at = 3 days before cycle end (for billing automation J-3)
-        const renewalDate = new Date(cycleEndDate);
-        renewalDate.setUTCDate(renewalDate.getUTCDate() - 3);
-        const nextRenewalStr = renewalDate.toISOString();
+        const { data: provisionResult, error: provisionError } = await admin.rpc("provision_services_for_order", {
+          p_order_id: response.order_id,
+        });
 
-        const { data: existingSub } = await admin
-          .from("billing_subscriptions")
-          .select("id")
-          .eq("order_id", response.order_id)
-          .maybeSingle();
-
-        const subscriptionId = existingSub?.id || response.subscription_id || crypto.randomUUID();
-        const planPrice = toMoney((payload.services || []).reduce((sum, s) => sum + toMoney(s.plan_price), 0));
-
-        const recurringProvider = payload.payment?.preauth_opt_in ? "square" : "internal";
-
-        const { error: subError } = await admin.from("billing_subscriptions").upsert(
-          {
-            id: subscriptionId,
-            customer_id: customerId,
-            order_id: response.order_id,
-            address_id: null,
-            plan_code: firstService?.plan_code || "UNKNOWN",
-            plan_name: (payload.services || []).map((s) => s.name).join(", "),
-            plan_price: planPrice,
-            status: "pending",
-            cycle_start_date: cycleDate,
-            cycle_end_date: cycleEndStr,
-            next_renewal_at: nextRenewalStr,
-            recurring_provider: recurringProvider,
-            service_category: firstService?.category?.toLowerCase() || null,
-            auto_billing_enabled: payload.payment?.preauth_opt_in || false,
-            environment: "live",
-          },
-          { onConflict: "id" },
-        );
-
-        if (subError) throw subError;
-
-        // â˜… FIX GAP 2: Populate billing_subscription_services with recurring line items
-        // Check only recurring+active entries — one_time/inactive entries from initial
-        // order intake must NOT block creation of proper recurring service lines.
-        const { count: existingRecurringCount } = await admin
-          .from("billing_subscription_services")
-          .select("id", { count: "exact", head: true })
-          .eq("subscription_id", subscriptionId)
-          .eq("service_type", "recurring")
-          .eq("is_active", true);
-
-        if (!existingRecurringCount || existingRecurringCount === 0) {
-          const serviceItems: Array<Record<string, unknown>> = [];
-          const ONE_TIME_CATS = new Set(["equipment","router","borne_wifi","modem","terminal","tv_box","sim","esim","device","one_time","delivery","installation","activation","fee","other"]);
-          const ONE_TIME_NAME_RE = /équipement|borne\s*(wifi|nivra)|terminal|router|routeur|frais\s+de\s+mise\s+en\s+service|frais\s+d.activation|frais.*livraison|carte\s+sim/i;
-          for (const svc of payload.services || []) {
-            if (ONE_TIME_CATS.has((svc.category || "").toLowerCase())) continue;
-            if (ONE_TIME_NAME_RE.test(svc.name || "")) continue;
-            // â˜… FIX: Resolve unit_price from multiple possible fields, never allow 0
-            const resolvedPrice = toMoney(svc.plan_price ?? svc.price ?? svc.monthly_price ?? 0);
-            if (resolvedPrice <= 0) {
-              console.warn(`[checkout-canonical-sync] âš ï¸ Service "${svc.name}" has unit_price=0 â€” attempting catalog lookup`);
-            }
-            serviceItems.push({
-              subscription_id: subscriptionId,
-              service_code: svc.plan_code || svc.name.toLowerCase().replace(/\s+/g, "_"),
-              service_name: svc.name,
-              service_type: "recurring",
-              unit_price: resolvedPrice > 0 ? resolvedPrice : toMoney(svc.plan_price || planPrice),
-              quantity: Number(svc.quantity || 1),
-              is_active: true,
-              added_at: nowIso,
-            });
-          }
-          for (const addon of payload.streaming_addons || []) {
-            serviceItems.push({
-              subscription_id: subscriptionId,
-              service_code: addon.name.toLowerCase().replace(/\s+/g, "_"),
-              service_name: addon.name,
-              service_type: "streaming",
-              unit_price: toMoney(addon.monthly_price ?? addon.plan_price),
-              quantity: 1,
-              is_active: true,
-              added_at: nowIso,
-            });
-          }
-          if (serviceItems.length > 0) {
-            const { error: svcError } = await admin
-              .from("billing_subscription_services")
-              .insert(serviceItems);
-            if (svcError) {
-              console.error("[checkout-canonical-sync] subscription_services insert failed:", svcError);
-              errors.push(`subscription_services: ${svcError.message}`);
-            } else {
-              results.subscription_services_created = serviceItems.length;
-              console.log(`[checkout-canonical-sync] âœ… ${serviceItems.length} subscription service items created`);
-            }
-          }
-        } else {
-          results.subscription_services_existing = existingRecurringCount;
+        if (provisionError) throw provisionError;
+        if (provisionResult?.success === false) {
+          throw new Error(provisionResult?.message || provisionResult?.error || "subscription provisioning failed");
         }
 
-        // Link subscription to invoice
-        await admin.from("billing_invoices").update({
-          subscription_id: subscriptionId,
-        }).eq("id", response.invoice_id);
-
-        console.log(`[checkout-canonical-sync] Subscription ${subscriptionId} created as 'pending' â€” cycle ${cycleDate} to ${cycleEndStr}, renewal ${nextRenewalStr}`);
-
-        results.subscription = true;
+        results.subscription = provisionResult;
       } catch (err) {
         errors.push(`subscription: ${err?.message || String(err)}`);
       }
