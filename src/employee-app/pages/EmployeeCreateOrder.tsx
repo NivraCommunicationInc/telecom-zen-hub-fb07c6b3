@@ -881,29 +881,15 @@ export default function EmployeeCreateOrder({
 
           {installType === "professional" && (
             <div className="space-y-3 p-3 rounded-lg border border-border bg-background">
-              <div>
-                <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Date souhaitée (min. 2 jours)</label>
-                <input
-                  type="date" min={minInstallDate()} value={installDate}
-                  onChange={(e) => setInstallDate(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-primary/50"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1 block">Plage horaire</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {SLOTS.map(s => (
-                    <button
-                      key={s.key}
-                      type="button"
-                      onClick={() => setInstallSlot(s.key)}
-                      className={`p-2 rounded-lg border text-xs font-medium transition-colors ${
-                        installSlot === s.key ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/30"
-                      }`}
-                    >{s.label}</button>
-                  ))}
-                </div>
-              </div>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Calendrier technicien</p>
+              <InstallSlotPicker
+                value={installDate && installSlot ? { date: installDate, time_slot: installSlot } : null}
+                onChange={(slot) => {
+                  setInstallDate(slot?.date ?? "");
+                  setInstallSlot(slot?.time_slot ?? "");
+                }}
+                variant="compact"
+              />
             </div>
           )}
 
@@ -1081,7 +1067,7 @@ export default function EmployeeCreateOrder({
               <span className="text-foreground">
                 {installType === "auto"
                   ? `${selectedFulfillment.label} — ${deliveryFee.toFixed(2)} $`
-                  : `${selectedFulfillment.label} — ${installationFee.toFixed(2)} $ — ${installDate} (${SLOTS.find(s => s.key === installSlot)?.label ?? installSlot})`}
+                  : `${selectedFulfillment.label} — ${installationFee.toFixed(2)} $ — ${installDate || "date requise"} (${installSlot || "créneau requis"})`}
               </span>
             </div>
             {allowCustomCredit && Number(customCredit.amount) > 0 && customCredit.reason.trim() && (
