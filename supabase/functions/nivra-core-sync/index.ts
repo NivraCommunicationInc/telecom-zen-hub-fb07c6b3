@@ -346,11 +346,12 @@ Deno.serve(async (req) => {
         results.payment = "synced";
       }
 
-      // â"€â"€ 5. Upsert billing_subscription - DETERMINISTIC â"€â"€
-      // Always ensure a subscription exists for the order.
-      // If payload.subscription is provided, use it. Otherwise, derive from order data.
+      // ── 5. billing_subscriptions — WRITER LOCKED (Module 54.2 Phase 5) ──
+      // This function is NO LONGER capable of creating a subscription directly.
+      // Subscription creation is the exclusive responsibility of the canonical
+      // SECURITY DEFINER flow (create_subscriptions_from_order() ← order_items).
+      // We only read to report status; any write attempt has been removed.
       {
-        // Check if subscription already exists for this order (idempotency)
         const { data: existingSub } = await admin
           .from("billing_subscriptions")
           .select("id")
@@ -359,61 +360,11 @@ Deno.serve(async (req) => {
 
         if (existingSub) {
           results.subscription = "already_exists";
-          console.log("[nivra-core-sync] OK: Subscription already exists for order:", payload.order.order_number);
-        } else if (payload.subscription) {
-          const { error: subErr } = await admin.from("billing_subscriptions").upsert(
-            {
-              id: payload.subscription.id,
-              customer_id: customerId,
-              order_id: payload.order.id,
-              plan_code: payload.subscription.plan_code,
-              plan_name: payload.subscription.plan_name,
-              plan_price: payload.subscription.plan_price,
-              status: payload.subscription.status || "pending",
-              cycle_start_date: payload.subscription.cycle_start_date,
-              cycle_end_date: payload.subscription.cycle_end_date,
-              service_category: payload.subscription.service_category || null,
-              auto_billing_enabled: payload.subscription.auto_billing_enabled ?? false,
-              environment: payload.order.environment || "live",
-            },
-            { onConflict: "id" }
-          );
-          if (subErr) {
-            console.error("[nivra-core-sync] Subscription upsert error:", subErr);
-            errors.push(`subscription: ${subErr.message}`);
-          } else {
-            results.subscription = "synced";
-          }
         } else {
-          // No subscription in payload - create a pending one from order data
-          // The DB trigger trg_ensure_subscription_on_invoice_paid is the final safety net,
-          // but we create proactively to avoid relying on trigger chain.
-          const subId = crypto.randomUUID();
-          const cycleStart = payload.order.created_at?.split("T")[0] || new Date().toISOString().split("T")[0];
-          const cycleEndDate = new Date(cycleStart);
-          cycleEndDate.setMonth(cycleEndDate.getMonth() + 1);
-          const cycleEnd = cycleEndDate.toISOString().split("T")[0];
-          const { error: subErr } = await admin.from("billing_subscriptions").insert({
-            id: subId,
-            customer_id: customerId,
-            order_id: payload.order.id,
-            plan_code: payload.order.service_type || "UNKNOWN",
-            plan_name: payload.order.service_type || "Service",
-            plan_price: payload.order.total_amount || 0,
-            status: "pending",
-            cycle_start_date: cycleStart,
-            cycle_end_date: cycleEnd,
-            service_category: null,
-            auto_billing_enabled: false,
-            environment: payload.order.environment || "live",
-          });
-          if (subErr) {
-            console.error("[nivra-core-sync] Subscription fallback create error:", subErr);
-            errors.push(`subscription_fallback: ${subErr.message}`);
-          } else {
-            results.subscription = "created_from_order";
-            console.log("[nivra-core-sync] OK: Subscription auto-created for order:", payload.order.order_number);
-          }
+          results.subscription = "skipped_writer_locked";
+          console.log(
+            "[nivra-core-sync] billing_subscriptions insert skipped — writer locked (Module 54.2 Phase 5). Canonical path: create_subscriptions_from_order()",
+          );
         }
       }
 
