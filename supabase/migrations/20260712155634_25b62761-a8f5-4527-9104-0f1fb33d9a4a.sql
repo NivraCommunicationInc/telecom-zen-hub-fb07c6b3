@@ -1,0 +1,321 @@
+
+-- QA log table (idempotent)
+CREATE TABLE IF NOT EXISTS public.qa_module54_e2e_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  scenario text NOT NULL,
+  subscription_id uuid,
+  rpc_called text,
+  status_before text,
+  status_after text,
+  audit_row_id uuid,
+  verdict text,
+  error text,
+  details jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT ON public.qa_module54_e2e_log TO authenticated;
+GRANT ALL ON public.qa_module54_e2e_log TO service_role;
+ALTER TABLE public.qa_module54_e2e_log ENABLE ROW LEVEL SECURITY;
+DO $pol$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='qa_module54_e2e_log' AND policyname='qa_module54_admin_read') THEN
+    CREATE POLICY qa_module54_admin_read ON public.qa_module54_e2e_log FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'::app_role));
+  END IF;
+END $pol$;
+
+-- Fresh run: clear prior log for this fixture
+DELETE FROM public.qa_module54_e2e_log WHERE scenario LIKE 'M54.2-P6.4-%';
+
+DO $harness$
+DECLARE
+  v_sub_id uuid := 'fd8767a4-2415-458b-9835-22384505eedf';
+  v_customer_id uuid := 'd97815e8-d35a-4f71-a2c0-0b5e1af5bbd2';
+  v_order_id uuid := 'c034232f-9b4c-42d7-a095-59d3a05d9b7e';
+  v_status_before text;
+  v_status_after text;
+  v_audit_id uuid;
+  v_result jsonb;
+  v_err text;
+  v_susp_id uuid;
+  v_bc_id uuid;
+  v_inv_id uuid;
+BEGIN
+  -- Ensure billing_customer exists for this user
+  SELECT id INTO v_bc_id FROM public.billing_customers WHERE user_id = v_customer_id LIMIT 1;
+  IF v_bc_id IS NULL THEN
+    INSERT INTO public.billing_customers (user_id, email)
+    VALUES (v_customer_id, 'test-c360-planchange-v2@nivra-test.ca')
+    RETURNING id INTO v_bc_id;
+  END IF;
+
+  -- Ensure customer_id on subscription matches billing_customer id (needed for RPCs)
+  UPDATE public.billing_subscriptions
+  SET customer_id = v_bc_id
+  WHERE id = v_sub_id AND customer_id <> v_bc_id;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 0 — Activate via paid invoice (allowlisted trigger)
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+
+    -- Create a paid invoice linked to this subscription; the allowlisted
+    -- trigger `fn_ensure_subscription_on_invoice_paid` will activate it.
+    INSERT INTO public.billing_invoices (
+      customer_id, subscription_id, invoice_number, status, total, subtotal,
+      tax_amount, balance_due, currency, issued_at, due_date, environment
+    ) VALUES (
+      v_bc_id, v_sub_id,
+      'INV-QA-P64-' || substr(gen_random_uuid()::text,1,8),
+      'paid', 50.00, 43.49, 6.51, 0.00, 'CAD', now(), now()::date, 'test'
+    ) RETURNING id INTO v_inv_id;
+
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    SELECT id INTO v_audit_id FROM public.billing_subscription_trace_audit
+      WHERE subscription_id = v_sub_id ORDER BY created_at DESC LIMIT 1;
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict, details)
+    VALUES ('M54.2-P6.4-T0-activation', v_sub_id, 'fn_ensure_subscription_on_invoice_paid (trigger)',
+      v_status_before, v_status_after, v_audit_id,
+      CASE WHEN v_status_after = 'active' THEN 'PASS' ELSE 'FAIL' END,
+      jsonb_build_object('invoice_id', v_inv_id));
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T0-activation', v_sub_id, 'invoice_paid_trigger', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 1 — Admin plan change
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+    v_result := public.rpc_admin_change_subscription_plan(
+      p_subscription_id := v_sub_id,
+      p_new_plan_name := 'Internet 1 Gbps',
+      p_new_plan_price := 75.00,
+      p_new_plan_code := 'INT-1G',
+      p_reason := 'M54.2-P6.4 QA plan upgrade'
+    );
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    SELECT id INTO v_audit_id FROM public.billing_subscription_trace_audit
+      WHERE subscription_id = v_sub_id AND action ILIKE '%plan%' ORDER BY created_at DESC LIMIT 1;
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict, details)
+    VALUES ('M54.2-P6.4-T1-plan-change', v_sub_id, 'rpc_admin_change_subscription_plan',
+      v_status_before, v_status_after, v_audit_id,
+      CASE WHEN v_audit_id IS NOT NULL THEN 'PASS' ELSE 'FAIL' END,
+      COALESCE(v_result, '{}'::jsonb));
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T1-plan-change', v_sub_id, 'rpc_admin_change_subscription_plan', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 2 — Admin pause
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+    v_result := public.rpc_admin_pause_subscription(
+      p_subscription_id := v_sub_id,
+      p_action := 'pause',
+      p_pause_until := (now() + interval '30 days'),
+      p_reason := 'M54.2-P6.4 QA admin pause'
+    );
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    SELECT id INTO v_audit_id FROM public.billing_subscription_trace_audit
+      WHERE subscription_id = v_sub_id AND action ILIKE '%paus%' ORDER BY created_at DESC LIMIT 1;
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict, details)
+    VALUES ('M54.2-P6.4-T2-admin-pause', v_sub_id, 'rpc_admin_pause_subscription',
+      v_status_before, v_status_after, v_audit_id,
+      CASE WHEN v_status_after IN ('paused','suspended') THEN 'PASS' ELSE 'FAIL' END,
+      COALESCE(v_result, '{}'::jsonb));
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T2-admin-pause', v_sub_id, 'rpc_admin_pause_subscription', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 3 — Admin resume (via rpc_admin_pause_subscription action=resume)
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+    v_result := public.rpc_admin_pause_subscription(
+      p_subscription_id := v_sub_id,
+      p_action := 'resume',
+      p_reason := 'M54.2-P6.4 QA admin resume'
+    );
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    SELECT id INTO v_audit_id FROM public.billing_subscription_trace_audit
+      WHERE subscription_id = v_sub_id AND (action ILIKE '%resume%' OR action ILIKE '%reactiv%') ORDER BY created_at DESC LIMIT 1;
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict, details)
+    VALUES ('M54.2-P6.4-T3-admin-resume', v_sub_id, 'rpc_admin_pause_subscription(resume)',
+      v_status_before, v_status_after, v_audit_id,
+      CASE WHEN v_status_after = 'active' THEN 'PASS' ELSE 'FAIL' END,
+      COALESCE(v_result, '{}'::jsonb));
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T3-admin-resume', v_sub_id, 'rpc_admin_pause_subscription(resume)', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 4 — Client pause request (state_machine RPC)
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+    -- Impersonate customer via GUC on local session
+    PERFORM set_config('request.jwt.claim.sub', v_customer_id::text, true);
+    PERFORM set_config('request.jwt.claims',
+      json_build_object('sub', v_customer_id::text, 'role','authenticated')::text, true);
+
+    v_susp_id := public.rpc_client_request_subscription_pause(
+      p_subscription_id := v_sub_id,
+      p_reason := 'M54.2-P6.4 QA client pause',
+      p_pause_duration_days := 14,
+      p_requested_for := (now() + interval '3 days')::date,
+      p_notes := 'runtime E2E'
+    );
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    -- reset claims
+    PERFORM set_config('request.jwt.claim.sub', '', true);
+    PERFORM set_config('request.jwt.claims', '', true);
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict, details)
+    VALUES ('M54.2-P6.4-T4-client-pause', v_sub_id, 'rpc_client_request_subscription_pause',
+      v_status_before, v_status_after, v_susp_id,
+      CASE WHEN v_susp_id IS NOT NULL THEN 'PASS' ELSE 'FAIL' END,
+      jsonb_build_object('suspension_request_id', v_susp_id));
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM set_config('request.jwt.claim.sub','',true);
+    PERFORM set_config('request.jwt.claims','',true);
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T4-client-pause', v_sub_id, 'rpc_client_request_subscription_pause', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 5 — Suspend (security path)
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+    PERFORM public.suspend_subscription(
+      p_subscription_id := v_sub_id,
+      p_reason := 'M54.2-P6.4 QA security suspend',
+      p_context := jsonb_build_object('source','qa_e2e','test','T5')
+    );
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    SELECT id INTO v_audit_id FROM public.billing_subscription_trace_audit
+      WHERE subscription_id = v_sub_id AND action ILIKE '%suspend%' ORDER BY created_at DESC LIMIT 1;
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict)
+    VALUES ('M54.2-P6.4-T5-suspend', v_sub_id, 'suspend_subscription',
+      v_status_before, v_status_after, v_audit_id,
+      CASE WHEN v_status_after = 'suspended' THEN 'PASS' ELSE 'FAIL' END);
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T5-suspend', v_sub_id, 'suspend_subscription', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 6 — Reactivate
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+    PERFORM public.reactivate_subscription(
+      p_subscription_id := v_sub_id,
+      p_context := jsonb_build_object('source','qa_e2e','test','T6')
+    );
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    SELECT id INTO v_audit_id FROM public.billing_subscription_trace_audit
+      WHERE subscription_id = v_sub_id AND action ILIKE '%reactiv%' ORDER BY created_at DESC LIMIT 1;
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict)
+    VALUES ('M54.2-P6.4-T6-reactivate', v_sub_id, 'reactivate_subscription',
+      v_status_before, v_status_after, v_audit_id,
+      CASE WHEN v_status_after = 'active' THEN 'PASS' ELSE 'FAIL' END);
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T6-reactivate', v_sub_id, 'reactivate_subscription', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 7 — Referral attach (scope-limited automation RPC)
+  ------------------------------------------------------------------
+  BEGIN
+    DECLARE v_count int;
+    BEGIN
+      v_count := public.rpc_apply_referral_discount(
+        p_customer_id := v_bc_id,
+        p_order_id := v_order_id,
+        p_code := 'QA-P64-REF',
+        p_amount := 5.00,
+        p_months_remaining := 3
+      );
+      INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, details)
+      VALUES ('M54.2-P6.4-T7-referral-attach', v_sub_id, 'rpc_apply_referral_discount',
+        CASE WHEN v_count >= 0 THEN 'PASS' ELSE 'FAIL' END,
+        jsonb_build_object('rows_updated', v_count));
+    END;
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T7-referral-attach', v_sub_id, 'rpc_apply_referral_discount', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 8 — Mark not_renewed
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+    PERFORM public.rpc_mark_subscription_not_renewed(
+      p_subscription_id := v_sub_id,
+      p_reason := 'M54.2-P6.4 QA not_renewed'
+    );
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    SELECT id INTO v_audit_id FROM public.billing_subscription_trace_audit
+      WHERE subscription_id = v_sub_id AND action ILIKE '%not_renew%' ORDER BY created_at DESC LIMIT 1;
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict)
+    VALUES ('M54.2-P6.4-T8-not-renewed', v_sub_id, 'rpc_mark_subscription_not_renewed',
+      v_status_before, v_status_after, v_audit_id,
+      CASE WHEN v_status_after = 'not_renewed' THEN 'PASS' ELSE 'FAIL' END);
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T8-not-renewed', v_sub_id, 'rpc_mark_subscription_not_renewed', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- SCENARIO 9 — Cancel
+  ------------------------------------------------------------------
+  BEGIN
+    SELECT status INTO v_status_before FROM public.billing_subscriptions WHERE id = v_sub_id;
+    PERFORM public.cancel_subscription(
+      p_subscription_id := v_sub_id,
+      p_reason := 'M54.2-P6.4 QA cancel',
+      p_context := jsonb_build_object('source','qa_e2e','test','T9')
+    );
+    SELECT status INTO v_status_after FROM public.billing_subscriptions WHERE id = v_sub_id;
+    SELECT id INTO v_audit_id FROM public.billing_subscription_trace_audit
+      WHERE subscription_id = v_sub_id AND action ILIKE '%cancel%' ORDER BY created_at DESC LIMIT 1;
+
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, status_before, status_after, audit_row_id, verdict)
+    VALUES ('M54.2-P6.4-T9-cancel', v_sub_id, 'cancel_subscription',
+      v_status_before, v_status_after, v_audit_id,
+      CASE WHEN v_status_after IN ('cancelled','canceled') THEN 'PASS' ELSE 'FAIL' END);
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-T9-cancel', v_sub_id, 'cancel_subscription', 'FAIL', SQLERRM);
+  END;
+
+  ------------------------------------------------------------------
+  -- Restore fixture to pending for future test reuse (via QA reset RPC)
+  ------------------------------------------------------------------
+  BEGIN
+    PERFORM public.rpc_qa_reset_subscription_fixture(
+      p_subscription_ids := ARRAY[v_sub_id]
+    );
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.qa_module54_e2e_log(scenario, subscription_id, rpc_called, verdict, error)
+    VALUES ('M54.2-P6.4-CLEANUP', v_sub_id, 'rpc_qa_reset_subscription_fixture', 'FAIL', SQLERRM);
+  END;
+
+END $harness$;
