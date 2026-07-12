@@ -87,26 +87,15 @@ const ClientServicePauseCard = ({ userId, canonicalData, loading }: { userId: st
     setSubmitting(true);
     try {
       const todayLabel = format(new Date(), "d MMMM yyyy", { locale: fr });
-      const { error: insertErr } = await portalSupabase
-        .from("suspension_requests")
-        .insert({
-          account_id: accountId,
-          client_id: userId,
-          subscription_id: subscription.id,
-          requested_by: userId,
-          requested_for: resumeDate.toISOString(),
-          pause_duration_days: effectiveDays,
-          reason: reason || null,
-          status: "pending",
-          notes: `Client self-serve pause request via portal.`,
-        });
-      if (insertErr) throw insertErr;
-
-      const { error: updErr } = await portalSupabase
-        .from("billing_subscriptions")
-        .update({ status: "pause_requested" })
-        .eq("id", subscription.id);
-      if (updErr) throw updErr;
+      // Phase 6.2 — canonical: rpc_client_request_subscription_pause (ownership-checked, transactional)
+      const { error: rpcErr } = await portalSupabase.rpc("rpc_client_request_subscription_pause", {
+        p_subscription_id: subscription.id,
+        p_reason: reason || null,
+        p_pause_duration_days: effectiveDays,
+        p_requested_for: resumeDate.toISOString().slice(0, 10),
+        p_notes: "Client self-serve pause request via portal.",
+      });
+      if (rpcErr) throw rpcErr;
 
       await enqueueCommunication({
         channel: "email",
