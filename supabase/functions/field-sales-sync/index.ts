@@ -616,12 +616,14 @@ Deno.serve(async (req) => {
           const kind = String(item?.kind || "").toLowerCase();
           const type = String(item?.type || "").toLowerCase();
 
-          // ⛔ Refuse toute custom_adjustment négative. Un paiement déjà reçu
-          // ou un crédit n'est PAS une ligne de facture négative — il vit
-          // dans `billing_payments` (paiement) ou `account_adjustments`
-          // (crédit compte). C'est ce qui a produit la ligne fantôme
-          // « Paiement ID 7905998 = -126,47 » sur la commande 58953.
-          if (kind === "custom_adjustment" && unit < 0) {
+          // ⛔ Refuse les ajustements négatifs non catégorisés comme rabais.
+          // Les promotions/rabais Core arrivent ici comme custom_adjustment
+          // avec category='discount' (ou type credit/promotion) et doivent
+          // devenir des lignes de rabais. Les vrais paiements/crédits compte
+          // restent interdits comme lignes de facture.
+          const rawCategory = String(item?.category || "").toLowerCase();
+          const isPricingDiscount = rawCategory === "discount" || type === "promotion" || type === "credit";
+          if (kind === "custom_adjustment" && unit < 0 && !isPricingDiscount) {
             throw new Error(
               `Ligne d'ajustement négative refusée ("${item?.name || "sans nom"}", ${unit}$). ` +
               `Un paiement reçu ou un crédit ne peut pas être une ligne de facture. ` +
@@ -629,7 +631,7 @@ Deno.serve(async (req) => {
             );
           }
 
-          const category = String(item?.category || "").toLowerCase() === "discount" ? "discount" : "fee";
+          const category = isPricingDiscount ? "discount" : "fee";
           const name = String(item?.name || item?.label || (category === "fee" ? "Frais personnalisé" : "Crédit personnalisé"));
           lineItems.push({
             category,
