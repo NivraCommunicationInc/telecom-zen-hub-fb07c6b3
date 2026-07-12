@@ -32,6 +32,8 @@ import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/do
 // Phase 2 components
 import ClientAvatarUpload from "@/components/client/ClientAvatarUpload";
 import ClientProfileChangeHistory from "@/components/client/ClientProfileChangeHistory";
+import { CustomerTimelineTable } from "@/components/timeline";
+import { portalClient } from "@/integrations/backend/portalClient";
 import ClientSessionInfo from "@/components/client/ClientSessionInfo";
 import ClientBillingAddressSection from "@/components/client/ClientBillingAddressSection";
 import ClientDataExport from "@/components/client/ClientDataExport";
@@ -689,7 +691,29 @@ const ClientProfile = () => {
             <ClientAuthorizedContacts />
           </div>
 
-          {/* Profile Change History */}
+          {/* Unified Timeline (Module 51 B2.3 canonical) — visibility=client */}
+          <div className="lg:col-span-2">
+            {user?.id && (
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Historique de mon compte</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CustomerTimelineTable
+                    clientId={user.id}
+                    visibility="client"
+                    client={portalClient as any}
+                    hideActorRole
+                    limit={200}
+                  />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Legacy profile change history — kept temporarily for B2.3
+              compatibility. Slated for removal after QA sign-off on all
+              three surfaces (see src/test/module-51-timeline-ui.test.ts). */}
           <div className="lg:col-span-2">
             {user?.id && <ClientProfileChangeHistory clientId={user.id} />}
           </div>
