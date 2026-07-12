@@ -33054,6 +33054,16 @@ export type Database = {
         Args: { p_order_id: string; p_payload: Json }
         Returns: Json
       }
+      rpc_apply_referral_discount: {
+        Args: {
+          p_amount: number
+          p_code: string
+          p_customer_id: string
+          p_months_remaining: number
+          p_order_id: string
+        }
+        Returns: number
+      }
       rpc_client_apply_identity_update: {
         Args: { _admin_id: string; _client_id: string; _patch: Json }
         Returns: Json
@@ -33061,6 +33071,16 @@ export type Database = {
       rpc_client_apply_profile_update: {
         Args: { _actor_id: string; _client_id: string; _patch: Json }
         Returns: Json
+      }
+      rpc_client_request_subscription_pause: {
+        Args: {
+          p_notes?: string
+          p_pause_duration_days: number
+          p_reason: string
+          p_requested_for: string
+          p_subscription_id: string
+        }
+        Returns: string
       }
       rpc_commission_ledger_transition: {
         Args: {
@@ -33200,6 +33220,10 @@ export type Database = {
           p_ua: string
         }
         Returns: Json
+      }
+      rpc_mark_subscription_not_renewed: {
+        Args: { p_context?: Json; p_reason?: string; p_subscription_id: string }
+        Returns: boolean
       }
       rpc_privacy_request_create: { Args: { p_payload: Json }; Returns: Json }
       rpc_privacy_request_update_status: {
