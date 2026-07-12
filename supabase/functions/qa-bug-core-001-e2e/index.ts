@@ -238,7 +238,7 @@ serve(async (req) => {
       p_provider: "square",
       p_provider_payment_id: fakeSquareId,
       p_customer_id: invoice.customer_id,
-      p_source: "qa_e2e_simulation",
+      p_source: "test",
       p_created_by_name: "QA Runner BUG-CORE-001",
       p_created_by_role: "qa_bot",
     });
