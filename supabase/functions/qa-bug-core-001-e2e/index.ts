@@ -243,15 +243,18 @@ serve(async (req) => {
       p_created_by_role: "qa_bot",
     });
     if (rpcErr) return fail("apply_payment_to_invoice", rpcErr, { invoice });
-    report.ids.canonical_payment_id = canonicalPaymentId as string;
+    const paymentId = (canonicalPaymentId as any)?.payment_id ?? canonicalPaymentId;
+    report.ids.canonical_payment_id = paymentId;
     step("apply_payment_to_invoice", { ok: true, canonical_payment_id: canonicalPaymentId, amount: amountPaid });
 
     // Log & flip like square-charge-invoice does
-    await supabase.rpc("log_field_order_event", {
-      p_intent_id: intentId,
-      p_event_type: "payment_succeeded",
-      p_payload: { square_payment_id: fakeSquareId, amount: amountPaid, qa_simulation: true },
-    }).catch(() => {});
+    try {
+      await supabase.rpc("log_field_order_event", {
+        p_intent_id: intentId,
+        p_event_type: "payment_succeeded",
+        p_payload: { square_payment_id: fakeSquareId, amount: amountPaid, qa_simulation: true },
+      });
+    } catch (_) {}
 
     await supabase.from("field_payment_intents").update({
       status: "completed", paid_at: new Date().toISOString(),
