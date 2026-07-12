@@ -236,9 +236,22 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
         }
         break;
       }
-      case "fulfillment":
-        if (order.fulfillment_type && (order.service_location_id || order.shipping_address || order.client_full_address)) status = "completed";
+      case "fulfillment": {
+        // BUG-CORE-002C Phase 2 — Priority order:
+        //   1) appointments.installation_method (canonical hold)
+        //   2) orders.fulfillment_type (explicit self_install / technician)
+        //   3) legacy fallback (fulfillment_type + address)
+        const apptMethod = String(appointment?.installation_method || "").toLowerCase();
+        const ft = String(order.fulfillment_type || "").toLowerCase();
+        if (apptMethod === "technician" || apptMethod === "auto") {
+          status = "completed";
+        } else if (ft === "self_install" || ft === "technician" || ft === "installation") {
+          status = "completed";
+        } else if (order.fulfillment_type && (order.service_location_id || order.shipping_address || order.client_full_address)) {
+          status = "completed";
+        }
         break;
+      }
       case "equipment":
         if (order.equipment_id || order.sim_number || order.serial_number) status = "completed";
         break;
