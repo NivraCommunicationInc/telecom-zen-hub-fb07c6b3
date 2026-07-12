@@ -761,6 +761,18 @@ Deno.serve(async (req) => {
           const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
           const serviceTypeLabel = normalizeServiceTypeLabel(services);
 
+          // BUG-CORE-002C Phase 2 — persist canonical fulfillment intent on orders
+          const rawInstallModeForOrder = String((sale as any)?.install_mode || "").toLowerCase().trim();
+          let orderFulfillmentType: string | null = null;
+          let orderInstallationType: string | null = null;
+          if (rawInstallModeForOrder === "technician") {
+            orderFulfillmentType = "technician";
+            orderInstallationType = "technician";
+          } else if (rawInstallModeForOrder === "self") {
+            orderFulfillmentType = "self_install";
+            orderInstallationType = "auto";
+          }
+
           // Create order in main orders table (match actual schema)
           const { data: newOrder, error: orderError } = await supabaseAdmin
             .from('orders')
