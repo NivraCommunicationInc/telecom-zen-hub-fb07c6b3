@@ -17,6 +17,7 @@ import {
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { PAYMENT_SOURCES } from "@/core-app/components/payments/PaymentConstants";
 import { cn } from "@/lib/utils";
+import { CustomerTimelineTable } from "@/components/timeline";
 
 
 // ── Action label translations (mirrors DashboardPage activity feed) ──
