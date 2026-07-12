@@ -496,6 +496,8 @@ export default function CorePromotionsPage() {
           </div>
         </div>
       )}
+      </>
+      )}
     </div>
   );
 }
