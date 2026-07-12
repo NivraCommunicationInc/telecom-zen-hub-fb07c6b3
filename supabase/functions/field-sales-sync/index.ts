@@ -134,6 +134,77 @@ function computeAgentDiscountLine(discountData: any, monthlyTotal: number, activ
   return null;
 }
 
+function agentDiscountDurationMonths(discountData: any): number {
+  const raw = Number(discountData?.duration_months ?? discountData?.durationMonths ?? 1);
+  return Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 1;
+}
+
+function isRecurringMonthlyAgentDiscount(discountData: any): boolean {
+  if (!discountData) return false;
+  const type = String(discountData.type || "").toLowerCase();
+  return ["fixed", "fixed_monthly", "percentage"].includes(type) && agentDiscountDurationMonths(discountData) > 1;
+}
+
+async function persistAgentAccountPromotion(args: {
+  supabaseAdmin: any;
+  accountId: string | null;
+  customerId: string | null;
+  orderId: string | null;
+  quoteId?: string | null;
+  discountData: any;
+  monthlyTotal: number;
+  createdByUserId?: string | null;
+}) {
+  const { supabaseAdmin, accountId, customerId, orderId, quoteId, discountData, monthlyTotal, createdByUserId } = args;
+  if (!accountId || !customerId || !orderId || !isRecurringMonthlyAgentDiscount(discountData)) return null;
+
+  const type = String(discountData.type || "").toLowerCase();
+  const value = numberFrom(discountData.monthly_discount_amount, discountData.amount, discountData.value);
+  const amount = type === "percentage"
+    ? Number(Math.min(monthlyTotal, monthlyTotal * value / 100).toFixed(2))
+    : Number(Math.min(monthlyTotal || value, value).toFixed(2));
+  if (!(amount > 0)) return null;
+
+  const durationMonths = agentDiscountDurationMonths(discountData);
+  const promoCode = String(discountData.code || discountData.id || "AGENT_DISCOUNT").slice(0, 64);
+  const label = String(discountData.name || "Rabais agent récurrent").slice(0, 160);
+
+  const { data: existing } = await supabaseAdmin
+    .from("account_promotions")
+    .select("id")
+    .eq("order_id", orderId)
+    .eq("promotion_type", "monthly_discount")
+    .eq("promo_code", promoCode)
+    .maybeSingle();
+  if (existing?.id) return existing.id;
+
+  const { data, error } = await supabaseAdmin
+    .from("account_promotions")
+    .insert({
+      account_id: accountId,
+      customer_id: customerId,
+      quote_id: quoteId || null,
+      order_id: orderId,
+      promo_code: promoCode,
+      label,
+      promotion_type: "monthly_discount",
+      amount,
+      duration_months: durationMonths,
+      months_remaining: durationMonths,
+      is_active: true,
+      created_by_user_id: createdByUserId || null,
+      created_by_role: "field_sales",
+      notes: "Rabais agent récurrent converti automatiquement depuis la vente terrain.",
+    })
+    .select("id")
+    .single();
+  if (error) {
+    console.error("[field-sales-sync] account promotion insert failed:", error);
+    return null;
+  }
+  return data?.id || null;
+}
+
 const BILLABLE_ORDER_STATUSES = new Set([
   "pending",
   "pending_payment",
@@ -1187,6 +1258,17 @@ Deno.serve(async (req) => {
                 }
               }
             }
+
+            await persistAgentAccountPromotion({
+              supabaseAdmin,
+              accountId,
+              customerId: billingCustomerId,
+              orderId: canonicalOrder.id,
+              quoteId: sale.source_quote_id || null,
+              discountData,
+              monthlyTotal,
+              createdByUserId: sale.salesperson_id || null,
+            });
 
             const { data: payNum, error: payNumErr } = await supabaseAdmin.rpc("generate_payment_number");
             const paymentNumber = payNumErr || !payNum ? `PAY-FS-${Date.now().toString(36).toUpperCase()}` : String(payNum);
