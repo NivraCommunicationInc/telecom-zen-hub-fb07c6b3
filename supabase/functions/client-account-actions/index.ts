@@ -603,6 +603,7 @@ async function handleBillingLinkToServiceAddress(svc: any, actor: any, actorRole
     accountId: input.account_id,
     action: 'billing_address.link_to_service_address',
     before, after,
+    reason: input.reason,
     correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
