@@ -493,11 +493,22 @@ serve(async (req) => {
             .eq("user_id", client_user_id)
             .maybeSingle();
           if (bc?.id) {
-            await admin
+            // Phase 6A — canonical admin plan-change gateway (loop on active subs)
+            const { data: activeSubs } = await admin
               .from("billing_subscriptions")
-              .update({ plan_name: new_plan_name })
+              .select("id, plan_price")
               .eq("customer_id", bc.id)
               .eq("status", "active");
+            for (const s of activeSubs ?? []) {
+              await admin.rpc("rpc_admin_change_subscription_plan", {
+                p_subscription_id: s.id,
+                p_new_plan_name: new_plan_name,
+                p_new_plan_price: new_monthly_price ?? s.plan_price,
+                p_new_plan_code: null,
+                p_reason: reasonStr || "tv_plan_change",
+                p_context: { source: "tv-account-actions", change_type },
+              });
+            }
           }
         } catch (_e) { /* non-blocking */ }
 

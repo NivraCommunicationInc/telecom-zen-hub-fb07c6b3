@@ -227,11 +227,11 @@ serve(async (req) => {
       .single();
 
     // ── Step 5 : lier subscription.last_invoice_id (métadonnée non-financière) ─
-    // last_invoice_id est un pointeur, pas un champ financier immuable.
-    await supabase
-      .from("billing_subscriptions")
-      .update({ last_invoice_id: invoiceId })
-      .eq("id", subscriptionId);
+    // Phase 6A — canonical gateway (last_invoice_id is a pointer, not immutable financial data)
+    await supabase.rpc("rpc_admin_set_subscription_last_invoice", {
+      p_subscription_id: subscriptionId,
+      p_invoice_id: invoiceId,
+    });
 
     // ── Step 6 : Email de bienvenue avec PDF officiel ─────────────────────
     const { data: customer } = await supabase
