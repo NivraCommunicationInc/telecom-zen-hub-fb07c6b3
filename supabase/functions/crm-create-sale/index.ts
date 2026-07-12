@@ -36,7 +36,13 @@ interface CrmSalePayload {
   plan: { service_id: string; name: string; monthly_price: number; category?: string };
   equipment: SaleEquipmentLine[];
   discount?: SaleDiscountPayload | null;
-  install: { date: string; slot: "morning" | "afternoon" | "evening" };
+  install: {
+    date: string;
+    slot: "morning" | "afternoon" | "evening";
+    // BUG-CORE-002C Phase 1: explicit selection required for canonical hold behaviour.
+    // "self" → auto-install (ship only, no appointment) | "technician" → hold appointment
+    mode?: "self" | "technician";
+  };
   notes?: string;
 }
 
