@@ -24,11 +24,11 @@ import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useAuth } from "@/hooks/useAuth";
-import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CreateClientDialog } from "./CreateClientDialog";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM, parseDate } from "@/lib/validation/dob";
 import { AddressAutocomplete, AddressValue } from "@/components/shared/AddressAutocomplete";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 // ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only via order orchestration
 const DELIVERY_FEES = { standard: 20, uber: 45, shipHome: 15 };
@@ -1081,7 +1081,12 @@ export default function ManualOrderWizard({
               <Label className="font-medium">Installation</Label>
               <RadioGroup
                 value={orderState.installationType}
-                onValueChange={(v) => setOrderState((prev) => ({ ...prev, installationType: v as any }))}
+                onValueChange={(v) => setOrderState((prev) => ({
+                  ...prev,
+                  installationType: v as any,
+                  appointmentDate: v === "technician" ? prev.appointmentDate : "",
+                  appointmentTime: v === "technician" ? prev.appointmentTime : "",
+                }))}
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
@@ -1142,27 +1147,18 @@ export default function ManualOrderWizard({
                   <Calendar className="w-4 h-4" />
                   Rendez-vous technicien
                 </Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    type="date"
-                    value={orderState.appointmentDate}
-                    min={format(addDays(new Date(), 1), "yyyy-MM-dd")}
-                    onChange={(e) => setOrderState((prev) => ({ ...prev, appointmentDate: e.target.value }))}
-                  />
-                  <Select
-                    value={orderState.appointmentTime}
-                    onValueChange={(v) => setOrderState((prev) => ({ ...prev, appointmentTime: v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Heure" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="9:00-12:00">9h - 12h</SelectItem>
-                      <SelectItem value="12:00-15:00">12h - 15h</SelectItem>
-                      <SelectItem value="15:00-18:00">15h - 18h</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <InstallSlotPicker
+                  value={orderState.appointmentDate && orderState.appointmentTime ? {
+                    date: orderState.appointmentDate,
+                    time_slot: orderState.appointmentTime,
+                  } : null}
+                  onChange={(slot) => setOrderState((prev) => ({
+                    ...prev,
+                    appointmentDate: slot?.date ?? "",
+                    appointmentTime: slot?.time_slot ?? "",
+                  }))}
+                  variant="compact"
+                />
               </div>
             )}
 

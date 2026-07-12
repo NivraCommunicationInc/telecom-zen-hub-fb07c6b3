@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 const STATUS_FILTERS = [
   { label: "Tous", value: "" },
@@ -45,8 +46,6 @@ const TYPE_FILTERS = [
   { label: "Auto-installation", value: "auto" },
 ];
 
-const TIME_SLOTS = ["09h - 12h", "12h - 15h", "15h - 18h", "18h - 20h"];
-
 const scheduledAtFromSlot = (date: string, slot: string) => {
   const hour = slot.match(/(\d{1,2})h/)?.[1] || "9";
   const d = new Date(`${date}T${hour.padStart(2, "0")}:00:00`);
@@ -63,8 +62,8 @@ const AppointmentsPage = () => {
   const [savingNew, setSavingNew] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [newDate, setNewDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [newSlot, setNewSlot] = useState(TIME_SLOTS[0]);
+  const [newDate, setNewDate] = useState("");
+  const [newSlot, setNewSlot] = useState("");
   const [newServiceType, setNewServiceType] = useState("Internet");
   const [newTechId, setNewTechId] = useState("");
   const [newNotes, setNewNotes] = useState("");
@@ -445,15 +444,17 @@ const AppointmentsPage = () => {
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <Label className="text-xs text-slate-400">Date</Label>
-                <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs text-slate-400">Créneau</Label>
-                <select value={newSlot} onChange={(e) => setNewSlot(e.target.value)} className="w-full mt-1 bg-[#0d1421] border border-slate-700 text-slate-100 text-sm rounded-md h-9 px-2">
-                  {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+              <div className="sm:col-span-2">
+                <Label className="text-xs text-slate-400">Créneau canonique</Label>
+                <InstallSlotPicker
+                  value={newDate && newSlot ? { date: newDate, time_slot: newSlot } : null}
+                  onChange={(slot) => {
+                    setNewDate(slot?.date ?? "");
+                    setNewSlot(slot?.time_slot ?? "");
+                  }}
+                  variant="compact"
+                  className="mt-1"
+                />
               </div>
               <div>
                 <Label className="text-xs text-slate-400">Forfait / service</Label>

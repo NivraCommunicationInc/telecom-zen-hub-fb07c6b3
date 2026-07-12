@@ -13,6 +13,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { computeCheckoutPricing, type CartLineItem } from "@/lib/pricing/serverPricing";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 import { toast } from "sonner";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
@@ -59,24 +60,12 @@ const DEFAULT_EQUIPMENT: EquipLine[] = [
   { key: "sim",      name: "Carte SIM",   price: 30, selected: false, quantity: 1, maxQuantity: 1 },
 ];
 
-const SLOTS = [
-  { key: "morning",   label: "Matin (8h - 12h)" },
-  { key: "afternoon", label: "Après-midi (12h - 17h)" },
-  { key: "evening",   label: "Soir (17h - 20h)" },
-] as const;
-
 type FulfillmentMode = "self_standard" | "self_express" | "technician";
 const FULFILLMENT_OPTIONS: { key: FulfillmentMode; label: string; desc: string; fee: number; feeType: "delivery" | "installation"; installType: "auto" | "professional" }[] = [
   { key: "self_standard", label: "Auto-installation — Livraison standard",              desc: "Livraison 2-5 jours ouvrables. Client installe lui-même (guide PDF officiel envoyé par courriel).", fee: 20, feeType: "delivery", installType: "auto" },
   { key: "self_express",  label: "Livraison Express — Uber Direct",                     desc: "Livraison jour même ou lendemain pour une commande sans installation technicien.",                    fee: 40, feeType: "delivery", installType: "auto" },
   { key: "technician",    label: "Installation professionnelle (technicien)",           desc: "Un technicien Nivra se déplace à la date choisie.",                                              fee: 50, feeType: "installation", installType: "professional" },
 ];
-
-function minInstallDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 2);
-  return d.toISOString().slice(0, 10);
-}
 
 interface AgentDiscountRow {
   id: string;
@@ -137,8 +126,8 @@ export default function EmployeeCreateOrder({
   const fulfillmentFee = selectedFulfillment.fee;
   const deliveryFee = selectedFulfillment.feeType === "delivery" ? selectedFulfillment.fee : 0;
   const installationFee = selectedFulfillment.feeType === "installation" ? selectedFulfillment.fee : 0;
-  const [installDate, setInstallDate] = useState<string>(minInstallDate());
-  const [installSlot, setInstallSlot] = useState<typeof SLOTS[number]["key"]>("morning");
+  const [installDate, setInstallDate] = useState<string>("");
+  const [installSlot, setInstallSlot] = useState<string>("");
   const [address, setAddress] = useState({ street: "", city: "", postal: "", province: "QC" });
   const [agentNotes, setAgentNotes] = useState("");
   const [selectedDiscount, setSelectedDiscount] = useState<AgentDiscountRow | null>(null);
@@ -563,7 +552,9 @@ export default function EmployeeCreateOrder({
     onError: (err: any) => toast.error(`Erreur: ${err.message}`),
   });
 
-  const canSubmit = selectedClient && selectedPlan && address.street.trim().length > 0;
+  const canSubmit = selectedClient && selectedPlan && address.street.trim().length > 0 && (
+    installType !== "professional" || (installDate && installSlot)
+  );
   const STEP_ORDER: Step[] = ["client", "plan", "equipment", "install", "address", "review"];
 
   return (
@@ -868,6 +859,10 @@ export default function EmployeeCreateOrder({
                   onClick={() => {
                     setFulfillmentMode(opt.key);
                     setInstallType(opt.installType);
+                    if (opt.installType === "auto") {
+                      setInstallDate("");
+                      setInstallSlot("");
+                    }
                   }}
                   className={`flex items-start justify-between gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
                     active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
@@ -888,29 +883,15 @@ export default function EmployeeCreateOrder({
 
           {installType === "professional" && (
             <div className="space-y-3 p-3 rounded-lg border border-border bg-background">
-              <div>
-                <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Date souhaitée (min. 2 jours)</label>
-                <input
-                  type="date" min={minInstallDate()} value={installDate}
-                  onChange={(e) => setInstallDate(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-primary/50"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-1 block">Plage horaire</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {SLOTS.map(s => (
-                    <button
-                      key={s.key}
-                      type="button"
-                      onClick={() => setInstallSlot(s.key)}
-                      className={`p-2 rounded-lg border text-xs font-medium transition-colors ${
-                        installSlot === s.key ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/30"
-                      }`}
-                    >{s.label}</button>
-                  ))}
-                </div>
-              </div>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Calendrier technicien</p>
+              <InstallSlotPicker
+                value={installDate && installSlot ? { date: installDate, time_slot: installSlot } : null}
+                onChange={(slot) => {
+                  setInstallDate(slot?.date ?? "");
+                  setInstallSlot(slot?.time_slot ?? "");
+                }}
+                variant="compact"
+              />
             </div>
           )}
 
@@ -1088,7 +1069,7 @@ export default function EmployeeCreateOrder({
               <span className="text-foreground">
                 {installType === "auto"
                   ? `${selectedFulfillment.label} — ${deliveryFee.toFixed(2)} $`
-                  : `${selectedFulfillment.label} — ${installationFee.toFixed(2)} $ — ${installDate} (${SLOTS.find(s => s.key === installSlot)?.label ?? installSlot})`}
+                  : `${selectedFulfillment.label} — ${installationFee.toFixed(2)} $ — ${installDate || "date requise"} (${installSlot || "créneau requis"})`}
               </span>
             </div>
             {allowCustomCredit && Number(customCredit.amount) > 0 && customCredit.reason.trim() && (

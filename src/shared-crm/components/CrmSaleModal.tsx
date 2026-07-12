@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import type { CrmContact } from "../lib/crmTypes";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 interface Service { id: string; name: string; price: number; category: string }
 interface EquipLine { key: string; name: string; price: number; selected: boolean; quantity: number }
@@ -37,18 +38,6 @@ const DEFAULT_EQUIPMENT: EquipLine[] = [
   { key: "terminal", name: "Terminal TV",     price: 50, selected: false, quantity: 1 },
   { key: "sim",      name: "Carte SIM",       price: 30, selected: false, quantity: 1 },
 ];
-
-const SLOTS = [
-  { key: "morning",   label: "Matin (8h - 12h)" },
-  { key: "afternoon", label: "Après-midi (12h - 17h)" },
-  { key: "evening",   label: "Soir (17h - 20h)" },
-] as const;
-
-function minInstallDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 2);
-  return d.toISOString().slice(0, 10);
-}
 
 // Eligibility (mirrors fieldDiscountMath.isDiscountEligible, scoped to CRM modal).
 function discountEligibility(d: AgentDiscount | null, monthly: number): { eligible: boolean; reason?: string } {
@@ -129,8 +118,8 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
   const [equipment, setEquipment]       = useState<EquipLine[]>(DEFAULT_EQUIPMENT);
   const [discount, setDiscount]         = useState<AgentDiscount | null>(null);
   const [discountError, setDiscountError] = useState<string | null>(null);
-  const [installDate, setInstallDate]   = useState<string>(minInstallDate());
-  const [installSlot, setInstallSlot]   = useState<typeof SLOTS[number]["key"]>("morning");
+  const [installDate, setInstallDate]   = useState<string>("");
+  const [installSlot, setInstallSlot]   = useState<string>("");
   const [notes, setNotes]               = useState("");
 
   // Prefill on contact change
@@ -150,8 +139,8 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
     setEquipment(DEFAULT_EQUIPMENT.map(e => ({ ...e })));
     setDiscount(null);
     setDiscountError(null);
-    setInstallDate(minInstallDate());
-    setInstallSlot("morning");
+    setInstallDate("");
+    setInstallSlot("");
     setNotes("");
   }, [contact?.id]);
 
@@ -509,24 +498,14 @@ export function CrmSaleModal({ contact, onClose, onSuccess }: Props) {
               </TabsContent>
 
               <TabsContent value="install" className="space-y-3 mt-0">
-                <div>
-                  <Label>Date d'installation (minimum 2 jours)</Label>
-                  <Input type="date" min={minInstallDate()} value={installDate} onChange={e => setInstallDate(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Plage horaire</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-1">
-                    {SLOTS.map(s => (
-                      <button
-                        key={s.key}
-                        onClick={() => setInstallSlot(s.key)}
-                        className={`p-2 rounded-lg border text-xs font-medium transition-colors ${
-                          installSlot === s.key ? "border-violet-500 bg-violet-500/10 text-violet-500" : "border-border hover:border-violet-500/50"
-                        }`}
-                      >{s.label}</button>
-                    ))}
-                  </div>
-                </div>
+                <InstallSlotPicker
+                  value={installDate && installSlot ? { date: installDate, time_slot: installSlot } : null}
+                  onChange={(slot) => {
+                    setInstallDate(slot?.date ?? "");
+                    setInstallSlot(slot?.time_slot ?? "");
+                  }}
+                  variant="compact"
+                />
                 <div>
                   <Label>Notes (optionnel)</Label>
                   <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Instructions spéciales, codes d'accès, etc." rows={2} />

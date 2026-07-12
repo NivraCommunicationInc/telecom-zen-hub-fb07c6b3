@@ -25,13 +25,6 @@ interface Props {
 
 const LEAD_TIME_HOURS = 4;
 
-const TIME_SLOTS = [
-  { value: "09h - 12h", startHour: 9, labelFr: "9h – 12h", labelEn: "9AM – 12PM", period: "Matin" },
-  { value: "12h - 15h", startHour: 12, labelFr: "12h – 15h", labelEn: "12PM – 3PM", period: "Après-midi" },
-  { value: "15h - 18h", startHour: 15, labelFr: "15h – 18h", labelEn: "3PM – 6PM", period: "Fin d'après-midi" },
-  { value: "18h - 20h", startHour: 18, labelFr: "18h – 20h", labelEn: "6PM – 8PM", period: "Soir" },
-];
-
 const dateKey = (date: Date) => format(date, "yyyy-MM-dd");
 
 const slotStartHour = (value: string, fallback: number) => {
@@ -94,13 +87,7 @@ export function SmartSlotPicker({
         }));
     }
 
-    return TIME_SLOTS.filter((slot) => {
-      if (isToday(date)) {
-        const currentHour = now.getHours() + now.getMinutes() / 60;
-        if (slot.startHour <= currentHour + LEAD_TIME_HOURS) return false;
-      }
-      return true;
-    }).map((slot) => ({ ...slot, dbSlot: undefined as SlotData | undefined }));
+    return [];
   };
 
   const formatDateLabel = (date: Date) => {

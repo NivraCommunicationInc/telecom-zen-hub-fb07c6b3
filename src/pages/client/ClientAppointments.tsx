@@ -3,8 +3,6 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -23,20 +21,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { callSupportAction } from "@/shared-ops/lib/callSupportAction";
 import { useCanonicalClientData } from "@/hooks/useCanonicalClientData";
 import { Calendar, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle, Edit, Wrench, CalendarClock, Info, History, MapPin, User, Phone, Mail, Package } from "lucide-react";
-import { format, isPast, isFuture, isToday, differenceInHours, addDays } from "date-fns";
+import { format, isPast, isFuture, isToday, differenceInHours } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { AppointmentHistoryTimeline } from "@/components/appointments/AppointmentHistoryTimeline";
@@ -45,15 +36,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import TechLiveTracker from "@/components/client/TechLiveTracker";
 import TechnicianStatusTimeline from "@/components/client/TechnicianStatusTimeline";
-
-// Available time slots for rescheduling
-const TIME_SLOTS = [
-  "08h00 - 10h00",
-  "10h00 - 12h00",
-  "12h00 - 14h00",
-  "14h00 - 16h00",
-  "16h00 - 18h00",
-];
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   scheduled: { label: "Planifié", color: "bg-cyan-500/20 text-cyan-500", icon: Clock },
@@ -326,20 +309,6 @@ const ClientAppointments = () => {
   const getHoursUntil = (apt: any) => {
     const scheduledDate = new Date(apt.scheduled_at);
     return differenceInHours(scheduledDate, new Date());
-  };
-
-  // Generate available dates for rescheduling (next 14 days, excluding today)
-  const getAvailableDates = () => {
-    const dates = [];
-    const today = new Date();
-    for (let i = 2; i <= 14; i++) { // Start from 2 days out to ensure 24+ hours
-      const date = addDays(today, i);
-      dates.push({
-        value: format(date, "yyyy-MM-dd"),
-        label: format(date, "EEEE d MMMM", { locale: fr }),
-      });
-    }
-    return dates;
   };
 
   return (
@@ -788,37 +757,14 @@ const ClientAppointments = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Nouvelle date</Label>
-              <Select value={newDate} onValueChange={setNewDate}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une date" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailableDates().map(date => (
-                    <SelectItem key={date.value} value={date.value}>
-                      {date.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Nouvelle heure</Label>
-              <Select value={newTime} onValueChange={setNewTime}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une plage horaire" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIME_SLOTS.map(slot => (
-                    <SelectItem key={slot} value={slot}>
-                      {slot}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <InstallSlotPicker
+              value={newDate && newTime ? { date: newDate, time_slot: newTime } : null}
+              onChange={(slot) => {
+                setNewDate(slot?.date ?? "");
+                setNewTime(slot?.time_slot ?? "");
+              }}
+              variant="full"
+            />
 
             <div className="flex gap-2 pt-4">
               <Button
