@@ -113,12 +113,15 @@ export default function PlanChangeRequests({ clientId }: PlanChangeRequestsProps
 
       // Apply subscription update only if effective_date elapsed OR admin forced
       if (req.subscription_id && (isDue || force)) {
-        const update: any = { plan_name: req.requested_plan_name };
-        if (newPrice !== null) update.plan_price = newPrice;
-        const { error: subErr } = await supabase
-          .from("billing_subscriptions")
-          .update(update)
-          .eq("id", req.subscription_id);
+        // Phase 6A — canonical admin plan-change gateway
+        const { error: subErr } = await supabase.rpc("rpc_admin_change_subscription_plan", {
+          p_subscription_id: req.subscription_id,
+          p_new_plan_name: req.requested_plan_name,
+          p_new_plan_price: newPrice,
+          p_new_plan_code: null,
+          p_reason: "plan_change_request_approved",
+          p_context: { source: "PlanChangeRequests", request_id: req.id, force },
+        });
         if (subErr) throw subErr;
       }
 

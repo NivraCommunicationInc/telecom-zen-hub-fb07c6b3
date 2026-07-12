@@ -282,13 +282,17 @@ return (data as Row[]) || [];
       const force = applyNow;
 
       if (r.subscription_id && (isDue || force)) {
-        const update: any = { plan_name: r.requested_plan_name };
-        if (newPrice !== null) update.plan_price = newPrice;
-        const { error } = await supabase
-          .from("billing_subscriptions")
-          .update(update)
-          .eq("id", r.subscription_id);
-}
+        // Phase 6A — canonical admin plan-change gateway
+        const { error } = await supabase.rpc("rpc_admin_change_subscription_plan", {
+          p_subscription_id: r.subscription_id,
+          p_new_plan_name: r.requested_plan_name,
+          p_new_plan_price: newPrice,
+          p_new_plan_code: null,
+          p_reason: "plan_change_request_approved",
+          p_context: { source: "CorePlanChangesPage", request_id: r.id, force },
+        });
+        if (error) throw error;
+      }
 
       // ── PRORATION ON IMMEDIATE PLAN CHANGE ──
       // Everything on ONE invoice — add a line to the existing pending renewal invoice,

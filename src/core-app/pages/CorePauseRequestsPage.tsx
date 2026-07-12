@@ -221,16 +221,16 @@ return (data as Row[]) || [];
         : 0);
 
       if (r.subscription_id && pauseUntil) {
-        const { error } = await supabase
-          .from("billing_subscriptions")
-          .update({
-            status: "suspended",
-            paused_at: now.toISOString(),
-            pause_until: pauseUntil.toISOString(),
-            pause_reason: r.reason,
-          })
-          .eq("id", r.subscription_id);
-}
+        // Phase 6A — canonical admin pause gateway
+        const { error } = await supabase.rpc("rpc_admin_pause_subscription", {
+          p_subscription_id: r.subscription_id,
+          p_action: "pause",
+          p_pause_until: pauseUntil.toISOString(),
+          p_reason: r.reason,
+          p_context: { source: "CorePauseRequestsPage", request_id: r.id },
+        });
+        if (error) throw error;
+      }
 
       const { error: rErr } = await supabase
         .from("suspension_requests")
@@ -336,16 +336,16 @@ return (data as Row[]) || [];
       const now = new Date();
 
       if (r.subscription_id) {
-        const { error } = await supabase
-          .from("billing_subscriptions")
-          .update({
-            status: "active",
-            pause_until: null,
-            paused_at: null,
-            pause_reason: null,
-          })
-          .eq("id", r.subscription_id);
-}
+        // Phase 6A — canonical admin resume gateway
+        const { error } = await supabase.rpc("rpc_admin_pause_subscription", {
+          p_subscription_id: r.subscription_id,
+          p_action: "resume",
+          p_pause_until: null,
+          p_reason: null,
+          p_context: { source: "CorePauseRequestsPage", request_id: r.id },
+        });
+        if (error) throw error;
+      }
 
       const { error: rErr } = await supabase
         .from("suspension_requests")
