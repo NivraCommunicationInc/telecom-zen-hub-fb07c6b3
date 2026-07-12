@@ -316,8 +316,8 @@ async function auditAndJournal(
     //   2) forward it to the RPC ONLY when it is a canonical UUID,
     //   3) let the RPC mint a fresh UUID otherwise (still linked via event_key),
     //   4) log any RPC error at `error` level so future failures are loud.
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const correlationUuid = UUID_RE.test(correlationId) ? correlationId : null;
+    // F52-1 fix: `correlationId` is normalized to a UUID at the entrypoint,
+    // so it can now be forwarded to the RPC unconditionally.
     await writeAccountJournal(svc, {
       targetTable: 'client_activity_logs',
       payload: {
