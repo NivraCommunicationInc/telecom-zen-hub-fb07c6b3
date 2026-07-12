@@ -94,6 +94,9 @@ type CheckoutPayload = {
     grand_total?: number;
     promo_discount?: number;
     welcome_discount?: number;
+    preauth_discount?: number;
+    promo_applied?: Record<string, unknown> | null;
+    agent_discount?: Record<string, unknown> | null;
   };
   line_items?: unknown;
   notes?: string;
@@ -165,6 +168,89 @@ const toMoney = (value: unknown) => {
   const n = Number(value);
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
 };
+
+const durationMonthsFrom = (raw: unknown, fallback = 1) => {
+  const n = Number(raw ?? fallback);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
+};
+
+async function persistRecurringCheckoutPromotion(args: {
+  admin: any;
+  accountId: string | null;
+  customerId: string | null;
+  orderId: string | null;
+  payload: CheckoutPayload;
+}) {
+  const { admin, accountId, customerId, orderId, payload } = args;
+  if (!accountId || !customerId || !orderId) return null;
+
+  const agentDiscount = (payload.pricing_snapshot as any)?.agent_discount || null;
+  const snapshotPromo = (payload.pricing_snapshot as any)?.promo_applied || null;
+  const preauthDiscount = toMoney((payload.pricing_snapshot as any)?.preauth_discount);
+  const promoDiscount = toMoney(payload.pricing_snapshot?.promo_discount);
+
+  let label = "";
+  let promoCode = "";
+  let amount = 0;
+  let durationMonths = 0;
+  let createdByUserId: string | null = null;
+  let createdByRole = "checkout";
+
+  if (agentDiscount && preauthDiscount > 0 && durationMonthsFrom(agentDiscount.duration_months, 1) > 1) {
+    label = String(agentDiscount.name || "Rabais agent récurrent").slice(0, 160);
+    promoCode = String(agentDiscount.id || "AGENT_DISCOUNT").slice(0, 64);
+    amount = preauthDiscount;
+    durationMonths = durationMonthsFrom(agentDiscount.duration_months, 1);
+    createdByUserId = String((payload.pricing_snapshot as any)?.created_by_agent_id || "") || null;
+    createdByRole = "agent";
+  } else if (snapshotPromo && promoDiscount > 0) {
+    const duration = String(snapshotPromo.duration || "one_time").toLowerCase();
+    if (["one_time", "first_cycle_only", "blocked"].includes(duration)) return null;
+    label = String(snapshotPromo.name || snapshotPromo.code || "Promotion récurrente").slice(0, 160);
+    promoCode = String(snapshotPromo.code || payload.promo?.code || "PROMO").slice(0, 64);
+    amount = promoDiscount;
+    durationMonths = durationMonthsFrom((snapshotPromo as any).duration_months, duration === "ongoing" ? 9999 : 1);
+  } else {
+    return null;
+  }
+
+  const monthsRemaining = Math.max(durationMonths - 1, 0);
+  if (!(amount > 0) || monthsRemaining <= 0) return null;
+
+  const { data: existing } = await admin
+    .from("account_promotions")
+    .select("id")
+    .eq("order_id", orderId)
+    .eq("promotion_type", "monthly_discount")
+    .eq("promo_code", promoCode)
+    .maybeSingle();
+  if (existing?.id) return existing.id;
+
+  const { data, error } = await admin
+    .from("account_promotions")
+    .insert({
+      account_id: accountId,
+      customer_id: customerId,
+      order_id: orderId,
+      promo_code: promoCode,
+      label,
+      promotion_type: "monthly_discount",
+      amount,
+      duration_months: durationMonths,
+      months_remaining: monthsRemaining,
+      is_active: true,
+      created_by_user_id: createdByUserId,
+      created_by_role: createdByRole,
+      notes: "Promotion récurrente ancrée automatiquement depuis la commande initiale.",
+    })
+    .select("id")
+    .single();
+  if (error) {
+    console.error("[checkout-canonical-sync] account promotion insert failed:", error);
+    return null;
+  }
+  return data?.id || null;
+}
 
 function buildInvoiceLines(payload: CheckoutPayload, invoiceId: string) {
   const lines: Array<{
@@ -310,6 +396,19 @@ function buildInvoiceLines(payload: CheckoutPayload, invoiceId: string) {
       unit_price: -welcomeDiscount,
       quantity: 1,
       line_total: -welcomeDiscount,
+      line_type: "discount",
+    });
+  }
+
+  const preauthDiscount = toMoney((payload.pricing_snapshot as any)?.preauth_discount);
+  const agentDiscount = (payload.pricing_snapshot as any)?.agent_discount;
+  if (preauthDiscount > 0) {
+    lines.push({
+      invoice_id: invoiceId,
+      description: String(agentDiscount?.name || "Rabais agent"),
+      unit_price: -preauthDiscount,
+      quantity: 1,
+      line_total: -preauthDiscount,
       line_type: "discount",
     });
   }
@@ -993,6 +1092,19 @@ serve(async (req) => {
     } catch (err) {
       console.error("[checkout-canonical-sync] âŒ CRITICAL: Invoice lines exception:", err);
       errors.push(`invoice_lines_critical: ${err?.message || String(err)}`);
+    }
+
+    try {
+      const persistedPromotionId = await persistRecurringCheckoutPromotion({
+        admin,
+        accountId,
+        customerId,
+        orderId: response.order_id,
+        payload,
+      });
+      if (persistedPromotionId) results.account_promotion_id = persistedPromotionId;
+    } catch (err) {
+      errors.push(`account_promotion: ${err?.message || String(err)}`);
     }
 
     // 5b) Prorata immédiat (Pass 3C) — canonique, une seule source de vérité.
