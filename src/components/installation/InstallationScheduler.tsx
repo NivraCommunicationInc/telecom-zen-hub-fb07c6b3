@@ -141,115 +141,31 @@ export function InstallationScheduler({
     const fromDate = format(addDays(new Date(), startDay), "yyyy-MM-dd");
     const toDate = format(addDays(new Date(), targetDecision.maxLeadDays), "yyyy-MM-dd");
 
-    let query = portalClient
-      .from("technician_slots")
-      .select("id, slot_date, time_slot, capacity, booked")
-      .eq("is_active", true)
-      .eq("technician_level", targetDecision.technicianLevel)
-      .gte("slot_date", fromDate)
-      .lte("slot_date", toDate)
-      .order("slot_date", { ascending: true })
-      .order("time_slot", { ascending: true });
-
-    if (targetDecision.zone === "zone_a" || targetDecision.zone === "zone_b") {
-      query = query.eq("region", "montreal");
-    }
-
-    // Load Core admin recurring rules, one-off overrides + appointment occupancy in the same window.
-    // IMPORTANT: Core-created/manual appointments and guest checkout holds consume capacity
-    // even when technician_slots.booked was not incremented by legacy paths.
-    const [{ data: slotsData }, { data: rulesData }, { data: blockedDatesData }, { data: overridesData }, { data: appointmentsData }] = await Promise.all([
-      query,
-      portalClient
-        .from("appointment_slot_rules")
-        .select("id, weekday, start_time, end_time, capacity, is_active, label")
-        .eq("is_active", true),
-      portalClient
-        .from("appointment_blocked_dates")
-        .select("blocked_date")
-        .gte("blocked_date", fromDate)
-        .lte("blocked_date", toDate),
-      portalClient
-        .from("appointment_slot_overrides")
-        .select("override_date, time_slot, status, capacity_override")
-        .gte("override_date", fromDate)
-        .lte("override_date", toDate),
-      portalClient
-        .from("appointments")
-        .select("scheduled_at, description, status")
-        .gte("scheduled_at", `${fromDate}T00:00:00`)
-        .lte("scheduled_at", `${toDate}T23:59:59`),
-    ]);
-
-    const overrideMap = new Map<string, { status: string; capacity_override: number | null }>();
-    (overridesData || []).forEach((o: any) => {
-      overrideMap.set(`${o.override_date}|${o.time_slot}`, {
-        status: o.status,
-        capacity_override: o.capacity_override,
-      });
+    // Canonical unified calendar — single source of truth used by Core, Field,
+    // Portal and public checkout (get_available_installation_slots).
+    const { data: rpcSlots, error } = await (portalClient as any).rpc("get_available_installation_slots", {
+      p_from_date: fromDate,
+      p_to_date: toDate,
     });
 
-    const activeAppointments = (appointmentsData || []).filter((a: any) => (
-      !!a?.scheduled_at && ACTIVE_APPOINTMENT_STATUSES.has(a.status || "")
-    ));
-
-    const appointmentCountFor = (slotDate: string, slotLabel: string, startTime?: string, endTime?: string) => {
-      const start = minutesFromTime(startTime);
-      const end = minutesFromTime(endTime);
-      return activeAppointments.filter((a: any) => {
-        if (String(a.scheduled_at).slice(0, 10) !== slotDate) return false;
-        if (String(a.description || "").trim() === slotLabel) return true;
-        if (!startTime || !endTime) return false;
-        const at = minutesFromTime(String(a.scheduled_at).slice(11, 16));
-        return at >= start && at < end;
-      }).length;
-    };
-
-    const blockedDates = new Set((blockedDatesData || []).map((b: any) => b.blocked_date));
-    const recurringRules = ((rulesData || []) as any[]).filter((r) => r.is_active);
-
-    const generatedFromRules: SlotData[] = [];
-    if (recurringRules.length > 0) {
-      for (let i = startDay; i <= targetDecision.maxLeadDays; i += 1) {
-        const day = addDays(new Date(), i);
-        const slotDate = format(day, "yyyy-MM-dd");
-        if (blockedDates.has(slotDate)) continue;
-        const weekday = day.getDay();
-        recurringRules
-          .filter((r) => Number(r.weekday) === weekday)
-          .forEach((rule) => {
-            const label = slotLabelFromRule(rule);
-            const override = overrideMap.get(`${slotDate}|${label}`);
-            if (override?.status === "closed") return;
-            const capacity = override?.status === "reduced" && override.capacity_override != null
-              ? override.capacity_override
-              : Number(rule.capacity || 0);
-            generatedFromRules.push({
-              id: `${rule.id}-${slotDate}`,
-              slot_date: slotDate,
-              time_slot: label,
-              capacity,
-              booked: appointmentCountFor(slotDate, label, rule.start_time, rule.end_time),
-            });
-          });
-      }
+    if (error) {
+      console.error("[InstallationScheduler] canonical slot RPC failed", error);
+      setAvailableSlots([]);
+      return;
     }
 
-    const legacySlots = ((slotsData || []) as SlotData[])
-      .map((s) => {
-        const ov = overrideMap.get(`${s.slot_date}|${s.time_slot}`);
-        const occupancy = appointmentCountFor(s.slot_date, s.time_slot);
-        const withLiveBooked = { ...s, booked: Math.max(s.booked || 0, occupancy) };
-        if (!ov) return withLiveBooked;
-        if (ov.status === "closed") return null; // Core-closed → never shown publicly
-        if (ov.status === "reduced" && ov.capacity_override != null) {
-          return { ...withLiveBooked, capacity: ov.capacity_override };
-        }
-        return withLiveBooked;
-      })
-      .filter((s): s is SlotData => s !== null);
+    const mapped: SlotData[] = ((rpcSlots || []) as any[])
+      .filter((row) => row?.status !== "closed")
+      .map((row) => ({
+        id: `${row.slot_date}-${row.time_slot}`,
+        slot_date: String(row.slot_date),
+        time_slot: String(row.time_slot),
+        capacity: Number(row.capacity ?? 0),
+        booked: Number(row.booked ?? 0),
+      }))
+      .filter((s) => s.booked < s.capacity);
 
-    setAvailableSlots((generatedFromRules.length > 0 ? generatedFromRules : legacySlots).filter((s) => s.booked < s.capacity));
+    setAvailableSlots(mapped);
   }, []);
 
   useEffect(() => {
