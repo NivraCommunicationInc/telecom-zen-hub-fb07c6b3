@@ -296,7 +296,7 @@ serve(async (req) => {
         .eq("id", invoice.id).maybeSingle(),
       supabase.from("billing_payments")
         .select("id, payment_number, status, amount, provider, reference, method")
-        .eq("id", canonicalPaymentId).maybeSingle(),
+        .eq("id", paymentId).maybeSingle(),
       supabase.from("billing_subscriptions")
         .select("id, subscription_number, status, plan_id, order_id, activated_at")
         .eq("order_id", intent.converted_order_id),
