@@ -3664,7 +3664,7 @@ export type Database = {
           status:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
-          subscription_number: string | null
+          subscription_number: string
           superseded_by_subscription_id: string | null
           supersedes_subscription_id: string | null
           updated_at: string | null
@@ -3718,7 +3718,7 @@ export type Database = {
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
-          subscription_number?: string | null
+          subscription_number: string
           superseded_by_subscription_id?: string | null
           supersedes_subscription_id?: string | null
           updated_at?: string | null
@@ -3772,7 +3772,7 @@ export type Database = {
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
-          subscription_number?: string | null
+          subscription_number?: string
           superseded_by_subscription_id?: string | null
           supersedes_subscription_id?: string | null
           updated_at?: string | null
@@ -32194,6 +32194,7 @@ export type Database = {
         Args: { p_referral_id: string }
         Returns: undefined
       }
+      fn_generate_subscription_number: { Args: never; Returns: string }
       fn_is_equipment_label: { Args: { _label: string }; Returns: boolean }
       fn_repair_activated_order_canonical_chain: {
         Args: { _order_id: string }
