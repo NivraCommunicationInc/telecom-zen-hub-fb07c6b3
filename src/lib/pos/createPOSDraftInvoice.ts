@@ -209,6 +209,19 @@ export async function createPOSDraftInvoice(
     client_id: clientId,
   });
 
+  // BUG-CORE-002C Phase 2 — persist canonical fulfillment intent on orders
+  const posInstallation = (input.orderPayload as any)?.installation;
+  const rawPosMode = String(posInstallation?.mode || "").toLowerCase().trim();
+  let posFulfillmentType: string | null = null;
+  let posInstallationType: string | null = null;
+  if (rawPosMode === "technician") {
+    posFulfillmentType = "technician";
+    posInstallationType = "technician";
+  } else if (rawPosMode === "self") {
+    posFulfillmentType = "self_install";
+    posInstallationType = "auto";
+  }
+
   // ── 4. Create Order (pending payment) ──
   const { data: newOrder, error: orderErr } = await supabase
     .from("orders")
@@ -234,6 +247,8 @@ export async function createPOSDraftInvoice(
       payment_reference: null,
       internal_notes: `[POS ${input.portalType.toUpperCase()} — card] ${input.notes || ""}`,
       status: "pending",
+      fulfillment_type: posFulfillmentType,
+      installation_type: posInstallationType,
     }])
     .select("id, order_number")
     .single();

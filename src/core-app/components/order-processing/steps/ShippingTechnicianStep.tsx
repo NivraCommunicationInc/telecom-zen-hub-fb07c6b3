@@ -61,22 +61,32 @@ export function ShippingTechnicianStep({ proc }: Props) {
     itemTypes.some((t) => t.includes("mobile") || t.includes("sim") || t.includes("esim")) ||
     /\b(mobile|sim|esim)\b/.test(itemNames);
 
-  const fulfillmentType = order.fulfillment_type || "";
-  const isSelfInstall = fulfillmentType === "self_install";
+  // BUG-CORE-002C Phase 3 — Routing priority:
+  //   1) appointment.installation_method (canonical hold, most authoritative)
+  //   2) orders.fulfillment_type (explicit self_install)
+  //   3) legacy inference from service_type / items
+  const apptMethod = String(appointment?.installation_method || "").toLowerCase();
+  const fulfillmentType = String(order.fulfillment_type || "").toLowerCase();
+  const isSelfInstall =
+    apptMethod === "auto" ||
+    fulfillmentType === "self_install" ||
+    String(order.installation_type || "").toLowerCase() === "auto";
+  const isTechnicianInstall =
+    apptMethod === "technician" ||
+    fulfillmentType === "technician" ||
+    fulfillmentType === "installation";
 
-  // Fulfillment rules:
-  //  • Internet only OR Internet+TV       → technician installation only
-  //  • Internet+TV+Mobile (full bundle)   → BOTH technician (internet/TV) + shipping (SIM)
-  //  • Mobile only                        → shipping only
-  //  • self_install explicit              → confirmation only (no panels)
-  const requiresTechnician = !isSelfInstall && (hasInternet || hasTv);
-  const requiresShipping = !isSelfInstall && (hasMobile || (!hasInternet && !hasTv));
+  // Fulfillment rules — canonical signals override inference:
+  //  • technician install (canonical) → technician panel only
+  //  • self_install (canonical)       → confirmation only, no panels
+  //  • otherwise fall back to service composition
+  const requiresTechnician = !isSelfInstall && (isTechnicianInstall || hasInternet || hasTv);
+  const requiresShipping = !isSelfInstall && !isTechnicianInstall && (hasMobile || (!hasInternet && !hasTv));
 
-  // Show panel if rule applies OR data already exists for that fulfillment
   const showTechnicianPanel =
-    !isSelfInstall && (requiresTechnician || !!appointment || fulfillmentType === "technician" || fulfillmentType === "installation");
+    !isSelfInstall && (requiresTechnician || !!appointment);
   const showShippingPanel =
-    !isSelfInstall && (requiresShipping || !!order.tracking_number || !!order.carrier || fulfillmentType === "shipping");
+    !isSelfInstall && !isTechnicianInstall && (requiresShipping || !!order.tracking_number || !!order.carrier || fulfillmentType === "shipping");
 
   const [loading, setLoading] = useState<string | null>(null);
   const [contractGate, setContractGate] = useState<{

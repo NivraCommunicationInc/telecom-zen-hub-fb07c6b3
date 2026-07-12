@@ -118,7 +118,7 @@ function computeInstallationEstimate(order: any, appointment: any): {
 }
 
 /* ─── Dynamic workflow per order type ─── */
-function buildWorkflow(order: any, channelSelection?: any, mobileFulfillment?: any): WorkflowStep[] {
+function buildWorkflow(order: any, channelSelection?: any, mobileFulfillment?: any, appointment?: any): WorkflowStep[] {
   const serviceType = (order?.service_type || "").toLowerCase();
   const hasKyc = order?.kyc_policy !== "none" && order?.kyc_policy !== "skip";
 
@@ -149,11 +149,9 @@ function buildWorkflow(order: any, channelSelection?: any, mobileFulfillment?: a
       { id: "shipping", label: "Technicien / Expédition", status: "pending" },
       { id: "activation", label: "Activation", status: "pending" },
     );
-    // Add TV channel step for TV/combo orders
     if (serviceType.includes("tv") || serviceType.includes("combo") || serviceType.includes("bundle")) {
       base.push({ id: "tv_channels", label: "Chaînes TV", status: "pending" });
     }
-    // Add SIM + port-in for bundles that include mobile
     if (serviceType.includes("bundle") || serviceType.includes("combo")) {
       base.push(
         { id: "sim_esim", label: "SIM / eSIM", status: "pending" },
@@ -171,7 +169,6 @@ function buildWorkflow(order: any, channelSelection?: any, mobileFulfillment?: a
       { id: "completion", label: "Complétion", status: "pending" },
     );
   } else {
-    // Generic fallback
     base.push(
       { id: "fulfillment", label: "Fulfillment", status: "pending" },
       { id: "equipment", label: "Équipement", status: "pending" },
@@ -182,10 +179,10 @@ function buildWorkflow(order: any, channelSelection?: any, mobileFulfillment?: a
     );
   }
 
-  return computeStepStatuses(base, order, channelSelection, mobileFulfillment);
+  return computeStepStatuses(base, order, channelSelection, mobileFulfillment, appointment);
 }
 
-function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any, mobileFulfillment?: any): WorkflowStep[] {
+function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any, mobileFulfillment?: any, appointment?: any): WorkflowStep[] {
   if (!order) return steps;
   const mf = mobileFulfillment || (order as any)._mobileFulfillment || null;
   const simCompleted = mf?.activation_status === "active";
@@ -239,9 +236,22 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
         }
         break;
       }
-      case "fulfillment":
-        if (order.fulfillment_type && (order.service_location_id || order.shipping_address || order.client_full_address)) status = "completed";
+      case "fulfillment": {
+        // BUG-CORE-002C Phase 2 — Priority order:
+        //   1) appointments.installation_method (canonical hold)
+        //   2) orders.fulfillment_type (explicit self_install / technician)
+        //   3) legacy fallback (fulfillment_type + address)
+        const apptMethod = String(appointment?.installation_method || "").toLowerCase();
+        const ft = String(order.fulfillment_type || "").toLowerCase();
+        if (apptMethod === "technician" || apptMethod === "auto") {
+          status = "completed";
+        } else if (ft === "self_install" || ft === "technician" || ft === "installation") {
+          status = "completed";
+        } else if (order.fulfillment_type && (order.service_location_id || order.shipping_address || order.client_full_address)) {
+          status = "completed";
+        }
         break;
+      }
       case "equipment":
         if (order.equipment_id || order.sim_number || order.serial_number) status = "completed";
         break;
@@ -593,7 +603,7 @@ export function useOrderProcessing(orderId: string | undefined) {
   });
 
   const data = orderQuery.data;
-  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection, data.mobileFulfillment) : [];
+  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection, data.mobileFulfillment, data.appointment) : [];
 
   /* ── Invalidate everything ── */
   const invalidateAll = () => {
