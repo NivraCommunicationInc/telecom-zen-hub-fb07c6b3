@@ -26,10 +26,13 @@ import {
   Sparkles,
   Wrench,
   CalendarClock,
+  Plus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type {
   FieldSaleDiscount,
   FieldSaleService,
@@ -40,6 +43,7 @@ interface Props {
   selected: FieldSaleDiscount | null;
   services: FieldSaleService[];
   installationFee?: number;
+  allowCustomDiscount?: boolean;
   onChange: (discount: FieldSaleDiscount | null) => void;
   onNext: () => void;
   onBack: () => void;
@@ -77,12 +81,16 @@ export default function StepDiscounts({
   selected,
   services,
   installationFee = 0,
+  allowCustomDiscount = false,
   onChange,
   onNext,
   onBack,
 }: Props) {
   const { user } = useStaffUser();
   const [error, setError] = useState<string | null>(null);
+  const [customLabel, setCustomLabel] = useState("Rabais personnalisé Core");
+  const [customAmount, setCustomAmount] = useState("6");
+  const [customDuration, setCustomDuration] = useState("24");
 
   const { data: discounts = [], isLoading } = useQuery({
     queryKey: ["field-agent-discounts", user?.id],
@@ -203,6 +211,40 @@ export default function StepDiscounts({
       }),
     [discounts, services, installationFee],
   );
+
+  const applyCustomDiscount = () => {
+    const amount = Number(customAmount);
+    const duration = Math.round(Number(customDuration));
+    if (!allowCustomDiscount) return;
+    if (!customLabel.trim()) {
+      setError("Libellé du rabais requis.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Montant du rabais invalide.");
+      return;
+    }
+    if (!Number.isFinite(duration) || duration <= 0 || duration > 60) {
+      setError("Durée invalide — entre 1 et 60 mois.");
+      return;
+    }
+    if (services.length === 0) {
+      setError("Ajoutez au moins un forfait avant de créer un rabais mensuel.");
+      return;
+    }
+    setError(null);
+    onChange({
+      id: `custom-core-${Date.now()}`,
+      name: customLabel.trim(),
+      type: "fixed_monthly",
+      value: Number(amount.toFixed(2)),
+      applies_to: "all",
+      description: "Rabais personnalisé créé depuis Nivra Core — Nouvelle commande manuelle.",
+      duration_months: duration,
+      min_plan_price: null,
+      source: "custom_core",
+    });
+  };
 
   return (
     <div className="space-y-5 field-page-enter">
@@ -331,6 +373,67 @@ export default function StepDiscounts({
               </button>
             );
           })}
+        </div>
+      )}
+
+      {allowCustomDiscount && (
+        <div className="rounded-2xl border border-[hsl(var(--field-accent)/0.35)] bg-[hsl(var(--field-card))] p-5 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-white">Rabais personnalisé Core</h3>
+              <p className="text-xs text-[hsl(var(--field-text-muted))] mt-1">
+                Crée un rabais mensuel récurrent sauvegardé avec la commande et le compte après activation.
+              </p>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[hsl(var(--field-accent)/0.15)] text-[hsl(var(--field-accent-glow))] border border-[hsl(var(--field-accent)/0.3)]">
+              Core
+            </span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_120px_120px]">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[hsl(var(--field-text-muted))]">Libellé</Label>
+              <Input
+                value={customLabel}
+                onChange={(e) => setCustomLabel(e.target.value)}
+                className="h-11 rounded-xl border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] text-white"
+                placeholder="Ex: Rabais agent -6$/mois"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[hsl(var(--field-text-muted))]">Montant / mois</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                className="h-11 rounded-xl border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] text-white"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[hsl(var(--field-text-muted))]">Durée</Label>
+              <Input
+                type="number"
+                min="1"
+                max="60"
+                value={customDuration}
+                onChange={(e) => setCustomDuration(e.target.value)}
+                className="h-11 rounded-xl border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] text-white"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={applyCustomDiscount}
+            className="w-full min-h-[48px] rounded-xl border border-[hsl(var(--field-accent)/0.45)] bg-[hsl(var(--field-accent)/0.1)] text-[hsl(var(--field-accent-glow))] font-semibold hover:bg-[hsl(var(--field-accent)/0.16)] transition-colors flex items-center justify-center gap-2"
+          >
+            <Plus className="h-4 w-4" /> Appliquer ce rabais personnalisé
+          </button>
+          {selected?.source === "custom_core" && (
+            <div className="rounded-xl border border-[hsl(var(--field-success)/0.35)] bg-[hsl(var(--field-success)/0.08)] p-3 text-sm text-[hsl(var(--field-success))] flex items-center gap-2">
+              <Check className="h-4 w-4" /> {selected.name} — {Number(selected.value).toFixed(2)} $/mois × {selected.duration_months} mois appliqué
+            </div>
+          )}
         </div>
       )}
 

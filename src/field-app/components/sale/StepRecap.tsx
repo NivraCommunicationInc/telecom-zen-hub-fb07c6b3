@@ -29,6 +29,7 @@ import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import type { FieldSaleCustomer, FieldSaleCustomAdjustment, FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
 import { saveQuoteAndEmail, sendPaymentLinkFromQuote } from "@/field-app/lib/fieldQuoteService";
 import { formatDiscountLabel } from "@/field-app/lib/fieldUtils";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 interface Props {
   draft: FieldSaleDraft;
@@ -97,9 +98,9 @@ export default function StepRecap({
   const updateFulfillment = (mode: "standard" | "express" | "technician") => {
     const next =
       mode === "standard"
-        ? { install_mode: "self" as const, delivery_mode: mode, delivery_fee: 20, installation_fee: 0 }
+        ? { install_mode: "self" as const, delivery_mode: mode, delivery_fee: 20, installation_fee: 0, install_slot: null, install_date: null }
         : mode === "express"
-          ? { install_mode: "self" as const, delivery_mode: mode, delivery_fee: 40, installation_fee: 0 }
+          ? { install_mode: "self" as const, delivery_mode: mode, delivery_fee: 40, installation_fee: 0, install_slot: null, install_date: null }
           : { install_mode: "technician" as const, delivery_mode: mode, delivery_fee: 0, installation_fee: 50 };
     onCustomerChange?.({ ...draft.customer, ...next });
   };
@@ -272,21 +273,45 @@ export default function StepRecap({
               </select>
             </label>
           )}
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-[hsl(var(--field-text-muted))]">Date prévue</span>
-            <input
-              type="date"
-              min={new Date().toISOString().split("T")[0]}
-              value={draft.customer.install_date || ""}
-              onChange={(e) =>
-                onCustomerChange?.({ ...draft.customer, install_date: e.target.value || null })
-              }
-              className="h-11 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
-            />
-          </label>
+          {allowCoreAdjustments && (draft.customer.delivery_mode || "technician") === "technician" ? (
+            <div className="md:col-span-2 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-white">Calendrier de disponibilité technicien</p>
+                <p className="text-xs text-[hsl(var(--field-text-muted))] mt-0.5">Sélectionnez un vrai créneau ouvert du calendrier canonique.</p>
+              </div>
+              <InstallSlotPicker
+                variant="compact"
+                value={draft.customer.install_slot ?? null}
+                onChange={(slot) =>
+                  onCustomerChange?.({
+                    ...draft.customer,
+                    install_slot: slot,
+                    install_date: slot?.date ?? null,
+                    install_mode: slot ? "technician" : "technician",
+                    delivery_mode: "technician",
+                  })
+                }
+              />
+            </div>
+          ) : !allowCoreAdjustments ? (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-[hsl(var(--field-text-muted))]">Date prévue</span>
+              <input
+                type="date"
+                min={new Date().toISOString().split("T")[0]}
+                value={draft.customer.install_date || ""}
+                onChange={(e) =>
+                  onCustomerChange?.({ ...draft.customer, install_date: e.target.value || null })
+                }
+                className="h-11 rounded-xl border border-[hsl(var(--field-border-subtle))] bg-[hsl(var(--field-input))] px-3 text-sm text-white"
+              />
+            </label>
+          ) : null}
         </div>
         <p className="text-[11px] text-[hsl(var(--field-text-dim))]">
-          Le client verra cette date sur sa page de commande et pourra demander une modification si nécessaire.
+          {allowCoreAdjustments
+            ? "Le mode technicien exige un créneau disponible; l’auto-installation ne réserve aucun rendez-vous."
+            : "Le client verra cette date sur sa page de commande et pourra demander une modification si nécessaire."}
         </p>
       </div>
 

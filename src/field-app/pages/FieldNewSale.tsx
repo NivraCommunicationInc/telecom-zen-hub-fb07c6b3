@@ -921,6 +921,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
               selected={draft.discount}
               services={draft.services}
               installationFee={activationFee}
+              allowCustomDiscount={allowCoreAdjustments}
               onChange={(discount) => setDraft((d) => ({ ...d, discount }))}
               onNext={() => advance("discounts")}
               onBack={() => goBack("discounts")}
