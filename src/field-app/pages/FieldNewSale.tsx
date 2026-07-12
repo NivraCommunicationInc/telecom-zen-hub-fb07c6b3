@@ -889,6 +889,11 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
               onCancel={() => { clearDraft(); navigate(_exitPath); }}
               locked={Boolean(draft.existing_account_id)}
               lockedContext={prefillContext || undefined}
+              // BUG-CORE-002A: gate InstallSlotPicker on ≥1 installable service.
+              // Same rule as Core POS UnifiedPOSPage `requiresInstall`.
+              hasInstallableService={draft.services.some(
+                (s) => s.category === "internet" || s.category === "tv"
+              )}
             />
           )}
 
