@@ -31,7 +31,6 @@ import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkou
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 // Phase 2 components
 import ClientAvatarUpload from "@/components/client/ClientAvatarUpload";
-import ClientProfileChangeHistory from "@/components/client/ClientProfileChangeHistory";
 import { CustomerTimelineTable } from "@/components/timeline";
 import { portalClient } from "@/integrations/backend/portalClient";
 import ClientSessionInfo from "@/components/client/ClientSessionInfo";
@@ -711,12 +710,7 @@ const ClientProfile = () => {
             )}
           </div>
 
-          {/* Legacy profile change history — kept temporarily for B2.3
-              compatibility. Slated for removal after QA sign-off on all
-              three surfaces (see src/test/module-51-timeline-ui.test.ts). */}
-          <div className="lg:col-span-2">
-            {user?.id && <ClientProfileChangeHistory clientId={user.id} />}
-          </div>
+
 
           {/* Additional Security & Data Sections */}
           <div className="space-y-6">
