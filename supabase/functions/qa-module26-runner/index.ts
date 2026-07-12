@@ -493,9 +493,9 @@ Deno.serve(async (req) => {
     for (const id of [billingCustA, billingCustB]) {
       await admin.from("billing_customers").update({ autopay_enabled: false, autopay_discount_active: false }).eq("id", id);
     }
-    const subsDel = await admin.from("billing_subscriptions").delete()
-      .in("customer_id", [billingCustA, billingCustB]).select("id");
-    del.billing_subscriptions = subsDel.data?.length ?? 0;
+    // Phase 6E — canonical QA fixture gateway (env=test only)
+    const { data: subsDelData } = await admin.rpc("rpc_qa_reset_subscription_fixture", { p_customer_ids: [billingCustA, billingCustB] });
+    del.billing_subscriptions = (subsDelData as any)?.deleted ?? 0;
     const invDel = await admin.from("billing_invoices").delete()
       .in("customer_id", [billingCustA, billingCustB]).select("id");
     del.billing_invoices = invDel.data?.length ?? 0;

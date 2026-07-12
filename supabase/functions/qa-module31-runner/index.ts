@@ -186,7 +186,8 @@ Deno.serve(async (req) => {
       await admin.from("payments").delete().in("order_id", orderIds);
       await admin.from("provisioning_jobs").delete().in("order_id", orderIds);
       await admin.from("subscriptions").delete().in("order_id", orderIds);
-      await admin.from("billing_subscriptions").delete().in("order_id", orderIds);
+      // Phase 6E — canonical QA fixture gateway (env=test only)
+      await admin.rpc("rpc_qa_reset_subscription_fixture", { p_order_ids: orderIds });
       await admin.from("service_instances").delete().in("order_id", orderIds);
       await admin.from("installations").delete().in("order_id", orderIds);
       await admin.from("installation_jobs").delete().in("order_id", orderIds);

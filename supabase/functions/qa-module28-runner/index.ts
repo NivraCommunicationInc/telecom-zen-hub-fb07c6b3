@@ -124,7 +124,8 @@ Deno.serve(async (req) => {
     await admin.from("client_activity_logs").delete().eq("client_id", userId);
     await admin.from("client_internal_notes").delete().eq("client_id", userId);
     await admin.from("email_queue").delete().eq("to_email", (await admin.from("profiles").select("email").eq("user_id", userId).maybeSingle()).data?.email || "___");
-    await admin.from("billing_subscriptions").delete().eq("customer_id", userId).eq("environment", "test");
+    // Phase 6E — canonical QA fixture gateway (env=test only)
+    await admin.rpc("rpc_qa_reset_subscription_fixture", { p_customer_ids: [userId] });
   };
 
   const cleanupAudit = async (callerIds: string[]) => {
