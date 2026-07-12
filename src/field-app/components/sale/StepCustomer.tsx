@@ -23,6 +23,13 @@ interface Props {
   locked?: boolean;
   /** Optional label shown when locked, e.g. "Compte #200756 — Adresse principale". */
   lockedContext?: string;
+  /**
+   * BUG-CORE-002A: gate the InstallSlotPicker + CoaxialSurvey on the presence
+   * of ≥1 selected service that requires installation (Internet/TV). Mirrors
+   * the exact rule already used by Core POS (UnifiedPOSPage `requiresInstall`).
+   * Defaults to false so a fresh Step 1 never shows the calendar.
+   */
+  hasInstallableService?: boolean;
 }
 
 interface SearchResult {
@@ -38,7 +45,7 @@ interface SearchResult {
 
 type Mode = "choose" | "search" | "new" | "form";
 
-export default function StepCustomer({ customer, onChange, onNext, onCancel, locked = false, lockedContext }: Props) {
+export default function StepCustomer({ customer, onChange, onNext, onCancel, locked = false, lockedContext, hasInstallableService = false }: Props) {
   const [mode, setMode] = useState<Mode>(locked || customer.first_name ? "form" : "choose");
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -364,8 +371,10 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel, loc
         </div>
       )}
 
-      {/* ── Installation slot + coaxial survey (shared components) ── */}
-      {customer.serviceability_status === "available" && (
+      {/* ── Installation slot + coaxial survey (shared components) ──
+          BUG-CORE-002A: only render once ≥1 installable service is in the cart.
+          Mirrors Core POS `requiresInstall` rule. */}
+      {customer.serviceability_status === "available" && hasInstallableService && (
         <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-gray-50">Créneau d'installation (optionnel)</h3>
