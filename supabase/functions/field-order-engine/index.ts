@@ -1097,6 +1097,108 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true }), { headers });
     }
 
+    // ────────────────────────────────────────────────────────────────
+    // retry_deferred_shell_materializations
+    // Canonical retry worker for shell materializations that failed after
+    // `field_sales_orders` was created but before Core sync succeeded.
+    // Reads `field_order_sync_events` (single source of truth for retries).
+    // Backoff: 5m, 15m, 60m, 240m, 1440m. Max 5 attempts → DLQ (sync_status='failed').
+    // ────────────────────────────────────────────────────────────────
+    if (postAction === "retry_deferred_shell_materializations") {
+      if (!isServiceRoleCall) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers });
+      const BACKOFF_MIN = [5, 15, 60, 240, 1440];
+      const MAX_ATTEMPTS = 5;
+
+      const { data: dueEvents } = await admin
+        .from("field_order_sync_events")
+        .select("id, field_order_id, attempt_count, request_payload")
+        .eq("sync_target", "core")
+        .eq("sync_action", "materialize_shell")
+        .eq("sync_status", "pending")
+        .lte("next_retry_at", new Date().toISOString())
+        .lt("attempt_count", MAX_ATTEMPTS)
+        .order("next_retry_at", { ascending: true })
+        .limit(20);
+
+      const results: any[] = [];
+      for (const evt of dueEvents || []) {
+        const fsoId = evt.field_order_id;
+        const intentId = (evt.request_payload as any)?.intent_id || null;
+        try {
+          const syncResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-sales-sync`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
+            body: JSON.stringify({ action: "sync_single", field_order_id: fsoId, internal: true }),
+          });
+          const syncData = await syncResp.json().catch(() => null);
+          if (syncResp.ok && syncData?.success && syncData?.orderId) {
+            await admin.from("field_order_sync_events").update({
+              sync_status: "synced",
+              last_attempt_at: new Date().toISOString(),
+              attempt_count: (evt.attempt_count || 0) + 1,
+              response_payload: syncData as any,
+              error_message: null,
+            } as any).eq("id", evt.id);
+            await admin.from("field_sales_orders").update({
+              sync_status: "synced", sync_error: null,
+            } as any).eq("id", fsoId);
+            if (intentId) {
+              await admin.from("field_payment_intents").update({
+                converted_field_order_id: fsoId,
+                converted_order_id: syncData.orderId,
+                converted_invoice_id: syncData.invoice_id ?? null,
+              }).eq("id", intentId);
+              await admin.rpc("log_field_order_event" as never, {
+                p_intent_id: intentId,
+                p_event_type: "shell_order_materialized_retry",
+                p_payload: { order_id: syncData.orderId, field_order_id: fsoId, attempt: (evt.attempt_count || 0) + 1 } as never,
+              }).then(undefined, () => {});
+            }
+            await admin.from("billing_system_alerts").update({
+              resolved: true, resolved_at: new Date().toISOString(), resolved_by: "auto:retry-worker",
+            } as any).eq("alert_type", "shell_materialization_deferred").eq("entity_id", fsoId).eq("resolved", false);
+            results.push({ event_id: evt.id, field_order_id: fsoId, status: "synced" });
+          } else {
+            const reason = syncData?.error || `HTTP ${syncResp.status}`;
+            const newCount = (evt.attempt_count || 0) + 1;
+            const nextIsDLQ = newCount >= MAX_ATTEMPTS;
+            const nextMin = BACKOFF_MIN[Math.min(newCount, BACKOFF_MIN.length - 1)];
+            await admin.from("field_order_sync_events").update({
+              sync_status: nextIsDLQ ? "failed" : "pending",
+              attempt_count: newCount,
+              last_attempt_at: new Date().toISOString(),
+              next_retry_at: nextIsDLQ ? null : new Date(Date.now() + nextMin * 60 * 1000).toISOString(),
+              error_message: reason,
+              response_payload: syncData as any,
+            } as any).eq("id", evt.id);
+            if (nextIsDLQ) {
+              await admin.from("billing_system_alerts").insert({
+                alert_type: "shell_materialization_dlq",
+                entity_type: "field_sales_order",
+                entity_id: fsoId,
+                entity_reference: intentId,
+                details: { reason, attempts: newCount, field_order_id: fsoId, intent_id: intentId },
+                resolved: false,
+              } as any).then(undefined, () => {});
+            }
+            results.push({ event_id: evt.id, field_order_id: fsoId, status: nextIsDLQ ? "dlq" : "pending", attempt: newCount, reason });
+          }
+        } catch (e: any) {
+          const newCount = (evt.attempt_count || 0) + 1;
+          const nextMin = BACKOFF_MIN[Math.min(newCount, BACKOFF_MIN.length - 1)];
+          await admin.from("field_order_sync_events").update({
+            attempt_count: newCount,
+            last_attempt_at: new Date().toISOString(),
+            next_retry_at: new Date(Date.now() + nextMin * 60 * 1000).toISOString(),
+            error_message: e?.message || String(e),
+          } as any).eq("id", evt.id);
+          results.push({ event_id: evt.id, field_order_id: fsoId, status: "exception", reason: e?.message });
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, processed: results.length, results }), { headers });
+    }
+
     return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });
 
   } catch (err) {
