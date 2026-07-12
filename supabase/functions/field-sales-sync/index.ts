@@ -822,6 +822,54 @@ Deno.serve(async (req) => {
 
           canonicalOrder = newOrder;
           console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id} by agent ${agentName}`);
+
+          // ── BUG-CORE-002B: reserve installation slot on canonical `appointments` (status='hold') ──
+          // Only when the sale has a chosen slot AND at least one installable service (internet/tv).
+          try {
+            const requiresInstall = Array.isArray(sale.services) && sale.services.some(
+              (s: any) => s?.category === "internet" || s?.category === "tv"
+            );
+            const slotDate: string | null = sale.appointment_date || sale.install_date || null;
+            const slotWindow: string | null = sale.appointment_notes || null; // e.g. "09:00-12:00"
+            if (requiresInstall && slotDate && slotWindow && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(slotWindow)) {
+              const startTime = slotWindow.split("-")[0]; // "HH:MM"
+              const scheduledAt = new Date(`${slotDate}T${startTime}:00`).toISOString();
+              const { data: existingAppt } = await supabaseAdmin
+                .from("appointments")
+                .select("id")
+                .eq("order_id", canonicalOrder.id)
+                .maybeSingle();
+              if (!existingAppt) {
+                const { error: apptErr } = await supabaseAdmin
+                  .from("appointments")
+                  .insert({
+                    order_id: canonicalOrder.id,
+                    client_id: clientUserId,
+                    account_id: accountId,
+                    service_address_id: staffServiceAddress?.id || null,
+                    client_email: customerEmail,
+                    client_phone: sale.customer_phone || null,
+                    service_address: sale.customer_address || null,
+                    service_city: sale.customer_city || null,
+                    service_postal_code: sale.customer_postal_code || null,
+                    title: `Installation — ${canonicalOrder.order_number}`,
+                    scheduled_at: scheduledAt,
+                    status: "hold",
+                    service_type: serviceTypeLabel,
+                    installation_method: "auto",
+                    created_by: sale.salesperson_id || null,
+                    internal_notes: `[BUG-CORE-002B] Hold auto-créé depuis vente terrain • sale=${sale.id} • window=${slotWindow}`,
+                  } as any);
+                if (apptErr) {
+                  console.warn(`[field-sales-sync] appointment hold insert failed (non-blocking):`, apptErr.message);
+                } else {
+                  console.log(`[field-sales-sync] appointment hold created for order ${canonicalOrder.order_number} @ ${scheduledAt}`);
+                }
+              }
+            }
+          } catch (holdErr) {
+            console.warn(`[field-sales-sync] appointment hold exception (non-blocking):`, holdErr);
+          }
         } else {
           // Existing/orphan field order: force it back onto the canonical client/account.
           // This prevents future portal-empty cases where Field created a temporary user_id
