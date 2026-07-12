@@ -3664,6 +3664,7 @@ export type Database = {
           status:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          subscription_number: string | null
           superseded_by_subscription_id: string | null
           supersedes_subscription_id: string | null
           updated_at: string | null
@@ -3717,6 +3718,7 @@ export type Database = {
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          subscription_number?: string | null
           superseded_by_subscription_id?: string | null
           supersedes_subscription_id?: string | null
           updated_at?: string | null
@@ -3770,6 +3772,7 @@ export type Database = {
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          subscription_number?: string | null
           superseded_by_subscription_id?: string | null
           supersedes_subscription_id?: string | null
           updated_at?: string | null
