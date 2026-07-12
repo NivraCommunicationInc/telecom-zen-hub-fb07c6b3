@@ -316,8 +316,8 @@ async function auditAndJournal(
     //   2) forward it to the RPC ONLY when it is a canonical UUID,
     //   3) let the RPC mint a fresh UUID otherwise (still linked via event_key),
     //   4) log any RPC error at `error` level so future failures are loud.
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const correlationUuid = UUID_RE.test(correlationId) ? correlationId : null;
+    // F52-1 fix: `correlationId` is normalized to a UUID at the entrypoint,
+    // so it can now be forwarded to the RPC unconditionally.
     await writeAccountJournal(svc, {
       targetTable: 'client_activity_logs',
       payload: {
@@ -332,7 +332,7 @@ async function auditAndJournal(
         metadata: { before, after, reason: reason ?? null, correlation_id: correlationId, module_tag: moduleTag },
       },
       eventKey: `account:${accountId}:${action}:${correlationId}`,
-      correlationId: correlationUuid,
+      correlationId: correlationId,
       actor: { userId: actorId, role: actorRole, email: actorEmail },
       visibility: 'staff',
     });
@@ -550,6 +550,7 @@ async function handleBillingSameAsService(svc: any, actor: any, actorRole: strin
     accountId: input.account_id,
     action: 'billing_address.set_same_as_service',
     before, after,
+    reason: input.reason,
     correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
@@ -573,6 +574,7 @@ async function handleBillingSetCustom(svc: any, actor: any, actorRole: string, i
     accountId: input.account_id,
     action: 'billing_address.set_custom',
     before, after,
+    reason: input.reason,
     correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
@@ -601,6 +603,7 @@ async function handleBillingLinkToServiceAddress(svc: any, actor: any, actorRole
     accountId: input.account_id,
     action: 'billing_address.link_to_service_address',
     before, after,
+    reason: input.reason,
     correlationId, actorId: actor.id, actorRole, actorEmail: actor.email ?? null,
   });
   return { ok: true, accounts: after };
@@ -856,7 +859,16 @@ Deno.serve(async (req) => {
     const rbac = await canWriteAccount(svc, actor.id, input.account_id);
     if (!rbac.ok) return j({ error: 'forbidden' }, 403);
 
-    const correlationId = input.correlation_id ?? crypto.randomUUID();
+    // F52-1 / F52-2 — Normalize correlation_id. Downstream columns
+    // (`client_activity_logs.correlation_id`, `phone_change_requests.correlation_id`,
+    // `rpc_account_journal_write.p_correlation_id`) are typed `uuid`. Any
+    // non-UUID input must be replaced with a freshly minted UUID so the
+    // gateway never produces a 500 and the same UUID is propagated to
+    // admin_audit_log.details.correlation_id, client_activity_logs, timeline,
+    // and the API response.
+    const UUID_RE_INPUT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const inputCorrId = input.correlation_id;
+    const correlationId = inputCorrId && UUID_RE_INPUT.test(inputCorrId) ? inputCorrId : crypto.randomUUID();
     const requestHash = await sha256(JSON.stringify({ action: input.action, account_id: input.account_id, payload: (input as any).payload ?? {} }));
     const reserved = await reserveIdempotency(svc, input.account_id, input.action, input.idempotency_key, requestHash, actor.id);
     if (reserved.replay) return j({ ok: true, replay: true, result: reserved.result });
