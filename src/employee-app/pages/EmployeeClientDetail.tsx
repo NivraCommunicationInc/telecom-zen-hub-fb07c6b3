@@ -28,7 +28,7 @@ import { KYCRequestDialog } from "@/employee-app/components/KYCRequestDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { AccountDocumentsDialog } from "@/shared-ops/components/AccountDocumentsDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { CustomerTimeline } from "@/components/employee/CustomerTimeline";
+import { CustomerTimelineTable } from "@/components/timeline";
 
 // Sub-components
 import { ClientHeader } from "@/employee-app/components/client360/ClientHeader";
@@ -534,7 +534,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
               and referral events in one chronological feed. */}
           <Section title="Chronologie du client" icon={<Clock className="h-4 w-4" />} defaultOpen={true}>
             <div className="max-h-[600px] overflow-y-auto pr-1">
-              <CustomerTimeline clientId={clientId} limit={50} />
+              <CustomerTimelineTable clientId={clientId} limit={100} visibility="all" />
             </div>
           </Section>
         </div>

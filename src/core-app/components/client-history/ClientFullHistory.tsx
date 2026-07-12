@@ -17,6 +17,7 @@ import {
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { PAYMENT_SOURCES } from "@/core-app/components/payments/PaymentConstants";
 import { cn } from "@/lib/utils";
+import { CustomerTimelineTable } from "@/components/timeline";
 
 
 // ── Action label translations (mirrors DashboardPage activity feed) ──
@@ -223,31 +224,19 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
     enabled: reviewerIds.length > 0,
   });
 
-  // ── Unified timeline (Module 44 canonical) — Module 47 D47-H ──
-  // Reads exclusively from v_customer_timeline. No more direct activity_logs.
+  // ── Unified timeline (Module 51 B2.3 canonical) ──
+  // The activity timeline UI is delegated to <CustomerTimelineTable>, which
+  // reads exclusively from v_customer_timeline. This section keeps only the
+  // event count for the collapsible header.
   const activityQ = useQuery({
-    queryKey: ["client-history-timeline", clientId],
+    queryKey: ["client-history-timeline-count", clientId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from("v_customer_timeline" as any)
-        .select("event_id, occurred_at, event_type, severity, summary, actor_name, actor_role, source_table, source_id, details, visibility")
-        .eq("client_id", clientId)
-        .order("occurred_at", { ascending: false })
-        .limit(400);
+        .select("event_id", { count: "exact", head: true })
+        .eq("client_id", clientId);
       if (error) throw error;
-      // Adapter to previous activity_logs shape used by the UI
-      return ((data as any[]) || []).map((row) => ({
-        id: row.event_id,
-        action: row.summary || row.event_type,
-        entity_type: row.event_type,
-        entity_id: row.source_id,
-        created_at: row.occurred_at,
-        actor_name: row.actor_name,
-        actor_role: row.actor_role,
-        details: row.details,
-        source_table: row.source_table,
-        visibility: row.visibility,
-      }));
+      return count ?? 0;
     },
     enabled: !!clientId,
   });
@@ -400,38 +389,11 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
         )}
       </HistorySection>
 
-      {/* ═══ ACTIVITY TIMELINE ═══ */}
-      <HistorySection title="Journal d'activité" icon={Clock} count={activityQ.data?.length || 0} loading={activityQ.isLoading} defaultOpen={false}>
-        {activityQ.data && activityQ.data.length > 0 ? (
-          <div className="space-y-1 mt-2 max-h-[500px] overflow-y-auto">
-            {activityQ.data.map((log: any) => (
-              <div key={log.id} className="flex items-start gap-3 py-2 border-b border-[hsl(220,15%,14%)] last:border-0">
-                <div className={cn("mt-1.5 h-1.5 w-1.5 rounded-full shrink-0", "bg-emerald-400/60")} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] text-white">
-                    <span className="text-emerald-400 font-medium">{formatAction(log.action)}</span>
-                    {log.entity_type && <span className="text-[hsl(220,10%,45%)]"> · {log.entity_type}</span>}
-                  </p>
-                  {log.changed_field && (
-                    <p className="text-[10px] text-[hsl(220,10%,45%)] mt-0.5">
-                      {log.changed_field}: <span className="text-[hsl(220,10%,55%)]">{log.old_value || "∅"}</span> → <span className="text-[hsl(220,10%,70%)]">{log.new_value || "∅"}</span>
-                    </p>
-                  )}
-                  {log.actor_name && (
-                    <p className="text-[10px] text-[hsl(220,10%,40%)] mt-0.5">
-                      par {log.actor_name}{log.actor_role ? ` (${log.actor_role})` : ""}
-                    </p>
-                  )}
-                </div>
-                <span className="text-[10px] text-[hsl(220,10%,35%)] shrink-0 whitespace-nowrap">
-                  {fmtDate(log.created_at)}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyRow label="Aucune activité enregistrée" />
-        )}
+      {/* ═══ ACTIVITY TIMELINE (Module 51 B2.3 canonical) ═══ */}
+      <HistorySection title="Journal d'activité" icon={Clock} count={activityQ.data ?? 0} loading={activityQ.isLoading} defaultOpen={false}>
+        <div className="mt-2">
+          <CustomerTimelineTable clientId={clientId} visibility="all" limit={400} />
+        </div>
       </HistorySection>
     </div>
   );
