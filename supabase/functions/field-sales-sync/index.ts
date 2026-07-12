@@ -645,7 +645,7 @@ Deno.serve(async (req) => {
           if (kind === "fulfillment_fee") {
             if (type === "installation") explicitInstallationFee += unit * qty;
             else explicitDeliveryFee += unit * qty;
-          } else {
+          } else if (category !== "discount") {
             customAdjustmentTotal += unit * qty;
           }
         }

@@ -83,6 +83,9 @@ interface Body {
     install_date?: string | null;
     install_mode?: string | null;
     install_slot?: { date?: string; time_slot?: string } | null;
+    delivery_mode?: string | null;
+    delivery_fee?: number | null;
+    installation_fee?: number | null;
     coaxial_survey?: unknown;
   };
 
@@ -497,6 +500,26 @@ serve(async (req) => {
     }
     if (activation_fee > 0) {
       cart_items.push({ type: "activation", name: "Frais d'activation", amount: activation_fee, quantity: 1 });
+    }
+    const c = body.customer || {};
+    const installMode = String(c.install_mode || "").toLowerCase();
+    const deliveryMode = String(c.delivery_mode || "").toLowerCase();
+    const fulfillmentAmount = installMode === "technician"
+      ? Number(c.installation_fee ?? 50)
+      : installMode === "self"
+        ? Number(c.delivery_fee ?? 20)
+        : 0;
+    if (fulfillmentAmount > 0) {
+      cart_items.push({
+        type: installMode === "technician" ? "installation" : "delivery",
+        name: installMode === "technician"
+          ? "Installation technicien"
+          : deliveryMode === "express"
+            ? "Livraison Express — Uber Direct"
+            : "Auto-installation — livraison standard",
+        amount: fulfillmentAmount,
+        quantity: 1,
+      });
     }
     for (const adj of body.custom_adjustments || []) {
       if (Number(adj?.amount || 0) !== 0) {

@@ -434,13 +434,16 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
 
   const fulfillmentFee = useMemo(() => {
     if (allowCoreAdjustments) {
-      return Number(draft.customer.delivery_fee ?? (draft.customer.install_mode === "self" ? 20 : 50)) || 0;
+      if (draft.customer.install_mode === "technician") {
+        return Number(draft.customer.installation_fee ?? 50) || 0;
+      }
+      return Number(draft.customer.delivery_fee ?? 20) || 0;
     }
     if (draft.customer.install_mode !== "self") return 0;
     const cfg = (fieldConfig as any)?.shipping_fee_cents ?? (fieldConfig as any)?.shippingFeeCents;
     const cents = typeof cfg === "number" ? cfg : 2000;
     return cents / 100;
-  }, [allowCoreAdjustments, draft.customer.delivery_fee, draft.customer.install_mode, fieldConfig]);
+  }, [allowCoreAdjustments, draft.customer.delivery_fee, draft.customer.install_mode, draft.customer.installation_fee, fieldConfig]);
   const customAdjustmentsTotal = useMemo(() => {
     if (!allowCoreAdjustments) return 0;
     return (draft.custom_adjustments || []).reduce((sum, adjustment) => {
