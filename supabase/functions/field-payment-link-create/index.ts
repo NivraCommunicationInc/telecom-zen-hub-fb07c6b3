@@ -117,8 +117,10 @@ serve(async (req) => {
       }).then(undefined, () => {});
     }
 
-    // Materialize the Core shell order immediately.
-    // This is mandatory: Core must receive the normal order even while payment is pending.
+    // Materialize the Core shell order.
+    // BUG-CORE-001: never block the submission on shell sync failure — Core materialization
+    // is now retryable via field_order_sync_events (canonical retry infrastructure).
+    let shellDeferred = false;
     try {
       const matResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/field-order-engine`, {
         method: "POST",
@@ -130,15 +132,43 @@ serve(async (req) => {
         body: JSON.stringify({ action: "materialize_pending_from_quote", intent_id: intentId }),
       });
       const matData = await matResp.json().catch(() => null);
-      if (!matResp.ok || !matData?.success || !matData?.order_id) {
+      if (!matResp.ok || !matData?.success) {
+        // Hard failure BEFORE field_sales_orders row was created — nothing to retry from.
+        // Log an alert but let the payment link continue; the retry worker will pick it up
+        // from the intent itself.
         const reason = matData?.error || `HTTP ${matResp.status}`;
-        console.error("[field-payment-link-create] shell materialization failed:", reason);
-        return json({ ok: false, error: `Création commande Core échouée: ${reason}` }, 500);
+        console.warn("[field-payment-link-create] shell materialization deferred (pre-fso):", reason);
+        shellDeferred = true;
+        await supabase.from("billing_system_alerts").insert({
+          alert_type: "shell_materialization_deferred",
+          entity_type: "field_payment_intent",
+          entity_id: intentId,
+          entity_reference: quote_id,
+          details: { reason, intent_id: intentId, quote_id, stage: "pre_fso" },
+          resolved: false,
+        } as any).then(undefined, () => {});
+        await supabase.rpc("log_field_order_event" as never, {
+          p_intent_id: intentId,
+          p_event_type: "shell_materialization_deferred",
+          p_payload: { reason, stage: "pre_fso" } as never,
+        }).then(undefined, () => {});
+      } else if (matData?.deferred) {
+        shellDeferred = true;
+        console.warn("[field-payment-link-create] shell materialization deferred (post-fso):", matData?.error);
+      } else {
+        console.log("[field-payment-link-create] shell order:", matData.order_id, "already:", !!matData.already_materialized);
       }
-      console.log("[field-payment-link-create] shell order:", matData.order_id, "already:", !!matData.already_materialized);
     } catch (e) {
-      console.error("[field-payment-link-create] shell materialization exception:", e);
-      return json({ ok: false, error: `Création commande Core échouée: ${e?.message || String(e)}` }, 500);
+      console.warn("[field-payment-link-create] shell materialization exception (deferred):", e);
+      shellDeferred = true;
+      await supabase.from("billing_system_alerts").insert({
+        alert_type: "shell_materialization_deferred",
+        entity_type: "field_payment_intent",
+        entity_id: intentId,
+        entity_reference: quote_id,
+        details: { reason: e?.message || String(e), intent_id: intentId, quote_id, stage: "exception" },
+        resolved: false,
+      } as any).then(undefined, () => {});
     }
 
     const paymentUrl = `${SITE_URL}/payer/${intentId}`;
