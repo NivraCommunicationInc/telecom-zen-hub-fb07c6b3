@@ -317,6 +317,24 @@ Deno.serve(async (req) => {
               .eq("order_id", existingOrder.id);
 
             if (!invoiceCheckError && (existingInvoiceCount ?? 0) > 0) {
+              const { data: existingInvoice } = await supabaseAdmin
+                .from("billing_invoices")
+                .select("id")
+                .eq("order_id", existingOrder.id)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if ((sale as any).source_field_payment_intent_id && existingInvoice?.id) {
+                await supabaseAdmin
+                  .from("field_payment_intents")
+                  .update({
+                    converted_field_order_id: sale.id,
+                    converted_order_id: existingOrder.id,
+                    converted_invoice_id: existingInvoice.id,
+                  } as any)
+                  .eq("id", (sale as any).source_field_payment_intent_id)
+                  .is("converted_invoice_id", null);
+              }
               // F31-6 — even when the order+invoice already exist, we must still
               // guarantee the field_commissions row is created once Square captured.
               // Handles the resync path from square-charge-invoice / square-webhook.
@@ -326,7 +344,7 @@ Deno.serve(async (req) => {
               });
               console.log(`[field-sales-sync] F31-6 resync ensureFieldCommission → ${ensured.status}`);
               console.log(`[field-sales-sync] Sale ${sale.id} already fully synced (order + invoice): ${existingOrder.id}`);
-              return { success: true, orderId: existingOrder.id, order_number: existingOrder.order_number || undefined };
+              return { success: true, orderId: existingOrder.id, order_number: existingOrder.order_number || undefined, invoice_id: existingInvoice?.id };
             }
 
             console.warn(`[field-sales-sync] Sale ${sale.id} has order ${existingOrder.id} but no invoice yet â€” resuming billing pipeline`);
