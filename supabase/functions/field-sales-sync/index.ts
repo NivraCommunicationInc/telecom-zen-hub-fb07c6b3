@@ -681,35 +681,84 @@ Deno.serve(async (req) => {
           quoteAdjustmentProjected = true;
         }
 
-        const saleSubtotalHint = quoteSubtotalHint;
-        const saleTaxesHint = computeTaxes(saleSubtotalHint);
-        const saleTotalHint = quoteTotalHint || numberFrom((sale as any)?.total_amount);
-        const hasAuthoritativeSaleSubtotal = saleSubtotalHint > 0 && saleTotalHint > 0 && Math.abs(saleTaxesHint.total - saleTotalHint) <= 0.05;
         const sumDiscountLines = () => lineItems
           .filter((li) => li.category === "discount")
           .reduce((sum, li) => sum + (Number(li.unit_price || 0) * (Number(li.qty || 1) || 1)), 0);
 
-        if (!quoteAdjustmentProjected && hasAuthoritativeSaleSubtotal && monthlyTotal > 0) {
-          const projectedBaseBeforeWelcome = monthlyTotal + equipmentTotal + activationFee + explicitDeliveryFee + explicitInstallationFee + shippingFee + customAdjustmentTotal + sumDiscountLines();
-          const welcomeCredit = Number((projectedBaseBeforeWelcome - saleSubtotalHint).toFixed(2));
-          if (welcomeCredit > 0 && welcomeCredit <= monthlyTotal + 0.05) {
+        // Base fees model aligned to orders schema
+        let subtotal = monthlyTotal + equipmentTotal;
+        let deliveryFee = shippingFee + explicitDeliveryFee;
+        let installationFee = explicitInstallationFee;
+
+        const saleTotalHint = quoteTotalHint || numberFrom((sale as any)?.total_amount);
+        const hasFirstMonthDiscount = () => lineItems.some((li) =>
+          li.category === "discount"
+          && (String(li.type || "").toLowerCase() === "first_month_free" || String(li.name || "").toLowerCase().includes("1er mois"))
+        );
+        const feeTotal = () => deliveryFee + installationFee;
+        const computeBase = (includeWelcome: boolean) => Number((
+          subtotal
+          + activationFee
+          + feeTotal()
+          + customAdjustmentTotal
+          + sumDiscountLines()
+          - (includeWelcome ? monthlyTotal : 0)
+        ).toFixed(2));
+        const tryMatchTotal = (base: number) => {
+          const taxed = computeTaxes(base);
+          return saleTotalHint > 0 && Math.abs(taxed.total - saleTotalHint) <= 0.05;
+        };
+
+        // The quote total is the already validated pricing source of truth. The
+        // Core materializer may receive legacy quotes where the install option is
+        // workflow-only (technician appointment) and not a billed line, while new
+        // quotes may include it. Reconcile deterministically by selecting the only
+        // line set that matches the quote total; never fabricate a random delta.
+        if (saleTotalHint > 0) {
+          const welcomeAvailable = monthlyTotal > 0 && !quoteAdjustmentProjected && !hasFirstMonthDiscount();
+          const candidates = [
+            { includeFulfillment: true, includeWelcome: false },
+            { includeFulfillment: true, includeWelcome: welcomeAvailable },
+            { includeFulfillment: false, includeWelcome: false },
+            { includeFulfillment: false, includeWelcome: welcomeAvailable },
+          ].filter((c) => c.includeWelcome || !c.includeWelcome);
+
+          let selected: { includeFulfillment: boolean; includeWelcome: boolean } | null = null;
+          const originalDeliveryFee = deliveryFee;
+          const originalInstallationFee = installationFee;
+          for (const candidate of candidates) {
+            if (!candidate.includeWelcome && candidate.includeWelcome !== false) continue;
+            deliveryFee = candidate.includeFulfillment ? originalDeliveryFee : 0;
+            installationFee = candidate.includeFulfillment ? originalInstallationFee : 0;
+            if (tryMatchTotal(computeBase(candidate.includeWelcome))) {
+              selected = candidate;
+              break;
+            }
+          }
+          deliveryFee = selected?.includeFulfillment === false ? 0 : originalDeliveryFee;
+          installationFee = selected?.includeFulfillment === false ? 0 : originalInstallationFee;
+
+          if (selected?.includeFulfillment === false) {
+            for (let i = lineItems.length - 1; i >= 0; i--) {
+              const li = lineItems[i];
+              if (li.category === "fee" && ["shipping", "delivery", "installation"].includes(String(li.type || "").toLowerCase())) {
+                lineItems.splice(i, 1);
+              }
+            }
+          }
+          if (selected?.includeWelcome) {
             lineItems.push({
               category: "discount",
               type: "first_month_free",
-              name: `1er mois offert ✓ (automatique) — ${welcomeCredit.toFixed(2)}$/mois`,
+              name: `1er mois offert ✓ (automatique) — ${monthlyTotal.toFixed(2)}$/mois`,
               qty: 1,
-              unit_price: -welcomeCredit,
+              unit_price: -monthlyTotal,
               period: "one_time",
               taxable: true,
             });
             quoteAdjustmentProjected = true;
           }
         }
-
-        // Base fees model aligned to orders schema
-        let subtotal = monthlyTotal + equipmentTotal;
-        const deliveryFee = shippingFee + explicitDeliveryFee;
-        const installationFee = explicitInstallationFee;
 
 
         // Taxes (Quebec) — canonical tax module.
