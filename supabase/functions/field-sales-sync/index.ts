@@ -823,17 +823,36 @@ Deno.serve(async (req) => {
           canonicalOrder = newOrder;
           console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id} by agent ${agentName}`);
 
-          // ── BUG-CORE-002B: reserve installation slot on canonical `appointments` (status='hold') ──
-          // Only when the sale has a chosen slot AND at least one installable service (internet/tv).
+          // ── BUG-CORE-002C Phase 1: reserve `appointments` hold ONLY for technician installs ──
+          //   install_mode mapping (BUG-CORE-002C):
+          //     "self"       → installation_method = "auto"       → NO appointment (ship only)
+          //     "technician" → installation_method = "technician" → hold appointment created
+          //   Any other value is rejected (no hold, warning logged).
           try {
             const requiresInstall = Array.isArray(sale.services) && sale.services.some(
               (s: any) => ["internet", "tv"].includes(String(s?.category || "").toLowerCase())
             );
+            const rawInstallMode = String((sale as any)?.install_mode || "").toLowerCase().trim();
+            let installationMethod: "auto" | "technician" | null = null;
+            if (rawInstallMode === "technician") installationMethod = "technician";
+            else if (rawInstallMode === "self") installationMethod = "auto";
+            else if (rawInstallMode) {
+              console.warn(`[field-sales-sync] invalid install_mode='${rawInstallMode}' for sale ${sale.id} — no hold created`);
+            }
+
             const rawDate: string | null = sale.appointment_date || sale.install_date || null;
-            const slotDate: string | null = rawDate ? String(rawDate).slice(0, 10) : null; // YYYY-MM-DD
-            const slotWindow: string | null = sale.appointment_notes || null; // e.g. "09:00-12:00"
-            if (requiresInstall && slotDate && slotWindow && /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(slotWindow)) {
-              const startTime = slotWindow.split("-")[0]; // "HH:MM"
+            const slotDate: string | null = rawDate ? String(rawDate).slice(0, 10) : null;
+            const slotWindow: string | null = sale.appointment_notes || null;
+
+            // Hold ONLY if technician install + installable service + valid slot.
+            if (
+              installationMethod === "technician" &&
+              requiresInstall &&
+              slotDate &&
+              slotWindow &&
+              /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(slotWindow)
+            ) {
+              const startTime = slotWindow.split("-")[0];
               const scheduledAt = new Date(`${slotDate}T${startTime}:00`).toISOString();
               const { data: existingAppt } = await supabaseAdmin
                 .from("appointments")
@@ -856,16 +875,18 @@ Deno.serve(async (req) => {
                     scheduled_at: scheduledAt,
                     status: "hold",
                     service_type: serviceTypeLabel,
-                    installation_method: "auto",
+                    installation_method: installationMethod,
                     created_by: sale.salesperson_id || null,
-                    internal_notes: `[BUG-CORE-002B] Hold auto-créé depuis vente terrain • sale=${sale.id} • window=${slotWindow}`,
+                    internal_notes: `[BUG-CORE-002C] Hold technicien créé depuis vente terrain • sale=${sale.id} • window=${slotWindow} • install_mode=${rawInstallMode}`,
                   } as any);
                 if (apptErr) {
                   console.warn(`[field-sales-sync] appointment hold insert failed (non-blocking):`, apptErr.message);
                 } else {
-                  console.log(`[field-sales-sync] appointment hold created for order ${canonicalOrder.order_number} @ ${scheduledAt}`);
+                  console.log(`[field-sales-sync] technician hold created for order ${canonicalOrder.order_number} @ ${scheduledAt}`);
                 }
               }
+            } else if (installationMethod === "auto") {
+              console.log(`[field-sales-sync] auto-install sale ${sale.id} — no appointment hold (ship-only path)`);
             }
           } catch (holdErr) {
             console.warn(`[field-sales-sync] appointment hold exception (non-blocking):`, holdErr);

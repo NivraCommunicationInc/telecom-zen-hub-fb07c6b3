@@ -36,7 +36,13 @@ interface CrmSalePayload {
   plan: { service_id: string; name: string; monthly_price: number; category?: string };
   equipment: SaleEquipmentLine[];
   discount?: SaleDiscountPayload | null;
-  install: { date: string; slot: "morning" | "afternoon" | "evening" };
+  install: {
+    date: string;
+    slot: "morning" | "afternoon" | "evening";
+    // BUG-CORE-002C Phase 1: explicit selection required for canonical hold behaviour.
+    // "self" → auto-install (ship only, no appointment) | "technician" → hold appointment
+    mode?: "self" | "technician";
+  };
   notes?: string;
 }
 
@@ -249,6 +255,56 @@ Deno.serve(async (req) => {
     }).select("id, order_number, status").single();
 
     if (insertErr) return json({ error: `Insert failed: ${insertErr.message}` }, 500);
+
+    // ── BUG-CORE-002C Phase 1: appointments hold ONLY for technician installs ──
+    try {
+      const rawMode = String(payload.install?.mode || "").toLowerCase().trim();
+      let installationMethod: "auto" | "technician" | null = null;
+      if (rawMode === "technician") installationMethod = "technician";
+      else if (rawMode === "self") installationMethod = "auto";
+      else if (rawMode) {
+        console.warn(`[crm-create-sale] invalid install.mode='${rawMode}' — no hold created`);
+      }
+
+      // CRM slot vocabulary → window
+      const SLOT_WINDOW: Record<string, string> = {
+        morning: "09:00-12:00",
+        afternoon: "13:00-17:00",
+        evening: "17:00-20:00",
+      };
+      const slotWindow = SLOT_WINDOW[String(payload.install?.slot || "").toLowerCase()] || null;
+      const slotDate = payload.install?.date ? String(payload.install.date).slice(0, 10) : null;
+
+      if (installationMethod === "technician" && slotDate && slotWindow) {
+        const startTime = slotWindow.split("-")[0];
+        const scheduledAt = new Date(`${slotDate}T${startTime}:00`).toISOString();
+        const { data: existingAppt } = await admin
+          .from("appointments").select("id").eq("order_id", order.id).maybeSingle();
+        if (!existingAppt) {
+          const { error: apptErr } = await admin.from("appointments").insert({
+            order_id: order.id,
+            client_id: clientUserId,
+            client_email: payload.client.email,
+            client_phone: payload.client.phone ?? null,
+            service_address: payload.client.service_address ?? null,
+            service_city: payload.client.service_city ?? null,
+            service_postal_code: payload.client.service_postal_code ?? null,
+            title: `Installation — ${order.order_number}`,
+            scheduled_at: scheduledAt,
+            status: "hold",
+            service_type: serviceType,
+            installation_method: installationMethod,
+            created_by: user.id,
+            internal_notes: `[BUG-CORE-002C] Hold technicien créé depuis CRM call • contact=${payload.contact_id} • window=${slotWindow}`,
+          } as any);
+          if (apptErr) console.warn(`[crm-create-sale] appointment hold insert failed (non-blocking):`, apptErr.message);
+        }
+      } else if (installationMethod === "auto") {
+        console.log(`[crm-create-sale] auto-install order ${order.order_number} — no appointment hold`);
+      }
+    } catch (holdErr) {
+      console.warn(`[crm-create-sale] appointment hold exception (non-blocking):`, holdErr);
+    }
 
     // Step 4: materialize order_items — source unique de toute la logique billing
     const items: any[] = [];
