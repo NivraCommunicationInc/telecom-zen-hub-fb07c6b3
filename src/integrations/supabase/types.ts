@@ -33214,6 +33214,10 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_qa_seed_subscription_fixture: {
+        Args: { p_row: Json }
+        Returns: string
+      }
       rpc_referral_apply_action: {
         Args: {
           p_action: string
