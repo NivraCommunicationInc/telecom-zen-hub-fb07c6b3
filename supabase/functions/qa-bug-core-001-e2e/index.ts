@@ -78,7 +78,7 @@ serve(async (req) => {
       province: "QC",
       postal_code: "J6A 2T2",
       date_of_birth: "1990-01-01",
-      install_mode: "self_install",
+      install_mode: "self",
       delivery_mode: "standard",
       delivery_fee: 0,
       installation_fee: 0,
@@ -112,7 +112,7 @@ serve(async (req) => {
         tvq: TVQ,
         activation_fee: 10,
         total: TOTAL,
-        install_mode: "self_install",
+        install_mode: "self",
         status: "draft",
       } as any)
       .select("id")
