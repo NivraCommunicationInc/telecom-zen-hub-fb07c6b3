@@ -332,7 +332,7 @@ async function auditAndJournal(
         metadata: { before, after, reason: reason ?? null, correlation_id: correlationId, module_tag: moduleTag },
       },
       eventKey: `account:${accountId}:${action}:${correlationId}`,
-      correlationId: correlationUuid,
+      correlationId: correlationId,
       actor: { userId: actorId, role: actorRole, email: actorEmail },
       visibility: 'staff',
     });
