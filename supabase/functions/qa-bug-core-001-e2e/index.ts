@@ -146,7 +146,7 @@ serve(async (req) => {
     // ── Step 3 — verify email is queued ─────────────────────────────────────
     const { data: emailRow } = await supabase
       .from("email_queue")
-      .select("id, template_key, recipient_email, status, idempotency_key, created_at")
+      .select("id, template_key, to_email, status, idempotency_key, created_at")
       .eq("idempotency_key", `field_payment_link_${intentId}`)
       .maybeSingle();
     if (!emailRow) return fail("verify_email_queued", "email row not found");
