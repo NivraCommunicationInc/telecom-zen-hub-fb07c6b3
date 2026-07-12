@@ -223,31 +223,19 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
     enabled: reviewerIds.length > 0,
   });
 
-  // ── Unified timeline (Module 44 canonical) — Module 47 D47-H ──
-  // Reads exclusively from v_customer_timeline. No more direct activity_logs.
+  // ── Unified timeline (Module 51 B2.3 canonical) ──
+  // The activity timeline UI is delegated to <CustomerTimelineTable>, which
+  // reads exclusively from v_customer_timeline. This section keeps only the
+  // event count for the collapsible header.
   const activityQ = useQuery({
-    queryKey: ["client-history-timeline", clientId],
+    queryKey: ["client-history-timeline-count", clientId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from("v_customer_timeline" as any)
-        .select("event_id, occurred_at, event_type, severity, summary, actor_name, actor_role, source_table, source_id, details, visibility")
-        .eq("client_id", clientId)
-        .order("occurred_at", { ascending: false })
-        .limit(400);
+        .select("event_id", { count: "exact", head: true })
+        .eq("client_id", clientId);
       if (error) throw error;
-      // Adapter to previous activity_logs shape used by the UI
-      return ((data as any[]) || []).map((row) => ({
-        id: row.event_id,
-        action: row.summary || row.event_type,
-        entity_type: row.event_type,
-        entity_id: row.source_id,
-        created_at: row.occurred_at,
-        actor_name: row.actor_name,
-        actor_role: row.actor_role,
-        details: row.details,
-        source_table: row.source_table,
-        visibility: row.visibility,
-      }));
+      return count ?? 0;
     },
     enabled: !!clientId,
   });
