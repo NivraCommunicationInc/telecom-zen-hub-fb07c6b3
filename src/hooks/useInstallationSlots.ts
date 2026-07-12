@@ -64,8 +64,9 @@ export function useInstallationSlots(opts: Options = {}) {
     if (!enabled) return;
     const channel = supabase.channel(`installation-slots:${from}:${to}`);
     for (const table of REALTIME_TABLES) {
-      channel.on(
-        // @ts-expect-error postgres_changes payload typing
+      (channel as unknown as {
+        on: (t: string, f: Record<string, unknown>, cb: () => void) => typeof channel;
+      }).on(
         "postgres_changes",
         { event: "*", schema: "public", table },
         () => {
