@@ -566,7 +566,7 @@ serve(async (req) => {
       });
       if (error || !data) throw new Error(error?.message || "RPC pricing failed");
       const d: any = data;
-      server_subtotal = Number(d.taxable_base ?? d.recurring_subtotal ?? 0) + Number(d.one_time_subtotal ?? 0);
+      server_subtotal = Number(d.taxable_base ?? d.recurring_subtotal ?? 0);
       server_tps = Number(d.tps_amount || 0);
       server_tvq = Number(d.tvq_amount || 0);
       server_total = Number(d.grand_total || 0);

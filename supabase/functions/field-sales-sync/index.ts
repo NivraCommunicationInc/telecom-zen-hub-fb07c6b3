@@ -685,9 +685,12 @@ Deno.serve(async (req) => {
         const saleTaxesHint = computeTaxes(saleSubtotalHint);
         const saleTotalHint = quoteTotalHint || numberFrom((sale as any)?.total_amount);
         const hasAuthoritativeSaleSubtotal = saleSubtotalHint > 0 && saleTotalHint > 0 && Math.abs(saleTaxesHint.total - saleTotalHint) <= 0.05;
+        const sumDiscountLines = () => lineItems
+          .filter((li) => li.category === "discount")
+          .reduce((sum, li) => sum + (Number(li.unit_price || 0) * (Number(li.qty || 1) || 1)), 0);
 
         if (!quoteAdjustmentProjected && hasAuthoritativeSaleSubtotal && monthlyTotal > 0) {
-          const projectedBaseBeforeWelcome = monthlyTotal + equipmentTotal + activationFee + explicitDeliveryFee + explicitInstallationFee + shippingFee + customAdjustmentTotal;
+          const projectedBaseBeforeWelcome = monthlyTotal + equipmentTotal + activationFee + explicitDeliveryFee + explicitInstallationFee + shippingFee + customAdjustmentTotal + sumDiscountLines();
           const welcomeCredit = Number((projectedBaseBeforeWelcome - saleSubtotalHint).toFixed(2));
           if (welcomeCredit > 0 && welcomeCredit <= monthlyTotal + 0.05) {
             lineItems.push({
@@ -714,9 +717,7 @@ Deno.serve(async (req) => {
         // "à l'envers" depuis un total cible. Aucune ligne fabriquée pour
         // combler un écart. Si le total agent diffère des lignes réelles,
         // la synchro échoue et l'ordre reste bloqué en `sync_error`.
-        const projectedDiscountTotal = lineItems
-          .filter((li) => li.category === "discount")
-          .reduce((sum, li) => sum + (Number(li.unit_price || 0) * (Number(li.qty || 1) || 1)), 0);
+        const projectedDiscountTotal = sumDiscountLines();
         const baseAmount = Number((subtotal + activationFee + deliveryFee + installationFee + customAdjustmentTotal + projectedDiscountTotal).toFixed(2));
         const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
