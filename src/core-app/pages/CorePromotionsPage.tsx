@@ -12,7 +12,8 @@ import { useState, useEffect, useMemo } from "react";
 import { estimateTaxes, TAX_DISPLAY } from "@/lib/pricing/serverTaxEngine";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Tag, Search, Plus, Edit, Copy, Eye, ToggleLeft, ToggleRight, Percent, DollarSign, RefreshCcw, XCircle, Calculator } from "lucide-react";
+import { Tag, Search, Plus, Edit, Copy, Eye, ToggleLeft, ToggleRight, Percent, DollarSign, RefreshCcw, XCircle, Calculator, Users } from "lucide-react";
+import AccountPromotionsTable from "@/core-app/components/promotions/AccountPromotionsTable";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -52,6 +53,7 @@ export default function CorePromotionsPage() {
   const [formData, setFormData] = useState({ ...defaultForm });
   const [formTab, setFormTab] = useState<"general" | "restrictions" | "preview">("general");
   const [previewSubtotal, setPreviewSubtotal] = useState(100);
+  const [topTab, setTopTab] = useState<"catalog" | "assignments">("catalog");
 
   const { data: promotions = [], isLoading, refetch } = useQuery({
     queryKey: ["core-promotions"],
@@ -168,13 +170,31 @@ export default function CorePromotionsPage() {
           <p className="text-xs text-[#94A3B8]">{promotions.filter((p) => p.status === "active").length} actives • {promotions.length} total</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => { resetForm(); setIsEditing(false); setShowDialog(true); }} className="h-8 px-3 rounded-md bg-emerald-600 text-white text-[12px] font-medium hover:bg-emerald-500 transition-colors flex items-center gap-1.5">
-            <Plus className="h-3.5 w-3.5" /> Nouvelle promotion
-          </button>
+          {topTab === "catalog" && (
+            <button onClick={() => { resetForm(); setIsEditing(false); setShowDialog(true); }} className="h-8 px-3 rounded-md bg-emerald-600 text-white text-[12px] font-medium hover:bg-emerald-500 transition-colors flex items-center gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Nouvelle promotion
+            </button>
+          )}
           <Tag className="h-5 w-5 text-emerald-400" />
         </div>
       </div>
 
+      {/* Top tabs: Catalogue vs Assignations actives */}
+      <div className="flex gap-1.5 border-b border-[hsl(220,15%,16%)]">
+        <button onClick={() => setTopTab("catalog")}
+          className={`px-3 py-2 text-[12px] font-medium rounded-t-md transition-colors flex items-center gap-1.5 ${topTab === "catalog" ? "bg-[hsl(220,15%,14%)] text-emerald-400 border border-[hsl(220,15%,18%)] border-b-transparent -mb-px" : "text-[#94A3B8] hover:text-[#CBD5E1]"}`}>
+          <Tag className="h-3.5 w-3.5" /> Catalogue
+        </button>
+        <button onClick={() => setTopTab("assignments")}
+          className={`px-3 py-2 text-[12px] font-medium rounded-t-md transition-colors flex items-center gap-1.5 ${topTab === "assignments" ? "bg-[hsl(220,15%,14%)] text-emerald-400 border border-[hsl(220,15%,18%)] border-b-transparent -mb-px" : "text-[#94A3B8] hover:text-[#CBD5E1]"}`}>
+          <Users className="h-3.5 w-3.5" /> Assignations actives
+        </button>
+      </div>
+
+      {topTab === "assignments" ? (
+        <AccountPromotionsTable />
+      ) : (
+      <>
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -191,6 +211,7 @@ export default function CorePromotionsPage() {
           ))}
         </div>
       </div>
+
 
       {/* Table */}
       <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
@@ -474,6 +495,8 @@ export default function CorePromotionsPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
