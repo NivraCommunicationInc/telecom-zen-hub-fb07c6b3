@@ -603,7 +603,7 @@ export function useOrderProcessing(orderId: string | undefined) {
   });
 
   const data = orderQuery.data;
-  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection, data.mobileFulfillment) : [];
+  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection, data.mobileFulfillment, data.appointment) : [];
 
   /* ── Invalidate everything ── */
   const invalidateAll = () => {
