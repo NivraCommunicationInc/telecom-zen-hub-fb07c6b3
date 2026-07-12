@@ -93,9 +93,27 @@ export default function StepDiscounts({
   const [customDuration, setCustomDuration] = useState("24");
 
   const { data: discounts = [], isLoading } = useQuery({
-    queryKey: ["field-agent-discounts", user?.id],
-    enabled: !!user?.id,
+    queryKey: ["field-agent-discounts", user?.id, allowCustomDiscount ? "core-catalog" : "assigned"],
+    enabled: allowCustomDiscount || !!user?.id,
     queryFn: async (): Promise<RawDiscount[]> => {
+      if (allowCustomDiscount) {
+        const { data: rows, error: derr } = await supabase
+          .from("agent_discounts")
+          .select(
+            "id,name,type,value,applies_to,description,expires_at,max_uses,uses_count,is_active,duration_months,min_plan_price",
+          )
+          .eq("is_active", true);
+        if (derr) throw derr;
+
+        const now = Date.now();
+        return (rows ?? []).filter((d) => {
+          if (String(d.type) === "first_month_free") return false;
+          const notExpired = !d.expires_at || new Date(d.expires_at).getTime() > now;
+          const hasCapacity = d.max_uses == null || (d.uses_count ?? 0) < d.max_uses;
+          return notExpired && hasCapacity;
+        }) as RawDiscount[];
+      }
+
       const { data: assignments, error: aerr } = await supabase
         .from("agent_discount_assignments")
         .select("discount_id, applies_to_all, agent_id, role")
@@ -150,7 +168,7 @@ export default function StepDiscounts({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, queryClient]);
+  }, [user?.id, allowCustomDiscount, queryClient]);
 
   const toFieldDiscount = (d: RawDiscount): FieldSaleDiscount => ({
     id: d.id,
@@ -251,7 +269,9 @@ export default function StepDiscounts({
       <div>
         <h2 className="text-2xl md:text-3xl font-bold text-white">Rabais agent</h2>
         <p className="text-sm md:text-base text-[hsl(var(--field-text-muted))] mt-1">
-          Sélectionnez un rabais Nivra à appliquer à cette commande.
+          {allowCustomDiscount
+            ? "Promotions du catalogue actif et rabais personnalisé Core."
+            : "Sélectionnez un rabais Nivra à appliquer à cette commande."}
         </p>
       </div>
 
