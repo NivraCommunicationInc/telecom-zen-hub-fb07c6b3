@@ -454,21 +454,23 @@ serve(async (req) => {
             subscriptionUpdateError = subErr.message;
           }
         }
-        // Sync billing_subscription plan_name (Phase 3 canonical)
-        try {
-          const { data: bc } = await admin
-            .from("billing_customers")
-            .select("id")
-            .eq("user_id", client_user_id)
-            .maybeSingle();
-          if (bc?.id) {
-            await admin
-              .from("billing_subscriptions")
-              .update({ plan_name: new_plan_name })
-              .eq("customer_id", bc.id)
-              .eq("status", "active");
-          }
-        } catch (_e) { /* non-blocking */ }
+        // Phase 6.2 — canonical: rpc_admin_change_subscription_plan, targeted subscription only.
+        // FIX: never update all active subs of a customer; use the exact subscription_id from body.
+        if (body.subscription_id) {
+          try {
+            const { error: rpcErr } = await admin.rpc("rpc_admin_change_subscription_plan", {
+              p_subscription_id: body.subscription_id,
+              p_new_plan_name: new_plan_name,
+              p_new_plan_price: new_monthly_price,
+              p_new_plan_code: (body.new_plan_code as string | null) ?? null,
+              p_reason: "internet_plan_change",
+              p_context: { source: "internet-account-actions", client_user_id },
+            });
+            if (rpcErr) {
+              console.error("[internet-account-actions] rpc_admin_change_subscription_plan error:", rpcErr.message);
+            }
+          } catch (_e) { /* non-blocking */ }
+        }
 
         if (!subscriptionUpdateOk) {
           await admin.from("billing_system_alerts").insert({

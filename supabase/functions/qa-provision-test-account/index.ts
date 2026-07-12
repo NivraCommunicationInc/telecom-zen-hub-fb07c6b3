@@ -202,9 +202,9 @@ Deno.serve(async (req) => {
       subscriptionId = existingSub.id;
       reused.push("billing_subscriptions");
     } else {
-      const { data: sub, error: subErr } = await supabase
-        .from("billing_subscriptions")
-        .insert({
+      // Phase 6.2 — canonical: rpc_qa_seed_subscription_fixture (allow-listed QA writer, env=test only)
+      const { data: seedId, error: subErr } = await supabase.rpc("rpc_qa_seed_subscription_fixture", {
+        p_row: {
           customer_id: userId,
           plan_code: INTERNET_500_PLAN_CODE,
           plan_name: INTERNET_500_NAME,
@@ -220,9 +220,10 @@ Deno.serve(async (req) => {
           service_address_id: serviceAddressId,
           address_id: serviceAddressId,
           source_type: "qa_provisioning",
-        })
-        .select("id")
-        .single();
+        },
+      });
+      if (subErr) throw new Error(`seed_subscription: ${subErr.message}`);
+      const sub = { id: seedId as string };
       if (subErr || !sub) throw new Error(`billing_subscriptions insert: ${subErr?.message}`);
       subscriptionId = sub.id;
       created.push("billing_subscriptions");

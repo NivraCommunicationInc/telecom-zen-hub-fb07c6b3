@@ -243,17 +243,17 @@ async function checkVoidOverdue(supabase: any) {
     new Set((overdueInvoices ?? []).map((i: any) => i.subscription_id).filter(Boolean)),
   );
   if (subIds.length > 0) {
-    const { data: subUpdated } = await supabase
-      .from("billing_subscriptions")
-      .update({
-        status: "not_renewed",
-        auto_billing_enabled: false,
-        updated_at: new Date().toISOString(),
-      })
-      .in("id", subIds)
-      .in("status", ["active", "suspended"])
-      .select("id");
-    subscriptionsNotRenewed = subUpdated?.length ?? 0;
+    // Phase 6.2 — canonical: rpc_mark_subscription_not_renewed (allow-listed writer)
+    let updated = 0;
+    for (const subId of subIds) {
+      const { data: didMark, error: rpcErr } = await supabase.rpc("rpc_mark_subscription_not_renewed", {
+        p_subscription_id: subId,
+        p_reason: "prepaid_grace_period_expired",
+        p_context: { source: "agent-billing", void_at_days: VOID_AT_DAYS },
+      });
+      if (!rpcErr && didMark === true) updated++;
+    }
+    subscriptionsNotRenewed = updated;
   }
 
   return { invoices_voided: invoicesVoided, subscriptions_not_renewed: subscriptionsNotRenewed };

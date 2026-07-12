@@ -111,10 +111,15 @@ export default function SubscriptionDetailPage() {
       return;
     }
     setSavingPlan(true);
-    const { error } = await supabase
-      .from("billing_subscriptions")
-      .update({ plan_name: planName.trim(), plan_price: price, updated_at: new Date().toISOString() })
-      .eq("id", id);
+    // Phase 6.2 — canonical: rpc_admin_change_subscription_plan
+    const { error } = await supabase.rpc("rpc_admin_change_subscription_plan", {
+      p_subscription_id: id,
+      p_new_plan_name: planName.trim(),
+      p_new_plan_price: price,
+      p_new_plan_code: subscription?.plan_code ?? null,
+      p_reason: "core_ui_plan_change",
+      p_context: { source: "SubscriptionDetailPage" },
+    });
     setSavingPlan(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Forfait mis à jour — reflété à la prochaine facture");
@@ -157,20 +162,19 @@ export default function SubscriptionDetailPage() {
     if (!id || !subscription) return;
     setActionLoading(newStatus);
     try {
-      const { error } = await supabase
-        .from("billing_subscriptions")
-        .update({ status: newStatus as any, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-
-      // Audit trail
-      await supabase.from("billing_subscription_trace_audit").insert({
-        subscription_id: id,
-        customer_id: subscription.customer_id,
-        action: `status_changed_to_${newStatus}`,
-        reason: `Action manuelle depuis Core: ${label}`,
-        details: { previous_status: subscription.status, new_status: newStatus },
+      // Phase 6.2 — canonical: state_machine RPCs (audit is written inside the RPC)
+      const rpcName =
+        newStatus === "suspended" ? "suspend_subscription" :
+        newStatus === "active" ? "reactivate_subscription" :
+        newStatus === "cancelled" ? "cancel_subscription" :
+        null;
+      if (!rpcName) throw new Error(`Unsupported status transition: ${newStatus}`);
+      const { error } = await supabase.rpc(rpcName as any, {
+        p_subscription_id: id,
+        p_reason: `core_ui_${label}`,
+        p_context: { source: "SubscriptionDetailPage", label },
       });
+      if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: ["admin-subscription-detail", id] });
       queryClient.invalidateQueries({ queryKey: ["admin-subscriptions"] });
