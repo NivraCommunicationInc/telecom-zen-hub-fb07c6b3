@@ -220,15 +220,13 @@ Deno.serve(async (req) => {
         status: "active", service_category: "Internet", environment: "test",
         source_order_item_id: itemB1, source_id: itemB1, ...traceBase, ...frozen("QA B Internet", "QA26-INT-B", 49.99) },
     ];
-    // Seed via create_subscription_ad_hoc (allow-listed canonical writer)
+    // Seed via canonical QA gateway (allow-listed writer, env=test only)
     const subs: Array<{ id: string; customer_id: string }> = [];
     for (const row of qaSeedRows) {
-      const { data: newId, error: seedErr } = await admin.rpc("create_subscription_ad_hoc", row as any);
+      const { data: newId, error: seedErr } = await admin.rpc("rpc_qa_seed_subscription_fixture", { p_row: row });
       if (seedErr) throw new Error(`seed_subs: ${seedErr.message}`);
       if (newId) subs.push({ id: newId as string, customer_id: row.customer_id });
     }
-    const subsSeedErr = null as any;
-    if (subsSeedErr) throw new Error(`seed_subs: ${subsSeedErr.message}`);
     (subs ?? []).forEach((s: any) => createdSubIds.push(s.id));
 
     // Seed 2 equipment items assigned to account A
