@@ -371,8 +371,10 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel, loc
         </div>
       )}
 
-      {/* ── Installation slot + coaxial survey (shared components) ── */}
-      {customer.serviceability_status === "available" && (
+      {/* ── Installation slot + coaxial survey (shared components) ──
+          BUG-CORE-002A: only render once ≥1 installable service is in the cart.
+          Mirrors Core POS `requiresInstall` rule. */}
+      {customer.serviceability_status === "available" && hasInstallableService && (
         <div className="bg-gray-800 border border-border rounded-xl p-5 space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-gray-50">Créneau d'installation (optionnel)</h3>
