@@ -1519,6 +1519,18 @@ Deno.serve(async (req) => {
           throw new Error(`Sync status update failed: ${updateError.message}`);
         }
 
+        if ((sale as any).source_field_payment_intent_id) {
+          await supabaseAdmin
+            .from("field_payment_intents")
+            .update({
+              converted_field_order_id: sale.id,
+              converted_order_id: canonicalOrder.id,
+              converted_invoice_id: invoiceId,
+            } as any)
+            .eq("id", (sale as any).source_field_payment_intent_id)
+            .is("converted_order_id", null);
+        }
+
         // â•â•â• COMMISSION ENGINE â€” Base % + tier lookup â•â•â•
         // Commission is created with status 'pending_activation' â€” only unlocked when order reaches 'activated'
         try {
