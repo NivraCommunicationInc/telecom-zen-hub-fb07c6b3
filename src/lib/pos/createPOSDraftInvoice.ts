@@ -252,7 +252,6 @@ export async function createPOSDraftInvoice(
       const { error: apptErr } = await supabase.from("appointments").insert({
         order_id: newOrder.id,
         client_id: input.customer.client_id || null,
-        account_id: accountId,
         client_email: input.customer.email,
         client_phone: input.customer.phone,
         service_address: input.customer.service_address,
