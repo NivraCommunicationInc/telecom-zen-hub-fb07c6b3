@@ -73,17 +73,36 @@ export default function CoreAppointmentDetail() {
     queryFn: async () => {
       const orderId = apt?.order_id;
       const email = apt?.client_email;
-      let query = supabase
-        .from("support_tickets")
-        .select("id, ticket_number, subject, status, priority, category, created_at, related_order_id, client_email")
-        .order("created_at", { ascending: false })
-        .limit(8);
-      if (orderId) query = query.eq("related_order_id", orderId);
-      else if (email) query = query.eq("client_email", email);
-      else return [];
-      const { data, error } = await query;
-      if (error) throw error;
-      return data ?? [];
+      if (!orderId && !email) return [];
+
+      const queries = [];
+      if (orderId) {
+        queries.push(
+          supabase
+            .from("support_tickets")
+            .select("id, ticket_number, subject, status, priority, category, created_at, related_order_id, client_email")
+            .eq("related_order_id", orderId)
+            .order("created_at", { ascending: false })
+            .limit(8),
+        );
+      }
+      if (email) {
+        queries.push(
+          supabase
+            .from("support_tickets")
+            .select("id, ticket_number, subject, status, priority, category, created_at, related_order_id, client_email")
+            .eq("client_email", email)
+            .order("created_at", { ascending: false })
+            .limit(8),
+        );
+      }
+
+      const results = await Promise.all(queries);
+      const firstError = results.find((r) => r.error)?.error;
+      if (firstError) throw firstError;
+      const byId = new Map<string, any>();
+      results.flatMap((r) => r.data ?? []).forEach((ticket: any) => byId.set(ticket.id, ticket));
+      return Array.from(byId.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 8);
     },
   });
 
