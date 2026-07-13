@@ -7226,6 +7226,8 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
       const planName = esc(v.plan_name || "Forfait Nivra");
       const renewal = esc(v.renewal_date || fmtDate(new Date(Date.now() + 30*86400000).toISOString()));
       const speed = esc(v.speed || "Optimale");
+      const wifiSsid = safe(v.wifi_ssid || v.ssid || v.network_name, "Fourni par le technicien");
+      const wifiPassword = safe(v.wifi_password || v.password || v.network_password, "Fourni par le technicien");
       const today = fmtDate(new Date().toISOString());
       return {
         subject: "Votre service Nivra est maintenant actif",
@@ -7235,13 +7237,15 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroTitle: "Votre service Nivra est actif!",
           icon: "check",
           greeting,
-          bodyText: "Votre installation a été complétée avec succès par notre technicien. Votre service est maintenant actif et prêt à être utilisé. Votre avis nous aide à grandir — laissez-nous une note Google!",
+          bodyText: `Votre installation a été complétée avec succès par notre technicien. Votre service est maintenant actif et prêt à être utilisé.<div style="margin:22px 0;padding:18px;border-radius:18px;background:#ecfdf5;border:1px solid #86efac;text-align:center;"><div style="font-size:34px;line-height:34px;color:#16a34a;font-weight:900;letter-spacing:2px;">━╍╍╍━</div><div style="margin-top:8px;color:#166534;font-weight:800;">Connexion réseau établie ✅</div></div>Votre avis nous aide à grandir — laissez-nous une note Google!`,
           cardTitle: "Détails du service",
           cardRows: [
             ["Forfait activé", planName],
             ["Date d'activation", today],
             ["Prochain renouvellement", renewal],
             ["Vitesse mesurée", speed],
+            ["Nom du réseau WiFi", wifiSsid],
+            ["Mot de passe WiFi", wifiPassword],
           ],
           ctaPrimaryUrl: portalUrl,
           ctaPrimaryLabel: "Accéder à mon compte",

@@ -1,7 +1,7 @@
 /**
- * tech-map-data — Returns all service addresses with active subscriptions
- * for the tech map. Auto-geocodes any missing coordinates via Mapbox and
- * persists them back to service_addresses.
+ * tech-map-data — Returns active service addresses + technician map positions.
+ * Technicians use live GPS when available, otherwise their current assignment
+ * service address so they remain visible once they accept installation work.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false } },
     );
-    const mapboxToken = Deno.env.get("MAPBOX_PUBLIC_TOKEN");
+    const mapboxToken = Deno.env.get("MAPBOX_PUBLIC_TOKEN") || Deno.env.get("VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN");
 
     // Load addresses that have at least one active subscription
     const { data: subs, error: subsErr } = await supabase
@@ -70,10 +70,11 @@ Deno.serve(async (req) => {
       svcByAddr.set(s.service_address_id, list);
     }
 
-    const points = (addrs || [])
+    const servicePoints = (addrs || [])
       .filter((a: any) => a.latitude && a.longitude)
       .map((a: any) => ({
         id: a.id,
+        kind: "service_address",
         account_id: a.account_id,
         label: a.label,
         address_line: a.address_line,
@@ -84,6 +85,86 @@ Deno.serve(async (req) => {
         lng: Number(a.longitude),
         services: svcByAddr.get(a.id) || [],
       }));
+
+    const activeAssignmentStatuses = ["accepted", "assigned", "en_route", "arrived", "in_progress", "scheduled", "pending_scheduling"];
+    const { data: techRows } = await supabase
+      .from("technicians")
+      .select("id, full_name, status")
+      .in("status", ["active", "available", "busy", "on_route", "on_job"]);
+
+    const techIds = Array.from(new Set((techRows || []).map((t: any) => t.id).filter(Boolean)));
+    let liveRows: any[] = [];
+    let assignmentRows: any[] = [];
+    if (techIds.length > 0) {
+      const { data: locs } = await supabase
+        .from("technician_locations")
+        .select("technician_id, latitude, longitude, updated_at")
+        .in("technician_id", techIds)
+        .order("updated_at", { ascending: false });
+      liveRows = locs || [];
+
+      const { data: assignments } = await supabase
+        .from("technician_assignments")
+        .select("id, technician_id, status, service_address_id")
+        .in("technician_id", techIds)
+        .in("status", activeAssignmentStatuses)
+        .not("service_address_id", "is", null)
+        .order("scheduled_date", { ascending: true });
+      assignmentRows = assignments || [];
+    }
+
+    const latestLiveByTech = new Map<string, any>();
+    for (const loc of liveRows) {
+      if (!latestLiveByTech.has(loc.technician_id) && loc.latitude && loc.longitude) {
+        latestLiveByTech.set(loc.technician_id, loc);
+      }
+    }
+
+    const assignmentByTech = new Map<string, any>();
+    const fallbackAddressIds = new Set<string>();
+    for (const assignment of assignmentRows) {
+      if (!assignmentByTech.has(assignment.technician_id)) assignmentByTech.set(assignment.technician_id, assignment);
+      if (assignment.service_address_id) fallbackAddressIds.add(assignment.service_address_id);
+    }
+
+    let fallbackAddresses: any[] = [];
+    if (fallbackAddressIds.size > 0) {
+      const { data: fallback } = await supabase
+        .from("service_addresses")
+        .select("id, account_id, label, address_line, city, province, postal_code, latitude, longitude")
+        .in("id", Array.from(fallbackAddressIds));
+      fallbackAddresses = fallback || [];
+    }
+    const fallbackById = new Map(fallbackAddresses.map((a: any) => [a.id, a]));
+
+    const technicianPoints = (techRows || []).flatMap((tech: any) => {
+      const live = latestLiveByTech.get(tech.id);
+      const assignment = assignmentByTech.get(tech.id);
+      const fallback = assignment?.service_address_id ? fallbackById.get(assignment.service_address_id) : null;
+      const lat = live?.latitude ?? fallback?.latitude;
+      const lng = live?.longitude ?? fallback?.longitude;
+      if (!lat || !lng) return [];
+      return [{
+        id: `tech-${tech.id}`,
+        kind: "technician",
+        account_id: fallback?.account_id || "",
+        label: tech.full_name || "Technicien",
+        address_line: fallback?.address_line || "Position technicien",
+        city: fallback?.city || null,
+        province: fallback?.province || null,
+        postal_code: fallback?.postal_code || null,
+        lat: Number(lat),
+        lng: Number(lng),
+        services: [],
+        technician_id: tech.id,
+        technician_name: tech.full_name || "Technicien",
+        technician_status: tech.status || null,
+        assignment_status: assignment?.status || null,
+        location_source: live ? "live_gps" : "assignment_address",
+      }];
+    });
+
+    const points = [...servicePoints, ...technicianPoints];
 
     return new Response(JSON.stringify({ token: mapboxToken, points }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
