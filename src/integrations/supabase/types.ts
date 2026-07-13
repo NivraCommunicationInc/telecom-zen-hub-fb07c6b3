@@ -18428,6 +18428,76 @@ export type Database = {
           },
         ]
       }
+      order_events: {
+        Row: {
+          actor_email: string | null
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string
+          event_type: string
+          id: string
+          new_status: string | null
+          order_id: string
+          payload: Json | null
+          previous_status: string | null
+          reason_code: string | null
+          reason_note: string | null
+          source: string | null
+        }
+        Insert: {
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          new_status?: string | null
+          order_id: string
+          payload?: Json | null
+          previous_status?: string | null
+          reason_code?: string | null
+          reason_note?: string | null
+          source?: string | null
+        }
+        Update: {
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          new_status?: string | null
+          order_id?: string
+          payload?: Json | null
+          previous_status?: string | null
+          reason_code?: string | null
+          reason_note?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_lifecycle"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_identity_data: {
         Row: {
           created_at: string
@@ -31672,6 +31742,21 @@ export type Database = {
         Args: { p_billing_day: number; p_from_date?: string }
         Returns: string
       }
+      cancel_order_preview_v1: { Args: { p_order_id: string }; Returns: Json }
+      cancel_order_v1: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_actor_role: string
+          p_dry_run?: boolean
+          p_idempotency_key?: string
+          p_order_id: string
+          p_reason_code: string
+          p_reason_note: string
+          p_source: string
+        }
+        Returns: Json
+      }
       cancel_subscription: {
         Args: { p_context?: Json; p_reason?: string; p_subscription_id: string }
         Returns: string
@@ -34305,6 +34390,14 @@ export type Database = {
         | "refund"
         | "late_fee"
         | "promo_credit"
+      order_cancellation_reason_code:
+        | "client_changed_mind"
+        | "payment_issue"
+        | "address_not_serviceable"
+        | "agent_error"
+        | "fraud"
+        | "duplicate"
+        | "other"
       order_item_service_type:
         | "internet"
         | "tv"
@@ -34866,6 +34959,15 @@ export const Constants = {
         "refund",
         "late_fee",
         "promo_credit",
+      ],
+      order_cancellation_reason_code: [
+        "client_changed_mind",
+        "payment_issue",
+        "address_not_serviceable",
+        "agent_error",
+        "fraud",
+        "duplicate",
+        "other",
       ],
       order_item_service_type: [
         "internet",
