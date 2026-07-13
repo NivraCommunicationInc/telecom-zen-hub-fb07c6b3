@@ -19,6 +19,7 @@ interface AppointmentHistoryTimelineProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  pending_scheduling: { label: "À planifier", color: "bg-amber-500", icon: Clock },
   scheduled: { label: "Planifié", color: "bg-cyan-500", icon: Clock },
   modified: { label: "Modifié", color: "bg-purple-500", icon: Edit },
   cancelled: { label: "Annulé", color: "bg-red-500", icon: XCircle },

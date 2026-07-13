@@ -44,6 +44,7 @@ interface AppointmentDetailDialogProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  pending_scheduling: { label: "À planifier", color: "bg-amber-500/20 text-amber-500" },
   scheduled: { label: "Planifié", color: "bg-cyan-500/20 text-cyan-500" },
   modified: { label: "Modifié", color: "bg-purple-500/20 text-purple-500" },
   cancelled: { label: "Annulé", color: "bg-red-500/20 text-red-500" },

@@ -39,6 +39,7 @@ import TechnicianStatusTimeline from "@/components/client/TechnicianStatusTimeli
 import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  pending_scheduling: { label: "À planifier", color: "bg-amber-500/20 text-amber-500", icon: CalendarClock },
   scheduled: { label: "Planifié", color: "bg-cyan-500/20 text-cyan-500", icon: Clock },
   modified: { label: "Modifié", color: "bg-purple-500/20 text-purple-500", icon: Edit },
   completed: { label: "Terminé", color: "bg-emerald-500/20 text-emerald-500", icon: CheckCircle },
@@ -208,6 +209,7 @@ const ClientAppointments = () => {
   });
 
   const statusColors: Record<string, string> = {
+    pending_scheduling: "bg-amber-500/20 text-amber-500",
     scheduled: "bg-cyan-500/20 text-cyan-500",
     completed: "bg-emerald-500/20 text-emerald-500",
     cancelled: "bg-red-500/20 text-red-500",
@@ -215,6 +217,7 @@ const ClientAppointments = () => {
   };
 
   const statusLabels: Record<string, string> = {
+    pending_scheduling: "À planifier",
     scheduled: "Planifié",
     completed: "Terminé",
     cancelled: "Annulé",
@@ -222,6 +225,7 @@ const ClientAppointments = () => {
   };
 
   const statusIcons: Record<string, any> = {
+    pending_scheduling: CalendarClock,
     scheduled: Clock,
     completed: CheckCircle,
     cancelled: XCircle,

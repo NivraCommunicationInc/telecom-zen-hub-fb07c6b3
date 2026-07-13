@@ -113,7 +113,7 @@ export default function StaffTechnicianDashboard() {
         .from("appointments")
         .select("*")
         .or(`technician_id.eq.${session.user.id},technician_id.is.null`)
-        .in("status", ["scheduled", "confirmed", "in_progress"])
+        .in("status", ["pending_scheduling", "scheduled", "confirmed", "in_progress"])
         .order("scheduled_at", { ascending: true });
 
       setAppointments(data || []);
@@ -157,6 +157,7 @@ export default function StaffTechnicianDashboard() {
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
       scheduled: { label: "Planifié", icon: <Clock3 className="h-3 w-3" />, className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+      pending_scheduling: { label: "À planifier", icon: <Clock3 className="h-3 w-3" />, className: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
       confirmed: { label: "Confirmé", icon: <CheckCircle className="h-3 w-3" />, className: "bg-green-500/20 text-green-400 border-green-500/30" },
       in_progress: { label: "En cours", icon: <RefreshCw className="h-3 w-3" />, className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
       completed: { label: "Terminé", icon: <CheckCircle className="h-3 w-3" />, className: "bg-slate-500/20 text-slate-400 border-slate-500/30" },

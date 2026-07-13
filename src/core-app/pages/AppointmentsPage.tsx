@@ -31,6 +31,7 @@ import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 const STATUS_FILTERS = [
   { label: "Tous", value: "" },
+  { label: "À planifier", value: "pending_scheduling" },
   { label: "Planifié", value: "scheduled" },
   { label: "Confirmé", value: "confirmed" },
   { label: "En cours", value: "in_progress" },
@@ -175,7 +176,7 @@ const AppointmentsPage = () => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
     return {
       total: appointments.length,
-      scheduled: appointments.filter(a => a.status === "scheduled" || a.status === "confirmed").length,
+      scheduled: appointments.filter(a => ["pending_scheduling", "scheduled", "confirmed"].includes(a.status)).length,
       completed: appointments.filter(a => a.status === "completed").length,
       today: appointments.filter(a => a.scheduled_at?.startsWith(todayStr)).length,
     };
@@ -184,6 +185,7 @@ const AppointmentsPage = () => {
   const statusLabel = (s: string) => {
     const map: Record<string, string> = {
       scheduled: "Planifié", confirmed: "Confirmé", in_progress: "En cours",
+      pending_scheduling: "À planifier",
       completed: "Terminé", cancelled: "Annulé", rescheduled: "Replanifié",
     };
     return map[s] || s;

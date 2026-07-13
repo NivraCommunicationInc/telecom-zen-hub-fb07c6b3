@@ -44,14 +44,14 @@ export function useTechnicianSectionBadges(): {
         .select("id", { count: "exact", head: true })
         .gte("scheduled_at", start)
         .lt("scheduled_at", end)
-        .in("status", ["scheduled", "confirmed", "in_progress"]);
+        .in("status", ["pending_scheduling", "scheduled", "confirmed", "in_progress"]);
 
       const { count: todayCount } = await supabase
         .from("appointments")
         .select("id", { count: "exact", head: true })
         .gte("scheduled_at", start)
         .lt("scheduled_at", new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString())
-        .in("status", ["scheduled", "confirmed", "in_progress"]);
+        .in("status", ["pending_scheduling", "scheduled", "confirmed", "in_progress"]);
 
       return {
         "/staff/appointments": {
