@@ -37,7 +37,7 @@ const DOT_STYLES: Record<StatusVariant, string> = {
 export function statusToVariant(status: string): StatusVariant {
   const s = status?.toLowerCase() || "";
   if (["active", "completed", "paid", "confirmed", "approved", "delivered", "signed"].some(k => s.includes(k))) return "success";
-  if (["pending", "submitted", "in_transit", "label_created", "partial"].some(k => s.includes(k))) return "warning";
+  if (["pending", "pending_scheduling", "submitted", "in_transit", "label_created", "partial"].some(k => s.includes(k))) return "warning";
   if (["failed", "cancelled", "rejected", "blocked", "returned", "overdue"].some(k => s.includes(k))) return "danger";
   if (["in_progress", "in_review", "provisioning", "processing"].some(k => s.includes(k))) return "info";
   if (["kyc", "verification"].some(k => s.includes(k))) return "purple";

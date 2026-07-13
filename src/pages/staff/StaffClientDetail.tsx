@@ -198,18 +198,29 @@ export default function StaffClientDetail() {
 
   // Fetch client appointments
   const { data: appointments } = useQuery({
-    queryKey: ["staff-client-appointments", clientId],
+    queryKey: ["staff-client-appointments", clientId, client?.email, (orders || []).map((o: any) => o.id).join(",")],
     queryFn: async () => {
       if (!clientId) return [];
+      const orderIds = (orders || []).map((o: any) => o.id).filter(Boolean);
+      const filters = [
+        `client_id.eq.${clientId}`,
+        ...orderIds.slice(0, 80).map((id: string) => `order_id.eq.${id}`),
+        client?.email ? `client_email.ilike.${String(client.email).trim().toLowerCase()}` : null,
+      ].filter(Boolean).join(",");
       const { data, error } = await supabase
         .from("appointments")
         .select("*")
-        .eq("client_id", clientId)
+        .or(filters)
         .order("scheduled_at", { ascending: false })
-        .limit(20);
-      
+        .limit(50);
+
       if (error) throw error;
-      return data || [];
+      const seen = new Set<string>();
+      return (data || []).filter((apt: any) => {
+        if (!apt?.id || seen.has(apt.id)) return false;
+        seen.add(apt.id);
+        return true;
+      });
     },
     enabled: !!clientId && hasVerifiedAccess,
   });
@@ -256,6 +267,7 @@ export default function StaffClientDetail() {
       paid: { label: "Payé", className: "bg-green-500/20 text-green-400 border-green-500/30" },
       open: { label: "Ouvert", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
       in_progress: { label: "En cours", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+      pending_scheduling: { label: "À planifier", className: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
       resolved: { label: "Résolu", className: "bg-green-500/20 text-green-400 border-green-500/30" },
       scheduled: { label: "Planifié", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
       active: { label: "Actif", className: "bg-green-500/20 text-green-400 border-green-500/30" },
