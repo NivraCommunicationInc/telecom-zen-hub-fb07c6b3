@@ -457,7 +457,8 @@ async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, 
   const { data: before } = await svc.from('service_addresses').select('*').eq('id', service_address_id).eq('account_id', input.account_id).maybeSingle();
   if (!before) throw new Error('service_address not found');
 
-  const activeStatuses = ['active', 'pending', 'suspended', 'trial', 'past_due', 'paused', 'pause_requested'];
+  const billingActiveStatuses = ['active', 'pending', 'suspended'];
+  const serviceInstanceActiveStatuses = ['active', 'pending', 'suspended', 'trial', 'past_due', 'paused', 'pause_requested'];
 
   // Reject only if a currently active service is bound to this address. Historic/cancelled
   // rows must not block deletion, regardless of whether they use address_id or service_address_id.
@@ -465,7 +466,7 @@ async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, 
     .from('billing_subscriptions')
     .select('id', { count: 'exact', head: true })
     .or(`service_address_id.eq.${service_address_id},address_id.eq.${service_address_id}`)
-    .in('status', activeStatuses);
+    .in('status', billingActiveStatuses);
   if (subErr) throw subErr;
   if ((activeSubs ?? 0) > 0) {
     throw new Error(`cannot delete: ${activeSubs} active subscription(s) still bound to this address`);
@@ -475,7 +476,7 @@ async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, 
     .from('service_instances')
     .select('id', { count: 'exact', head: true })
     .eq('service_address_id', service_address_id)
-    .in('status', activeStatuses);
+    .in('status', serviceInstanceActiveStatuses);
   if (instanceErr) throw instanceErr;
   if ((activeInstances ?? 0) > 0) {
     throw new Error(`cannot delete: ${activeInstances} active service instance(s) still bound to this address`);
