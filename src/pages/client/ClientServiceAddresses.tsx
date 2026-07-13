@@ -37,10 +37,11 @@ const ClientServiceAddresses = () => {
         ) : (
           <ClientAddressWorkspace
             accountId={accountId}
-            subscriptions={(canonical?.subscriptions || []).filter((s: any) => ["active", "pending", "suspended", "paused", "pause_requested"].includes(String(s.status)))}
+            subscriptions={canonical?.subscriptions || []}
             equipment={canonical?.equipment || []}
             appointments={canonical?.appointments || []}
             tickets={canonical?.supportTickets || []}
+            orders={canonical?.orders || []}
           />
         )}
       </div>
