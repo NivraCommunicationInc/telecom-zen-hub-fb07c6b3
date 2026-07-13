@@ -608,6 +608,9 @@ serve(async (req) => {
       server_total = Math.round((server_subtotal + server_tps + server_tvq) * 100) / 100;
     }
 
+    // Ajustements Core appliqués POST-TAXES sur le total serveur
+    server_total = Math.max(0, Math.round((server_total + customAdjustmentsPostTax) * 100) / 100);
+
     const ct = body.client_totals;
     if (ct) {
       // Tolerance-check total only (subtotal/taxes can slightly differ due to discount rounding)
