@@ -656,6 +656,9 @@ export function ShippingTechnicianStep({ proc }: Props) {
               <Button size="sm" onClick={handleNotifyShipping} disabled={loading === "notify-ship"} className="text-sm bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-800">
                 {loading === "notify-ship" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Bell className="w-3 h-3 mr-1" />} Notifier
               </Button>
+              <Button size="sm" onClick={handleDeliverySlip} className="text-sm bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-800">
+                <FileText className="w-3 h-3 mr-1" /> Bon de livraison
+              </Button>
             </div>
           </div>
         </div>
