@@ -655,8 +655,14 @@ serve(async (req) => {
       const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
+      const selectedSlotDate = c.install_slot?.date || c.install_date || null;
+      const selectedSlotWindow = c.install_slot?.time_slot || null;
+
       const clientInfo = {
         ...c,
+        install_date: selectedSlotDate,
+        appointment_date: selectedSlotDate,
+        appointment_notes: selectedSlotWindow,
         custom_adjustments: body.custom_adjustments || [],
         existing_account_id: body.account_id ?? null,
         existing_service_address_id: body.service_address_id ?? null,
@@ -678,7 +684,7 @@ serve(async (req) => {
           total: verify.server_total,
           status: "draft",
           agent_gps_coords: body.agent_gps ?? null,
-          install_date: c.install_date || null,
+          install_date: selectedSlotDate,
           install_mode: c.install_mode || "technician",
         } as any)
         .select("id, valid_until")
@@ -777,7 +783,9 @@ serve(async (req) => {
           customer_date_of_birth: c.date_of_birth || null,
           install_date: c.install_slot?.date || c.install_date || null,
           install_mode: c.install_mode || null,
-          appointment_date: c.install_slot?.date || null,
+          appointment_date: c.install_slot?.date && c.install_slot?.time_slot
+            ? new Date(`${c.install_slot.date}T${String(c.install_slot.time_slot).split("-")[0]}:00`).toISOString()
+            : c.install_slot?.date || c.install_date || null,
           appointment_notes: c.install_slot?.time_slot || null,
           services: [...pricing.resolvedServices, ...pricing.resolvedEquipment,
                      ...(body.custom_adjustments || [])] as any,
