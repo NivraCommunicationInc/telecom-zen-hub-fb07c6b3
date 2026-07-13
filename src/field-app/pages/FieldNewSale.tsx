@@ -708,7 +708,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
           },
         }));
         toast.success("Lien Revoir ma commande envoyé au client.");
-        clearDraft();
+        if (!allowCoreAdjustments) clearDraft();
       } else {
         setDraft((d) => ({
           ...d,
