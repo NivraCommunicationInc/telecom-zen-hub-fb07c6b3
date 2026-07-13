@@ -1,96 +1,344 @@
+# Plan d’audit — Nivra Core → Commandes → Nouvelle commande
 
-# Réponse honnête à ta validation — état réel + plan de correction
+## Objectif strict
+Produire un audit technique complet, exhaustif et reproductible d’une seule fonctionnalité :
 
-## 1. Audit calendrier — ce que j'ai trouvé (avant tout code)
+`Nivra Core → Commandes → Nouvelle commande`
 
-Résultat de l'audit source par source. **L'unification n'est PAS complète comme annoncée précédemment.** Trois implémentations coexistent encore.
+Aucune correction de code dans cette phase. Aucun résumé général. Chaque affirmation devra être appuyée par une preuve. Toute information non démontrable sera marquée explicitement : `NON VÉRIFIÉ`.
 
-| Consommateur | Fichier | Composant/Hook | RPC / Tables lues | Écriture réservation |
-|---|---|---|---|---|
-| Field App — Nouvelle vente | `src/field-app/pages/FieldNewSale.tsx` + `StepCustomer.tsx` | `InstallSlotPicker` → `useInstallationSlots` | RPC `get_available_installation_slots` | `appointments` (hold via `field-sales-sync`) |
-| POS Core | `src/components/pos/UnifiedPOSPage.tsx` | `InstallSlotPicker` → `useInstallationSlots` | RPC `get_available_installation_slots` | `appointments` (hold via `createPOSDraftInvoice`) |
-| Checkout public | `src/components/checkout/InstallationSection.tsx` → `InstallationScheduler` | **`InstallationScheduler`** (implémentation locale) | Lit directement `appointment_slot_rules` + `appointment_slot_overrides` + `appointment_blocked_dates` + `appointments`, agrégation client-side | `appointments` (via `GuestCheckout.tsx` + `appointmentHold.ts`) |
-| Nivra Core — Rendez-vous (`AdminAppointments`) | `src/pages/admin/AdminAppointments.tsx` | Lecture directe `appointments` (liste) | table `appointments` | — |
-| Nivra Core — Nouvelle commande manuelle | `ShippingTechnicianStep.tsx` | Aujourd'hui : formulaire date/heure texte + INSERT direct dans `appointments`. **Pas de picker de disponibilité.** | `appointments` seule | `appointments` |
-| Nivra Core — Disponibilités (Core admin picker) | `src/core-app/components/appointments/AppointmentSlotPicker.tsx` + `CoreAppointmentSlotsPage.tsx` | `AppointmentSlotPicker` | **RPC différente : `get_appointment_slot_availability`** | `appointments` |
-| Client Portal — Reschedule | `src/pages/client/ClientRescheduleAppointment.tsx` | Formulaire propre (pas de picker unifié) | `appointments` | UPDATE `appointments` |
+## Règles de preuve
+Pour chaque point, l’audit distinguera clairement :
 
-### Divergences confirmées
-1. **Deux RPC** cohabitent : `get_available_installation_slots` (Field/POS/Checkout) vs `get_appointment_slot_availability` (Core admin). Résultats potentiellement incohérents.
-2. **`InstallationScheduler`** (checkout public) fait sa propre agrégation client-side au lieu d'appeler la RPC — bypass des règles de disponibilité côté serveur.
-3. **`ShippingTechnicianStep`** (Core nouvelle commande manuelle) n'utilise **aucun picker** : champ texte libre → réservation sans vérification de capacité.
-4. **Client Portal Reschedule** n'utilise pas non plus le picker unifié.
+- `PROUVÉ` : preuve runtime, requête DB, log, capture, fichier:ligne ou résultat E2E.
+- `NON VÉRIFIÉ` : impossible à démontrer avec les accès/outils disponibles.
+- `CONCURRENT` : autre chemin pouvant faire une partie du même workflow.
+- `MORT / NON MONTÉ` : code présent mais non atteint par le workflow audité, avec preuve.
+- `DANGEREUX` : comportement pouvant créer doublon, contournement, écriture incohérente ou trou de sécurité.
 
-### Ce qui est déjà propre
-- `installation_appointments` : **plus aucune référence live** dans le code (uniquement dans `types.ts` auto-généré + vieilles migrations). ✅
-- Toutes les écritures pointent bien vers `appointments`. ✅
-- Realtime activé sur les 4 tables sources (Lot 2 précédent). ✅
+## Livrable final
+Un document d’audit complet écrit dans `/mnt/documents/` avec :
 
-## 2. Plan de correction — Calendrier réellement unifié
+- requêtes exécutées,
+- résultats observés,
+- logs pertinents,
+- captures si disponibles,
+- run ID si un runner existe,
+- preuves fichier:ligne,
+- tableau final de verdict.
 
-### Migration DB
-- **Déprécier `get_appointment_slot_availability`** : réécrire la fonction pour qu'elle délègue à `get_available_installation_slots(date, date)` + adapter le format retourné. Pas de suppression pour éviter de casser les appelants externes.
-
-### Frontend
-- **`InstallationScheduler.tsx`** : réécrit pour consommer `useInstallationSlots` (suppression des 4 queries directes). L'UI reste identique.
-- **`AppointmentSlotPicker.tsx`** (Core) : bascule sur `useInstallationSlots` (jour par jour → filtrer côté hook via `fromDate=toDate`).
-- **`ShippingTechnicianStep.tsx`** : ajout du `<InstallSlotPicker>` en amont de l'INSERT `appointments`.
-- **`ClientRescheduleAppointment.tsx`** : intègre `InstallSlotPicker` pour choisir un nouveau créneau parmi les disponibilités réelles.
-
-## 3. Lot 3 — Promotions UI Core (livrable manquant assumé)
-
-Nouvelle page `src/core-app/pages/CorePromotionsPage.tsx` protégée par `has_role('admin')`, montée dans le menu **Facturation**.
-
-### Onglets
-- **Catalogue** : table `promotions` — CRUD complet.
-  - Champs : `code`, `name`, `description`, `discount_type` (percent/fixed), `discount_value`, `duration_months`, `applies_to` (services/equipment/installation/one_time_fees), `status`, `start_at`, `end_at`, `min_subtotal`, `max_discount_amount`, `new_customers_only`, `stackable`, `usage_limit`.
-- **Assignations actives** : table `account_promotions` — lecture avec filtres (compte, code promo, statut), affichage `months_remaining` + colonne "Prochaine facture : -X$", action **Désactiver**, action **Assigner à un compte** (réutilise `AddPromotionDialog` existant + choix du compte).
-
-### Fichiers créés
-- `src/core-app/pages/CorePromotionsPage.tsx`
-- `src/core-app/components/promotions/PromotionCatalogTable.tsx`
-- `src/core-app/components/promotions/PromotionEditDialog.tsx`
-- `src/core-app/components/promotions/AccountPromotionsTable.tsx`
-- `src/core-app/components/promotions/AssignPromotionToAccountDialog.tsx`
-- Route ajoutée dans `src/core-app/main.tsx` + entrée nav.
-
-### Affichage dans commande
-- Sur la page détail commande Core (`src/core-app/pages/CoreOrderDetail.tsx` ou équivalent) : ajout d'une section **"Promotions actives sur le compte"** listant les `account_promotions` liées via `orders.client_id → billing_customers.account_id`.
-
-## 4. Preuves runtime demandées
-
-Une fois le code livré, séquence exécutée en base + captures :
-
-### T1 — Créneau unique multi-portails
-1. `INSERT` une override "open" sur 2026-08-15 14h-16h.
-2. `SELECT * FROM get_available_installation_slots('2026-08-15','2026-08-15')` → capacité=N.
-3. `SELECT * FROM get_appointment_slot_availability('2026-08-15')` → mêmes chiffres exactement (après migration).
-4. Réservation via Field (INSERT `appointments` status='hold').
-5. Re-SELECT les deux RPC → `available` décrémenté partout.
-
-### T2 — Modification règle → propagation
-1. Ouvrir `AdminAppointments` (Core) + `FieldNewSale` (Field) dans deux tabs.
-2. Ajouter un `appointment_blocked_dates` pour 2026-08-16 via Core UI.
-3. Vérifier disparition du jour dans Field sans reload (realtime).
-
-### T3 — Promotion récurrente end-to-end
-1. Via Core UI Catalogue : créer promo `TEST-24M` (-6$/mois, 24 mois, applies_to=services).
-2. Via Core UI Assignations : assigner au compte QA.
-3. Vérifier affichage dans détail commande.
-4. Exécuter `renew_subscription()` × 3 → 3 factures avec ligne `-6$` + `months_remaining` décrémenté de 24 → 21.
-5. `SELECT` final : preuve base.
-
-## 5. Ordre d'exécution proposé
-1. Migration `get_appointment_slot_availability` → délégation
-2. Refactor 4 consommateurs frontend (Scheduler, AppointmentSlotPicker, ShippingTechnicianStep, ClientReschedule)
-3. Lot 3 UI Promotions (5 fichiers + nav)
-4. Test T1 + T2 + T3 avec preuves SQL et captures
-
-## Hors-scope explicite (à ne pas confondre avec livré)
-- Suppression physique de la table `installation_appointments` (déjà orpheline).
-- Modèle capacité par technicien/région (`technician_slot_bookings`).
-- Migration des types Supabase auto-générés (ils se régénèrent seuls après la migration DB).
+Le document répondra aux 13 sections demandées, dans le même ordre.
 
 ---
 
-**Confirme "GO plan" et je livre les 4 phases avec preuves runtime avant clôture.** Je ne re-marquerai rien "CLOSED" tant que T1+T2+T3 ne sont pas verts SQL en main.
+# Étapes d’audit
+
+## 1. Point d’entrée réel
+Identifier et prouver le seul workflow réellement utilisé depuis Core :
+
+- route React exacte,
+- page montée,
+- composant racine,
+- composants enfants,
+- hooks,
+- contextes,
+- dialogs,
+- services appelés.
+
+Preuves prévues :
+
+- navigation runtime dans la vraie interface Core,
+- inspection DOM / captures,
+- recherche routes dans le code,
+- preuves fichier:ligne,
+- logs navigateur si disponibles.
+
+Comparer explicitement avec les surfaces similaires :
+
+- `ManualOrderWizard`,
+- `EmployeeCreateOrder`,
+- `UnifiedPOSPage`,
+- `InstallationScheduler`,
+- toute autre page/dialog/service trouvé.
+
+Pour chacune : `utilisé`, `non monté`, `mort`, `concurrent`, ou `NON VÉRIFIÉ`, avec preuve.
+
+## 2. Workflow complet réel
+Décomposer le workflow du premier clic jusqu’à la fin :
+
+- ouverture de Nouvelle commande,
+- saisie client,
+- sélection services,
+- installation/calendrier,
+- promotions/rabais,
+- récapitulatif,
+- création quote/order/payment intent,
+- courriel/payment link,
+- paiement QA/canonique si possible,
+- matérialisation commande Core,
+- apparition dans Commandes,
+- traitement,
+- provisioning,
+- timeline/audit/communications.
+
+Pour chaque étape, documenter :
+
+- composant,
+- hook,
+- fonction,
+- service,
+- Edge Function,
+- RPC,
+- fonction SQL,
+- trigger,
+- table,
+- vue,
+- audit,
+- timeline,
+- communications,
+- provisioning.
+
+## 3. Source de vérité
+Pour chaque étape, identifier explicitement la source de vérité :
+
+- frontend,
+- Edge Function,
+- RPC,
+- fonction SQL,
+- trigger,
+- base de données,
+- table/vue canonique.
+
+Aucune source de vérité ne sera supposée. Si la preuve manque : `NON VÉRIFIÉ`.
+
+## 4. Écritures
+Lister toutes les écritures dans l’ordre réel :
+
+- table modifiée,
+- type : `INSERT`, `UPDATE`, `DELETE`, `UPSERT`,
+- acteur : frontend, service, Edge Function, RPC, trigger,
+- raison,
+- ordre,
+- transaction ou absence de preuve de transaction,
+- idempotency si présente.
+
+Les écritures seront prouvées par logs, traces DB, code fichier:ligne et/ou requêtes ciblées.
+
+## 5. Lectures
+Lister toutes les lectures :
+
+- tables,
+- vues,
+- RPC,
+- requêtes frontend,
+- services,
+- dépendances indirectes.
+
+Inclure les lectures de configuration, produits, promotions, disponibilités calendrier, client, facturation, commande, paiement, provisioning et timeline.
+
+## 6. Workflows parallèles / bypass
+Rechercher tous les chemins pouvant créer une commande ou une partie de commande :
+
+- pages frontend,
+- dialogs,
+- hooks,
+- services,
+- Edge Functions,
+- RPC,
+- fonctions SQL,
+- triggers,
+- runners QA,
+- workflows employés/field/admin.
+
+Classer chacun :
+
+- utilisé par le workflow Core,
+- concurrent,
+- bypass partiel,
+- mort,
+- remplacé,
+- `NON VÉRIFIÉ`.
+
+## 7. Machine complète d’états
+Reconstituer tous les états et transitions liés à la commande manuelle :
+
+- brouillon,
+- quote,
+- payment intent,
+- lien créé,
+- email enfilé/envoyé,
+- payé,
+- order shell,
+- commande matérialisée,
+- en traitement,
+- installation / auto-installation / technicien,
+- provisioning,
+- complété,
+- annulé,
+- erreur,
+- refus,
+- doublon,
+- expiré.
+
+Pour chaque transition :
+
+- déclencheur,
+- validation,
+- table/source,
+- erreur possible,
+- preuve.
+
+## 8. Sécurité
+Auditer les contrôles du workflow :
+
+- RBAC,
+- RLS,
+- policies,
+- fonctions `has_role` ou équivalent,
+- validations frontend,
+- validations Zod,
+- validations Edge Function,
+- validations SQL,
+- triggers,
+- contraintes,
+- idempotency,
+- accès public au payment link.
+
+Chaque contrôle sera lié à une étape précise du workflow.
+
+## 9. Communications
+Lister toutes les communications :
+
+- emails,
+- SMS,
+- notifications,
+- files d’attente,
+- templates,
+- idempotency,
+- moment exact d’envoi/enfilage,
+- Edge Function/RPC responsable.
+
+Inclure explicitement ce qui n’est pas prouvé dans le runtime avec `NON VÉRIFIÉ`.
+
+## 10. Timeline / Client 360 / Journal / Audit
+Identifier exactement ce qui apparaît ou n’apparaît pas dans :
+
+- `v_customer_timeline`,
+- Client 360,
+- Journal,
+- tables d’audit,
+- historiques de statut,
+- events transactionnels.
+
+Pour chaque événement attendu : `présent`, `absent`, ou `NON VÉRIFIÉ`, avec preuve.
+
+## 11. Production / E2E reproductible
+Exécuter ou documenter un run reproductible sur le vrai workflow :
+
+- navigation Core,
+- création commande de test si possible,
+- génération payment link,
+- vérification email enfilé,
+- paiement QA/canonique si disponible,
+- vérification création commande,
+- apparition dans Core,
+- traitement,
+- suite workflow.
+
+Inclure :
+
+- Run ID si un runner existe,
+- requêtes exécutées,
+- réponses observées,
+- logs Edge Functions ciblés,
+- résultats DB,
+- captures si disponibles.
+
+Si une étape ne peut pas être exécutée ou démontrée : `NON VÉRIFIÉ`.
+
+## 12. Code mort
+Inventorier tout ce qui est lié à cette fonctionnalité :
+
+- composants,
+- pages,
+- hooks,
+- services,
+- Edge Functions,
+- RPC,
+- fonctions SQL,
+- triggers,
+- migrations,
+- runners QA.
+
+Pour chacun :
+
+- `utilisé`,
+- `inutilisé`,
+- `mort`,
+- `concurrent`,
+- `remplacé`,
+- `NON VÉRIFIÉ`.
+
+Chaque statut aura une preuve.
+
+## 13. Verdict final
+Produire un tableau final avec preuves :
+
+- ce qui fonctionne,
+- ce qui ne fonctionne pas,
+- ce qui est incomplet,
+- ce qui est en doublon,
+- ce qui est dangereux,
+- ce qui est mort,
+- ce qui doit être supprimé,
+- ce qui doit être migré.
+
+Chaque ligne contiendra :
+
+- constat,
+- impact,
+- preuve,
+- statut,
+- action recommandée.
+
+---
+
+# Méthode d’exécution
+
+## Exploration code
+Lire uniquement les fichiers nécessaires au workflow Nouvelle commande : routes, pages Core, composants du wizard, hooks, services, functions, migrations liées.
+
+## Exploration runtime
+Utiliser la vraie interface locale/preview avec Playwright pour prouver le chemin réel monté et capturer les étapes visibles.
+
+## Exploration backend
+Utiliser des requêtes read-only ciblées pour :
+
+- inspecter les tables et vues touchées,
+- lire les traces récentes,
+- confirmer les écritures produites,
+- vérifier timeline/audit/communications/provisioning,
+- éviter toute supposition.
+
+## Logs
+Lire les logs ciblés des Edge Functions impliquées :
+
+- création payment link,
+- sync/materialization,
+- paiement,
+- communications,
+- provisioning,
+- runners QA si existants.
+
+## Interdictions pendant l’audit
+- Ne pas corriger de code.
+- Ne pas créer de nouveau module.
+- Ne pas modifier le schéma.
+- Ne pas généraliser au reste du projet.
+- Ne pas remplir les trous par supposition.
+- Ne pas présenter un résumé court à la place du rapport demandé.
+
+---
+
+# Critère de fin
+L’audit est terminé uniquement quand les 13 points sont couverts, avec preuve ou `NON VÉRIFIÉ`, et que le document final est disponible dans `/mnt/documents/`.
