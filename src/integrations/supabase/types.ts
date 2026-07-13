@@ -34153,27 +34153,17 @@ export type Database = {
         Returns: string
       }
       tech_can_access_order: { Args: { p_order_id: string }; Returns: boolean }
-      tech_update_assignment_status:
-        | {
-            Args: {
-              p_assignment_id: string
-              p_eta?: string
-              p_note?: string
-              p_status: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_assignment_id: string
-              p_eta?: string
-              p_note?: string
-              p_status: string
-              p_wifi_password?: string
-              p_wifi_ssid?: string
-            }
-            Returns: undefined
-          }
+      tech_update_assignment_status: {
+        Args: {
+          p_assignment_id: string
+          p_eta?: string
+          p_note?: string
+          p_status: string
+          p_wifi_password?: string
+          p_wifi_ssid?: string
+        }
+        Returns: undefined
+      }
       ticket_status_allowed: {
         Args: { _from: string; _to: string }
         Returns: boolean
