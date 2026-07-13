@@ -286,11 +286,25 @@ export function ShippingTechnicianStep({ proc }: Props) {
   const handleConfirmAppointment = async () => {
     setLoading("confirm-apt");
     try {
-      await proc.sendClientNotification("appointment_confirmed", "Rendez-vous d'installation confirmé — Nivra", {
-        appointment_date: appointment?.scheduled_at || "",
-        service_address: appointment?.service_address || "",
-      });
-      toast.success("Confirmation de rendez-vous envoyée");
+      if (!appointment?.id) {
+        toast.error("Aucun rendez-vous à confirmer");
+        return;
+      }
+      if (!appointment?.technician_id && !techFields.technician_id) {
+        toast.error("Assignez un technicien avant de confirmer le rendez-vous");
+        return;
+      }
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          status: "confirmed",
+          technician_id: appointment.technician_id || techFields.technician_id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", appointment.id);
+      if (error) throw error;
+      toast.success("Rendez-vous confirmé");
+      await queryClient.invalidateQueries({ queryKey: ["order-processing"] });
     } finally { setLoading(null); }
   };
 
@@ -347,8 +361,6 @@ export function ShippingTechnicianStep({ proc }: Props) {
     setLoading("enroute");
     try {
       await proc.changeStatus("technician_en_route");
-      await proc.sendClientNotification("technician_en_route", "Votre technicien est en route — Nivra",
-        { appointment_date: appointment?.scheduled_at || "", service_address: appointment?.service_address || "" });
     } finally { setLoading(null); }
   };
 
