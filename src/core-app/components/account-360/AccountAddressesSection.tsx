@@ -80,8 +80,11 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
   };
 
   const handleDelete = async (a: ServiceAddress) => {
-    const hasServices = (byAddress.get(a.id)?.subs.length || 0) > 0;
-    if (hasServices) {
+    const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due"]);
+    const activeSubs = (byAddress.get(a.id)?.subs || []).filter((s: any) =>
+      ACTIVE_SUB.has(String(s?.status || "").toLowerCase())
+    );
+    if (activeSubs.length > 0) {
       toast({ title: "Impossible", description: "Retirez d'abord les services actifs de cette adresse.", variant: "destructive" });
       return;
     }
@@ -91,10 +94,14 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
       if (first !== null) toast({ title: "Suppression annulée" });
       return;
     }
-    await softDelete(a.id);
-    if (selectedId === a.id) setSelectedId(null);
-    toast({ title: "Adresse retirée" });
-    onRefresh?.();
+    try {
+      await softDelete(a.id);
+      if (selectedId === a.id) setSelectedId(null);
+      toast({ title: "Adresse retirée" });
+      onRefresh?.();
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Suppression refusée", variant: "destructive" });
+    }
   };
 
   const q = selected ? `account=${accountId}&service_address_id=${selected.id}` : `account=${accountId || ""}`;
