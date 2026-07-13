@@ -530,21 +530,26 @@ serve(async (req) => {
     }
     if (body.discount) {
       const d = body.discount as any;
-      const dType = String(d.type || "").toLowerCase();
-      const dValue = Number(d.value ?? d.amount ?? 0);
-      let monthlyDiscount = 0;
-      if (["fixed", "fixed_monthly"].includes(dType)) {
-        monthlyDiscount = Math.min(monthly_before_discount, dValue);
-      } else if (dType === "percentage") {
-        monthlyDiscount = Math.min(monthly_before_discount, monthly_before_discount * dValue / 100);
-      }
-      if (monthlyDiscount > 0) {
-        cart_items.push({
-          type: "one_time_fee",
-          name: d.name || "Rabais agent",
-          amount: -Number(monthlyDiscount.toFixed(2)),
-          quantity: 1,
-        });
+      const dSource = String(d.source || "").toLowerCase();
+      // Custom Core discounts apply to renewal invoices only (via account_promotions),
+      // never to the initial order transaction.
+      if (dSource !== "custom_core") {
+        const dType = String(d.type || "").toLowerCase();
+        const dValue = Number(d.value ?? d.amount ?? 0);
+        let monthlyDiscount = 0;
+        if (["fixed", "fixed_monthly"].includes(dType)) {
+          monthlyDiscount = Math.min(monthly_before_discount, dValue);
+        } else if (dType === "percentage") {
+          monthlyDiscount = Math.min(monthly_before_discount, monthly_before_discount * dValue / 100);
+        }
+        if (monthlyDiscount > 0) {
+          cart_items.push({
+            type: "one_time_fee",
+            name: d.name || "Rabais agent",
+            amount: -Number(monthlyDiscount.toFixed(2)),
+            quantity: 1,
+          });
+        }
       }
     }
 
