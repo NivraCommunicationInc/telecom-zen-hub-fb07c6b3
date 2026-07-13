@@ -128,24 +128,33 @@ export default function TechProtectedRoute() {
 
   if (state === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+      <div data-portal="tech" className="min-h-screen flex items-center justify-center">
+        <div className="tp-core-hero rounded-2xl p-8">
+          <Loader2 className="h-8 w-8 animate-spin text-sky-300" />
+        </div>
       </div>
     );
   }
 
   if (state === "no_session") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 px-6 text-center">
-        <LogIn className="h-12 w-12 text-violet-500 mb-4" />
-        <h2 className="text-xl font-bold text-white mb-2">Connexion requise</h2>
-        <p className="text-sm text-slate-400 mb-6">Connectez-vous pour accéder au portail technicien.</p>
-        <button
-          onClick={() => navigate("/nivra-secure-hub-2617-internal/login")}
-          className="rounded-full bg-violet-600 px-8 py-3 text-base font-semibold text-white"
-        >
-          Se connecter
-        </button>
+      <div data-portal="tech" className="min-h-screen flex items-center justify-center px-6 text-center">
+        <section className="tp-core-hero w-full max-w-md rounded-2xl p-6 space-y-5">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-500/15">
+            <LogIn className="h-7 w-7 text-sky-300" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase text-sky-300">Nivra Core · Portail technicien</p>
+            <h2 className="mt-2 text-2xl font-black text-white">Connexion requise</h2>
+            <p className="mt-2 text-sm text-slate-300">Connectez-vous pour accéder aux missions terrain, au GPS live et aux notifications client.</p>
+          </div>
+          <button
+            onClick={() => navigate("/nivra-secure-hub-2617-internal/login")}
+            className="tp-action-btn tp-action-primary w-full"
+          >
+            Se connecter
+          </button>
+        </section>
       </div>
     );
   }
@@ -178,22 +187,29 @@ export default function TechProtectedRoute() {
   if (state === "unauthorized" || state === "hr_pending") {
     const isHr = state === "hr_pending";
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 px-6 text-center">
-        <ShieldAlert className="h-12 w-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold text-white mb-2">
-          {isHr ? "Onboarding RH non terminé" : "Accès refusé"}
-        </h2>
-        <p className="text-sm text-slate-400 mb-6 max-w-sm">
-          {isHr
-            ? "Votre dossier RH doit être complété et activé par les Ressources Humaines avant d'accéder au portail Technicien."
-            : "Votre compte n'a pas le rôle technicien."}
-        </p>
-        <button
-          onClick={() => navigate("/nivra-secure-hub-2617-internal/login")}
-          className="rounded-full bg-slate-800 px-8 py-3 text-base font-semibold text-white"
-        >
-          Retour à l'accueil
-        </button>
+      <div data-portal="tech" className="min-h-screen flex items-center justify-center px-6 text-center">
+        <section className="tp-core-hero w-full max-w-md rounded-2xl p-6 space-y-5">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-red-400/30 bg-red-500/15">
+            <ShieldAlert className="h-7 w-7 text-red-300" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase text-sky-300">Nivra Core · Sécurité terrain</p>
+            <h2 className="mt-2 text-2xl font-black text-white">
+              {isHr ? "Onboarding RH non terminé" : "Accès refusé"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-300">
+              {isHr
+                ? "Votre dossier RH doit être complété et activé avant d'accéder au portail technicien."
+                : "Votre compte n'a pas le rôle technicien."}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/nivra-secure-hub-2617-internal/login")}
+            className="tp-action-btn w-full"
+          >
+            Retour à l'accueil
+          </button>
+        </section>
       </div>
     );
   }
