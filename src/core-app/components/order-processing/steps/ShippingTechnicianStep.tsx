@@ -323,7 +323,6 @@ export function ShippingTechnicianStep({ proc }: Props) {
           .update({
             technician_id: techFields.technician_id,
             scheduled_at: scheduledAt || appointment.scheduled_at,
-            status: scheduledAt ? "confirmed" : appointment.status,
             updated_at: new Date().toISOString(),
           })
           .eq("id", appointment.id);
@@ -339,7 +338,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
           service_address: order.service_address || order.client_full_address || "",
           service_city: order.service_city || "",
           service_postal_code: order.service_postal_code || "",
-          status: "confirmed",
+          status: "hold",
           environment: order.environment || "production",
         } as any);
         if (insErr) console.warn("[Technician][assign] appointment insert:", insErr.message);
