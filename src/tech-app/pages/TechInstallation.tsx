@@ -13,6 +13,7 @@ import {
   Camera, ScanLine, Gauge, CheckCircle2, AlertTriangle, Loader2,
   PackageCheck, XCircle, X, MapPin, Phone, Clock, Wrench, Truck,
   RotateCcw, PenTool, FileText, ShieldAlert, Shield, HelpCircle, Signal,
+  LifeBuoy, Navigation2, Wifi,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,6 +95,8 @@ export default function TechInstallation() {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showEtaDialog, setShowEtaDialog] = useState(false);
   const [etaInput, setEtaInput] = useState("");
+  const [showAssistanceDialog, setShowAssistanceDialog] = useState(false);
+  const [assistanceReason, setAssistanceReason] = useState("");
   const [scanValidating, setScanValidating] = useState(false);
   const [gpsActive, setGpsActive] = useState(false);
   const watchIdRef = useRef<number | null>(null);
@@ -327,6 +330,40 @@ export default function TechInstallation() {
     setFieldStatus.mutate({ status: "en_route", eta: etaInput.trim() || null });
   };
 
+  const requestAssistance = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error("ID manquant");
+      const reason = assistanceReason.trim();
+      if (!reason) throw new Error("Raison requise");
+      const nextNetworkResults = {
+        ...(assignment?.network_test_results ?? {}),
+        assistance: {
+          requested_at: new Date().toISOString(),
+          reason,
+          status: "open",
+        },
+      };
+      const nextNotes = [notes, `[ASSISTANCE TERRAIN] ${reason}`].filter(Boolean).join("\n");
+      const { error } = await supabase
+        .from("technician_assignments")
+        .update({
+          network_test_results: nextNetworkResults,
+          technician_notes: nextNotes,
+        } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setNotes((current) => [current, `[ASSISTANCE TERRAIN] ${assistanceReason.trim()}`].filter(Boolean).join("\n"));
+      setShowAssistanceDialog(false);
+      setAssistanceReason("");
+      qc.invalidateQueries({ queryKey: ["tech-assignment", id] });
+      qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
+      toast.success("Assistance envoyée au Core");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erreur assistance"),
+  });
+
   // ── Complete mutation ──────────────────────────────────────────────────────
 
   const complete = useMutation({
@@ -498,6 +535,8 @@ export default function TechInstallation() {
   const networkOk = assignment.service_type !== "internet" || (!!download && !!upload);
   const hasWrongOrder = scannedItems.some((i) => i.scan_status === "wrong_order");
   const canComplete = allMandatoryDone && (assignment.service_type !== "internet" || !!coax) && networkOk && !hasWrongOrder;
+  const assistanceOpen = !!assignment.network_test_results?.assistance?.requested_at;
+  const statusIsActive = ["accepted", "en_route", "arrived", "in_progress"].includes(assignment.status);
 
   const completeCurrentStep = () => {
     if (currentStep?.requires_photo && !photos.some((p) => p.step === currentStep.title_fr)) {
@@ -559,7 +598,9 @@ export default function TechInstallation() {
       <div className="px-4 py-4 space-y-4">
 
         {/* Mission info */}
-        <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-4 shadow-lg shadow-slate-950/40">
+        <section className={`rounded-2xl border p-4 space-y-4 shadow-lg shadow-slate-950/40 ${
+          statusIsActive ? "bg-emerald-950/25 border-emerald-600/40" : "bg-slate-900 border-slate-800"
+        }`}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-base font-bold text-white">{assignment.client_name || "Client"}</p>
@@ -568,7 +609,9 @@ export default function TechInstallation() {
                 {assignment.order_number ? ` · Commande #${assignment.order_number}` : ""}
               </p>
             </div>
-            <span className="rounded-full border border-violet-500/40 bg-violet-500/15 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-300">
+            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${
+              statusIsActive ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300" : "border-violet-500/40 bg-violet-500/15 text-violet-300"
+            }`}>
               {assignment.status}
             </span>
           </div>
@@ -629,7 +672,22 @@ export default function TechInstallation() {
               GPS actif — position transmise au client
             </div>
           )}
+          {assistanceOpen && (
+            <div className="rounded-xl bg-red-950/40 border border-red-500/50 px-3 py-2 text-xs text-red-200 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>Assistance demandée: {String(assignment.network_test_results?.assistance?.reason || "Aucun détail")}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(assignment.client_address || "")}`}
+              target="_blank"
+              rel="noreferrer"
+              className="col-span-2 min-h-[48px] rounded-full bg-slate-800 border border-slate-700 text-white text-sm font-semibold flex items-center justify-center gap-2"
+            >
+              <Navigation2 className="h-4 w-4" /> Ouvrir la route GPS
+            </a>
             <button
               onClick={() => setFieldStatus.mutate({ status: "accepted" })}
               disabled={setFieldStatus.isPending || assignment?.status === "accepted"}
@@ -660,9 +718,15 @@ export default function TechInstallation() {
             </button>
             <button
               onClick={() => setMissingFor(true)}
-              className="col-span-2 min-h-[48px] rounded-full bg-purple-600/20 border border-purple-600/40 text-purple-300 text-sm font-semibold flex items-center justify-center gap-2"
+              className="min-h-[48px] rounded-full bg-purple-600/20 border border-purple-600/40 text-purple-300 text-sm font-semibold flex items-center justify-center gap-2"
             >
               <RotateCcw className="h-4 w-4" /> Replanifier
+            </button>
+            <button
+              onClick={() => setShowAssistanceDialog(true)}
+              className="min-h-[48px] rounded-full bg-red-600/20 border border-red-600/50 text-red-300 text-sm font-semibold flex items-center justify-center gap-2"
+            >
+              <LifeBuoy className="h-4 w-4" /> Assistance
             </button>
           </div>
         </section>
@@ -823,7 +887,7 @@ export default function TechInstallation() {
 
         {/* Network test */}
         <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Test réseau</h3>
+          <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2"><Gauge className="h-4 w-4 text-emerald-400" /> Test réseau</h3>
           <div className="grid grid-cols-2 gap-3">
             <InputField label="Download (Mbps)" value={download} onChange={setDownload} />
             <InputField label="Upload (Mbps)" value={upload} onChange={setUpload} />
@@ -835,7 +899,7 @@ export default function TechInstallation() {
         {/* WiFi configuration — envoyé au client par courriel à la fin */}
         <section className="rounded-2xl bg-slate-900 border border-violet-800/50 p-4 space-y-3">
           <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
-            <Signal className="h-4 w-4 text-violet-400" /> Configuration WiFi (envoyée au client)
+            <Wifi className="h-4 w-4 text-emerald-400" /> Configuration WiFi (envoyée au client)
           </h3>
           <div className="grid grid-cols-1 gap-3">
             <InputField label="Nom du réseau (SSID)" value={wifiSsid} onChange={setWifiSsid} type="text" />
@@ -977,6 +1041,38 @@ export default function TechInstallation() {
             <button type="button" disabled={complete.isPending} onClick={() => { setShowCompleteConfirm(false); complete.mutate(); }} className="w-full min-h-[52px] rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
               {complete.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Confirmer
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assistance dialog */}
+      <Dialog open={showAssistanceDialog} onOpenChange={setShowAssistanceDialog}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-300">
+              <LifeBuoy className="h-5 w-5" /> Demander assistance Core
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-300">Décrivez le problème: réseau, configuration, équipement, accès client ou autre blocage.</p>
+          <Textarea
+            value={assistanceReason}
+            onChange={(e) => setAssistanceReason(e.target.value)}
+            placeholder="Ex: signal instable, modem ne provisionne pas, besoin NOC..."
+            className="min-h-[110px] bg-slate-950 border-slate-700 text-white"
+          />
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
+            <button type="button" onClick={() => setShowAssistanceDialog(false)} className="w-full min-h-[48px] rounded-full bg-slate-700 text-white font-semibold">
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={requestAssistance.isPending || !assistanceReason.trim()}
+              onClick={() => requestAssistance.mutate()}
+              className="w-full min-h-[48px] rounded-full bg-red-600 hover:bg-red-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {requestAssistance.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LifeBuoy className="h-4 w-4" />}
+              Envoyer au Core
             </button>
           </DialogFooter>
         </DialogContent>
