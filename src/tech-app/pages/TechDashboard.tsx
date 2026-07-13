@@ -285,9 +285,9 @@ export default function TechDashboard() {
             </div>
             <div className="space-y-1.5 text-[12px]">
               <div className="flex items-center justify-between">
-                <span style={{ color: "var(--tp-text-muted)" }}>Modems</span>
-                <span className="tp-kpi text-[15px]" style={{ color: (vanStock?.modems ?? 0) < 2 ? "var(--tp-warning)" : "var(--tp-text)" }}>
-                  {vanStock ? vanStock.modems : "—"}
+                <span style={{ color: "var(--tp-text-muted)" }}>Bornes WiFi</span>
+                <span className="tp-kpi text-[15px]" style={{ color: (vanStock?.bornes ?? 0) < 2 ? "var(--tp-warning)" : "var(--tp-text)" }}>
+                  {vanStock ? vanStock.bornes : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -297,9 +297,9 @@ export default function TechDashboard() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span style={{ color: "var(--tp-text-muted)" }}>SIM</span>
-                <span className="tp-kpi text-[15px]" style={{ color: (vanStock?.sims ?? 0) < 5 ? "var(--tp-warning)" : "var(--tp-text)" }}>
-                  {vanStock ? vanStock.sims : "—"}
+                <span style={{ color: "var(--tp-text-muted)" }}>POD WiFi</span>
+                <span className="tp-kpi text-[15px]" style={{ color: (vanStock?.pods ?? 0) < 2 ? "var(--tp-warning)" : "var(--tp-text)" }}>
+                  {vanStock ? vanStock.pods : "—"}
                 </span>
               </div>
             </div>

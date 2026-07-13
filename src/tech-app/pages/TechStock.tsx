@@ -3,22 +3,21 @@
  * Shows category totals + itemised list with search, from live DB.
  */
 import { useMemo, useState } from "react";
-import { Package, Wifi, Tv, Smartphone, Search, AlertTriangle, ScanLine, Loader2 } from "lucide-react";
+import { Package, Wifi, Tv, Radio, Search, AlertTriangle, ScanLine, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TechHeader from "../components/TechHeader";
-import { useVanStock } from "../lib/useVanStock";
+import { useVanStock, classifyTechItem, type TechCategory } from "../lib/useVanStock";
 
-function categoryOf(item: { catalog_name: string | null; category: string | null; sku: string | null }): {
-  key: "modem" | "terminal" | "sim" | "other";
-  label: string;
-  Icon: typeof Wifi;
-  color: string;
-} {
-  const s = `${item.catalog_name || ""} ${item.category || ""} ${item.sku || ""}`.toLowerCase();
-  if (/(sim|esim|carte)/i.test(s)) return { key: "sim", label: "SIM", Icon: Smartphone, color: "#f59e0b" };
-  if (/(terminal|décodeur|decodeur|tv|iptv|box)/i.test(s)) return { key: "terminal", label: "Terminal TV", Icon: Tv, color: "#22d3ee" };
-  if (/(modem|router|routeur|wifi|borne|passerelle|gateway|ont)/i.test(s)) return { key: "modem", label: "Modem / WiFi", Icon: Wifi, color: "#a78bfa" };
-  return { key: "other", label: item.category || "Autre", Icon: Package, color: "#94a3b8" };
+const CATEGORY_META: Record<TechCategory, { label: string; Icon: typeof Wifi; color: string }> = {
+  borne: { label: "Borne WiFi", Icon: Wifi, color: "#a78bfa" },
+  terminal: { label: "Terminal TV", Icon: Tv, color: "#22d3ee" },
+  pod: { label: "POD WiFi", Icon: Radio, color: "#34d399" },
+};
+
+function categoryOf(item: { catalog_name: string | null; category: string | null; sku: string | null }) {
+  const key = classifyTechItem(item);
+  if (!key) return { key: "other" as const, label: "Autre", Icon: Package, color: "#94a3b8" };
+  return { key, ...CATEGORY_META[key] };
 }
 
 export default function TechStock() {
@@ -41,12 +40,12 @@ export default function TechStock() {
       <TechHeader title="Stock van" />
 
       <div className="px-4 pt-4 pb-6 space-y-4">
-        {/* KPI row */}
+        {/* KPI row — only equipment techniciens installent (Borne WiFi, Terminal TV, POD WiFi) */}
         <div className="grid grid-cols-3 gap-2.5">
           {[
-            { label: "Modems", val: data?.modems ?? 0, Icon: Wifi, color: "#a78bfa" },
-            { label: "Terminaux", val: data?.terminals ?? 0, Icon: Tv, color: "#22d3ee" },
-            { label: "SIM", val: data?.sims ?? 0, Icon: Smartphone, color: "#f59e0b" },
+            { label: "Bornes WiFi", val: data?.bornes ?? 0, Icon: Wifi, color: "#a78bfa" },
+            { label: "Terminaux TV", val: data?.terminals ?? 0, Icon: Tv, color: "#22d3ee" },
+            { label: "POD WiFi", val: data?.pods ?? 0, Icon: Radio, color: "#34d399" },
           ].map(({ label, val, Icon, color }) => (
             <div key={label} className="tp-card p-3">
               <Icon className="h-4 w-4" style={{ color }} />

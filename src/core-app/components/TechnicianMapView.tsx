@@ -34,6 +34,7 @@ const colored = (color: string) =>
 const greenIcon = colored("#10b981");
 const blueIcon = colored("#3b82f6");
 const grayIcon = colored("#6b7280");
+const orangeIcon = colored("#f59e0b");
 
 type LocRow = {
   id: string;
@@ -93,6 +94,39 @@ export function TechnicianMapView() {
         .in("id", jobIds);
       const m = new Map<string, any>();
       (data ?? []).forEach((j: any) => m.set(j.id, j));
+      return m;
+    },
+  });
+
+  // Techniciens assignés à un RDV actif (accepté / en route / en cours) — affichés à l'adresse du job
+  // quand ils n'ont pas encore partagé leur position live.
+  const assignmentsQ = useQuery({
+    queryKey: ["technician-active-assignments"],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("technician_assignments")
+        .select("id, technician_id, status, scheduled_date, scheduled_time_start, scheduled_time_end, order_id, service_address_id, service_addresses:service_address_id(address_line, city, latitude, longitude)")
+        .in("status", ["accepted", "en_route", "in_progress", "arrived"])
+        .gte("scheduled_date", new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10));
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const assignTechIds = Array.from(
+    new Set((assignmentsQ.data ?? []).map((a: any) => a.technician_id).filter(Boolean)),
+  );
+  const assignTechNamesQ = useQuery({
+    queryKey: ["assign-tech-names", assignTechIds.join(",")],
+    enabled: assignTechIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("technicians")
+        .select("user_id, full_name")
+        .in("user_id", assignTechIds);
+      const m = new Map<string, string>();
+      (data ?? []).forEach((t: any) => m.set(t.user_id, t.full_name || "Technicien"));
       return m;
     },
   });
@@ -231,6 +265,44 @@ export function TechnicianMapView() {
             </Marker>
           );
         })}
+
+        {/* Techniciens avec RDV actif mais sans position live → épinglés à l'adresse du client */}
+        {(assignmentsQ.data ?? [])
+          .filter((a: any) => {
+            const addr = a.service_addresses;
+            if (!addr?.latitude || !addr?.longitude) return false;
+            // Skip si déjà affiché en live
+            return !locs.some((l) => l.technician_id === a.technician_id);
+          })
+          .map((a: any) => {
+            const addr = a.service_addresses;
+            const name = assignTechNamesQ.data?.get(a.technician_id) ?? "Technicien";
+            return (
+              <Marker key={`asn-${a.id}`} position={[Number(addr.latitude), Number(addr.longitude)]} icon={orangeIcon}>
+                <Popup>
+                  <div className="text-xs space-y-1">
+                    <div className="font-semibold">{name}</div>
+                    <div className="text-muted-foreground">Statut: {a.status}</div>
+                    <div className="text-muted-foreground">
+                      RDV {a.scheduled_date} · {String(a.scheduled_time_start).slice(0, 5)}–{String(a.scheduled_time_end).slice(0, 5)}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {addr.address_line}{addr.city ? `, ${addr.city}` : ""}
+                    </div>
+                    <div className="text-[10px] italic text-muted-foreground">Position estimée (adresse du RDV)</div>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${addr.latitude},${addr.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-primary"
+                    >
+                      Itinéraire <Navigation size={12} />
+                    </a>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
       </MapContainer>
         </div>
       </div>
