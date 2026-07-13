@@ -69,12 +69,12 @@ function pickCommissionPortalUrl(v: Record<string, unknown>): string {
   return `${APP_URL}/rh/commissions`;
 }
 
-// Brand palette — "Violet Bold" template (matches uploaded reference)
-const BRAND_PRIMARY = "#7c3aed";       // primary violet
-const BRAND_DARK = "#1e1b4b";          // deep indigo (header / footer / titles)
-const BRAND_HERO_BG = "#f5f3ff";       // hero light lavender
-const BRAND_CARD_BORDER = "#ede9fe";   // card border lavender
-const BRAND_CARD_BG_LAST = "#f5f3ff";  // last (emphasized) row background
+// Brand palette — official Nivra corporate blue template
+const BRAND_PRIMARY = "#0066CC";       // corporate blue
+const BRAND_DARK = "#003B73";          // deep blue (header / footer / titles)
+const BRAND_HERO_BG = "#EEF6FF";       // hero light blue
+const BRAND_CARD_BORDER = "#BFDFFF";   // card border blue
+const BRAND_CARD_BG_LAST = "#EEF6FF";  // last (emphasized) row background
 const BRAND_TEXT_BODY = "#4b5563";     // body text
 const BRAND_TEXT_MUTED = "#6b7280";    // muted labels
 const BRAND_TEXT_FOOT = "#a5b4fc";     // footer accent text
@@ -7120,7 +7120,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroTitle: "Votre technicien est assigné",
           icon: "check",
           greeting,
-          bodyText: "Votre rendez-vous d'installation est maintenant pris en charge par un technicien Nivra Telecom. Vous recevrez un autre courriel lorsque le technicien sera en route.",
+          bodyText: "Votre rendez-vous d'installation est maintenant pris en charge par un technicien Nivra Telecom. Vous recevrez automatiquement un courriel à chaque étape: technicien en route, arrivée sur place, installation démarrée et service activé.",
           cardTitle: "Détails du rendez-vous",
           cardRows: [
             ["Technicien", techName],
@@ -7146,7 +7146,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroTitle: "Votre technicien est en route!",
           icon: "truck",
           greeting,
-          bodyText: "Votre technicien Nivra Telecom est en route vers votre domicile. Veuillez vous assurer d'être présent à l'adresse d'installation.",
+          bodyText: "Votre technicien Nivra Telecom est en route vers votre domicile. Sa position est transmise au centre Nivra Core afin de suivre le déplacement. Veuillez vous assurer d'être présent à l'adresse d'installation.",
           cardTitle: "Détails de l'arrivée",
           cardRows: [
             ["Technicien", techName],
@@ -7238,7 +7238,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroTitle: "Votre installation est en cours!",
           icon: "check",
           greeting,
-          bodyText: "Votre technicien Nivra Telecom est en train d'installer votre service. Durée estimée: 30 à 60 minutes.",
+          bodyText: "Votre technicien Nivra Telecom est en train d'installer votre service. Un dernier courriel vous sera envoyé dès que le service sera activé, avec le nom du réseau WiFi et le mot de passe lorsque requis.",
           cardTitle: "Suivi de l'installation",
           cardRows: [
             ["Technicien", techName],
@@ -7291,7 +7291,7 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
           heroTitle: "Votre service Nivra est actif!",
           icon: "check",
           greeting,
-          bodyText: `Votre installation a été complétée avec succès par notre technicien. Votre service est maintenant actif et prêt à être utilisé.<div style="margin:22px 0;padding:18px;border-radius:18px;background:#ecfdf5;border:1px solid #86efac;text-align:center;"><div style="font-size:34px;line-height:34px;color:#16a34a;font-weight:900;letter-spacing:2px;">━╍╍╍━</div><div style="margin-top:8px;color:#166534;font-weight:800;">Connexion réseau établie ✅</div></div>Votre avis nous aide à grandir — laissez-nous une note Google!`,
+          bodyText: `Votre installation a été complétée avec succès par notre technicien. Votre service est maintenant actif et prêt à être utilisé.<div style="margin:22px 0;padding:18px;border-radius:18px;background:#ecfdf5;border:1px solid #86efac;text-align:center;"><div style="font-size:34px;line-height:34px;color:#16a34a;font-weight:900;letter-spacing:2px;">━╍╍╍━</div><div style="margin-top:8px;color:#166534;font-weight:800;">Service activé ✅</div></div>Les accès réseau fournis par le technicien sont indiqués ci-dessous. Votre avis nous aide à grandir — laissez-nous une note Google!`,
           cardTitle: "Détails du service",
           cardRows: [
             ["Forfait activé", planName],
