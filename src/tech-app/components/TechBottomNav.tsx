@@ -33,12 +33,6 @@ export default function TechBottomNav() {
     <nav
       aria-label="Navigation technicien"
       className="fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]"
-      style={{
-        background: "rgba(5,8,6,0.96)",
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
-        borderTop: "1px solid var(--tp-border)",
-      }}
     >
       <ul className="flex items-end px-2 pt-2 pb-1">
         {tabs.map((tab) => {
@@ -58,15 +52,12 @@ export default function TechBottomNav() {
                 {({ isActive }) =>
                   center ? (
                     <>
-                      <span
-                        className="tp-nav-scanner relative flex items-center justify-center h-14 w-14 rounded-2xl transition-transform duration-150 active:scale-95"
-                      >
-                        <Icon className="h-6 w-6" style={{ color: "var(--tp-text)" }} strokeWidth={2.4} />
+                      <span className="tp-nav-scanner relative flex items-center justify-center h-14 w-14 rounded-full transition-transform duration-150 active:scale-95">
+                        <Icon className="h-6 w-6" style={{ color: "#fbbf24" }} strokeWidth={2.6} />
                       </span>
                       <span
-                        className={`text-[10px] font-bold leading-none ${
-                          isActive ? "text-[color:var(--tp-primary-glow)]" : "text-[color:var(--tp-text-dim)]"
-                        }`}
+                        className="tp-italic-label text-[9px] leading-none"
+                        style={{ color: isActive ? "#fbbf24" : "#a1a1aa" }}
                       >
                         {label}
                       </span>
@@ -74,22 +65,20 @@ export default function TechBottomNav() {
                   ) : (
                     <>
                       <span
-                          className="relative flex items-center justify-center h-9 w-14 rounded-lg transition-all duration-150"
+                        className="relative flex items-center justify-center h-9 w-14 rounded-md transition-all duration-150"
                         style={{
-                          background: isActive ? "var(--tp-primary-soft)" : "transparent",
+                          background: isActive ? "rgba(251,191,36,0.16)" : "transparent",
                         }}
                       >
                         <Icon
                           className="h-[22px] w-[22px] transition-colors duration-150"
-                          style={{
-                            color: isActive ? "var(--tp-primary-glow)" : "var(--tp-text-dim)",
-                          }}
-                          strokeWidth={isActive ? 2.5 : 2}
+                          style={{ color: isActive ? "#fbbf24" : "#a1a1aa" }}
+                          strokeWidth={isActive ? 2.6 : 2}
                         />
                         {badge != null && badge > 0 && (
                           <span
-                            className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-[4px] rounded-full text-[9px] font-black flex items-center justify-center leading-none ${
-                              urgent ? "bg-red-500 text-white animate-pulse" : "bg-[color:var(--tp-warning)] text-black"
+                            className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-[4px] rounded-full text-[9px] font-black flex items-center justify-center leading-none italic ${
+                              urgent ? "bg-red-600 text-white animate-pulse" : "bg-[#fbbf24] text-zinc-900"
                             }`}
                           >
                             {badge > 9 ? "9+" : badge}
@@ -97,10 +86,8 @@ export default function TechBottomNav() {
                         )}
                       </span>
                       <span
-                        className="text-[10px] font-bold leading-none"
-                        style={{
-                          color: isActive ? "var(--tp-primary-glow)" : "var(--tp-text-dim)",
-                        }}
+                        className="tp-italic-label text-[9px] leading-none"
+                        style={{ color: isActive ? "#fbbf24" : "#a1a1aa" }}
                       >
                         {label}
                       </span>
