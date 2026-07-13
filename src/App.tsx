@@ -22,6 +22,7 @@ const INTERNAL_ROUTE_PREFIXES = [
   "/nivra-secure-hub-2617-internal",
   "/admin",
   "/technician",
+  "/tech",
   "/influencer",
   "/commander",
 ];
