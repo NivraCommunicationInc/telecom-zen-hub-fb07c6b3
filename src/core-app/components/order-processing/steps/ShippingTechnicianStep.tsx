@@ -93,7 +93,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
   //  • technician install (canonical) → technician panel only
   //  • self_install (canonical)       → confirmation only, no panels
   //  • otherwise fall back to service composition
-  const requiresTechnician = !isSelfInstall && (isTechnicianInstall || hasInternet || hasTv);
+  const requiresTechnician = isTechnicianInstall;
   const requiresShipping = !isSelfInstall && !isTechnicianInstall && (hasMobile || (!hasInternet && !hasTv));
 
   // Phase 3 — Auto-install gate: for self-install orders we require the
