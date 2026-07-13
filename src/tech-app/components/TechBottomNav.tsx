@@ -31,11 +31,12 @@ export default function TechBottomNav() {
 
   return (
     <nav
+      aria-label="Navigation technicien"
       className="fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]"
       style={{
-        background: "rgba(15,15,26,0.94)",
-        backdropFilter: "blur(28px)",
-        WebkitBackdropFilter: "blur(28px)",
+        background: "rgba(9,11,16,0.96)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
         borderTop: "1px solid var(--tp-border)",
       }}
     >
@@ -58,7 +59,7 @@ export default function TechBottomNav() {
                   center ? (
                     <>
                       <span
-                        className="tp-nav-scanner relative flex items-center justify-center h-14 w-14 rounded-full transition-transform duration-150 active:scale-95"
+                        className="tp-nav-scanner relative flex items-center justify-center h-14 w-14 rounded-2xl transition-transform duration-150 active:scale-95"
                       >
                         <Icon className="h-6 w-6 text-white" strokeWidth={2.4} />
                       </span>
@@ -73,7 +74,7 @@ export default function TechBottomNav() {
                   ) : (
                     <>
                       <span
-                        className="relative flex items-center justify-center h-9 w-14 rounded-[14px] transition-all duration-150"
+                          className="relative flex items-center justify-center h-9 w-14 rounded-lg transition-all duration-150"
                         style={{
                           background: isActive ? "var(--tp-primary-soft)" : "transparent",
                         }}
