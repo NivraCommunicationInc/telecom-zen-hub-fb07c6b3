@@ -55,10 +55,12 @@ export default function CoreAppointmentDetail() {
     queryKey: ["core-appointment-assistance", apt?.order_id],
     enabled: !!apt?.order_id,
     queryFn: async () => {
+      const orderId = apt?.order_id;
+      if (!orderId) return [];
       const { data, error } = await supabase
         .from("technician_assignments")
         .select("id, status, scheduled_date, technician_notes, network_test_results, created_at")
-        .eq("order_id", apt.order_id)
+        .eq("order_id", orderId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).filter((row: any) => row.network_test_results?.assistance?.requested_at || String(row.technician_notes || "").includes("[ASSISTANCE TERRAIN]"));
@@ -69,13 +71,16 @@ export default function CoreAppointmentDetail() {
     queryKey: ["core-appointment-linked-tickets", apt?.order_id, apt?.client_email],
     enabled: !!apt?.order_id || !!apt?.client_email,
     queryFn: async () => {
+      const orderId = apt?.order_id;
+      const email = apt?.client_email;
       let query = supabase
         .from("support_tickets")
         .select("id, ticket_number, subject, status, priority, category, created_at, related_order_id, client_email")
         .order("created_at", { ascending: false })
         .limit(8);
-      if (apt.order_id) query = query.eq("related_order_id", apt.order_id);
-      else query = query.eq("client_email", apt.client_email);
+      if (orderId) query = query.eq("related_order_id", orderId);
+      else if (email) query = query.eq("client_email", email);
+      else return [];
       const { data, error } = await query;
       if (error) throw error;
       return data ?? [];
