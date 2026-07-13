@@ -426,6 +426,7 @@ serve(async (req) => {
     equipment_total: number;
     monthly_before_discount: number;
     activation_fee: number;
+    customAdjustmentsPostTax?: number;
     error?: string;
   }> {
     const services = Array.isArray(body.services) ? body.services : [];
@@ -521,12 +522,16 @@ serve(async (req) => {
         quantity: 1,
       });
     }
+    // Ajustements Core (crédit/promotion/frais personnalisés) — appliqués POST-TAXES
+    // afin que le montant saisi par l'agent corresponde exactement à ce qui est
+    // ajouté/déduit du total. Ne sont PAS envoyés au moteur de tarification
+    // (compute_checkout_pricing) — ils sont conservés séparément et matérialisés
+    // comme lignes de facture hors-taxes par field-sales-sync.
+    let customAdjustmentsPostTax = 0;
     for (const adj of body.custom_adjustments || []) {
-      if (Number(adj?.amount || 0) !== 0) {
-        const amount = Math.max(0, Number(adj.amount || 0));
-        const signedAmount = adj.kind === "fee" ? amount : -amount;
-        cart_items.push({ type: "one_time_fee", name: adj.label || "Ajustement", amount: signedAmount, quantity: 1 });
-      }
+      const amount = Math.max(0, Number(adj?.amount || 0));
+      if (amount === 0) continue;
+      customAdjustmentsPostTax += adj?.kind === "fee" ? amount : -amount;
     }
     if (body.discount) {
       const d = body.discount as any;
@@ -568,10 +573,10 @@ serve(async (req) => {
     }
 
     return { resolvedServices, resolvedEquipment, cart_items, equipment_total,
-             monthly_before_discount, activation_fee };
+             monthly_before_discount, activation_fee, customAdjustmentsPostTax };
   }
 
-  async function verifyClientTotals(cart_items: any[]) {
+  async function verifyClientTotals(cart_items: any[], customAdjustmentsPostTax = 0) {
     // Try compute_checkout_pricing first; fall back to manual QC math (5% + 9.975%).
     let server_subtotal = 0, server_tps = 0, server_tvq = 0, server_total = 0;
     try {
@@ -604,6 +609,9 @@ serve(async (req) => {
       server_total = Math.round((server_subtotal + server_tps + server_tvq) * 100) / 100;
     }
 
+    // Ajustements Core appliqués POST-TAXES sur le total serveur
+    server_total = Math.max(0, Math.round((server_total + customAdjustmentsPostTax) * 100) / 100);
+
     const ct = body.client_totals;
     if (ct) {
       // Tolerance-check total only (subtotal/taxes can slightly differ due to discount rounding)
@@ -635,7 +643,7 @@ serve(async (req) => {
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
 
-      const verify = await verifyClientTotals(pricing.cart_items);
+      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       const clientInfo = {
@@ -698,7 +706,7 @@ serve(async (req) => {
       let pricing;
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
-      const verify = await verifyClientTotals(pricing.cart_items);
+      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       // 1. Create the field_quote (source of truth for intent)
@@ -1031,7 +1039,7 @@ serve(async (req) => {
       let pricing;
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
-      const verify = await verifyClientTotals(pricing.cart_items);
+      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       const customerName = `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Client";
