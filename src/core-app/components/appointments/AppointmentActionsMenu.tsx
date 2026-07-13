@@ -116,6 +116,38 @@ export function AppointmentActionsMenu({ appointment: apt, onRefresh }: Props) {
     }
   };
 
+  const doSendConfirmation = async () => {
+    if (!apt.scheduled_at) return toast.error("Ce rendez-vous n'a pas de date planifiée");
+    if (!apt.client_email) return toast.error("Aucun courriel client sur ce rendez-vous");
+    setLoading(true);
+    try {
+      const d = new Date(apt.scheduled_at);
+      const { error } = await supabase.functions.invoke("send-appointment-notification", {
+        body: {
+          email: apt.client_email,
+          name: apt.client_name || apt.title || "Client",
+          appointmentTitle: apt.title,
+          appointmentDate: apt.scheduled_at,
+          appointmentTime: d.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }),
+          appointmentType: apt.service_type || apt.installation_method,
+          orderNumber: apt.order_number || apt.order_id,
+          serviceAddress: [apt.service_address, apt.service_city, apt.service_postal_code].filter(Boolean).join(", "),
+          status: "confirmed",
+          appointmentId: apt.id,
+        },
+      });
+      if (error) throw error;
+      toast.success("Confirmation envoyée au client");
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'envoi de la confirmation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
   return (
     <>
       <DropdownMenu>
@@ -135,10 +167,14 @@ export function AppointmentActionsMenu({ appointment: apt, onRefresh }: Props) {
           <DropdownMenuItem onClick={() => setDlg("assign")} className="text-xs">
             <Wrench className="h-3.5 w-3.5 mr-2 text-amber-400" /> Assigner technicien…
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={doSendConfirmation} className="text-xs">
+            <Send className="h-3.5 w-3.5 mr-2 text-emerald-400" /> Envoyer confirmation du RDV
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={doSendReminder} className="text-xs">
             <Send className="h-3.5 w-3.5 mr-2 text-cyan-400" />
             {apt.reminder_sent_at ? "Renvoyer le rappel" : "Envoyer un rappel"}
           </DropdownMenuItem>
+          <DropdownMenuSeparator className="bg-slate-800" />
           <DropdownMenuSeparator className="bg-slate-800" />
           <DropdownMenuItem onClick={doComplete} className="text-xs">
             <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-400" /> Marquer complété

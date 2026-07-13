@@ -21,6 +21,7 @@ import TechTopBar from "../components/TechTopBar";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useTechAssignment, useInstallationSteps, ExpectedEquipment } from "../lib/useTechAssignments";
+import { queueTechEmail } from "../lib/queueTechEmail";
 import PhotoCapture from "../components/PhotoCapture";
 import QRScanner from "../components/QRScanner";
 import SignaturePad from "../components/SignaturePad";
@@ -77,6 +78,8 @@ export default function TechInstallation() {
   const [ping, setPing] = useState("");
   const [signal, setSignal] = useState("");
   const [scanCode, setScanCode] = useState("");
+  const [wifiSsid, setWifiSsid] = useState("");
+  const [wifiPassword, setWifiPassword] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [photos, setPhotos] = useState<{ url: string; step: string; at: string }[]>([]);
   const [showScanner, setShowScanner] = useState(false);
@@ -358,6 +361,20 @@ export default function TechInstallation() {
         p_eta: null,
       });
       if (statusError) throw statusError;
+
+      // Enrich the queued completion email with WiFi credentials (SSID/password)
+      // so the client receives them in the branded confirmation email.
+      if (wifiSsid.trim() || wifiPassword.trim()) {
+        await queueTechEmail({
+          assignmentId: id,
+          templateKey: "tech_completed",
+          extraVars: {
+            wifi_ssid: wifiSsid.trim(),
+            wifi_password: wifiPassword.trim(),
+          },
+        });
+      }
+
 
       // Mark matched inventory items as assigned
       const matchedIds = scannedItems
@@ -803,6 +820,21 @@ export default function TechInstallation() {
             <InputField label="Signal (%)" value={signal} onChange={setSignal} />
           </div>
         </section>
+
+        {/* WiFi configuration — envoyé au client par courriel à la fin */}
+        <section className="rounded-2xl bg-slate-900 border border-violet-800/50 p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+            <Signal className="h-4 w-4 text-violet-400" /> Configuration WiFi (envoyée au client)
+          </h3>
+          <div className="grid grid-cols-1 gap-3">
+            <InputField label="Nom du réseau (SSID)" value={wifiSsid} onChange={setWifiSsid} />
+            <InputField label="Mot de passe WiFi" value={wifiPassword} onChange={setWifiPassword} />
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Ces informations seront envoyées au client dans le courriel de confirmation d'installation.
+          </p>
+        </section>
+
 
         {/* Technician notes */}
         <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4">

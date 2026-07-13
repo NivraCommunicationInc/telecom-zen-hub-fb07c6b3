@@ -115,6 +115,99 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
         ], "Voir mes services", portalUrl),
     }),
 
+    // ── Technician flow (queued by queue_tech_status_email) ─────────────────
+    tech_en_route: () => ({
+      subject: `Nivra — Votre technicien est en route 🚚`,
+      html: buildEmail("Technicien en route", "Votre technicien arrive bientôt", "warning", "🚚",
+        "Votre technicien est en route!",
+        `${vars.tech_name || "Votre technicien Nivra"} est en route vers votre adresse${vars.eta ? ` — arrivée estimée: ${vars.eta}` : ""}.`,
+        vars, [
+          ...(vars.tech_name ? [{ label: "Technicien", value: vars.tech_name }] : []),
+          ...(vars.eta ? [{ label: "ETA", value: vars.eta }] : []),
+          ...(vars.service_address ? [{ label: "Adresse", value: vars.service_address }] : []),
+        ], "Suivre mon installation", portalUrl),
+    }),
+
+    tech_in_progress: () => ({
+      subject: `Nivra — Installation en cours 🔧`,
+      html: buildEmail("Installation en cours", "Le technicien a commencé", "info", "🔧",
+        "Installation en cours",
+        `${vars.tech_name || "Votre technicien"} a débuté l'installation à votre domicile. Nous vous informerons dès que le service sera actif.`,
+        vars, [
+          ...(vars.tech_name ? [{ label: "Technicien", value: vars.tech_name }] : []),
+          ...(vars.service_address ? [{ label: "Adresse", value: vars.service_address }] : []),
+        ], "Voir ma commande", portalUrl),
+    }),
+
+    tech_completed: () => {
+      const wifiBlock = (vars.wifi_ssid || vars.wifi_password) ? `
+        <div style="margin:24px 0;padding:20px;background:linear-gradient(135deg,#e8f5ff 0%,#f0fdf4 100%);border:2px solid #0066CC;border-radius:12px;">
+          <div style="text-align:center;margin-bottom:12px;">
+            <svg width="200" height="80" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;">
+              <defs>
+                <linearGradient id="cbl" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#0066CC"/>
+                  <stop offset="100%" stop-color="#10b981"/>
+                </linearGradient>
+              </defs>
+              <path d="M10 40 Q 60 10 100 40" stroke="url(#cbl)" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M100 40 Q 140 70 190 40" stroke="url(#cbl)" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <circle cx="10" cy="40" r="6" fill="#0066CC"/>
+              <circle cx="190" cy="40" r="6" fill="#10b981"/>
+              <g transform="translate(85,20)">
+                <path d="M15 22 L15 38 L25 38 L25 30 L35 30 L35 38 L45 38 L45 22 L30 8 Z"
+                      fill="#10b981" stroke="#065f46" stroke-width="1.5" stroke-linejoin="round"/>
+                <circle cx="30" cy="4" r="3" fill="#10b981">
+                  <animate attributeName="opacity" values="0.3;1;0.3" dur="1.8s" repeatCount="indefinite"/>
+                </circle>
+              </g>
+            </svg>
+          </div>
+          <div style="text-align:center;font-weight:700;color:#065f46;margin-bottom:12px;font-size:15px;">
+            📶 Vos accès WiFi
+          </div>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="padding:10px;color:#334155;font-size:13px;font-weight:600;">Nom du réseau (SSID)</td>
+              <td style="padding:10px;color:#0066CC;font-family:monospace;font-size:15px;font-weight:700;text-align:right;">${vars.wifi_ssid || "N/A"}</td>
+            </tr>
+            <tr style="border-top:1px solid #cbd5e1;">
+              <td style="padding:10px;color:#334155;font-size:13px;font-weight:600;">Mot de passe</td>
+              <td style="padding:10px;color:#0066CC;font-family:monospace;font-size:15px;font-weight:700;text-align:right;">${vars.wifi_password || "N/A"}</td>
+            </tr>
+          </table>
+        </div>` : "";
+      return {
+        subject: `Nivra — Installation complétée & service actif ✅`,
+        html: buildEmail("Installation complétée", "Bienvenue chez Nivra!", "success", "🏠",
+          "Votre service est actif!",
+          "Votre installation est terminée et votre service Nivra est maintenant actif. Merci de votre confiance!",
+          vars, [
+            ...(vars.tech_name ? [{ label: "Technicien", value: vars.tech_name }] : []),
+            ...(vars.order_number ? [{ label: "Nº commande", value: vars.order_number }] : []),
+          ], "Accéder à mon portail", portalUrl) + wifiBlock,
+      };
+    },
+
+    tech_missed: () => ({
+      subject: `Nivra — Rendez-vous manqué`,
+      html: buildEmail("Rendez-vous manqué", "Nous vous avons manqué", "warning", "⚠️",
+        "Rendez-vous manqué",
+        "Notre technicien s'est présenté à votre domicile mais n'a pas pu réaliser l'installation. Veuillez nous contacter pour reprogrammer.",
+        vars, [
+          ...(vars.service_address ? [{ label: "Adresse", value: vars.service_address }] : []),
+        ], "Reprogrammer", portalUrl),
+    }),
+
+    tech_rescheduled: () => ({
+      subject: `Nivra — Rendez-vous reporté`,
+      html: buildEmail("Rendez-vous reporté", "Votre rendez-vous a été modifié", "info", "📅",
+        "Rendez-vous reporté",
+        "Votre rendez-vous d'installation a été reporté. Nous vous contacterons pour confirmer une nouvelle date.",
+        vars, [], "Voir ma commande", portalUrl),
+    }),
+
+
     // Porting
     porting_initiated: () => ({
       subject: `Nivra — Transfert de numéro initié`,
