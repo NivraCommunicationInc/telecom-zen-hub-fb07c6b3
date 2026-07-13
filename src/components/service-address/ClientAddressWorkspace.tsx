@@ -69,15 +69,22 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
   };
 
   const handleDelete = async (a: ServiceAddress) => {
-    const hasServices = (buckets.get(a.id)?.subs.length || 0) > 0;
-    if (hasServices) {
+    const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due"]);
+    const activeSubs = (buckets.get(a.id)?.subs || []).filter((s: any) =>
+      ACTIVE_SUB.has(String(s?.status || "").toLowerCase())
+    );
+    if (activeSubs.length > 0) {
       toast({ title: "Impossible", description: "Cette adresse a encore des services actifs.", variant: "destructive" });
       return;
     }
     if (!confirm(`Retirer l'adresse « ${a.address_line} » ?`)) return;
-    await softDelete(a.id);
-    if (selectedId === a.id) setSelectedId(null);
-    toast({ title: "Adresse retirée" });
+    try {
+      await softDelete(a.id);
+      if (selectedId === a.id) setSelectedId(null);
+      toast({ title: "Adresse retirée" });
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Suppression refusée", variant: "destructive" });
+    }
   };
 
   const q = selected ? `service_address_id=${selected.id}` : "";
