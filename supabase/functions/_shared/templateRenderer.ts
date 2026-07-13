@@ -375,6 +375,30 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
         ], "Replanifier", portalUrl),
     }),
 
+    appointment_reminder: () => ({
+      subject: `⏰ Nivra — Rappel: installation dans 30 minutes`,
+      html: buildEmail(
+        "Rappel de rendez-vous",
+        "Votre technicien arrive dans 30 minutes",
+        "warning",
+        "⏰",
+        "Rappel: installation imminente",
+        `Bonjour${vars.client_name ? ` ${vars.client_name}` : ""}, votre technicien arrive dans environ 30 minutes. Merci de vous assurer d'être présent à l'adresse d'installation.`,
+        vars,
+        [
+          ...(vars.scheduled_at ? [{ label: "Heure prévue", value: formatDateTime(vars.scheduled_at) }] : []),
+          ...(vars.technician_name ? [{ label: "Technicien", value: vars.technician_name }] : []),
+          ...(vars.technician_phone ? [{ label: "Téléphone technicien", value: vars.technician_phone }] : []),
+          ...(vars.service_address ? [{ label: "Adresse", value: vars.service_address }] : []),
+          ...(vars.order_number ? [{ label: "Nº commande", value: vars.order_number }] : []),
+        ],
+        "Voir mon rendez-vous",
+        portalUrl,
+      ),
+    }),
+
+
+
     // Welcome / Account
     welcome_new_client: () => ({
       subject: `Nivra — Bienvenue chez Nivra Telecom!`,

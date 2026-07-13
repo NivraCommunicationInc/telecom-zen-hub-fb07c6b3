@@ -27,7 +27,11 @@ import {
   Shield,
   Wifi,
   Tv,
+  Send,
 } from "lucide-react";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AppointmentDetailDialogProps {
   appointment: any;
@@ -86,6 +90,28 @@ export const AppointmentDetailDialog = ({
   const canModify = hoursUntil >= 24;
   const serviceType = SERVICE_TYPE_LABELS[apt.service_type];
   const ServiceIcon = serviceType?.icon || Wifi;
+  const [sendingReminder, setSendingReminder] = useState(false);
+
+  const handleSendReminder = async () => {
+    try {
+      setSendingReminder(true);
+      const { data, error } = await supabase.functions.invoke("send-appointment-reminder", {
+        body: { appointmentId: apt.id, force: !!apt.reminder_sent_at },
+      });
+      if (error) throw error;
+      if (data?.alreadySent && !data?.success) {
+        toast.info("Rappel déjà envoyé");
+      } else if (data?.success) {
+        toast.success("Rappel envoyé au client");
+      } else {
+        toast.error(data?.reason || "Impossible d'envoyer le rappel");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'envoi du rappel");
+    } finally {
+      setSendingReminder(false);
+    }
+  };
 
   const showInternalFields = isAdmin || isEmployee;
   const showFullCard = isAdmin;
@@ -316,6 +342,33 @@ export const AppointmentDetailDialog = ({
                 )}
               </div>
             </div>
+
+            {/* Reminder action (Core/Employee only, any time before completion/cancellation) */}
+            {(isAdmin || isEmployee) && apt.status !== "completed" && apt.status !== "cancelled" && apt.scheduled_at && (
+              <>
+                <Separator />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-amber-600"
+                    onClick={handleSendReminder}
+                    disabled={sendingReminder}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    {sendingReminder ? "Envoi..." : apt.reminder_sent_at ? "Renvoyer le rappel" : "Envoyer un rappel"}
+                  </Button>
+                  {apt.reminder_sent_at && (
+                    <span className="text-xs text-muted-foreground">
+                      Dernier rappel: {format(new Date(apt.reminder_sent_at), "d MMM HH:mm", { locale: fr })}
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Rappel automatique envoyé 30 min avant l'arrivée
+                  </span>
+                </div>
+              </>
+            )}
 
             {/* Actions */}
             {(canModify || isAdmin) && apt.status !== "completed" && apt.status !== "cancelled" && (

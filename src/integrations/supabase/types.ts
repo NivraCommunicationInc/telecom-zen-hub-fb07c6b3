@@ -2274,6 +2274,7 @@ export type Database = {
           installation_method: string | null
           internal_notes: string | null
           order_id: string | null
+          reminder_sent_at: string | null
           scheduled_at: string
           service_address: string | null
           service_address_id: string | null
@@ -2307,6 +2308,7 @@ export type Database = {
           installation_method?: string | null
           internal_notes?: string | null
           order_id?: string | null
+          reminder_sent_at?: string | null
           scheduled_at: string
           service_address?: string | null
           service_address_id?: string | null
@@ -2340,6 +2342,7 @@ export type Database = {
           installation_method?: string | null
           internal_notes?: string | null
           order_id?: string | null
+          reminder_sent_at?: string | null
           scheduled_at?: string
           service_address?: string | null
           service_address_id?: string | null
