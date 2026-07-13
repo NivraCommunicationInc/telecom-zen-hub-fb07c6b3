@@ -25,7 +25,6 @@ import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreAct
 import { CoreKycPanel } from "@/core-app/components/order-detail/CoreKycPanel";
 import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHeader";
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
-import { CoreCardManualPanel } from "@/core-app/components/order-detail/CoreCardManualPanel";
 import { CorePaymentOptionsPanel } from "@/core-app/components/order-detail/CorePaymentOptionsPanel";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
@@ -146,19 +145,24 @@ function OrderConsole({ orderId }: { orderId: string }) {
         <ArrowLeft className="h-3.5 w-3.5" /> Commandes
       </Link>
 
-      {/* Card-manual processing panel — visible only when a pending intent exists */}
-      {order.payment_method === "card_manual" && (
-        <CoreCardManualPanel orderId={order.id} orderReference={null} />
-      )}
-
       {/* Payment options — Square email link / Square page / manual confirm */}
       <CorePaymentOptionsPanel
         orderId={order.id}
         orderNumber={orderNumber}
-        totalAmount={order.total_amount != null ? Number(order.total_amount) : null}
+        totalAmount={proc.invoice?.balance_due != null ? Number(proc.invoice.balance_due) : (order.total_amount != null ? Number(order.total_amount) : null)}
         clientEmail={order.client_email || profile?.email || null}
         paymentStatus={(order as any).payment_status ?? null}
         orderStatus={order.status ?? null}
+        onManualConfirm={async () => {
+          const balance = Number(proc.invoice?.balance_due ?? order.total_amount ?? 0);
+          if (!balance || balance <= 0) throw new Error("Aucun solde à confirmer");
+          await proc.recordManualPayment({
+            amount: balance,
+            method: "autre",
+            reference: "core-manual-confirmation",
+            note: "Confirmation manuelle depuis options de paiement Core",
+          });
+        }}
         onChanged={() => proc.refetch()}
       />
 

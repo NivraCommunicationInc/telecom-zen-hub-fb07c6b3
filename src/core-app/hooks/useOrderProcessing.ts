@@ -946,23 +946,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         reference,
       });
 
-      // ── payment_receipt email (append-only) ──
-      try {
-        if (data?.order && data?.profile && targetInvoice) {
-          await enqueueOrderEmail(
-            orderEmails.paymentReceipt(data.order, data.profile, {
-              amount: Number(existingPayment.amount || targetInvoice.total || 0),
-              invoice_number: targetInvoice.invoice_number || "",
-              invoice_id: targetInvoice.id,
-              payment_id: existingPayment.id,
-              reference: reference || existingPayment.reference || "",
-              payment_method: existingPayment.method || "",
-            })
-          );
-        }
-      } catch (e: any) {
-        console.error("[orderEmails] payment_receipt enqueue error:", e?.message);
-      }
+      // Reçu client: centralisé par le déclencheur backend billing_payments.
     } catch (err: any) {
       console.error("[OrderProcessing] confirmPayment failed:", err);
       toast.error(err?.message || "Erreur lors de la confirmation du paiement");
@@ -1207,22 +1191,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         amount, method: params.method, reference: params.reference,
       });
 
-      try {
-        if (data?.order && data?.profile) {
-          await enqueueOrderEmail(
-            orderEmails.paymentReceipt(data.order, data.profile, {
-              amount,
-              invoice_number: targetInvoice.invoice_number || "",
-              invoice_id: targetInvoice.id,
-              payment_id: created?.id,
-              reference: params.reference || created?.reference || "",
-              payment_method: billingMethod,
-            })
-          );
-        }
-      } catch (e: any) {
-        console.error("[orderEmails] manual payment_receipt enqueue error:", e?.message);
-      }
+      // Reçu client: centralisé par le déclencheur backend billing_payments.
       return created;
     } catch (err: any) {
       console.error("[GUARDRAIL][ManualPayment] Failed:", err);
