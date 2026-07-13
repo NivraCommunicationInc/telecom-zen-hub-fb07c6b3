@@ -27,7 +27,11 @@ import {
   Shield,
   Wifi,
   Tv,
+  Send,
 } from "lucide-react";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AppointmentDetailDialogProps {
   appointment: any;
