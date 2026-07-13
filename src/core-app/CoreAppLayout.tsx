@@ -117,7 +117,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: RefreshCcw, label: "RMA / Retours", href: "/rma" },
       // Terrain
       { icon: Wrench, label: "Techniciens", href: "/technician" },
-      { icon: MapPin, label: "Carte techniciens", href: "/technicians/map" },
+      { icon: MapPin, label: "Centre techniciens actifs", href: "/technicians/map" },
       { icon: Star, label: "Avis clients", href: "/reviews", adminOnly: true },
       { icon: RotateCcw, label: "Retours (legacy)", href: "/returns", adminOnly: true },
       { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },

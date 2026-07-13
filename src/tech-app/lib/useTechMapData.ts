@@ -32,6 +32,18 @@ export interface MapPoint {
   assignment_status?: string | null;
   technician_profile_id?: string | null;
   location_source?: "live_gps" | "assignment_live" | "assignment_address";
+  assignment_id?: string | null;
+  order_id?: string | null;
+  order_number?: string | null;
+  client_name?: string | null;
+  client_phone?: string | null;
+  scheduled_date?: string | null;
+  scheduled_time_start?: string | null;
+  scheduled_time_end?: string | null;
+  service_type?: string | null;
+  assignment_address?: string | null;
+  assistance_requested_at?: string | null;
+  assistance_reason?: string | null;
 }
 
 export interface MapDataPayload {
