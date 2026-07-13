@@ -18,6 +18,7 @@ import { AppointmentSlotPicker } from "@/core-app/components/appointments/Appoin
 import { InstallationTypeAndForcedSlotPanel } from "./InstallationTypeAndForcedSlotPanel";
 import { AutoInstallNetworkGate } from "./AutoInstallNetworkGate";
 import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
+import { LiveTrackingTimeline } from "../LiveTrackingTimeline";
 import { FileText } from "lucide-react";
 import { useProfileName } from "@/hooks/useProfileName";
 
