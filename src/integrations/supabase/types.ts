@@ -21623,8 +21623,10 @@ export type Database = {
           mfa_method: string | null
           mfa_secret: string | null
           mfa_verified_at: string | null
+          must_change_password: boolean
           notification_channel: string | null
           online_access_status: string | null
+          password_changed_at: string | null
           payment_method: string | null
           pending_email: string | null
           pending_email_expires_at: string | null
@@ -21716,8 +21718,10 @@ export type Database = {
           mfa_method?: string | null
           mfa_secret?: string | null
           mfa_verified_at?: string | null
+          must_change_password?: boolean
           notification_channel?: string | null
           online_access_status?: string | null
+          password_changed_at?: string | null
           payment_method?: string | null
           pending_email?: string | null
           pending_email_expires_at?: string | null
@@ -21809,8 +21813,10 @@ export type Database = {
           mfa_method?: string | null
           mfa_secret?: string | null
           mfa_verified_at?: string | null
+          must_change_password?: boolean
           notification_channel?: string | null
           online_access_status?: string | null
+          password_changed_at?: string | null
           payment_method?: string | null
           pending_email?: string | null
           pending_email_expires_at?: string | null
