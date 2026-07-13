@@ -91,7 +91,20 @@ const dateLabel = (value: any) => {
   return d.toLocaleDateString("fr-CA", { year: "numeric", month: "short", day: "numeric" });
 };
 
-const statusLabel = (status: any) => String(status || "non défini").replace(/_/g, " ");
+const statusLabel = (status: any) => {
+  const map: Record<string, string> = {
+    pending_scheduling: "À planifier",
+    scheduled: "Planifié",
+    confirmed: "Confirmé",
+    in_progress: "En cours",
+    completed: "Terminé",
+    cancelled: "Annulé",
+    no_show: "Absent",
+    rescheduled: "Replanifié",
+  };
+  const key = String(status || "").toLowerCase();
+  return map[key] || String(status || "non défini").replace(/_/g, " ");
+};
 
 const dedupeByKey = (items: any[]) => {
   const seen = new Set<string>();

@@ -42,6 +42,20 @@ const directAddressId = (item: any) =>
 
 const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due", "paused", "pause_requested"]);
 
+const appointmentStatusLabel = (status: any) => {
+  const map: Record<string, string> = {
+    pending_scheduling: "À planifier",
+    scheduled: "Planifié",
+    confirmed: "Confirmé",
+    in_progress: "En cours",
+    completed: "Terminé",
+    cancelled: "Annulé",
+    no_show: "Absent",
+    rescheduled: "Replanifié",
+  };
+  return map[String(status || "").toLowerCase()] || String(status || "").replace(/_/g, " ") || "—";
+};
+
 const secondary = (a: ServiceAddress) =>
   [a.city, a.province, a.postal_code].filter(Boolean).join(", ");
 
@@ -277,7 +291,7 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
             </SubList>
             <SubList title="Rendez-vous" icon={Calendar} count={b.appts.length} empty="Aucun rendez-vous à cette adresse.">
               {b.appts.map((a: any) => (
-                <ItemRow key={a.id} title={a.title || a.appointment_type || "Rendez-vous"} meta={a.scheduled_at ? new Date(a.scheduled_at).toLocaleString("fr-CA") : "—"} badge={String(a.status || "").replace(/_/g, " ")} />
+                <ItemRow key={a.id} title={a.title || a.appointment_type || "Rendez-vous"} meta={a.scheduled_at ? new Date(a.scheduled_at).toLocaleString("fr-CA") : "—"} badge={appointmentStatusLabel(a.status)} />
               ))}
             </SubList>
             <SubList title="Support" icon={LifeBuoy} count={b.tks.length} empty="Aucun ticket à cette adresse.">
