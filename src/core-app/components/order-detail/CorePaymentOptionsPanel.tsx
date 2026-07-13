@@ -4,7 +4,8 @@
  *
  *   1. 📧 Envoyer lien de paiement (Square) par courriel
  *   2. 🔗 Ouvrir la page de paiement Square (nouvel onglet)
- *   3. ✅ Confirmer paiement reçu manuellement
+ *   3. 💳 Encaisser par Square dans Core
+ *   4. ✅ Confirmer paiement reçu manuellement
  *
  * Backend:
  *   - email_queue (template `payment_link`) pour OPTION 1
@@ -15,6 +16,7 @@ import { useState } from "react";
 import { Loader2, Mail, ExternalLink, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { SquarePaymentForm } from "@/components/payment/SquarePaymentForm";
 
 const getPaymentErrorMessage = (error: any, data?: any) => {
   if (data?.error) return String(data.error);
@@ -38,6 +40,7 @@ interface Props {
   paymentStatus: string | null;
   orderStatus: string | null;
   onChanged?: () => void;
+  onManualConfirm?: () => Promise<void>;
 }
 
 export function CorePaymentOptionsPanel({
@@ -48,8 +51,10 @@ export function CorePaymentOptionsPanel({
   paymentStatus,
   orderStatus,
   onChanged,
+  onManualConfirm,
 }: Props) {
   const [busy, setBusy] = useState<null | "email" | "direct" | "manual">(null);
+  const [showCardForm, setShowCardForm] = useState(false);
 
   if (paymentStatus === "paid" || orderStatus === "cancelled") {
     return null;
@@ -59,7 +64,7 @@ export function CorePaymentOptionsPanel({
     ? `${Number(totalAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
     : "—";
 
-  async function createPaymentLink(mode: "email" | "direct"): Promise<string | null> {
+  async function createPaymentIntent(mode: "email" | "direct"): Promise<{ payment_url: string | null; intent_id: string | null }> {
     const { data, error } = await supabase.functions.invoke("core-square-payment-link", {
       body: {
         order_id: orderId,
@@ -68,7 +73,10 @@ export function CorePaymentOptionsPanel({
       },
     });
     if (error || !(data as any)?.ok) throw new Error(getPaymentErrorMessage(error, data));
-    return (data as any).payment_url as string;
+    return {
+      payment_url: ((data as any).payment_url as string) || null,
+      intent_id: ((data as any).intent_id as string) || null,
+    };
   }
 
   async function sendByEmail() {
@@ -78,7 +86,7 @@ export function CorePaymentOptionsPanel({
     }
     setBusy("email");
     try {
-      await createPaymentLink("email");
+      await createPaymentIntent("email");
       toast.success(`Lien de paiement Square envoyé à ${clientEmail}`);
       onChanged?.();
     } catch (e: any) {
@@ -91,7 +99,7 @@ export function CorePaymentOptionsPanel({
   async function openDirect() {
     setBusy("direct");
     try {
-      const url = await createPaymentLink("direct");
+      const { payment_url: url } = await createPaymentIntent("direct");
       if (!url) throw new Error("Lien indisponible");
       openPaymentUrl(url);
       toast.info("Page de paiement ouverte");
@@ -106,11 +114,16 @@ export function CorePaymentOptionsPanel({
     if (!window.confirm("Confirmer que le paiement a bien été reçu pour cette commande ?")) return;
     setBusy("manual");
     try {
-      const { error } = await supabase.rpc(
-        "admin_promote_order_to_confirmed" as any,
-        { p_order_id: orderId },
-      );
-      if (error) throw error;
+      if (onManualConfirm) {
+        await onManualConfirm();
+      } else {
+        const { data, error } = await supabase.rpc(
+          "admin_promote_order_to_confirmed" as any,
+          { p_order_id: orderId },
+        );
+        if (error) throw error;
+        if ((data as any)?.ok === false) throw new Error((data as any)?.error || "Échec de la confirmation");
+      }
       toast.success(`Paiement confirmé pour ${orderNumber}`);
       onChanged?.();
     } catch (e: any) {
@@ -139,7 +152,7 @@ export function CorePaymentOptionsPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
         <button
           onClick={sendByEmail}
           disabled={busy !== null || !clientEmail}
@@ -160,6 +173,15 @@ export function CorePaymentOptionsPanel({
         </button>
 
         <button
+          onClick={() => setShowCardForm((v) => !v)}
+          disabled={busy !== null || !totalAmount || totalAmount <= 0}
+          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#0f766e] hover:bg-[#0d9488] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
+        >
+          <ExternalLink className="h-4 w-4" />
+          💳 Prendre paiement Square
+        </button>
+
+        <button
           onClick={confirmManually}
           disabled={busy !== null}
           className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-[#2e7d32] hover:bg-[#388e3c] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-colors"
@@ -168,6 +190,30 @@ export function CorePaymentOptionsPanel({
           ✅ Confirmer paiement reçu
         </button>
       </div>
+
+      {showCardForm && totalAmount && totalAmount > 0 && (
+        <div className="mt-3 rounded-md border border-[#164e63] bg-[#082f49]/40 p-3">
+          <div className="mb-2 text-[11px] uppercase tracking-wider text-[#7dd3fc]">
+            Paiement carte Square — Core
+          </div>
+          <SquarePaymentForm
+            amount={Number(totalAmount)}
+            customerEmail={clientEmail || undefined}
+            invoiceNumber={orderNumber}
+            paymentSource="core_pos"
+            onBeforeCharge={async () => {
+              const intent = await createPaymentIntent("direct");
+              if (!intent.intent_id) throw new Error("Intent Square indisponible");
+              return { intent_id: intent.intent_id };
+            }}
+            onSuccess={(_receiptUrl, paymentId) => {
+              toast.success(`Paiement Square encaissé${paymentId ? ` — ${paymentId}` : ""}`);
+              setShowCardForm(false);
+              onChanged?.();
+            }}
+          />
+        </div>
+      )}
 
       <p className="text-[10px] text-[#6b7a90] mt-2">
         Le client paie par carte de crédit ou Interac via Square depuis la page de paiement. Confirmation manuelle réservée aux paiements hors ligne (comptant, virement).

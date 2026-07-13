@@ -1375,20 +1375,24 @@ export function renderQueueTemplate(
     case "appointment_reminder_2h":
     case "technician_on_the_way": {
       const tech = esc(v.technician_name || "À confirmer");
-      const eta = esc(v.eta || v.arrival_time || "Dans environ 2 heures");
+      const date = fmtDate(v.appointment_date || v.APPOINTMENT_DATE || v.date || v.scheduled_at);
+      const time = esc(v.appointment_time || v.APPOINTMENT_TIME || v.time || v.eta || v.arrival_time || "Non disponible");
+      const address = esc(v.service_address || v.appointment_address_line1 || v.APPOINTMENT_ADDRESS_LINE1 || "Non disponible");
       return {
         subject: `Votre technicien arrive bientôt`,
         html: shell({
-          preheader: `Le technicien arrive bientôt.`,
-          badge: "DANS 2 HEURES",
+          preheader: `Le technicien arrive bientôt pour votre installation de ${time}.`,
+          badge: "DANS 1 HEURE",
           heroTitle: "Votre technicien arrive bientôt",
           icon: "calendar",
           greeting,
-          bodyText: "Notre technicien sera bientôt chez vous.",
+          bodyText: "Notre technicien sera bientôt chez vous pour votre installation confirmée.",
           cardTitle: "Détails",
           cardRows: [
+            ["Date", date],
+            ["Plage horaire", String(time)],
             ["Technicien", String(tech)],
-            ["Heure estimée", String(eta)],
+            ["Adresse", String(address)],
           ],
         }),
       };

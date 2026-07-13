@@ -63,7 +63,8 @@ serve(async (req) => {
       req.headers.get("cf-connecting-ip") ||
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       null;
-    const paymentSource = bodySource === "public_pay" ? "public_pay" : "portal";
+    const allowedSources = new Set(["public_pay", "portal", "core_pos", "field"]);
+    const paymentSource = allowedSources.has(String(bodySource || "")) ? String(bodySource) : "portal";
 
     if (!source_id) return json({ ok: false, error: "source_id requis" }, 400);
     if (!invoice_id && !intent_id) return json({ ok: false, error: "invoice_id ou intent_id requis" }, 400);
@@ -256,20 +257,17 @@ serve(async (req) => {
         canonicalPaymentId = existingPayment.id;
         console.log("[square-charge-invoice] Payment already applied (billing_payments.reference match):", paymentId);
       } else {
-        const { data: rpcId, error: rpcErr } = await supabase.rpc("apply_payment_to_invoice", {
+        const { data: rpcResult, error: rpcErr } = await supabase.rpc("apply_payment_to_invoice", {
           p_invoice_id: invoiceData.id,
           p_amount: amountPaid,
           p_method: "card",
           p_provider: "square",
-          p_external_reference: paymentId,
+          p_provider_payment_id: paymentId,
+          p_provider_order_id: null,
+          p_customer_id: customerId,
           p_source: paymentSource,
-          p_context: {
-            square_payment_id: paymentId,
-            square_receipt_url: receiptUrl,
-            idempotency_key: idempotencyKey,
-            payer_ip: paymentSource === "public_pay" ? payerIp : null,
-            invoice_number: invoiceNumber,
-          },
+          p_created_by_name: paymentSource === "core_pos" ? "Nivra Core" : null,
+          p_created_by_role: paymentSource === "core_pos" ? "core" : null,
         });
 
         if (rpcErr) {
@@ -300,7 +298,9 @@ serve(async (req) => {
             receipt_url: receiptUrl,
           }, 500);
         }
-        canonicalPaymentId = rpcId as string;
+        canonicalPaymentId = typeof rpcResult === "string"
+          ? rpcResult
+          : ((rpcResult as any)?.payment_id ?? null);
       }
     }
 
