@@ -343,6 +343,33 @@ export const AppointmentDetailDialog = ({
               </div>
             </div>
 
+            {/* Reminder action (Core/Employee only, any time before completion/cancellation) */}
+            {(isAdmin || isEmployee) && apt.status !== "completed" && apt.status !== "cancelled" && apt.scheduled_at && (
+              <>
+                <Separator />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-amber-600"
+                    onClick={handleSendReminder}
+                    disabled={sendingReminder}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    {sendingReminder ? "Envoi..." : apt.reminder_sent_at ? "Renvoyer le rappel" : "Envoyer un rappel"}
+                  </Button>
+                  {apt.reminder_sent_at && (
+                    <span className="text-xs text-muted-foreground">
+                      Dernier rappel: {format(new Date(apt.reminder_sent_at), "d MMM HH:mm", { locale: fr })}
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Rappel automatique envoyé 30 min avant l'arrivée
+                  </span>
+                </div>
+              </>
+            )}
+
             {/* Actions */}
             {(canModify || isAdmin) && apt.status !== "completed" && apt.status !== "cancelled" && (
               <>
