@@ -1,15 +1,18 @@
 /**
  * ShippingTechnicianStep — Step 9: Shipping or Technician assignment
  * All buttons are fully functional with real DB operations and notifications.
+ * When no appointment row exists but an installation is required, an inline
+ * InstallSlotPicker lets the admin pick and persist a slot from Core.
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2 } from "lucide-react";
+import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { resolveTechnicianInput } from "@/core-app/lib/technicians";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 interface Props { proc: any; }
 
@@ -179,12 +182,14 @@ export function ShippingTechnicianStep({ proc }: Props) {
         </>
       ) : (
         <>
-          {appointment && (
+          {appointment ? (
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
               <h4 className="text-xs font-semibold text-blue-700 uppercase mb-1">Rendez-vous planifié</h4>
               <p className="text-sm text-blue-900">{appointment.scheduled_at?.slice(0, 16).replace("T", " ")}</p>
               <p className="text-xs text-blue-700 mt-0.5">{appointment.service_address || "—"}</p>
             </div>
+          ) : (
+            <PickInstallSlotPanel proc={proc} technicianInput={techFields.technician_id} />
           )}
 
           {/* Installation time estimate */}
