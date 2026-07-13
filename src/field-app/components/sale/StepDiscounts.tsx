@@ -27,6 +27,8 @@ import {
   Wrench,
   CalendarClock,
   Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
@@ -236,6 +238,13 @@ export default function StepDiscounts({
     [discounts, services, installationFee],
   );
 
+  useEffect(() => {
+    if (selected?.source !== "custom_core") return;
+    setCustomLabel(selected.name || "Rabais personnalisé Core");
+    setCustomAmount(String(Number(selected.value || 0)));
+    setCustomDuration(String(Number(selected.duration_months || 1)));
+  }, [selected]);
+
   const applyCustomDiscount = () => {
     const amount = Number(customAmount);
     const duration = Math.round(Number(customDuration));
@@ -258,7 +267,7 @@ export default function StepDiscounts({
     }
     setError(null);
     onChange({
-      id: `custom-core-${Date.now()}`,
+      id: selected?.source === "custom_core" ? selected.id : `custom-core-${Date.now()}`,
       name: customLabel.trim(),
       type: "fixed_monthly",
       value: Number(amount.toFixed(2)),
@@ -268,6 +277,15 @@ export default function StepDiscounts({
       min_plan_price: null,
       source: "custom_core",
     });
+  };
+
+  const removeCustomDiscount = () => {
+    if (selected?.source !== "custom_core") return;
+    onChange(null);
+    setError(null);
+    setCustomLabel("Rabais personnalisé Core");
+    setCustomAmount("6");
+    setCustomDuration("24");
   };
 
   return (
@@ -448,13 +466,32 @@ export default function StepDiscounts({
               />
             </div>
           </div>
-          <button
-            type="button"
-            onClick={applyCustomDiscount}
-            className="w-full min-h-[48px] rounded-xl border border-[hsl(var(--field-accent)/0.45)] bg-[hsl(var(--field-accent)/0.1)] text-[hsl(var(--field-accent-glow))] font-semibold hover:bg-[hsl(var(--field-accent)/0.16)] transition-colors flex items-center justify-center gap-2"
-          >
-            <Plus className="h-4 w-4" /> Appliquer ce rabais personnalisé
-          </button>
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <button
+              type="button"
+              onClick={applyCustomDiscount}
+              className="w-full min-h-[48px] rounded-xl border border-[hsl(var(--field-accent)/0.45)] bg-[hsl(var(--field-accent)/0.1)] text-[hsl(var(--field-accent-glow))] font-semibold hover:bg-[hsl(var(--field-accent)/0.16)] transition-colors flex items-center justify-center gap-2"
+            >
+              {selected?.source === "custom_core" ? (
+                <>
+                  <Pencil className="h-4 w-4" /> Modifier ce rabais personnalisé
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" /> Appliquer ce rabais personnalisé
+                </>
+              )}
+            </button>
+            {selected?.source === "custom_core" && (
+              <button
+                type="button"
+                onClick={removeCustomDiscount}
+                className="min-h-[48px] rounded-xl border border-[hsl(var(--field-warning)/0.45)] bg-[hsl(var(--field-warning)/0.08)] px-4 text-[hsl(var(--field-warning))] font-semibold hover:bg-[hsl(var(--field-warning)/0.14)] transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" /> Supprimer
+              </button>
+            )}
+          </div>
           {selected?.source === "custom_core" && (
             <div className="rounded-xl border border-[hsl(var(--field-success)/0.35)] bg-[hsl(var(--field-success)/0.08)] p-3 text-sm text-[hsl(var(--field-success))] flex items-center gap-2">
               <Check className="h-4 w-4" /> {selected.name} — {Number(selected.value).toFixed(2)} $/mois × {selected.duration_months} mois appliqué

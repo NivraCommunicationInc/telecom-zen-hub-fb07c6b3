@@ -54,7 +54,12 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
   const resumeIntentId = (location.state as any)?.resumeIntentId as string | undefined;
   const resumeQuoteId = (location.state as any)?.resumeQuoteId as string | undefined;
   const { user } = useStaffUser();
-  const DRAFT_KEY = user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
+  const DRAFT_KEY = useMemo(() => {
+    if (!allowCoreAdjustments) return user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
+    const accountScope = prefillAccountId || "manual";
+    const addressScope = prefillAddressId || "any-address";
+    return `${DRAFT_KEY_BASE}_core_${accountScope}_${addressScope}`;
+  }, [allowCoreAdjustments, prefillAccountId, prefillAddressId, user?.id]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
   const [prefillContext, setPrefillContext] = useState<string | null>(null);
@@ -84,19 +89,19 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     setDraft({ ...EMPTY_DRAFT, agentId: user?.id ?? "", createdAt: new Date().toISOString() });
     setCompletedSteps([]);
     setCardSuccess(null);
-  }, [user?.id]);
+  }, [DRAFT_KEY, user?.id]);
   const { data: fieldConfig } = useFieldConfig();
 
   // ── Draft persistence (FIX: survive page refresh) ──
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<{ draft: FieldSaleDraft; completed: FieldSaleStep[] } | null>(null);
-  const hasCheckedRestoreRef = useRef(false);
+  const checkedRestoreKeyRef = useRef<string | null>(null);
   const hasMountedRef = useRef(false);
 
   // Restore draft on mount (run once)
   useEffect(() => {
-    if (hasCheckedRestoreRef.current) return;
-    hasCheckedRestoreRef.current = true;
+    if (checkedRestoreKeyRef.current === DRAFT_KEY) return;
+    checkedRestoreKeyRef.current = DRAFT_KEY;
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (!saved) return;
@@ -108,12 +113,19 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         localStorage.removeItem(DRAFT_KEY);
         return;
       }
+      if (allowCoreAdjustments) {
+        setDraft({ ...savedDraft, agentId: user?.id ?? savedDraft.agentId });
+        setCompletedSteps(savedCompleted);
+        setPendingRestore(null);
+        setRestoreDialogOpen(false);
+        return;
+      }
       setPendingRestore({ draft: savedDraft, completed: savedCompleted });
       setRestoreDialogOpen(true);
     } catch {
       localStorage.removeItem(DRAFT_KEY);
     }
-  }, []);
+  }, [DRAFT_KEY, allowCoreAdjustments, user?.id]);
 
   // Persist draft on every change (skip first render to avoid clobbering pending restore)
   useEffect(() => {
@@ -130,6 +142,10 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         draft.customer.last_name ||
         draft.customer.email ||
         draft.services.length > 0 ||
+        draft.equipment.length > 0 ||
+        Boolean(draft.discount) ||
+        Boolean(draft.payment.fieldOrderId) ||
+        Boolean(draft.custom_adjustments?.length) ||
         completedSteps.length > 0;
       if (meaningful) {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft, completedSteps }));
@@ -141,7 +157,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
 
   const clearDraft = useCallback(() => {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-  }, []);
+  }, [DRAFT_KEY]);
 
   const handleRestoreAccept = () => {
     if (pendingRestore) {
@@ -244,7 +260,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         setDraft(restored);
         setCompletedSteps(["customer", "services", "equipment", "discounts", "recap"] as FieldSaleStep[]);
         // Skip the restore prompt — we just loaded fresh data
-        hasCheckedRestoreRef.current = true;
+        checkedRestoreKeyRef.current = DRAFT_KEY;
         setRestoreDialogOpen(false);
         setPendingRestore(null);
         toast.success("Soumission rechargée — étape paiement.");
@@ -356,7 +372,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         }));
         setCompletedSteps([]);
         // Skip any restored draft — prefill takes priority
-        hasCheckedRestoreRef.current = true;
+        checkedRestoreKeyRef.current = DRAFT_KEY;
         setRestoreDialogOpen(false);
         setPendingRestore(null);
         if (serviceabilityStatus === "available") {
