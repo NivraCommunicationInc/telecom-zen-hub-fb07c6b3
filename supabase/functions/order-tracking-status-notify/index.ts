@@ -91,6 +91,7 @@ function buildEmail(opts: {
 }) {
   const { lang, status, clientName, orderNumber, carrier, trackingNumber, trackingUrl, estimatedDelivery } = opts;
   const isOFD = status === "out_for_delivery";
+  const isDelivered = status === "delivered";
 
   if (lang === "en") {
     const subject = isOFD
