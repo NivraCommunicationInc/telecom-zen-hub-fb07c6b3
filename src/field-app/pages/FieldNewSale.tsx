@@ -552,13 +552,15 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
   const monthlyAfterDiscount = Math.max(0, monthlyBeforeDiscount - monthlyDiscountAmount);
   const effectiveActivation = Math.max(0, activationFee - installationDiscountAmount);
   // First-month credit is a one-time credit on the first invoice only.
+  // Custom Core adjustments (crédit/promotion/frais personnalisés) sont appliqués
+  // APRÈS taxes — un crédit de 14,40 $ diminue le total de 14,40 $ exactement.
   const subtotal = Math.max(
     0,
-    monthlyAfterDiscount + equipmentTotal + effectiveActivation + fulfillmentFee + customAdjustmentsTotal - firstMonthCredit,
+    monthlyAfterDiscount + equipmentTotal + effectiveActivation + fulfillmentFee - firstMonthCredit,
   );
   const tps = Math.round(subtotal * TPS_RATE * 100) / 100;
   const tvq = Math.round(subtotal * TVQ_RATE * 100) / 100;
-  const total = Math.round((subtotal + tps + tvq) * 100) / 100;
+  const total = Math.max(0, Math.round((subtotal + tps + tvq + customAdjustmentsTotal) * 100) / 100);
 
   // ── Prefill mode: build internal-notes marker + post-sync order patch ──
   // Ensures Core admins see the origin and the resulting orders row is
