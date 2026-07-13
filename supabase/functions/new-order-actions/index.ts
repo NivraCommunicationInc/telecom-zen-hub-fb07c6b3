@@ -1051,7 +1051,7 @@ serve(async (req) => {
       let pricing;
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
-      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
+      const verify = await verifyClientTotals(pricing.cart_items);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       const customerName = `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Client";
