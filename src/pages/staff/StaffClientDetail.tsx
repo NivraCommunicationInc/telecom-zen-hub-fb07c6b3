@@ -198,18 +198,29 @@ export default function StaffClientDetail() {
 
   // Fetch client appointments
   const { data: appointments } = useQuery({
-    queryKey: ["staff-client-appointments", clientId],
+    queryKey: ["staff-client-appointments", clientId, client?.email, (orders || []).map((o: any) => o.id).join(",")],
     queryFn: async () => {
       if (!clientId) return [];
+      const orderIds = (orders || []).map((o: any) => o.id).filter(Boolean);
+      const filters = [
+        `client_id.eq.${clientId}`,
+        ...orderIds.slice(0, 80).map((id: string) => `order_id.eq.${id}`),
+        client?.email ? `client_email.ilike.${String(client.email).trim().toLowerCase()}` : null,
+      ].filter(Boolean).join(",");
       const { data, error } = await supabase
         .from("appointments")
         .select("*")
-        .eq("client_id", clientId)
+        .or(filters)
         .order("scheduled_at", { ascending: false })
-        .limit(20);
-      
+        .limit(50);
+
       if (error) throw error;
-      return data || [];
+      const seen = new Set<string>();
+      return (data || []).filter((apt: any) => {
+        if (!apt?.id || seen.has(apt.id)) return false;
+        seen.add(apt.id);
+        return true;
+      });
     },
     enabled: !!clientId && hasVerifiedAccess,
   });

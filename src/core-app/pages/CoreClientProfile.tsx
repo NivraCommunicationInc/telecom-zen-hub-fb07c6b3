@@ -184,7 +184,7 @@ const CoreClientProfile = () => {
     queryKey: ["core-client-orders", clientId],
     queryFn: async () => {
       const { data } = await supabase.from("orders")
-        .select("id, order_number, status, created_at, service_type, total_amount, payment_status, client_first_name, client_last_name, client_email, client_phone, client_full_address, shipping_address, shipping_city, shipping_province, shipping_postal_code, carrier, tracking_number, shipped_at, equipment_details")
+        .select("id, order_number, status, created_at, service_type, total_amount, payment_status, client_first_name, client_last_name, client_email, client_phone, client_full_address, shipping_address, shipping_city, shipping_province, shipping_postal_code, service_address_id, carrier, tracking_number, shipped_at, equipment_details")
         .eq("user_id", clientId!)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -276,16 +276,33 @@ const CoreClientProfile = () => {
 
   // ── Address-linked operations ──
   const { data: appointments = [] } = useQuery({
-    queryKey: ["core-client-appointments", clientId],
+    queryKey: ["core-client-appointments", clientId, profile?.email, (orders as any[]).map((o: any) => o.id).join(",")],
     queryFn: async () => {
       if (!clientId) return [];
-      const { data, error } = await supabase.from("appointments")
-        .select("*")
-        .eq("client_id", clientId!)
-        .order("scheduled_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data || [];
+      const orderIds = (orders as any[]).map((o: any) => o.id).filter(Boolean);
+      const email = String(profile?.email || "").trim().toLowerCase();
+      const queries = [
+        supabase.from("appointments").select("*").eq("client_id", clientId!).limit(50),
+      ];
+      if (orderIds.length > 0) {
+        queries.push(supabase.from("appointments").select("*").in("order_id", orderIds).limit(50));
+      }
+      if (email) {
+        queries.push(supabase.from("appointments").select("*").ilike("client_email", email).limit(50));
+      }
+      const results = await Promise.all(queries);
+      const firstError = results.find((res) => res.error)?.error;
+      if (firstError) throw firstError;
+      const seen = new Set<string>();
+      return results
+        .flatMap((res) => res.data || [])
+        .filter((apt: any) => {
+          if (!apt?.id || seen.has(apt.id)) return false;
+          seen.add(apt.id);
+          return true;
+        })
+        .sort((a: any, b: any) => new Date(b.scheduled_at || 0).getTime() - new Date(a.scheduled_at || 0).getTime())
+        .slice(0, 50);
     },
     enabled: !!clientId,
   });
