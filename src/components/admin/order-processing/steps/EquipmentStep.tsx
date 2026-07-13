@@ -233,6 +233,52 @@ export function EquipmentStep({ proc }: Props) {
     setUnits(units.map(u => u.id === id ? { ...u, [field]: value } : u));
   };
 
+  const unitTypeToStockType = (t: string): StockUnitType => {
+    if (t === "sim") return "sim";
+    if (t === "esim") return "esim";
+    if (t === "router" || t === "modem") return "router";
+    if (t === "borne_wifi") return "borne_wifi";
+    if (t === "tv_box") return "tv_box";
+    if (t === "device") return "device";
+    return "other";
+  };
+
+  const assignFromStock = async (unitId: string, item: StockItem) => {
+    // Reserve the inventory row for this order (best-effort; ignore if RLS blocks it)
+    try {
+      const { error } = await supabase
+        .from("equipment_inventory")
+        .update({
+          status: "reserved",
+          order_id: order.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id)
+        .eq("status", "in_stock");
+      if (error) {
+        console.warn("[EquipmentStep] Reserve stock failed:", error.message);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["equipment-stock-in_stock"] });
+      }
+    } catch (e: any) {
+      console.warn("[EquipmentStep] Reserve stock exception:", e?.message);
+    }
+
+    setUnits((prev) => prev.map((u) => {
+      if (u.id !== unitId) return u;
+      return {
+        ...u,
+        serial_number: item.serial_number || u.serial_number,
+        mac_address: item.mac_address || u.mac_address,
+        iccid: (u.type === "sim" || u.type === "esim") ? (item.imei ? u.iccid : (item.serial_number && item.serial_number.startsWith("89") ? item.serial_number : u.iccid)) : u.iccid,
+        imei: item.imei || u.imei,
+        status: "assigned",
+      };
+    }));
+
+    toast.success(`Équipement ${item.catalog_name || item.sku || ""} pré-rempli`);
+  };
+
   // ── Serial uniqueness validation (intra-order) ──
   function validateSerialUniqueness(): string | null {
     // Collect all non-empty identifiers that must be unique
@@ -433,6 +479,12 @@ export function EquipmentStep({ proc }: Props) {
                 </>
               )}
             </div>
+
+            {/* Inline stock picker */}
+            <EquipmentStockPicker
+              unitType={unitTypeToStockType(unit.type)}
+              onSelect={(item) => assignFromStock(unit.id, item)}
+            />
           </div>
         ))}
       </div>
