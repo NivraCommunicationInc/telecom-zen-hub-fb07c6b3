@@ -30,6 +30,8 @@ interface QueueRow {
   language: string | null;
   attempts: number;
   max_attempts: number;
+  next_retry_at: string | null;
+  scheduled_for: string | null;
   
   attachments: Array<{ filename: string; content?: string; path?: string }> | null;
 }
@@ -95,11 +97,16 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const batchSize = Math.min(parseInt(url.searchParams.get("limit") || "20", 10) || 20, MAX_BATCH);
 
-  // Fetch queued rows (status queued or failed with remaining retries)
+  const nowIso = new Date().toISOString();
+
+  // Fetch only due rows. Both retry delay and scheduled delivery must be due.
   const { data: rows, error: fetchErr } = await supabase
     .from("email_queue")
-    .select("id, event_key, to_email, template_key, template_vars, subject, from_email, language, attempts, max_attempts, attachments")
+    .select("id, event_key, to_email, template_key, template_vars, subject, from_email, language, attempts, max_attempts, next_retry_at, scheduled_for, attachments")
     .in("status", ["queued", "failed"])
+    .or(`next_retry_at.is.null,next_retry_at.lte.${nowIso}`)
+    .or(`scheduled_for.is.null,scheduled_for.lte.${nowIso}`)
+    .order("scheduled_for", { ascending: true, nullsFirst: true })
     .order("created_at", { ascending: true })
     .limit(batchSize);
 
@@ -127,6 +134,8 @@ Deno.serve(async (req) => {
       .update({ status: "processing", attempts: (row.attempts || 0) + 1 })
       .eq("id", row.id)
       .in("status", ["queued", "failed"])
+        .or(`next_retry_at.is.null,next_retry_at.lte.${nowIso}`)
+        .or(`scheduled_for.is.null,scheduled_for.lte.${nowIso}`)
       .select("id")
       .maybeSingle();
 

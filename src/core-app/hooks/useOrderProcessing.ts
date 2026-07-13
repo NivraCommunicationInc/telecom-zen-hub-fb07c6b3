@@ -32,6 +32,7 @@ async function enqueueOrderEmail(row: Record<string, any> | null | undefined) {
       entityType: row.entity_type ?? "order",
       entityId: row.entity_id,
       subject: row.subject ?? null,
+      scheduledFor: row.scheduled_for ?? row.scheduled_at ?? row.next_retry_at ?? null,
       priority: typeof row.priority === "number" ? row.priority : 0,
       toName: row.to_name ?? null,
       cc: row.cc ?? null,
@@ -365,6 +366,7 @@ async function queueClientEmail(params: {
   entity_id?: string;
   template_vars?: Record<string, any>;
   idempotency_key?: string;
+  scheduled_for?: string | null;
   mode?: "automatic" | "manual";
 }) {
   try {
@@ -383,6 +385,7 @@ async function queueClientEmail(params: {
       subject: params.subject,
       entityType: params.entity_type || "order",
       entityId: params.entity_id,
+      scheduledFor: params.scheduled_for ?? null,
     }); } catch (__e) { error = __e; }
     if (error) {
       console.error("[GUARDRAIL][EmailQueue] Insert failed:", error.message, { template: params.template_key, entity: params.entity_id });
@@ -721,7 +724,6 @@ export function useOrderProcessing(orderId: string | undefined) {
       activated: "order_completed",
       installed: "order_completed",
       cancelled: "order_cancelled",
-      technician_en_route: "technician_en_route",
       installation_in_progress: "installation_in_progress",
       installation_completed: "installation_completed",
       installation_failed: "installation_failed",
@@ -917,29 +919,6 @@ export function useOrderProcessing(orderId: string | undefined) {
         original_provider: existingPayment.provider,
       });
 
-      // Queue email notification
-      const email = getClientEmail();
-      if (email) {
-        await queueClientEmail({
-          to_email: email,
-          template_key: "payment_confirmed",
-          event_key: `payment_confirmed_${orderId}_${Date.now()}`,
-          idempotency_key: `auto_payment_confirmed_${orderId}_${targetInvoice.id}`,
-          mode: "automatic",
-          subject: "Confirmation de paiement — Nivra",
-          entity_id: orderId,
-          template_vars: {
-            client_name: getClientName(),
-            order_id: orderId,
-            invoice_id: targetInvoice.id,
-            invoice_number: targetInvoice.invoice_number || "",
-            order_number: data?.order?.order_number || "",
-            amount: existingPayment.amount,
-            reference: reference || existingPayment.reference || "",
-          },
-        });
-      }
-
       // ── BUG #19 fix: force portal snapshot refresh (belt-and-suspenders on top of triggers) ──
       // This guarantees customer_portal_snapshots reflects the paid state BEFORE any client-side
       // read (which uses get_customer_portal_snapshot RPC with a 15s cache window).
@@ -975,6 +954,7 @@ export function useOrderProcessing(orderId: string | undefined) {
               amount: Number(existingPayment.amount || targetInvoice.total || 0),
               invoice_number: targetInvoice.invoice_number || "",
               invoice_id: targetInvoice.id,
+              payment_id: existingPayment.id,
               reference: reference || existingPayment.reference || "",
               payment_method: existingPayment.method || "",
             })
@@ -986,17 +966,6 @@ export function useOrderProcessing(orderId: string | undefined) {
     } catch (err: any) {
       console.error("[OrderProcessing] confirmPayment failed:", err);
       toast.error(err?.message || "Erreur lors de la confirmation du paiement");
-
-      // ── payment_failed email (append-only) ──
-      try {
-        if (data?.order && data?.profile) {
-          await enqueueOrderEmail(
-            orderEmails.paymentFailed(data.order, data.profile, err?.message)
-          );
-        }
-      } catch (e: any) {
-        console.error("[orderEmails] payment_failed enqueue error:", e?.message);
-      }
       throw err;
     }
   };
@@ -1075,22 +1044,6 @@ export function useOrderProcessing(orderId: string | undefined) {
         invoice_id: targetInvoice.id,
       });
 
-      const email = getClientEmail();
-      if (email) {
-        await queueClientEmail({
-          to_email: email,
-          template_key: "payment_failed",
-          event_key: `payment_failed_${orderId}_${Date.now()}`,
-          subject: "Problème de paiement — Nivra",
-          entity_id: orderId,
-          template_vars: {
-            client_name: getClientName(),
-            order_number: data?.order?.order_number || "",
-            reason: reason || "",
-          },
-        });
-      }
-
       invalidateAll();
       toast.warning("Paiement marqué comme invalide — facture recalculée");
       noteClient("payment_invalid", `${fmtMoney(invalidatedAmount)} invalidé — Raison: ${reason || "non précisée"}`, {
@@ -1099,16 +1052,6 @@ export function useOrderProcessing(orderId: string | undefined) {
         reason,
       });
 
-      // ── payment_failed email (append-only) ──
-      try {
-        if (data?.order && data?.profile) {
-          await enqueueOrderEmail(
-            orderEmails.paymentFailed(data.order, data.profile, reason)
-          );
-        }
-      } catch (e: any) {
-        console.error("[orderEmails] payment_failed enqueue error:", e?.message);
-      }
     } catch (err: any) {
       console.error("[GUARDRAIL][PaymentInvalid] Failed:", err);
       toast.error(`Erreur invalidation paiement: ${err?.message || "Erreur inconnue"}`);
@@ -1209,7 +1152,7 @@ export function useOrderProcessing(orderId: string | undefined) {
           legacy_note: params.note || `Paiement manuel (${params.method})`,
           confirmed_by: user?.id || null,
           received_at: now,
-          source: "admin_manual",
+          source: "admin_manual_confirmation",
           environment: data?.order?.environment || "production",
         })
         .select("*")
@@ -1263,6 +1206,23 @@ export function useOrderProcessing(orderId: string | undefined) {
       noteClient("payment_recorded", `${fmtMoney(amount)} (${params.method})${params.reference ? ` — Réf: ${params.reference}` : ""}`, {
         amount, method: params.method, reference: params.reference,
       });
+
+      try {
+        if (data?.order && data?.profile) {
+          await enqueueOrderEmail(
+            orderEmails.paymentReceipt(data.order, data.profile, {
+              amount,
+              invoice_number: targetInvoice.invoice_number || "",
+              invoice_id: targetInvoice.id,
+              payment_id: created?.id,
+              reference: params.reference || created?.reference || "",
+              payment_method: billingMethod,
+            })
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] manual payment_receipt enqueue error:", e?.message);
+      }
       return created;
     } catch (err: any) {
       console.error("[GUARDRAIL][ManualPayment] Failed:", err);
@@ -1622,68 +1582,11 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       await logActivity("technician_assigned", "order", orderId, { technician_id: technicianId });
 
-      const email = getClientEmail();
-      if (email) {
-        await queueClientEmail({
-          to_email: email,
-          template_key: "technician_assigned",
-          event_key: `technician_assigned_${orderId}_${Date.now()}`,
-          subject: "Un technicien a été assigné à votre commande — Nivra",
-          entity_id: orderId,
-          template_vars: {
-            client_name: getClientName(),
-            order_id: orderId,
-            order_number: data?.order?.order_number || "",
-            technician_id: technicianId,
-          },
-        });
-      }
-
       toast.success("Technicien assigné");
       noteClient("technician_assigned", `Technicien ${technicianId.slice(0, 8)}${data?.appointment?.scheduled_at ? ` — installation ${new Date(data.appointment.scheduled_at).toLocaleString("fr-CA")}` : ""}`, {
         technician_id: technicianId,
         appointment_id: data?.appointment?.id,
       });
-
-      // ── appointment_confirmed + reminders (append-only) ──
-      try {
-        const order = data?.order;
-        const profile = data?.profile;
-        const apt = data?.appointment;
-        // Fetch technician full_name so the email shows the real name
-        // instead of falling back to "À confirmer".
-        let technicianName: string | null = null;
-        try {
-          const { data: tech } = await supabase
-            .from("technicians")
-            .select("full_name")
-            .eq("id", technicianId)
-            .single();
-          technicianName = tech?.full_name ?? null;
-        } catch (techErr: any) {
-          console.warn("[orderEmails] technician lookup failed:", techErr?.message);
-        }
-        if (order && profile) {
-          await enqueueOrderEmail(
-            orderEmails.appointmentConfirmed(order, profile, {
-              scheduled_at: apt?.scheduled_at,
-              technician_name: technicianName || undefined,
-              service_address:
-                order.service_address || order.client_full_address || "",
-            })
-          );
-          if (apt?.scheduled_at) {
-            await enqueueOrderEmail(
-              orderEmails.appointmentReminder24h(order, profile, apt.scheduled_at)
-            );
-            await enqueueOrderEmail(
-              orderEmails.appointmentReminder2h(order, profile, apt.scheduled_at)
-            );
-          }
-        }
-      } catch (e: any) {
-        console.error("[orderEmails] appointment_confirmed enqueue error:", e?.message);
-      }
     } catch (err: any) {
       console.error("[GUARDRAIL][Technician] Failed:", err);
       toast.error(`Erreur assignation technicien: ${err?.message || "Erreur inconnue"}`);

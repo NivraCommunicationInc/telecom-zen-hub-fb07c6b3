@@ -177,6 +177,7 @@ export function paymentReceipt(order: AnyOrder, profile: AnyProfile, opts: {
   amount: number;
   invoice_number?: string;
   invoice_id?: string;
+  payment_id?: string;
   reference?: string;
   payment_method?: string;
   payment_date?: string;
@@ -193,7 +194,7 @@ export function paymentReceipt(order: AnyOrder, profile: AnyProfile, opts: {
       INVOICE_NUMBER: opts.invoice_number || "",
       PAYMENT_METHOD: opts.payment_method || "",
     },
-    idempotencySuffix: `payment_receipt_${opts.invoice_id || nowToken()}`,
+    idempotencySuffix: `payment_receipt_${opts.payment_id || opts.invoice_id || nowToken()}`,
   });
 }
 
@@ -379,17 +380,17 @@ export function appointmentReminder24h(order: AnyOrder, profile: AnyProfile, sch
 
 // Maps to RESEND_TEMPLATES.technician_on_the_way → "technician_on_the_way_fr"
 export function appointmentReminder2h(order: AnyOrder, profile: AnyProfile, scheduledAt: string) {
-  const sendAt = new Date(new Date(scheduledAt).getTime() - 2 * 60 * 60 * 1000).toISOString();
+  const sendAt = new Date(new Date(scheduledAt).getTime() - 60 * 60 * 1000).toISOString();
   return buildBase({
     order, profile,
     template_key: "technician_on_the_way",
-    message_type: "appointment_reminder_2h",
-    subject: "Votre technicien arrive dans 2 heures",
+    message_type: "appointment_reminder_1h",
+    subject: "Votre technicien arrive bientôt",
     variables: {
       APPOINTMENT_TIME: fmtTime(scheduledAt),
     },
     scheduled_at: sendAt,
-    idempotencySuffix: `appt_reminder_2h_${scheduledAt}`,
+    idempotencySuffix: `appt_reminder_1h_${scheduledAt}`,
   });
 }
 

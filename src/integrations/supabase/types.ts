@@ -32277,8 +32277,36 @@ export type Database = {
         Args: { p_referral_id: string }
         Returns: undefined
       }
+      fn_enqueue_core_installation_emails: {
+        Args: { p_appointment_id: string }
+        Returns: Json
+      }
       fn_generate_subscription_number: { Args: never; Returns: string }
       fn_is_equipment_label: { Args: { _label: string }; Returns: boolean }
+      fn_nivra_appointment_address: {
+        Args: {
+          p_appointment: Database["public"]["Tables"]["appointments"]["Row"]
+        }
+        Returns: string
+      }
+      fn_nivra_fmt_install_date: { Args: { p_ts: string }; Returns: string }
+      fn_nivra_fmt_install_time: {
+        Args: { p_duration?: number; p_ts: string }
+        Returns: string
+      }
+      fn_nivra_order_client_email: {
+        Args: { p_fallback_email?: string; p_order_id: string }
+        Returns: string
+      }
+      fn_nivra_order_client_name: {
+        Args: { p_client_id?: string; p_order_id: string }
+        Returns: string
+      }
+      fn_nivra_order_number: { Args: { p_order_id: string }; Returns: string }
+      fn_queue_existing_confirmed_installation_emails: {
+        Args: never
+        Returns: Json
+      }
       fn_repair_activated_order_canonical_chain: {
         Args: { _order_id: string }
         Returns: Json
