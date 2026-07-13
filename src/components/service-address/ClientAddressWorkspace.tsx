@@ -101,7 +101,6 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
   };
 
   const handleDelete = async (a: ServiceAddress) => {
-    const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due"]);
     const activeSubs = (buckets.get(a.id)?.subs || []).filter((s: any) =>
       ACTIVE_SUB.has(String(s?.status || "").toLowerCase())
     );
