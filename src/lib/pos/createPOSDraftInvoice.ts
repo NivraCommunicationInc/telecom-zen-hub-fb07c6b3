@@ -280,7 +280,7 @@ export async function createPOSDraftInvoice(
       const scheduledAt = new Date(`${installation.date}T${startTime}:00`).toISOString();
       const { error: apptErr } = await supabase.from("appointments").insert({
         order_id: newOrder.id,
-        client_id: input.customer.client_id || null,
+        client_id: clientId,
         client_email: input.customer.email,
         client_phone: input.customer.phone,
         service_address: input.customer.service_address,
@@ -290,6 +290,7 @@ export async function createPOSDraftInvoice(
         scheduled_at: scheduledAt,
         status: "hold",
         installation_method: installationMethod,
+        environment: "live",
         internal_notes: `[BUG-CORE-002C] Hold technicien créé depuis POS ${input.portalType} • window=${installation.time_slot}`,
       } as any);
       if (apptErr) {

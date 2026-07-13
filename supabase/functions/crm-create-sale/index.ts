@@ -308,6 +308,7 @@ Deno.serve(async (req) => {
             status: "hold",
             service_type: serviceType,
             installation_method: installationMethod,
+            environment: "live",
             created_by: user.id,
             internal_notes: `[BUG-CORE-002C] Hold technicien créé depuis CRM call • contact=${payload.contact_id} • window=${slotWindow}`,
           } as any);

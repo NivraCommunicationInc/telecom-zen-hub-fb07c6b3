@@ -106,7 +106,7 @@ export function InstallationTypeAndForcedSlotPanel({ proc }: Props) {
         service_postal_code: order.service_postal_code || "",
         installation_method: forcedMethod,
         status: "confirmed",
-        environment: order.environment || "production",
+        environment: "live",
       };
       const { error } = await supabase.from("appointments").insert(payload as any);
       if (error) throw error;
