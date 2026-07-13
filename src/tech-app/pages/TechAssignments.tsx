@@ -130,17 +130,17 @@ function DispatchCard({ job, uid, onClaim, claimPending }: DispatchCardProps) {
           {[job.client_first_name, job.client_last_name].filter(Boolean).join(" ") || "Client"}
         </p>
         <div className="flex items-center gap-2 text-xs text-slate-400">
-          <Wrench className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+          <Wrench className="h-3.5 w-3.5 text-sky-400 shrink-0" />
           <span className="capitalize">{job.service_type ?? "Service"}{job.category ? ` · ${job.category}` : ""}</span>
         </div>
         {job.client_full_address && (
           <div className="flex items-start gap-2 text-sm text-slate-300">
-            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-violet-400" />
+            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-sky-400" />
             <span>{job.client_full_address}</span>
           </div>
         )}
         {job.client_phone && (
-          <a href={`tel:${job.client_phone}`} className="flex items-center gap-2 text-sm text-violet-300">
+          <a href={`tel:${job.client_phone}`} className="flex items-center gap-2 text-sm text-sky-300">
             <Phone className="h-3.5 w-3.5 shrink-0" /> {job.client_phone}
           </a>
         )}
@@ -187,7 +187,7 @@ function DispatchCard({ job, uid, onClaim, claimPending }: DispatchCardProps) {
           className={`w-full min-h-[52px] rounded-full text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 ${
             isLockedByMe
               ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-              : "bg-violet-600 hover:bg-violet-700 text-white"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}
         >
           {claimPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -420,7 +420,7 @@ export default function TechAssignments() {
             <ListChecks className="h-4 w-4" />
             Mes Missions
             {assignments.filter((a) => !["completed","cancelled","missed"].includes(a.status)).length > 0 && (
-              <span className="rounded-full bg-violet-400/20 px-2 py-0.5 text-xs font-bold">
+              <span className="rounded-full bg-blue-400/20 px-2 py-0.5 text-xs font-bold">
                 {assignments.filter((a) => !["completed","cancelled","missed"].includes(a.status)).length}
               </span>
             )}
@@ -472,7 +472,7 @@ export default function TechAssignments() {
 
             {loadingAssignments ? (
               <div className="text-center py-16 flex flex-col items-center gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                 <span className="text-slate-400">Chargement...</span>
               </div>
             ) : filtered.length === 0 ? (
@@ -496,7 +496,7 @@ export default function TechAssignments() {
                           {STATUS_LABELS[a.status] ?? a.status}
                         </span>
                         <span className="text-sm font-bold text-white flex items-center gap-1">
-                          <Clock className="h-4 w-4 text-violet-400" />
+                          <Clock className="h-4 w-4 text-sky-400" />
                           {a.scheduled_time_start?.slice(0, 5)}
                         </span>
                       </div>
@@ -504,12 +504,12 @@ export default function TechAssignments() {
                         <p className="text-base font-bold text-white">👤 {a.client_name || "Client"}</p>
                         {a.client_address && (
                           <p className="text-sm text-slate-300 flex items-start gap-2">
-                            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-violet-400" />
+                            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-sky-400" />
                             <span>{a.client_address}</span>
                           </p>
                         )}
                         {a.client_phone && (
-                          <a href={`tel:${a.client_phone}`} className="text-sm text-violet-300 flex items-center gap-2">
+                          <a href={`tel:${a.client_phone}`} className="text-sm text-sky-300 flex items-center gap-2">
                             <Phone className="h-4 w-4 shrink-0" /> {a.client_phone}
                           </a>
                         )}
@@ -518,7 +518,7 @@ export default function TechAssignments() {
                         <div className="rounded-xl bg-slate-950 border border-slate-800 p-3 space-y-1.5">
                           {a.order_items.map((i: any) => (
                             <p key={i.id} className="text-xs text-slate-300 flex items-start gap-2">
-                              {i.fulfillment_type === "equipment" ? <Wrench className="h-3.5 w-3.5 mt-0.5 text-orange-400 shrink-0" /> : <Package className="h-3.5 w-3.5 mt-0.5 text-violet-400 shrink-0" />}
+                              {i.fulfillment_type === "equipment" ? <Wrench className="h-3.5 w-3.5 mt-0.5 text-orange-400 shrink-0" /> : <Package className="h-3.5 w-3.5 mt-0.5 text-sky-400 shrink-0" />}
                               <span>{i.plan_name || i.description}{i.quantity > 1 ? ` × ${i.quantity}` : ""}</span>
                             </p>
                           ))}
@@ -623,7 +623,7 @@ export default function TechAssignments() {
       <Dialog open={!!claimJob} onOpenChange={(o) => { if (!o) { setClaimJob(null); reservationRef.current = null; } }}>
         <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-violet-300">
+            <DialogTitle className="flex items-center gap-2 text-sky-300">
               <Calendar className="h-5 w-5" /> Planifier la mission
             </DialogTitle>
           </DialogHeader>
@@ -710,7 +710,7 @@ export default function TechAssignments() {
               type="button"
               disabled={claimMutation.isPending || reserveMutation.isPending || !claimDate || !claimTimeStart}
               onClick={() => claimMutation.mutate()}
-              className="w-full min-h-[52px] rounded-full bg-violet-600 hover:bg-violet-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full min-h-[52px] rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {claimMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Confirmer la mission

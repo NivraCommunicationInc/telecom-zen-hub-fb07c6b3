@@ -536,7 +536,7 @@ export default function TechInstallation() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
       </div>
     );
   }
@@ -602,7 +602,7 @@ export default function TechInstallation() {
           <SummaryRow label="Signature client" value={summary.signature ? "✅ Confirmée" : "❌ Non signée"} />
           <button
             onClick={() => navigate("/tech/assignments")}
-            className="w-full min-h-[56px] rounded-full bg-violet-600 hover:bg-violet-700 text-white text-base font-bold mt-4"
+            className="w-full min-h-[56px] rounded-full bg-blue-600 hover:bg-blue-700 text-white text-base font-bold mt-4"
           >
             Retour aux missions
           </button>
@@ -636,7 +636,7 @@ export default function TechInstallation() {
               </p>
             </div>
             <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${
-              statusIsActive ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300" : "border-violet-500/40 bg-violet-500/15 text-violet-300"
+              statusIsActive ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300" : "border-blue-500/40 bg-blue-500/15 text-sky-300"
             }`}>
               {assignment.status}
             </span>
@@ -664,14 +664,14 @@ export default function TechInstallation() {
               <span>{assignment.scheduled_date} · {assignment.scheduled_time_start?.slice(0, 5)} – {assignment.scheduled_time_end?.slice(0, 5)}</span>
             </p>
             {assignment.client_phone && (
-              <a href={`tel:${assignment.client_phone}`} className="inline-flex min-h-[44px] w-fit items-center gap-2 rounded-full border border-slate-700 bg-slate-800/70 px-3 text-sm font-semibold text-violet-300">
+              <a href={`tel:${assignment.client_phone}`} className="inline-flex min-h-[44px] w-fit items-center gap-2 rounded-full border border-slate-700 bg-slate-800/70 px-3 text-sm font-semibold text-sky-300">
                 <Phone className="h-4 w-4" /> {assignment.client_phone}
               </a>
             )}
           </div>
 
           <div className="tp-status-strip space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-violet-300">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-300">
               <Wrench className="h-4 w-4" /> Services / matériel
             </div>
             <div className="flex flex-wrap gap-2">
@@ -686,7 +686,7 @@ export default function TechInstallation() {
           {/* Expected equipment checklist */}
           {expectedEquipment.length > 0 && (
             <div className="rounded-xl bg-slate-950/60 border border-slate-700 p-3 space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-violet-300 flex items-center gap-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-sky-300 flex items-center gap-2">
                 <PackageCheck className="h-4 w-4" /> Équipement prévu ({expectedEquipment.length})
               </p>
               <ul className="space-y-1.5">
@@ -805,7 +805,7 @@ export default function TechInstallation() {
               <PhotoCapture stepId={String(currentStep?.step_order ?? stepIdx)} onCapture={onPhotoCaptured} label="📷 Prendre une photo" />
             )}
             {currentStep.requires_scan && (
-              <button onClick={() => setShowScanner(true)} className="w-full min-h-[56px] rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold flex items-center justify-center gap-2">
+              <button onClick={() => setShowScanner(true)} className="w-full min-h-[56px] rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2">
                 <ScanLine className="h-5 w-5" /> Scanner l'équipement
               </button>
             )}
@@ -816,7 +816,7 @@ export default function TechInstallation() {
             )}
             <button
               onClick={completeCurrentStep}
-              className={`w-full min-h-[52px] rounded-full text-sm font-bold flex items-center justify-center gap-2 ${completedSteps.has(stepIdx) ? "bg-emerald-600 text-white" : "bg-violet-600 hover:bg-violet-700 text-white"}`}
+              className={`w-full min-h-[52px] rounded-full text-sm font-bold flex items-center justify-center gap-2 ${completedSteps.has(stepIdx) ? "bg-emerald-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}`}
             >
               {completedSteps.has(stepIdx) ? "✅ Étape complétée" : "Marquer l'étape complétée"}
             </button>
@@ -838,11 +838,11 @@ export default function TechInstallation() {
               <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Équipement installé</h3>
               <p className="text-xs text-slate-400 mt-1">Scanner ou saisir le numéro de série / MAC.</p>
             </div>
-            <span className="shrink-0 rounded-full bg-violet-600/20 px-3 py-1 text-xs font-bold text-violet-300">{allScannedItems.length}</span>
+            <span className="shrink-0 rounded-full bg-blue-600/20 px-3 py-1 text-xs font-bold text-sky-300">{allScannedItems.length}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setShowScanner(true)} className="min-h-[48px] rounded-full bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold flex items-center justify-center gap-2">
+            <button onClick={() => setShowScanner(true)} className="min-h-[48px] rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2">
               <Camera className="h-4 w-4" /> Scanner QR
             </button>
             <button onClick={handleManualScan} disabled={!scanCode.trim() || scanValidating} className="min-h-[48px] rounded-full bg-slate-800 border border-slate-700 text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40">
@@ -855,7 +855,7 @@ export default function TechInstallation() {
             onChange={(e) => setScanCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleManualScan()}
             placeholder="S/N ou MAC manuellement..."
-            className="w-full min-h-[48px] rounded-full bg-slate-800 border border-slate-700 text-white px-4 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full min-h-[48px] rounded-full bg-slate-800 border border-slate-700 text-white px-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
 
           {hasWrongOrder && (
@@ -906,7 +906,7 @@ export default function TechInstallation() {
         {photos.length > 0 && (
           <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
             <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
-              <Camera className="h-4 w-4 text-violet-400" /> Photos ({photos.length})
+              <Camera className="h-4 w-4 text-sky-400" /> Photos ({photos.length})
             </h3>
             <div className="grid grid-cols-3 gap-2">
               {photos.map((p, i) => (
@@ -983,7 +983,7 @@ export default function TechInstallation() {
         {/* Technician notes */}
         <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
           <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-violet-400" /> Notes du technicien
+            <FileText className="h-4 w-4 text-sky-400" /> Notes du technicien
           </h3>
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observations, problèmes, équipement remplacé..." rows={4} className="bg-slate-800 border-slate-700 text-white text-base" />
         </section>
@@ -991,14 +991,14 @@ export default function TechInstallation() {
         {/* Signature */}
         <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
           <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
-            <PenTool className="h-4 w-4 text-violet-400" /> Signature du client
+            <PenTool className="h-4 w-4 text-sky-400" /> Signature du client
           </h3>
           {signature ? (
             <div className="space-y-2">
               <div className="rounded-xl border-2 border-emerald-500/50 bg-white p-2">
                 <img src={signature} alt="Signature" className="w-full h-32 object-contain" />
               </div>
-              <button onClick={() => { setSignature(null); setShowSignature(true); }} className="text-xs text-violet-400 underline">
+              <button onClick={() => { setSignature(null); setShowSignature(true); }} className="text-xs text-sky-400 underline">
                 Recommencer la signature
               </button>
             </div>
@@ -1134,7 +1134,7 @@ export default function TechInstallation() {
           <p className="text-sm text-slate-300">Voulez-vous replanifier ce rendez-vous?</p>
           <Textarea placeholder="Raison (ex: client absent, accès refusé...)" value={missReason} onChange={(e) => setMissReason(e.target.value)} className="min-h-[80px] bg-slate-950 border-slate-700 text-white" />
           <DialogFooter className="gap-2 flex-col sm:flex-row">
-            <button onClick={() => setShowReschedule(true)} disabled={!missReason.trim()} className="min-h-[48px] px-5 rounded-full bg-violet-600 text-white text-sm font-bold disabled:opacity-40">
+            <button onClick={() => setShowReschedule(true)} disabled={!missReason.trim()} className="min-h-[48px] px-5 rounded-full bg-blue-600 text-white text-sm font-bold disabled:opacity-40">
               Replanifier
             </button>
             <button onClick={() => confirmMissedOnly.mutate()} disabled={!missReason.trim() || confirmMissedOnly.isPending} className="min-h-[48px] px-5 rounded-full bg-red-600 text-white text-sm font-semibold disabled:opacity-40">
@@ -1165,7 +1165,7 @@ export default function TechInstallation() {
             <button onClick={() => setShowReschedule(false)} className="min-h-[48px] px-5 rounded-full bg-slate-800 text-slate-200 text-sm font-semibold">
               Annuler
             </button>
-            <button onClick={() => reschedule.mutate()} disabled={!rescheduleDate || !rescheduleTime || reschedule.isPending} className="min-h-[48px] px-5 rounded-full bg-violet-600 text-white text-sm font-bold disabled:opacity-40">
+            <button onClick={() => reschedule.mutate()} disabled={!rescheduleDate || !rescheduleTime || reschedule.isPending} className="min-h-[48px] px-5 rounded-full bg-blue-600 text-white text-sm font-bold disabled:opacity-40">
               {reschedule.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Replanifier"}
             </button>
           </DialogFooter>
