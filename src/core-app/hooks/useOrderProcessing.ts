@@ -914,10 +914,12 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       if (updateInvoiceError) throw updateInvoiceError;
 
-      // Step 4: Update order record
+      // Step 4: Update order record — mirror payment_status so downstream
+      // guards/triggers see the paid signal on the order row itself.
       await updateOrder.mutateAsync({
         payment_confirmed_at: now,
         payment_reference: reference || existingPayment.reference || data?.order?.payment_reference || "admin-confirmed",
+        ...(isFullyPaid ? { payment_status: "paid" } : {}),
       });
 
       await logActivity("payment_confirmed", "order", orderId, {
