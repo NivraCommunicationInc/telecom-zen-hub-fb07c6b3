@@ -54,7 +54,12 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
   const resumeIntentId = (location.state as any)?.resumeIntentId as string | undefined;
   const resumeQuoteId = (location.state as any)?.resumeQuoteId as string | undefined;
   const { user } = useStaffUser();
-  const DRAFT_KEY = user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
+  const DRAFT_KEY = useMemo(() => {
+    if (!allowCoreAdjustments) return user?.id ? `${DRAFT_KEY_BASE}_${user.id}` : DRAFT_KEY_BASE;
+    const accountScope = prefillAccountId || "manual";
+    const addressScope = prefillAddressId || "any-address";
+    return `${DRAFT_KEY_BASE}_core_${accountScope}_${addressScope}`;
+  }, [allowCoreAdjustments, prefillAccountId, prefillAddressId, user?.id]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
   const [prefillContext, setPrefillContext] = useState<string | null>(null);
@@ -84,28 +89,51 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     setDraft({ ...EMPTY_DRAFT, agentId: user?.id ?? "", createdAt: new Date().toISOString() });
     setCompletedSteps([]);
     setCardSuccess(null);
-  }, [user?.id]);
+  }, [DRAFT_KEY, user?.id]);
   const { data: fieldConfig } = useFieldConfig();
 
   // ── Draft persistence (FIX: survive page refresh) ──
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<{ draft: FieldSaleDraft; completed: FieldSaleStep[] } | null>(null);
-  const hasCheckedRestoreRef = useRef(false);
+  const checkedRestoreKeyRef = useRef<string | null>(null);
   const hasMountedRef = useRef(false);
 
   // Restore draft on mount (run once)
   useEffect(() => {
-    if (hasCheckedRestoreRef.current) return;
-    hasCheckedRestoreRef.current = true;
+    if (checkedRestoreKeyRef.current === DRAFT_KEY) return;
+    checkedRestoreKeyRef.current = DRAFT_KEY;
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (!saved) return;
       const parsed = JSON.parse(saved);
       const savedDraft = parsed?.draft as FieldSaleDraft | undefined;
       const savedCompleted = (parsed?.completedSteps as FieldSaleStep[] | undefined) || [];
-      if (!savedDraft || savedDraft.step === "customer" && savedCompleted.length === 0) {
+      const savedHasMeaningfulContent = Boolean(
+        savedDraft && (
+          savedDraft.step !== "customer" ||
+          savedDraft.customer?.first_name ||
+          savedDraft.customer?.last_name ||
+          savedDraft.customer?.email ||
+          savedDraft.customer?.phone ||
+          savedDraft.customer?.address ||
+          savedDraft.services?.length ||
+          savedDraft.equipment?.length ||
+          savedDraft.discount ||
+          savedDraft.payment?.fieldOrderId ||
+          savedDraft.custom_adjustments?.length ||
+          savedCompleted.length > 0
+        ),
+      );
+      if (!savedDraft || !savedHasMeaningfulContent) {
         // Empty draft — nothing meaningful to restore
         localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      if (allowCoreAdjustments) {
+        setDraft({ ...savedDraft, agentId: user?.id ?? savedDraft.agentId });
+        setCompletedSteps(savedCompleted);
+        setPendingRestore(null);
+        setRestoreDialogOpen(false);
         return;
       }
       setPendingRestore({ draft: savedDraft, completed: savedCompleted });
@@ -113,7 +141,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     } catch {
       localStorage.removeItem(DRAFT_KEY);
     }
-  }, []);
+  }, [DRAFT_KEY, allowCoreAdjustments, user?.id]);
 
   // Persist draft on every change (skip first render to avoid clobbering pending restore)
   useEffect(() => {
@@ -130,6 +158,10 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         draft.customer.last_name ||
         draft.customer.email ||
         draft.services.length > 0 ||
+        draft.equipment.length > 0 ||
+        Boolean(draft.discount) ||
+        Boolean(draft.payment.fieldOrderId) ||
+        Boolean(draft.custom_adjustments?.length) ||
         completedSteps.length > 0;
       if (meaningful) {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ draft, completedSteps }));
@@ -137,11 +169,11 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     } catch {
       /* quota exceeded — ignore */
     }
-  }, [draft, completedSteps, restoreDialogOpen]);
+  }, [draft, completedSteps, restoreDialogOpen, DRAFT_KEY]);
 
   const clearDraft = useCallback(() => {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-  }, []);
+  }, [DRAFT_KEY]);
 
   const handleRestoreAccept = () => {
     if (pendingRestore) {
@@ -244,7 +276,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         setDraft(restored);
         setCompletedSteps(["customer", "services", "equipment", "discounts", "recap"] as FieldSaleStep[]);
         // Skip the restore prompt — we just loaded fresh data
-        hasCheckedRestoreRef.current = true;
+        checkedRestoreKeyRef.current = DRAFT_KEY;
         setRestoreDialogOpen(false);
         setPendingRestore(null);
         toast.success("Soumission rechargée — étape paiement.");
@@ -253,7 +285,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         toast.error("Erreur de rechargement: " + (e?.message || "inconnue"));
       }
     })();
-  }, [resumeIntentId, resumeQuoteId, user?.id]);
+  }, [resumeIntentId, resumeQuoteId, user?.id, DRAFT_KEY]);
 
   // ── Prefill mode: staff opens tunnel from a known account + address ──
   // Query params: ?client=<account_id>&adresse=<service_address_id>
@@ -330,33 +362,43 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
           logger.warn("[FieldNewSale] prefill serviceability check failed", coverageErr);
         }
 
-        setDraft((d) => ({
-          ...d,
-          // Stay on the customer step (locked mode) so the shared
-          // InstallSlotPicker + CoaxialSurvey render before services.
-          // Identity + address fields are read-only; the agent only picks
-          // the install slot and answers the coaxial survey, then clicks
-          // "Continuer".
-          step: "customer",
-          existing_account_id: (acct as any).id,
-          existing_service_address_id: addr?.id || null,
-          customer: {
-            ...d.customer,
-            first_name,
-            last_name,
-            email: prof?.email || "",
-            phone: prof?.phone || "",
-            date_of_birth: (prof as any)?.date_of_birth || "",
-            address: address_line,
-            city,
-            postal_code,
-            province,
-            serviceability_status: serviceabilityStatus,
-          },
-        }));
-        setCompletedSteps([]);
+        setDraft((d) => {
+          const restoredInProgress =
+            allowCoreAdjustments &&
+            d.existing_account_id === (acct as any).id &&
+            (
+              d.step !== "customer" ||
+              d.services.length > 0 ||
+              d.equipment.length > 0 ||
+              Boolean(d.discount) ||
+              Boolean(d.payment?.fieldOrderId) ||
+              Boolean(d.custom_adjustments?.length)
+            );
+
+          return {
+            ...d,
+            // Core refresh must keep the exact in-progress step. Fresh
+            // prefill stays on customer so install slot/survey can render.
+            step: restoredInProgress ? d.step : "customer",
+            existing_account_id: (acct as any).id,
+            existing_service_address_id: addr?.id || null,
+            customer: {
+              ...d.customer,
+              first_name,
+              last_name,
+              email: prof?.email || "",
+              phone: prof?.phone || "",
+              date_of_birth: (prof as any)?.date_of_birth || "",
+              address: address_line,
+              city,
+              postal_code,
+              province,
+              serviceability_status: d.customer.serviceability_status === "unknown" ? serviceabilityStatus : d.customer.serviceability_status,
+            },
+          };
+        });
         // Skip any restored draft — prefill takes priority
-        hasCheckedRestoreRef.current = true;
+        checkedRestoreKeyRef.current = DRAFT_KEY;
         setRestoreDialogOpen(false);
         setPendingRestore(null);
         if (serviceabilityStatus === "available") {
@@ -373,7 +415,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         setPrefillLoading(false);
       }
     })();
-  }, [prefillAccountId, prefillAddressId]);
+  }, [prefillAccountId, prefillAddressId, allowCoreAdjustments]);
 
 
   // ── Email payload helpers (services / equipment / discount) ──
@@ -666,7 +708,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
           },
         }));
         toast.success("Lien Revoir ma commande envoyé au client.");
-        clearDraft();
+        if (!allowCoreAdjustments) clearDraft();
       } else {
         setDraft((d) => ({
           ...d,
