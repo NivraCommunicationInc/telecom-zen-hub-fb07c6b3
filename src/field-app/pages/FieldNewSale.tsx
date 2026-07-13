@@ -346,31 +346,41 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
           logger.warn("[FieldNewSale] prefill serviceability check failed", coverageErr);
         }
 
-        setDraft((d) => ({
-          ...d,
-          // Stay on the customer step (locked mode) so the shared
-          // InstallSlotPicker + CoaxialSurvey render before services.
-          // Identity + address fields are read-only; the agent only picks
-          // the install slot and answers the coaxial survey, then clicks
-          // "Continuer".
-          step: "customer",
-          existing_account_id: (acct as any).id,
-          existing_service_address_id: addr?.id || null,
-          customer: {
-            ...d.customer,
-            first_name,
-            last_name,
-            email: prof?.email || "",
-            phone: prof?.phone || "",
-            date_of_birth: (prof as any)?.date_of_birth || "",
-            address: address_line,
-            city,
-            postal_code,
-            province,
-            serviceability_status: serviceabilityStatus,
-          },
-        }));
-        setCompletedSteps([]);
+        setDraft((d) => {
+          const restoredInProgress =
+            allowCoreAdjustments &&
+            d.existing_account_id === (acct as any).id &&
+            (
+              d.step !== "customer" ||
+              d.services.length > 0 ||
+              d.equipment.length > 0 ||
+              Boolean(d.discount) ||
+              Boolean(d.payment?.fieldOrderId) ||
+              Boolean(d.custom_adjustments?.length)
+            );
+
+          return {
+            ...d,
+            // Core refresh must keep the exact in-progress step. Fresh
+            // prefill stays on customer so install slot/survey can render.
+            step: restoredInProgress ? d.step : "customer",
+            existing_account_id: (acct as any).id,
+            existing_service_address_id: addr?.id || null,
+            customer: {
+              ...d.customer,
+              first_name,
+              last_name,
+              email: prof?.email || "",
+              phone: prof?.phone || "",
+              date_of_birth: (prof as any)?.date_of_birth || "",
+              address: address_line,
+              city,
+              postal_code,
+              province,
+              serviceability_status: d.customer.serviceability_status === "unknown" ? serviceabilityStatus : d.customer.serviceability_status,
+            },
+          };
+        });
         // Skip any restored draft — prefill takes priority
         checkedRestoreKeyRef.current = DRAFT_KEY;
         setRestoreDialogOpen(false);
