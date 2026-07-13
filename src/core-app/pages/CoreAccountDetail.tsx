@@ -148,7 +148,7 @@ const CoreAccountDetail = () => {
     switch (activeSection) {
       case "profile": return <ProfileSection data={data} acct={acct} prof={prof} clientName={clientName} />;
       case "billing": return <BillingSection acct={acct} data={data} totalDue={totalDue} monthlyRevenue={monthlyRevenue} unpaidInvoices={unpaidInvoices} totalPaid={totalPaid} />;
-      case "addresses": return <AccountAddressesSection account={acct} subscriptions={data.subscriptions as any[]} equipment={data.equipment as any[]} appointments={data.appointments as any[]} tickets={data.tickets as any[]} incidents={data.incidents as any[]} onRefresh={data.refetch} />;
+      case "addresses": return <AccountAddressesSection account={acct} subscriptions={data.subscriptions as any[]} equipment={data.equipment as any[]} appointments={data.appointments as any[]} tickets={data.tickets as any[]} incidents={data.incidents as any[]} orders={data.orders as any[]} onRefresh={data.refetch} />;
       case "subscriptions": return <SubscriptionsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "orders": return <OrdersSection data={data} accountId={accountId} clientId={data.clientId} clientEmail={prof?.email} clientName={clientName} onRefresh={data.refetch} />;
       case "invoices": return <InvoicesSection data={data} customerId={data.customerId} customerUserId={data.clientId} profileEmail={prof?.email} billingCustomerEmail={data.billingCustomer?.email} onRefresh={data.refetch} />;

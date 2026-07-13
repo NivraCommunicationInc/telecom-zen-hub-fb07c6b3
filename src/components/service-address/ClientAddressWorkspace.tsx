@@ -26,7 +26,18 @@ interface Props {
 }
 
 const directAddressId = (item: any) =>
-  item?.service_address_id || item?.address_id || item?.service_address?.id || null;
+  item?.service_address_id ||
+  item?.address_id ||
+  item?.serviceAddressId ||
+  item?.service_address?.id ||
+  item?.service_addresses?.id ||
+  item?.subscription?.service_address_id ||
+  item?.subscription?.address_id ||
+  item?.order?.service_address_id ||
+  item?.order?.address_id ||
+  item?.orders?.service_address_id ||
+  item?.orders?.address_id ||
+  null;
 
 const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due", "paused", "pause_requested"]);
 
@@ -149,10 +160,19 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
                 const bk = buckets.get(a.id) || { subs: [], eq: [], appts: [], tks: [] };
                 const active = selectedId === a.id;
                 return (
-                  <button
+                  <div
                     key={a.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedId(a.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedId(a.id);
+                      }
+                    }}
                     className={cn(
+                      "cursor-pointer",
                       "flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors",
                       active ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
                     )}
@@ -170,6 +190,7 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
                       <Badge variant="outline" className="text-[10px]">{bk.subs.length} svc</Badge>
                       <Badge variant="outline" className="text-[10px]">{bk.eq.length} équip</Badge>
                       <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); handleDelete(a); }}
                         className="text-muted-foreground hover:text-destructive"
                         aria-label="Retirer"
@@ -178,7 +199,7 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
                       </button>
                       <ChevronRight className={cn("h-4 w-4 text-muted-foreground", active && "text-primary")} />
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>

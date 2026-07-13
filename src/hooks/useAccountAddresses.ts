@@ -82,7 +82,16 @@ export function useAccountAddresses(accountId: string | null | undefined) {
   const invokeGateway = async <T = any>(body: Record<string, unknown>): Promise<T> => {
     const { data, error } = await (backend as any).functions.invoke("client-account-actions", { body });
     if (error) {
-      const detail = (error as any)?.context?.text ? await (error as any).context.text() : error.message;
+      let detail = error.message;
+      try {
+        const text = (error as any)?.context?.text ? await (error as any).context.text() : "";
+        if (text) {
+          const parsed = JSON.parse(text);
+          detail = parsed?.error || parsed?.message || text;
+        }
+      } catch {
+        detail = error.message;
+      }
       throw new Error(detail || error.message || "Gateway error");
     }
     return data as T;
@@ -95,6 +104,7 @@ export function useAccountAddresses(accountId: string | null | undefined) {
       const res = await invokeGateway<{ ok: boolean; service_address: ServiceAddress; correlation_id: string }>({
         action: "service_address.create",
         account_id: accountId,
+        reason: "Ajout adresse de service",
         payload: {
           address_line: input.address_line,
           city: input.city,
@@ -126,7 +136,8 @@ export function useAccountAddresses(accountId: string | null | undefined) {
       await invokeGateway({
         action: "service_address.soft_delete",
         account_id: accountId,
-        payload: { service_address_id: id },
+        reason: "Retrait adresse de service",
+        payload: { service_address_id: id, reason: "Retrait demandé depuis le portail" },
         idempotency_key: `sa-delete:${accountId}:${id}:${Date.now()}`,
       });
       await qc.invalidateQueries({ queryKey });
@@ -140,6 +151,7 @@ export function useAccountAddresses(accountId: string | null | undefined) {
       await invokeGateway({
         action: "service_address.restore",
         account_id: accountId,
+        reason: "Restauration adresse de service",
         payload: { service_address_id: id },
         idempotency_key: `sa-restore:${accountId}:${id}:${Date.now()}`,
       });
@@ -154,6 +166,7 @@ export function useAccountAddresses(accountId: string | null | undefined) {
       await invokeGateway({
         action: "service_address.update",
         account_id: accountId,
+        reason: "Modification adresse de service",
         payload: { service_address_id: input.id, ...input.patch },
         idempotency_key: `sa-update:${accountId}:${input.id}:${Date.now()}`,
       });

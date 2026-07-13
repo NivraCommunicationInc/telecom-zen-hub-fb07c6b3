@@ -614,7 +614,7 @@ const CoreClientProfile = () => {
 
               <Section title="Adresses de service & options multi-service" icon={Home}>
                 {account?.id ? (
-                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} equipment={equipment as any[]} appointments={appointments as any[]} tickets={tickets as any[]} incidents={incidents as any[]} />
+                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} equipment={equipment as any[]} appointments={appointments as any[]} tickets={tickets as any[]} incidents={incidents as any[]} orders={orders as any[]} />
                 ) : (
                   <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">
                     Aucun compte lié à ce client — impossible d'afficher les adresses.
@@ -704,7 +704,7 @@ const CoreClientProfile = () => {
             <TabsContent value="adresses" className="space-y-4">
               <Section title="Adresses de service & services actifs" icon={Home}>
                 {account?.id ? (
-                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} equipment={equipment as any[]} appointments={appointments as any[]} tickets={tickets as any[]} incidents={incidents as any[]} />
+                  <AccountAddressesTab account={account} subscriptions={subscriptions as any[]} equipment={equipment as any[]} appointments={appointments as any[]} tickets={tickets as any[]} incidents={incidents as any[]} orders={orders as any[]} />
                 ) : (
                   <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">
                     Aucun compte lié à ce client — impossible d'afficher les adresses.

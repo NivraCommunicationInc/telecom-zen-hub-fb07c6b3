@@ -132,6 +132,7 @@ export default function AdminAccountProfile() {
                 account={data.account}
                 locations={data.locations}
                 subscriptions={data.subscriptions}
+                orders={data.orders}
               />
             </TabsContent>
 
