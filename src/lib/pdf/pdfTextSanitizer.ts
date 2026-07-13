@@ -57,7 +57,7 @@ export function sanitizeForPDF(text: string | undefined | null): string {
   if (!text) return "—";
   
   // Trim first
-  let cleaned = text.trim();
+    let cleaned = text.trim().replace(/[let cleaned = text.trim();§][0-9a-fk-or]/gi, "");
   
   if (cleaned === "") return "—";
   

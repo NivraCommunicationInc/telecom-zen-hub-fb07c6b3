@@ -615,7 +615,7 @@ function InstallReportDialog({ client, subscriptions, safe, busy }: any) {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div><Label>Technicien</Label><Input value={techName} onChange={e => setTechName(e.target.value)} /></div>
-            <div><Label>ID technicien</Label><Input value={techId} onChange={e => setTechId(e.target.value)} /></div>
+            <div><Label>Référence technicien (optionnel)</Label><Input value={techId} onChange={e => setTechId(e.target.value)} /></div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div><Label>Date</Label><Input type="date" value={apptDate} onChange={e => setApptDate(e.target.value)} /></div>

@@ -1,12 +1,11 @@
 /**
  * ShippingTechnicianStep — Step: Shipping AND/OR Technician workflow
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2, Calendar, MapPin, Clock, User, ClipboardCheck, CalendarClock, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -21,6 +20,7 @@ import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 import { LiveTrackingTimeline } from "../LiveTrackingTimeline";
 import { FileText } from "lucide-react";
 import { useProfileName } from "@/hooks/useProfileName";
+import { resolveTechnicianInput } from "@/core-app/lib/technicians";
 
 interface TechnicianOption {
   id: string;
@@ -157,7 +157,15 @@ export function ShippingTechnicianStep({ proc }: Props) {
     staleTime: 60_000,
   });
 
-  const selectedTechnician = technicians.find((t) => t.id === techFields.technician_id);
+  const selectedTechnician = technicians.find((t) =>
+    t.id === techFields.technician_id || t.full_name.toLowerCase() === techFields.technician_id.trim().toLowerCase()
+  );
+
+  useEffect(() => {
+    if (!techFields.technician_id || technicians.length === 0) return;
+    const tech = technicians.find((t) => t.id === techFields.technician_id);
+    if (tech) setTechFields((prev) => ({ ...prev, technician_id: tech.full_name }));
+  }, [technicians, techFields.technician_id]);
 
   const isContractGateError = (err: any) => String(err?.message || "").startsWith("CONTRACT_NOT_SIGNED");
 
@@ -294,11 +302,20 @@ export function ShippingTechnicianStep({ proc }: Props) {
         toast.error("Assignez un technicien avant de confirmer le rendez-vous");
         return;
       }
+      let technicianId = appointment.technician_id || "";
+      if (techFields.technician_id.trim()) {
+        const resolved = await resolveTechnicianInput(techFields.technician_id);
+        if (!resolved.technician) {
+          toast.error(resolved.error || "Technicien introuvable");
+          return;
+        }
+        technicianId = resolved.technician.id;
+      }
       const { error } = await supabase
         .from("appointments")
         .update({
           status: "confirmed",
-          technician_id: appointment.technician_id || techFields.technician_id,
+          technician_id: technicianId,
           updated_at: new Date().toISOString(),
         })
         .eq("id", appointment.id);
@@ -309,11 +326,17 @@ export function ShippingTechnicianStep({ proc }: Props) {
   };
 
   const handleAssignTechnician = async () => {
-    if (!techFields.technician_id) { toast.error("Veuillez sélectionner un technicien"); return; }
+    if (!techFields.technician_id) { toast.error("Veuillez entrer le nom du technicien"); return; }
     setLoading("tech");
     try {
+      const resolved = await resolveTechnicianInput(techFields.technician_id);
+      if (!resolved.technician) {
+        toast.error(resolved.error || "Technicien introuvable");
+        return;
+      }
+      const technician = resolved.technician;
       // 1. Update order with technician
-      await proc.assignTechnician(techFields.technician_id);
+      await proc.assignTechnician(technician.id);
 
       // 2. Ensure an appointment row exists / is updated with technician + slot
       const scheduledAt = appointment?.scheduled_at || newSlotIso || null;
@@ -321,7 +344,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
         const { error: aptErr } = await supabase
           .from("appointments")
           .update({
-            technician_id: techFields.technician_id,
+            technician_id: technician.id,
             scheduled_at: scheduledAt || appointment.scheduled_at,
             updated_at: new Date().toISOString(),
           })
@@ -332,7 +355,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
         const { error: insErr } = await supabase.from("appointments").insert({
           order_id: order.id,
           client_id: order.user_id,
-          technician_id: techFields.technician_id,
+          technician_id: technician.id,
           scheduled_at: scheduledAt,
           title: "Installation",
           service_address: order.service_address || order.client_full_address || "",
@@ -348,9 +371,8 @@ export function ShippingTechnicianStep({ proc }: Props) {
       if (techFields.installNotes) await proc.addNote(`[Installation] ${techFields.installNotes}`);
 
       // 4. Confirmation toast with technician name + slot
-      const techName = selectedTechnician?.full_name || "le technicien";
       const when = scheduledAt ? new Date(scheduledAt).toLocaleString("fr-CA") : "(à planifier)";
-      toast.success(`${techName} assigné — ${when}`);
+      toast.success(`${technician.full_name} assigné — ${when}`);
 
       await queryClient.invalidateQueries({ queryKey: ["order-processing"] });
     } finally { setLoading(null); }
@@ -574,28 +596,20 @@ export function ShippingTechnicianStep({ proc }: Props) {
             )}
 
             <div>
-              <Label className={labelClass}>Technicien</Label>
-              <Select value={techFields.technician_id || undefined} onValueChange={(v) => setTechFields({ ...techFields, technician_id: v })} disabled={techLoading}>
-                <SelectTrigger className={inputClass}>
-                  <SelectValue placeholder={techLoading ? "Chargement…" : technicians.length === 0 ? "Aucun technicien actif" : "Sélectionner"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {technicians.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{t.full_name}</span>
-                        {(t.phone || (t.specializations && t.specializations.length > 0)) && (
-                          <span className="text-[10px] text-slate-500">
-                            {t.phone || ""}{t.phone && t.specializations?.length ? " • " : ""}{t.specializations?.join(", ") || ""}
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedTechnician && (<p className="text-[10px] text-slate-500 mt-1 font-mono">ID: {selectedTechnician.id.slice(0, 8)}…</p>)}
-              <p className="text-[10px] text-slate-500 mt-0.5">{technicians.length} technicien(s) actif(s)</p>
+              <Label className={labelClass}>Nom du technicien</Label>
+              <Input
+                value={techFields.technician_id}
+                onChange={(e) => setTechFields({ ...techFields, technician_id: e.target.value })}
+                placeholder={techLoading ? "Chargement…" : technicians.length === 0 ? "Aucun technicien actif" : "Ex : Jean Tremblay"}
+                list="core-active-technicians"
+                disabled={techLoading}
+                className={inputClass}
+              />
+              <datalist id="core-active-technicians">
+                {technicians.map((t) => <option key={t.id} value={t.full_name} />)}
+              </datalist>
+              {selectedTechnician && (<p className="text-[10px] text-slate-500 mt-1">Technicien sélectionné : {selectedTechnician.full_name}</p>)}
+              <p className="text-[10px] text-slate-500 mt-0.5">Écris le nom complet ou choisis une suggestion — {technicians.length} technicien(s) actif(s)</p>
             </div>
 
             <div>

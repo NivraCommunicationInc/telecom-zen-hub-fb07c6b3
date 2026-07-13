@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Truck, Wrench, Download, Wifi, CheckCircle2, Save, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AppointmentSlotPicker from "@/core-app/components/appointments/AppointmentSlotPicker";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props { proc: any; }
 
@@ -22,6 +23,11 @@ const FULFILLMENT_OPTIONS = [
 const CARRIERS = ["Purolator", "Postes Canada", "UPS", "FedEx", "Canpar", "Autre"];
 const inputClass = "h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 rounded-lg";
 const labelClass = "text-[10px] uppercase tracking-wider text-slate-500 mb-1 block";
+
+interface TechnicianOption {
+  id: string;
+  full_name: string;
+}
 
 function ShippingForm({ order, onSave, isUpdating }: { order: any; onSave: (f: Record<string, any>) => void; isUpdating: boolean }) {
   const [carrier, setCarrier] = useState(order.carrier || "");
@@ -86,9 +92,37 @@ function ShippingForm({ order, onSave, isUpdating }: { order: any; onSave: (f: R
 
 function TechnicianForm({ order, appointment, onSave, isUpdating }: { order: any; appointment?: any | null; onSave: (f: Record<string, any>) => void; isUpdating: boolean }) {
   const [techId, setTechId] = useState(order.technician_id || "");
+  const [technicians, setTechnicians] = useState<TechnicianOption[]>([]);
+  const [techLoading, setTechLoading] = useState(false);
   const [slotIso, setSlotIso] = useState<string | null>(appointment?.scheduled_at || null);
   const [slotWindow, setSlotWindow] = useState<{ start: string; end: string } | null>(null);
   const [notes, setNotes] = useState(order.appointment_notes || "");
+
+  useEffect(() => {
+    let mounted = true;
+    const loadTechnicians = async () => {
+      setTechLoading(true);
+      const { data } = await supabase
+        .from("technicians")
+        .select("id, full_name")
+        .eq("status", "active")
+        .order("full_name", { ascending: true });
+      if (mounted) setTechnicians((data || []) as TechnicianOption[]);
+      if (mounted) setTechLoading(false);
+    };
+    loadTechnicians().catch(() => {
+      if (mounted) {
+        setTechnicians([]);
+        if (mounted) setTechLoading(false);
+      }
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    const match = technicians.find((t) => t.id === techId);
+    if (match) setTechId(match.full_name);
+  }, [technicians, techId]);
 
   const handleSave = () => {
     const fulfillmentMeta = JSON.stringify({
@@ -109,8 +143,17 @@ function TechnicianForm({ order, appointment, onSave, isUpdating }: { order: any
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <Label className={labelClass}>ID Technicien</Label>
-          <Input value={techId} onChange={e => setTechId(e.target.value)} placeholder="tech-001" className={inputClass} />
+          <Label className={labelClass}>Nom du technicien</Label>
+          <Input
+            value={techId}
+            onChange={e => setTechId(e.target.value)}
+            placeholder={techLoading ? "Chargement…" : "Ex : Jean Tremblay"}
+            list="fulfillment-technicians"
+            className={inputClass}
+          />
+          <datalist id="fulfillment-technicians">
+            {technicians.map((tech) => <option key={tech.id} value={tech.full_name} />)}
+          </datalist>
         </div>
       </div>
       <div className="rounded-lg border border-slate-700/50 bg-[#0d1421] p-3">

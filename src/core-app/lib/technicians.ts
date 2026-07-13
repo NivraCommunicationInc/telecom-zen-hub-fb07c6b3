@@ -22,16 +22,19 @@ export async function resolveTechnicianInput(input: string): Promise<{
   if (!value) return { technician: null, error: "Nom du technicien manquant" };
 
   if (isTechnicianUuid(value)) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("technicians")
       .select("id, full_name, status")
       .eq("id", value)
       .maybeSingle();
 
+    if (error) return { technician: null, error: "Impossible de vérifier le technicien" };
+    if (!data) return { technician: null, error: "Technicien introuvable — entre le nom du technicien" };
+
     return {
       technician: {
-        id: value,
-        full_name: (data as any)?.full_name || `Technicien ${value.slice(0, 8)}`,
+        id: (data as any).id,
+        full_name: (data as any).full_name || `Technicien ${value.slice(0, 8)}`,
         status: (data as any)?.status || null,
       },
     };

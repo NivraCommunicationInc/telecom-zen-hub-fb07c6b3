@@ -11,6 +11,14 @@ export function cleanPdfText(value: unknown, fallback = "—"): string {
   let text = String(value ?? "").trim();
   if (!text) return fallback;
 
+  const initialAmpCount = (text.match(/&/g) || []).length;
+  if (initialAmpCount >= 3 && initialAmpCount / Math.max(text.length, 1) > 0.12) {
+    text = text.replace(/&+/g, "");
+  }
+
+  // Strip Minecraft/legacy formatting codes (&1, &e, &r, etc.) when not character-corrupted.
+  text = text.replace(/[&§][0-9a-fk-or]/gi, "");
+
   text = text
     .replace(/&([a-z]+);/gi, (_m, name) => HTML_ENTITIES[String(name).toLowerCase()] ?? _m)
     .replace(/&#(\d+);/g, (_m, n) => {
