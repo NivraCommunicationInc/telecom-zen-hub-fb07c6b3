@@ -108,7 +108,23 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
       const parsed = JSON.parse(saved);
       const savedDraft = parsed?.draft as FieldSaleDraft | undefined;
       const savedCompleted = (parsed?.completedSteps as FieldSaleStep[] | undefined) || [];
-      if (!savedDraft || savedDraft.step === "customer" && savedCompleted.length === 0) {
+      const savedHasMeaningfulContent = Boolean(
+        savedDraft && (
+          savedDraft.step !== "customer" ||
+          savedDraft.customer?.first_name ||
+          savedDraft.customer?.last_name ||
+          savedDraft.customer?.email ||
+          savedDraft.customer?.phone ||
+          savedDraft.customer?.address ||
+          savedDraft.services?.length ||
+          savedDraft.equipment?.length ||
+          savedDraft.discount ||
+          savedDraft.payment?.fieldOrderId ||
+          savedDraft.custom_adjustments?.length ||
+          savedCompleted.length > 0
+        ),
+      );
+      if (!savedDraft || !savedHasMeaningfulContent) {
         // Empty draft — nothing meaningful to restore
         localStorage.removeItem(DRAFT_KEY);
         return;
