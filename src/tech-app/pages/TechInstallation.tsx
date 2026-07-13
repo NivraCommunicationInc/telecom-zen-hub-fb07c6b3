@@ -21,6 +21,7 @@ import TechTopBar from "../components/TechTopBar";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useTechAssignment, useInstallationSteps, ExpectedEquipment } from "../lib/useTechAssignments";
+import { queueTechEmail } from "../lib/queueTechEmail";
 import PhotoCapture from "../components/PhotoCapture";
 import QRScanner from "../components/QRScanner";
 import SignaturePad from "../components/SignaturePad";
