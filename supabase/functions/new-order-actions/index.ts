@@ -431,7 +431,6 @@ serve(async (req) => {
     equipment_total: number;
     monthly_before_discount: number;
     activation_fee: number;
-    customAdjustmentsPostTax?: number;
     error?: string;
   }> {
     const services = Array.isArray(body.services) ? body.services : [];
@@ -541,19 +540,6 @@ serve(async (req) => {
         quantity: 1,
       });
     }
-    // Le client applique les ajustements Core AVANT taxes (réduisent la base
-    // taxable). La RPC compute_checkout_pricing traite ces lignes comme
-    // one_time_fee et ne les taxe pas → il faut réappliquer leur effet
-    // sur les taxes après coup pour matcher le total client.
-    let customAdjustmentsTaxDelta = 0;
-    {
-      const signedSum = (body.custom_adjustments || []).reduce((s, a) => {
-        const amt = Math.max(0, Number(a?.amount || 0));
-        return s + (a?.kind === "fee" ? amt : -amt);
-      }, 0);
-      customAdjustmentsTaxDelta = Math.round(signedSum * (TPS_RATE + TVQ_RATE) * 100) / 100;
-    }
-    let customAdjustmentsPostTax = customAdjustmentsTaxDelta;
     if (body.discount) {
       const d = body.discount as any;
       const dSource = String(d.source || "").toLowerCase();
@@ -594,10 +580,10 @@ serve(async (req) => {
     }
 
     return { resolvedServices, resolvedEquipment, cart_items, equipment_total,
-             monthly_before_discount, activation_fee, customAdjustmentsPostTax };
+             monthly_before_discount, activation_fee };
   }
 
-  async function verifyClientTotals(cart_items: any[], customAdjustmentsPostTax = 0) {
+  async function verifyClientTotals(cart_items: any[]) {
     // Try compute_checkout_pricing first; fall back to manual QC math (5% + 9.975%).
     let server_subtotal = 0, server_tps = 0, server_tvq = 0, server_total = 0;
     try {
@@ -630,9 +616,6 @@ serve(async (req) => {
       server_total = Math.round((server_subtotal + server_tps + server_tvq) * 100) / 100;
     }
 
-    // Ajustements Core appliqués POST-TAXES sur le total serveur
-    server_total = Math.max(0, Math.round((server_total + customAdjustmentsPostTax) * 100) / 100);
-
     const ct = body.client_totals;
     if (ct) {
       // Tolerance-check total only (subtotal/taxes can slightly differ due to discount rounding)
@@ -664,7 +647,7 @@ serve(async (req) => {
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
 
-      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
+      const verify = await verifyClientTotals(pricing.cart_items);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       const selectedSlotDate = c.install_slot?.date || c.install_date || null;
@@ -733,7 +716,7 @@ serve(async (req) => {
       let pricing;
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
-      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
+      const verify = await verifyClientTotals(pricing.cart_items);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       // 1. Create the field_quote (source of truth for intent)
@@ -1068,7 +1051,7 @@ serve(async (req) => {
       let pricing;
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
-      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
+      const verify = await verifyClientTotals(pricing.cart_items);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       const customerName = `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Client";

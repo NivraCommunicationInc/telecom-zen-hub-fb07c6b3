@@ -69,6 +69,19 @@ export function computeDiscountBreakdown(
   const monthlyBase = sumServices(services);
   const eligibility = isDiscountEligible(discount, services, installationFee);
 
+  // Core custom discounts are monthly recurring account promotions. They are
+  // saved with the quote/order and applied to renewal invoices after
+  // activation, but they must NEVER reduce the initial order transaction.
+  if (discount?.source === "custom_core") {
+    return {
+      monthlyDiscountAmount: 0,
+      installationDiscountAmount: 0,
+      firstMonthCredit: 0,
+      eligible: eligibility.eligible,
+      ineligibilityReason: eligibility.reason,
+    };
+  }
+
   if (!discount || !eligibility.eligible) {
     return {
       monthlyDiscountAmount: 0,
