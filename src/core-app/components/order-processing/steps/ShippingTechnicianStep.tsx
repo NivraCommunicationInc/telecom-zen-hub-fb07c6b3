@@ -657,6 +657,17 @@ export function ShippingTechnicianStep({ proc }: Props) {
               </div>
             )}
 
+            {/* Phase 4 — Live Ship24 tracking timeline */}
+            <LiveTrackingTimeline
+              orderId={order.id}
+              initialStatus={order.tracking_status}
+              initialCarrier={order.carrier}
+              initialTrackingNumber={order.tracking_number}
+              initialTrackingUrl={order.tracking_url}
+              initialLastUpdate={order.tracking_last_update_at}
+            />
+
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className={labelClass}>Transporteur</Label>
