@@ -37,11 +37,13 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
   const [busy, setBusy] = useState<ActionKey | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [changeReason, setChangeReason] = useState("");
+  const [tempReason, setTempReason] = useState("");
+  const [logoutReason, setLogoutReason] = useState("");
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const CONFIRM_MESSAGES: Partial<Record<ActionKey, string>> = {
     force_logout: "Révoquer toutes les sessions actives du client (web + mobile) ?",
-    set_temporary_password: "Générer un nouveau mot de passe temporaire ? L'ancien mot de passe sera invalidé.",
+    set_temporary_password: "Générer un nouveau mot de passe temporaire ? Le client sera déconnecté et devra se reconnecter avec ce mot de passe.",
     change_email: "Changer l'adresse courriel de connexion du client ? L'ancienne adresse sera notifiée.",
   };
 
