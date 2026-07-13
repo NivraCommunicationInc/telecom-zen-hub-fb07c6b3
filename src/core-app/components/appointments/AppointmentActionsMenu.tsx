@@ -95,6 +95,27 @@ export function AppointmentActionsMenu({ appointment: apt, onRefresh }: Props) {
     );
   };
 
+  const doSendReminder = async () => {
+    if (!apt.scheduled_at) return toast.error("Ce rendez-vous n'a pas de date planifiée");
+    const already = !!apt.reminder_sent_at;
+    if (already && !confirm("Un rappel a déjà été envoyé. Renvoyer maintenant ?")) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-appointment-reminder", {
+        body: { appointmentId: apt.id, force: already },
+      });
+      if (error) throw error;
+      if (data?.alreadySent && !data?.success) toast.info("Rappel déjà envoyé");
+      else if (data?.success) toast.success("Rappel envoyé au client");
+      else toast.error(data?.reason || "Impossible d'envoyer le rappel");
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'envoi du rappel");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <DropdownMenu>
