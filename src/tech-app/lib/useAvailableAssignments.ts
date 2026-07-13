@@ -47,18 +47,19 @@ export function useAvailableAssignments() {
         technicianProfileId = resolvedTechId ?? null;
       }
 
-      const today = new Date().toISOString().slice(0, 10);
-
       // Canonical source for technician dispatch: unassigned install appointments.
+      // NOTE: We intentionally do NOT filter out past `scheduled_at`. An appointment
+      // stays visible/claimable until it reaches a terminal status
+      // (completed, cancelled, missed, no_show). A passed timeslot alone must never
+      // hide a job from the tech portal or free its slot.
       const { data: appts, error: apptError } = await supabase
         .from("appointments")
         .select("id, order_id, appointment_number, title, status, service_type, service_address, service_city, service_postal_code, client_phone, equipment_details, internal_notes, scheduled_at, duration_minutes, installation_method, created_at")
-        .in("status", ["pending_scheduling", "scheduled", "confirmed"])
+        .in("status", ["pending_scheduling", "scheduled", "confirmed", "en_route", "arrived", "in_progress", "on_hold", "rescheduled"])
         .is("technician_id", null)
         .not("order_id", "is", null)
-        .gte("scheduled_at", `${today}T00:00:00`)
         .order("scheduled_at", { ascending: true })
-        .limit(100);
+        .limit(200);
       if (apptError) throw apptError;
 
       const apptOrderIds = (appts ?? []).map((a: any) => a.order_id).filter(Boolean);
