@@ -32388,6 +32388,7 @@ export type Database = {
         Returns: string
       }
       fn_nivra_order_number: { Args: { p_order_id: string }; Returns: string }
+      fn_parse_legacy_slot_start: { Args: { _slot: string }; Returns: string }
       fn_queue_existing_confirmed_installation_emails: {
         Args: never
         Returns: Json
@@ -32409,6 +32410,17 @@ export type Database = {
           service_category: string
         }[]
       }
+      fn_resolve_service_address_for_links: {
+        Args: {
+          _account_id?: string
+          _client_id?: string
+          _order_id?: string
+          _postal_code?: string
+          _service_address?: string
+          _service_city?: string
+        }
+        Returns: string
+      }
       fn_start_final_exam: {
         Args: { _portal: string; _question_count?: number }
         Returns: Json
@@ -32418,6 +32430,28 @@ export type Database = {
         Returns: Json
       }
       fn_update_orders_sla_status: { Args: never; Returns: Json }
+      fn_upsert_canonical_appointment_from_legacy: {
+        Args: {
+          _account_id?: string
+          _client_email?: string
+          _client_id?: string
+          _client_phone?: string
+          _notes?: string
+          _order_id?: string
+          _scheduled_at?: string
+          _service_address?: string
+          _service_address_id?: string
+          _service_city?: string
+          _service_postal_code?: string
+          _service_type?: string
+          _source: string
+          _source_id: string
+          _status?: string
+          _technician_id?: string
+          _title?: string
+        }
+        Returns: string
+      }
       fn_validate_client_referral: {
         Args: {
           p_referral_code: string
