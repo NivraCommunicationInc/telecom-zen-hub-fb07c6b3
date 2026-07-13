@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Truck, Wrench, Download, Wifi, CheckCircle2, Save, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AppointmentSlotPicker from "@/core-app/components/appointments/AppointmentSlotPicker";
 
 interface Props { proc: any; }
 
@@ -19,8 +20,6 @@ const FULFILLMENT_OPTIONS = [
 ];
 
 const CARRIERS = ["Purolator", "Postes Canada", "UPS", "FedEx", "Canpar", "Autre"];
-const TIME_WINDOWS = ["08:00–10:00", "10:00–12:00", "12:00–14:00", "14:00–16:00", "16:00–18:00"];
-
 const inputClass = "h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 rounded-lg";
 const labelClass = "text-[10px] uppercase tracking-wider text-slate-500 mb-1 block";
 
@@ -85,26 +84,24 @@ function ShippingForm({ order, onSave, isUpdating }: { order: any; onSave: (f: R
   );
 }
 
-function TechnicianForm({ order, onSave, isUpdating }: { order: any; onSave: (f: Record<string, any>) => void; isUpdating: boolean }) {
+function TechnicianForm({ order, appointment, onSave, isUpdating }: { order: any; appointment?: any | null; onSave: (f: Record<string, any>) => void; isUpdating: boolean }) {
   const [techId, setTechId] = useState(order.technician_id || "");
-  const [installDate, setInstallDate] = useState(order.appointment_date?.slice(0, 10) || "");
-  const [timeWindow, setTimeWindow] = useState("");
+  const [slotIso, setSlotIso] = useState<string | null>(appointment?.scheduled_at || null);
+  const [slotWindow, setSlotWindow] = useState<{ start: string; end: string } | null>(null);
   const [notes, setNotes] = useState(order.appointment_notes || "");
 
-  useEffect(() => {
-    try {
-      const parsed = JSON.parse(order.fulfillment_notes || "{}");
-      if (parsed.time_window) setTimeWindow(parsed.time_window);
-    } catch { /* ignore */ }
-  }, [order.fulfillment_notes]);
-
   const handleSave = () => {
-    const fulfillmentMeta = JSON.stringify({ time_window: timeWindow });
+    const fulfillmentMeta = JSON.stringify({
+      appointment_slot: slotIso,
+      time_window: slotWindow ? `${slotWindow.start.slice(0, 5)}-${slotWindow.end.slice(0, 5)}` : null,
+    });
     onSave({
       technician_id: techId || null,
-      appointment_date: installDate ? new Date(installDate).toISOString() : null,
+      appointment_date: slotIso,
       appointment_notes: notes || null,
       fulfillment_notes: fulfillmentMeta,
+      appointment_scheduled_at: slotIso,
+      appointment_slot_window: slotWindow,
     });
   };
 
@@ -115,17 +112,17 @@ function TechnicianForm({ order, onSave, isUpdating }: { order: any; onSave: (f:
           <Label className={labelClass}>ID Technicien</Label>
           <Input value={techId} onChange={e => setTechId(e.target.value)} placeholder="tech-001" className={inputClass} />
         </div>
-        <div>
-          <Label className={labelClass}>Date d'installation</Label>
-          <Input type="date" value={installDate} onChange={e => setInstallDate(e.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <Label className={labelClass}>Fenêtre horaire</Label>
-          <Select value={timeWindow} onValueChange={setTimeWindow}>
-            <SelectTrigger className={inputClass}><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
-            <SelectContent>{TIME_WINDOWS.map(tw => <SelectItem key={tw} value={tw}>{tw}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
+      </div>
+      <div className="rounded-lg border border-slate-700/50 bg-[#0d1421] p-3">
+        <Label className={labelClass}>Calendrier canonique — disponibilités technicien</Label>
+        <AppointmentSlotPicker
+          value={slotIso}
+          onChange={(iso, slot) => {
+            setSlotIso(iso);
+            setSlotWindow(slot ?? null);
+          }}
+          variant="core"
+        />
       </div>
       <div>
         <Label className={labelClass}>Notes technicien</Label>
@@ -227,7 +224,7 @@ function DigitalForm({ order, onSave, isUpdating }: { order: any; onSave: (f: Re
 }
 
 export function FulfillmentStep({ proc }: Props) {
-  const { order } = proc;
+  const { order, appointment } = proc;
   const current = order.fulfillment_type;
 
   const handleSelect = async (type: string) => { await proc.setFulfillmentType(type); };
@@ -274,7 +271,7 @@ export function FulfillmentStep({ proc }: Props) {
           </div>
           <div className="p-4">
             {current === "shipping" && <ShippingForm order={order} onSave={handleSaveDetails} isUpdating={proc.isUpdating} />}
-            {current === "technician" && <TechnicianForm order={order} onSave={handleSaveDetails} isUpdating={proc.isUpdating} />}
+            {current === "technician" && <TechnicianForm order={order} appointment={appointment} onSave={handleSaveDetails} isUpdating={proc.isUpdating} />}
             {current === "self_install" && <SelfInstallForm order={order} onSave={handleSaveDetails} isUpdating={proc.isUpdating} />}
             {current === "digital" && <DigitalForm order={order} onSave={handleSaveDetails} isUpdating={proc.isUpdating} />}
           </div>
