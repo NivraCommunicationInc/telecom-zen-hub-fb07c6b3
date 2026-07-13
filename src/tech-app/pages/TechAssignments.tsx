@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<string, string> = {
+  accepted:    "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
   scheduled:   "bg-slate-700/50 text-slate-200 border-slate-600",
   confirmed:   "bg-blue-500/20 text-blue-300 border-blue-500/40",
   en_route:    "bg-orange-500/20 text-orange-300 border-orange-500/40 animate-pulse",
@@ -39,6 +40,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
+  accepted:    "Accepté ✅",
   scheduled:   "Planifié",
   confirmed:   "Confirmé",
   en_route:    "En route 🚗",
@@ -440,7 +442,7 @@ export default function TechAssignments() {
                       )}
                       {!terminal && (
                         <div className="space-y-2 pt-1">
-                          {a.status === "scheduled" && (
+                          {["scheduled", "accepted", "confirmed"].includes(a.status) && (
                             <button
                               onClick={() => setStatus.mutate({ a, status: "en_route" })}
                               disabled={setStatus.isPending}
