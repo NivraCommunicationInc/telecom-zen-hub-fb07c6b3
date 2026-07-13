@@ -1292,7 +1292,60 @@ export function useOrderProcessing(orderId: string | undefined) {
   /* ── Update fulfillment details (dynamic fields per type) ── */
   const updateFulfillmentDetails = async (fields: Record<string, any>) => {
     try {
-      await updateOrder.mutateAsync(fields);
+      const {
+        appointment_scheduled_at: appointmentScheduledAt,
+        appointment_slot_window: appointmentSlotWindow,
+        ...orderFields
+      } = fields;
+
+      await updateOrder.mutateAsync(orderFields);
+
+      const shouldPersistAppointment =
+        typeof appointmentScheduledAt !== "undefined" || typeof fields.technician_id !== "undefined";
+
+      if (shouldPersistAppointment && appointmentScheduledAt) {
+        const appointmentPayload: Record<string, any> = {
+          order_id: orderId,
+          client_id: data?.order?.user_id || null,
+          client_email: data?.order?.customer_email || data?.profile?.email || null,
+          client_phone: data?.order?.client_phone || data?.profile?.phone || null,
+          service_address:
+            data?.appointment?.service_address ||
+            data?.order?.service_address ||
+            data?.order?.shipping_address ||
+            data?.order?.client_full_address ||
+            null,
+          service_city: data?.appointment?.service_city || data?.order?.shipping_city || null,
+          service_postal_code: data?.appointment?.service_postal_code || data?.order?.shipping_postal_code || null,
+          title: `Installation — ${data?.order?.order_number || orderId}`,
+          scheduled_at: appointmentScheduledAt,
+          technician_id: fields.technician_id || null,
+          internal_notes: fields.appointment_notes || null,
+          installation_method: "technician",
+          service_type: data?.order?.service_type || "installation",
+          status: data?.appointment?.status || "hold",
+          updated_at: new Date().toISOString(),
+        };
+
+        if (appointmentSlotWindow?.start && appointmentSlotWindow?.end) {
+          appointmentPayload.metadata = {
+            ...(data?.appointment?.metadata || {}),
+            slot_window: appointmentSlotWindow,
+            source: "core_order_fulfillment",
+          };
+        }
+
+        const { error: appointmentError } = data?.appointment?.id
+          ? await supabase
+              .from("appointments")
+              .update(appointmentPayload)
+              .eq("id", data.appointment.id)
+          : await supabase.from("appointments").insert(appointmentPayload);
+
+        if (appointmentError) throw appointmentError;
+        queryClient.invalidateQueries({ queryKey: ["appointment-slot-availability"] });
+      }
+
       await logActivity("fulfillment_details_updated", "order", orderId, fields);
       toast.success("Détails de fulfillment mis à jour");
     } catch (err: any) {
