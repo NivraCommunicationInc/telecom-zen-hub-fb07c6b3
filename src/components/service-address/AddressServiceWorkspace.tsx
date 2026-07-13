@@ -43,6 +43,7 @@ interface AddressServiceWorkspaceProps {
   appointments?: any[];
   tickets?: any[];
   incidents?: any[];
+  orders?: any[];
   mode?: WorkspaceMode;
   allowCreate?: boolean;
   allowDelete?: boolean;
@@ -61,7 +62,20 @@ const emptyCollections = (): AddressCollections => ({
 });
 
 const getAddressId = (item: any) =>
-  item?.service_address_id || item?.address_id || item?.serviceAddressId || item?.service_address?.id || null;
+  item?.service_address_id ||
+  item?.address_id ||
+  item?.serviceAddressId ||
+  item?.service_address?.id ||
+  item?.service_addresses?.id ||
+  item?.subscription?.service_address_id ||
+  item?.subscription?.address_id ||
+  item?.order?.service_address_id ||
+  item?.order?.address_id ||
+  item?.orders?.service_address_id ||
+  item?.orders?.address_id ||
+  null;
+
+const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due", "paused", "pause_requested"]);
 
 const formatAddress = (address: ServiceAddress) =>
   [address.city, address.province, address.postal_code].filter(Boolean).join(", ");
@@ -128,6 +142,7 @@ export function AddressServiceWorkspace({
   appointments = [],
   tickets = [],
   incidents = [],
+  orders = [],
   mode = "portal",
   allowCreate = true,
   allowDelete = true,
@@ -152,8 +167,30 @@ export function AddressServiceWorkspace({
     for (const address of addresses) map.set(address.id, emptyCollections());
     const loose = emptyCollections();
 
+    const subAddressById = new Map<string, string>();
+    for (const sub of subscriptions) {
+      const id = getAddressId(sub);
+      if (sub?.id && id) subAddressById.set(sub.id, id);
+    }
+
+    const orderAddressById = new Map<string, string>();
+    for (const order of orders) {
+      const id = getAddressId(order);
+      if (order?.id && id) orderAddressById.set(order.id, id);
+    }
+
+    const resolveAddressId = (item: any) =>
+      getAddressId(item) ||
+      (item?.subscription_id ? subAddressById.get(item.subscription_id) : null) ||
+      (item?.subscriptionId ? subAddressById.get(item.subscriptionId) : null) ||
+      (item?.related_subscription_id ? subAddressById.get(item.related_subscription_id) : null) ||
+      (item?.order_id ? orderAddressById.get(item.order_id) : null) ||
+      (item?.related_order_id ? orderAddressById.get(item.related_order_id) : null) ||
+      (item?.linked_order_id ? orderAddressById.get(item.linked_order_id) : null) ||
+      null;
+
     const push = (type: keyof AddressCollections, item: any) => {
-      const id = getAddressId(item);
+      const id = resolveAddressId(item);
       if (id && map.has(id)) map.get(id)![type].push(item);
       else loose[type].push(item);
     };
@@ -165,7 +202,7 @@ export function AddressServiceWorkspace({
     incidents.forEach((item) => push("incidents", item));
 
     return { byAddress: map, unassigned: loose };
-  }, [addresses, subscriptions, equipment, appointments, tickets, incidents]);
+  }, [addresses, subscriptions, equipment, appointments, tickets, incidents, orders]);
 
   const selectedAddress = addresses.find((a) => a.id === selectedId) || addresses[0] || null;
   const selectedData = selectedAddress ? byAddress.get(selectedAddress.id) || emptyCollections() : emptyCollections();
@@ -182,10 +219,21 @@ export function AddressServiceWorkspace({
   };
 
   const deleteAddress = async (address: ServiceAddress) => {
+    const activeSubs = (byAddress.get(address.id)?.subscriptions || []).filter((sub: any) =>
+      ACTIVE_SUB.has(String(sub?.status || "").toLowerCase()),
+    );
+    if (activeSubs.length > 0) {
+      alert("Impossible de supprimer cette adresse: elle a encore un service actif.");
+      return;
+    }
     if (!confirm("Supprimer cette adresse ? Elle sera masquée du compte.")) return;
-    await softDelete(address.id);
-    if (selectedId === address.id) setSelectedId(null);
-    onChanged?.();
+    try {
+      await softDelete(address.id);
+      if (selectedId === address.id) setSelectedId(null);
+      onChanged?.();
+    } catch (error: any) {
+      alert(error?.message || "Suppression refusée");
+    }
   };
 
   const portalAddressQuery = selectedAddress ? `address=${selectedAddress.id}&service_address_id=${selectedAddress.id}` : "";

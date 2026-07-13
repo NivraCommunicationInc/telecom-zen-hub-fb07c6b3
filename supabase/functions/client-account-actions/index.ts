@@ -458,15 +458,28 @@ async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, 
   if (!before) throw new Error('service_address not found');
   if (before.is_primary) throw new Error('cannot delete primary service address');
 
-  // Reject if an active subscription is bound to this address.
+  const activeStatuses = ['active', 'pending', 'suspended', 'trial', 'past_due', 'paused', 'pause_requested'];
+
+  // Reject only if a currently active service is bound to this address. Historic/cancelled
+  // rows must not block deletion, regardless of whether they use address_id or service_address_id.
   const { count: activeSubs, error: subErr } = await svc
     .from('billing_subscriptions')
     .select('id', { count: 'exact', head: true })
-    .eq('service_address_id', service_address_id)
-    .in('status', ['active', 'pending', 'suspended']);
+    .or(`service_address_id.eq.${service_address_id},address_id.eq.${service_address_id}`)
+    .in('status', activeStatuses);
   if (subErr) throw subErr;
   if ((activeSubs ?? 0) > 0) {
     throw new Error(`cannot delete: ${activeSubs} active subscription(s) still bound to this address`);
+  }
+
+  const { count: activeInstances, error: instanceErr } = await svc
+    .from('service_instances')
+    .select('id', { count: 'exact', head: true })
+    .eq('service_address_id', service_address_id)
+    .in('status', activeStatuses);
+  if (instanceErr) throw instanceErr;
+  if ((activeInstances ?? 0) > 0) {
+    throw new Error(`cannot delete: ${activeInstances} active service instance(s) still bound to this address`);
   }
 
   // Also block if a billing_service_address_id link exists on the account.

@@ -589,7 +589,8 @@ const AdminAccounts = () => {
                 {selectedAccount?.id ? (
                   <AccountAddressesTab
                     account={selectedAccount}
-                    subscriptions={(serviceLocations as any) ?? []}
+                    subscriptions={[]}
+                    orders={(accountOrders as any) ?? []}
                   />
                 ) : (
                   <p className="text-sm text-muted-foreground">Sélectionnez un compte.</p>

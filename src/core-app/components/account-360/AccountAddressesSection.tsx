@@ -24,16 +24,30 @@ interface Props {
   appointments: any[];
   tickets: any[];
   incidents: any[];
+  orders?: any[];
   onRefresh?: () => void;
 }
 
 const getAddressId = (item: any) =>
-  item?.service_address_id || item?.address_id || item?.service_address?.id || null;
+  item?.service_address_id ||
+  item?.address_id ||
+  item?.serviceAddressId ||
+  item?.service_address?.id ||
+  item?.service_addresses?.id ||
+  item?.subscription?.service_address_id ||
+  item?.subscription?.address_id ||
+  item?.order?.service_address_id ||
+  item?.order?.address_id ||
+  item?.orders?.service_address_id ||
+  item?.orders?.address_id ||
+  null;
+
+const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due", "paused", "pause_requested"]);
 
 const formatSecondary = (a: ServiceAddress) =>
   [a.city, a.province, a.postal_code].filter(Boolean).join(", ");
 
-export function AccountAddressesSection({ account, subscriptions, equipment, appointments, tickets, incidents, onRefresh }: Props) {
+export function AccountAddressesSection({ account, subscriptions, equipment, appointments, tickets, incidents, orders = [], onRefresh }: Props) {
   const accountId: string | undefined = account?.id;
   const { addresses, isLoading, create, creating, softDelete, deleting } = useAccountAddresses(accountId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -48,8 +62,27 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
   const byAddress = useMemo(() => {
     const map = new Map<string, { subs: any[]; eq: any[]; appts: any[]; tks: any[]; inc: any[] }>();
     for (const a of addresses) map.set(a.id, { subs: [], eq: [], appts: [], tks: [], inc: [] });
+    const subAddressById = new Map<string, string>();
+    for (const sub of subscriptions) {
+      const id = getAddressId(sub);
+      if (sub?.id && id) subAddressById.set(sub.id, id);
+    }
+    const orderAddressById = new Map<string, string>();
+    for (const order of orders) {
+      const id = getAddressId(order);
+      if (order?.id && id) orderAddressById.set(order.id, id);
+    }
+    const resolveAddressId = (item: any) =>
+      getAddressId(item) ||
+      (item?.subscription_id ? subAddressById.get(item.subscription_id) : null) ||
+      (item?.subscriptionId ? subAddressById.get(item.subscriptionId) : null) ||
+      (item?.related_subscription_id ? subAddressById.get(item.related_subscription_id) : null) ||
+      (item?.order_id ? orderAddressById.get(item.order_id) : null) ||
+      (item?.related_order_id ? orderAddressById.get(item.related_order_id) : null) ||
+      (item?.linked_order_id ? orderAddressById.get(item.linked_order_id) : null) ||
+      null;
     const push = (key: "subs" | "eq" | "appts" | "tks" | "inc", item: any) => {
-      const id = getAddressId(item);
+      const id = resolveAddressId(item);
       if (id && map.has(id)) map.get(id)![key].push(item);
     };
     subscriptions.forEach((x) => push("subs", x));
@@ -58,7 +91,7 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
     tickets.forEach((x) => push("tks", x));
     incidents.forEach((x) => push("inc", x));
     return map;
-  }, [addresses, subscriptions, equipment, appointments, tickets, incidents]);
+  }, [addresses, subscriptions, equipment, appointments, tickets, incidents, orders]);
 
   const selected = addresses.find((a) => a.id === selectedId) || null;
   const bucket = selected ? byAddress.get(selected.id) : null;
@@ -80,7 +113,6 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
   };
 
   const handleDelete = async (a: ServiceAddress) => {
-    const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due"]);
     const activeSubs = (byAddress.get(a.id)?.subs || []).filter((s: any) =>
       ACTIVE_SUB.has(String(s?.status || "").toLowerCase())
     );

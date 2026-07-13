@@ -60,6 +60,7 @@ function ClientAddressesList({
   equipment,
   appointments,
   tickets,
+  orders,
   onChanged,
 }: {
   accountId: string;
@@ -68,6 +69,7 @@ function ClientAddressesList({
   equipment: any[];
   appointments: any[];
   tickets: any[];
+  orders: any[];
   onChanged: () => void;
 }) {
   return (
@@ -78,6 +80,7 @@ function ClientAddressesList({
       equipment={equipment}
       appointments={appointments}
       tickets={tickets}
+      orders={orders}
       mode="portal"
       compact
       onChanged={onChanged}
@@ -570,10 +573,11 @@ const ClientProfile = () => {
                 <ClientAddressesList
                   accountId={accounts[0].id}
                   account={accounts[0]}
-                  subscriptions={subscriptions}
+                  subscriptions={canonicalData?.subscriptions || []}
                   equipment={canonicalData?.equipment || []}
                   appointments={canonicalData?.appointments || []}
                   tickets={canonicalData?.supportTickets || []}
+                  orders={orders}
                   onChanged={refetchLocations}
                 />
               ) : (

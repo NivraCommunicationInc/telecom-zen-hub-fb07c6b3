@@ -18,9 +18,10 @@ interface AccountAddressesTabProps {
   appointments?: any[];
   tickets?: any[];
   incidents?: any[];
+  orders?: any[];
 }
 
-export function AccountAddressesTab({ account, subscriptions, equipment = [], appointments = [], tickets = [], incidents = [] }: AccountAddressesTabProps) {
+export function AccountAddressesTab({ account, subscriptions, equipment = [], appointments = [], tickets = [], incidents = [], orders = [] }: AccountAddressesTabProps) {
   return (
     <AddressServiceWorkspace
       accountId={account?.id}
@@ -30,6 +31,7 @@ export function AccountAddressesTab({ account, subscriptions, equipment = [], ap
       appointments={appointments}
       tickets={tickets}
       incidents={incidents}
+      orders={orders}
       mode="core"
     />
   );
