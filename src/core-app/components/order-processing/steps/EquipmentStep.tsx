@@ -309,6 +309,9 @@ export function EquipmentStep({ proc }: Props) {
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Équipement</div>
 
+      <ExpectedEquipmentPanel proc={proc} />
+
+
       {hasExistingAssignment && (
         <StepCompletionCard
           title={`${assignedItems!.length} équipement(s) assigné(s) à la commande`}
