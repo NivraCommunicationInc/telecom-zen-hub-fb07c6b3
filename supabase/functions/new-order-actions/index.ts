@@ -541,7 +541,19 @@ serve(async (req) => {
         quantity: 1,
       });
     }
-    let customAdjustmentsPostTax = 0;
+    // Le client applique les ajustements Core AVANT taxes (réduisent la base
+    // taxable). La RPC compute_checkout_pricing traite ces lignes comme
+    // one_time_fee et ne les taxe pas → il faut réappliquer leur effet
+    // sur les taxes après coup pour matcher le total client.
+    let customAdjustmentsTaxDelta = 0;
+    {
+      const signedSum = (body.custom_adjustments || []).reduce((s, a) => {
+        const amt = Math.max(0, Number(a?.amount || 0));
+        return s + (a?.kind === "fee" ? amt : -amt);
+      }, 0);
+      customAdjustmentsTaxDelta = Math.round(signedSum * (TPS_RATE + TVQ_RATE) * 100) / 100;
+    }
+    let customAdjustmentsPostTax = customAdjustmentsTaxDelta;
     if (body.discount) {
       const d = body.discount as any;
       const dSource = String(d.source || "").toLowerCase();
