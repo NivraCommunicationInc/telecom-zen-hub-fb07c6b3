@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { MoreVertical, Calendar, XCircle, CheckCircle2, UserX, Wrench, Loader2 } from "lucide-react";
+import { MoreVertical, Calendar, XCircle, CheckCircle2, UserX, Wrench, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
@@ -95,6 +95,27 @@ export function AppointmentActionsMenu({ appointment: apt, onRefresh }: Props) {
     );
   };
 
+  const doSendReminder = async () => {
+    if (!apt.scheduled_at) return toast.error("Ce rendez-vous n'a pas de date planifiée");
+    const already = !!apt.reminder_sent_at;
+    if (already && !confirm("Un rappel a déjà été envoyé. Renvoyer maintenant ?")) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-appointment-reminder", {
+        body: { appointmentId: apt.id, force: already },
+      });
+      if (error) throw error;
+      if (data?.alreadySent && !data?.success) toast.info("Rappel déjà envoyé");
+      else if (data?.success) toast.success("Rappel envoyé au client");
+      else toast.error(data?.reason || "Impossible d'envoyer le rappel");
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'envoi du rappel");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -113,6 +134,10 @@ export function AppointmentActionsMenu({ appointment: apt, onRefresh }: Props) {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setDlg("assign")} className="text-xs">
             <Wrench className="h-3.5 w-3.5 mr-2 text-amber-400" /> Assigner technicien…
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={doSendReminder} className="text-xs">
+            <Send className="h-3.5 w-3.5 mr-2 text-cyan-400" />
+            {apt.reminder_sent_at ? "Renvoyer le rappel" : "Envoyer un rappel"}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-slate-800" />
           <DropdownMenuItem onClick={doComplete} className="text-xs">
