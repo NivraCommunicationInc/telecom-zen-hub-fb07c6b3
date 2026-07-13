@@ -157,7 +157,7 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       <header className="flex items-center justify-between px-4 py-3 bg-slate-950/95 border-b border-slate-800">
         <div className="flex items-center gap-2 text-white font-semibold">
-          <QrCode className="h-5 w-5 text-violet-400" />
+          <QrCode className="h-5 w-5 text-sky-400" />
           Scanner l'équipement
         </div>
         <button

@@ -786,7 +786,7 @@ export default function TechInstallation() {
               <span>{doneMandatory}/{mandatoryCount} obligatoires</span>
             </div>
             <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-violet-500 transition-all" style={{ width: `${progress}%` }} />
+              <div className="h-full bg-sky-500 transition-all" style={{ width: `${progress}%` }} />
             </div>
           </section>
         )}
@@ -795,7 +795,7 @@ export default function TechInstallation() {
         {currentStep && (
           <section className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
             <div>
-              <p className="text-xs text-violet-400 font-semibold uppercase mb-1">
+              <p className="text-xs text-sky-400 font-semibold uppercase mb-1">
                 Étape {currentStep.step_order}{currentStep.is_mandatory && " · Obligatoire"}
               </p>
               <h3 className="text-lg font-bold text-white">{currentStep.title_fr}</h3>

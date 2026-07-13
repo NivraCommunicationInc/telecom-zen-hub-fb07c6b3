@@ -68,9 +68,9 @@ function fallbackHtml(subject: string, _templateKey: string, vars: Record<string
   const resetLink = (vars.reset_link || vars.action_link) as string | undefined;
   if (!resetLink) return null;
   return `<html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
-<h2 style="color:#7c3aed">Nivra Telecom</h2>
+<h2 style="color:#0066CC">Nivra Telecom</h2>
 <p>${subject}</p>
-<p><a href="${resetLink}" style="background:#7c3aed;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Accéder à votre compte</a></p>
+<p><a href="${resetLink}" style="background:#0066CC;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block">Accéder à votre compte</a></p>
 <p style="color:#6b7280;font-size:13px">Ce lien est valide 24 heures. Si vous n'avez pas demandé cela, ignorez cet email.</p>
 <hr><p style="color:#9ca3af;font-size:12px">Nivra Telecom • support@nivra-telecom.ca</p>
 </body></html>`;

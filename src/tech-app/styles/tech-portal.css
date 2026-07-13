@@ -105,7 +105,7 @@
 
 [data-portal="tech"] .tp-btn-primary:active {
   transform: scale(0.97);
-  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 102, 204, 0.32);
 }
 
 [data-portal="tech"] .tp-action-grid {
