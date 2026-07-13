@@ -8512,6 +8512,30 @@ export type Database = {
         }
         Relationships: []
       }
+      dispatch_reservations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          order_id: string
+          technician_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          order_id: string
+          technician_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          order_id?: string
+          technician_id?: string
+        }
+        Relationships: []
+      }
       dob_validation_debug: {
         Row: {
           calculated_age: number | null
@@ -18964,12 +18988,15 @@ export type Database = {
           delivery_method: string | null
           discount_amount: number | null
           discount_code: string | null
+          dispatch_notes: string | null
+          dispatch_priority: string | null
           environment: string
           equipment_details: Json | null
           equipment_id: string | null
           equipment_line_details: Json | null
           equipment_refund_date: string | null
           equipment_refunded: boolean | null
+          estimated_duration_minutes: number | null
           etransfer_status: string | null
           failure_reason: string | null
           fulfillment_assigned_at: string | null
@@ -19018,6 +19045,7 @@ export type Database = {
           risk_flags: Json | null
           router_fee: number | null
           savings_estimated: number | null
+          scheduling_status: string | null
           selected_channels: Json | null
           serial_number: string | null
           service_activated_at: string | null
@@ -19096,12 +19124,15 @@ export type Database = {
           delivery_method?: string | null
           discount_amount?: number | null
           discount_code?: string | null
+          dispatch_notes?: string | null
+          dispatch_priority?: string | null
           environment?: string
           equipment_details?: Json | null
           equipment_id?: string | null
           equipment_line_details?: Json | null
           equipment_refund_date?: string | null
           equipment_refunded?: boolean | null
+          estimated_duration_minutes?: number | null
           etransfer_status?: string | null
           failure_reason?: string | null
           fulfillment_assigned_at?: string | null
@@ -19150,6 +19181,7 @@ export type Database = {
           risk_flags?: Json | null
           router_fee?: number | null
           savings_estimated?: number | null
+          scheduling_status?: string | null
           selected_channels?: Json | null
           serial_number?: string | null
           service_activated_at?: string | null
@@ -19228,12 +19260,15 @@ export type Database = {
           delivery_method?: string | null
           discount_amount?: number | null
           discount_code?: string | null
+          dispatch_notes?: string | null
+          dispatch_priority?: string | null
           environment?: string
           equipment_details?: Json | null
           equipment_id?: string | null
           equipment_line_details?: Json | null
           equipment_refund_date?: string | null
           equipment_refunded?: boolean | null
+          estimated_duration_minutes?: number | null
           etransfer_status?: string | null
           failure_reason?: string | null
           fulfillment_assigned_at?: string | null
@@ -19282,6 +19317,7 @@ export type Database = {
           risk_flags?: Json | null
           router_fee?: number | null
           savings_estimated?: number | null
+          scheduling_status?: string | null
           selected_channels?: Json | null
           serial_number?: string | null
           service_activated_at?: string | null
@@ -31780,6 +31816,16 @@ export type Database = {
         Args: { _portal: string; _user_id: string }
         Returns: boolean
       }
+      claim_dispatch_assignment: {
+        Args: {
+          p_order_id: string
+          p_scheduled_date: string
+          p_technician_id: string
+          p_time_end: string
+          p_time_start: string
+        }
+        Returns: Json
+      }
       claim_pending_document_job: {
         Args: { p_worker_id?: string }
         Returns: {
@@ -33158,6 +33204,10 @@ export type Database = {
         Returns: Json
       }
       repair_order_client_portal_links: { Args: never; Returns: Json }
+      reserve_dispatch_slot: {
+        Args: { p_order_id: string; p_technician_id: string }
+        Returns: Json
+      }
       resolve_or_create_service_address:
         | {
             Args: {
@@ -33900,12 +33950,15 @@ export type Database = {
           delivery_method: string | null
           discount_amount: number | null
           discount_code: string | null
+          dispatch_notes: string | null
+          dispatch_priority: string | null
           environment: string
           equipment_details: Json | null
           equipment_id: string | null
           equipment_line_details: Json | null
           equipment_refund_date: string | null
           equipment_refunded: boolean | null
+          estimated_duration_minutes: number | null
           etransfer_status: string | null
           failure_reason: string | null
           fulfillment_assigned_at: string | null
@@ -33954,6 +34007,7 @@ export type Database = {
           risk_flags: Json | null
           router_fee: number | null
           savings_estimated: number | null
+          scheduling_status: string | null
           selected_channels: Json | null
           serial_number: string | null
           service_activated_at: string | null
@@ -34099,15 +34153,27 @@ export type Database = {
         Returns: string
       }
       tech_can_access_order: { Args: { p_order_id: string }; Returns: boolean }
-      tech_update_assignment_status: {
-        Args: {
-          p_assignment_id: string
-          p_eta?: string
-          p_note?: string
-          p_status: string
-        }
-        Returns: undefined
-      }
+      tech_update_assignment_status:
+        | {
+            Args: {
+              p_assignment_id: string
+              p_eta?: string
+              p_note?: string
+              p_status: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_assignment_id: string
+              p_eta?: string
+              p_note?: string
+              p_status: string
+              p_wifi_password?: string
+              p_wifi_ssid?: string
+            }
+            Returns: undefined
+          }
       ticket_status_allowed: {
         Args: { _from: string; _to: string }
         Returns: boolean
