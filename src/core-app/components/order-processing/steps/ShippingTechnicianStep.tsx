@@ -16,6 +16,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { StepCompletionCard } from "../StepCompletionCard";
 import { AppointmentSlotPicker } from "@/core-app/components/appointments/AppointmentSlotPicker";
 import { InstallationTypeAndForcedSlotPanel } from "./InstallationTypeAndForcedSlotPanel";
+import { AutoInstallNetworkGate } from "./AutoInstallNetworkGate";
+import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
+import { FileText } from "lucide-react";
 import { useProfileName } from "@/hooks/useProfileName";
 
 interface TechnicianOption {
