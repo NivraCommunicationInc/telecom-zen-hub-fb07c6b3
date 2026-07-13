@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, LocateFixed, Navigation, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Clock, ExternalLink, LocateFixed, Loader2, Navigation, Phone, RefreshCw, Search, Wrench } from "lucide-react";
 
 // Fix default marker icons (Leaflet + bundlers)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -114,7 +114,7 @@ export function TechnicianMapView() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("technician_assignments")
-        .select("id, technician_id, status, scheduled_date, scheduled_time_start, scheduled_time_end, order_id, service_address_id, live_location, service_addresses:service_address_id(address_line, city, latitude, longitude)")
+        .select("id, technician_id, status, scheduled_date, scheduled_time_start, scheduled_time_end, order_id, service_address_id, live_location, technician_notes, network_test_results, service_addresses:service_address_id(address_line, city, latitude, longitude)")
         .in("status", ["accepted", "assigned", "scheduled", "pending_scheduling", "en_route", "in_progress", "arrived"])
         .not("technician_id", "is", null)
         .gte("scheduled_date", new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10));
@@ -143,6 +143,21 @@ export function TechnicianMapView() {
     },
   });
 
+  const assignmentOrderIds = Array.from(new Set((assignmentsQ.data ?? []).map((a: any) => a.order_id).filter(Boolean)));
+  const assignmentOrdersQ = useQuery({
+    queryKey: ["technician-active-assignment-orders", assignmentOrderIds.join(",")],
+    enabled: assignmentOrderIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, order_number, client_first_name, client_last_name, client_phone, client_email, client_full_address, service_type, category")
+        .in("id", assignmentOrderIds);
+      const m = new Map<string, any>();
+      (data ?? []).forEach((o: any) => m.set(o.id, o));
+      return m;
+    },
+  });
+
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
@@ -167,6 +182,30 @@ export function TechnicianMapView() {
     return true;
   }), [activityFilter, jobsQ.data, locs, search, techsQ.data]);
 
+  const activeAssignments = useMemo(() => {
+    return (assignmentsQ.data ?? []).filter((a: any) => {
+      const order = assignmentOrdersQ.data?.get(a.order_id);
+      const name = getTechName(assignTechNamesQ.data, a.technician_id);
+      if (!search.trim()) return true;
+      const addr = a.service_addresses;
+      const q = search.toLowerCase();
+      return [
+        name,
+        a.status,
+        order?.order_number,
+        order?.client_first_name,
+        order?.client_last_name,
+        order?.client_phone,
+        order?.service_type,
+        addr?.address_line,
+        addr?.city,
+      ].filter(Boolean).join(" ").toLowerCase().includes(q);
+    });
+  }, [assignTechNamesQ.data, assignmentOrdersQ.data, assignmentsQ.data, search]);
+
+  const assistanceCount = activeAssignments.filter((a: any) => a.network_test_results?.assistance?.requested_at).length;
+  const liveTechnicianCount = new Set(locs.map((l) => l.technician_id)).size;
+
   if (locsQ.isLoading) {
     return (
       <div className="flex items-center justify-center h-96 text-muted-foreground">
@@ -177,6 +216,25 @@ export function TechnicianMapView() {
 
   return (
     <div className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Techniciens GPS</p>
+          <p className="mt-1 text-2xl font-semibold">{liveTechnicianCount}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">RDV actifs</p>
+          <p className="mt-1 text-2xl font-semibold">{activeAssignments.length}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">En route / sur place</p>
+          <p className="mt-1 text-2xl font-semibold">{activeAssignments.filter((a: any) => ["en_route", "arrived", "in_progress"].includes(a.status)).length}</p>
+        </div>
+        <div className={`rounded-xl border p-4 ${assistanceCount ? "border-destructive/30 bg-destructive/10" : "border-border bg-card"}`}>
+          <p className="text-xs text-muted-foreground">Assistance demandée</p>
+          <p className="mt-1 text-2xl font-semibold">{assistanceCount}</p>
+        </div>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -201,11 +259,47 @@ export function TechnicianMapView() {
         <div className="rounded-xl border border-border bg-card max-h-[70vh] overflow-auto">
           <div className="sticky top-0 z-10 border-b border-border bg-card p-3">
             <p className="text-sm font-semibold">Techniciens actifs</p>
-            <p className="text-xs text-muted-foreground">{visibleLocs.length} affiché(s) · mise à jour 30s</p>
+            <p className="text-xs text-muted-foreground">{visibleLocs.length} GPS · {activeAssignments.length} RDV · mise à jour 30s</p>
           </div>
           <div className="divide-y divide-border">
+            {activeAssignments.length > 0 && (
+              <div className="p-3 space-y-2 bg-muted/20">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Rendez-vous actifs</p>
+                {activeAssignments.map((a: any) => {
+                  const order = assignmentOrdersQ.data?.get(a.order_id);
+                  const name = getTechName(assignTechNamesQ.data, a.technician_id);
+                  const addr = a.service_addresses;
+                  const assistance = a.network_test_results?.assistance;
+                  return (
+                    <div key={a.id} className="rounded-lg border border-border bg-background/60 p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">{name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {order?.order_number ? `Commande #${order.order_number}` : "Commande"} · {[order?.client_first_name, order?.client_last_name].filter(Boolean).join(" ") || "Client"}
+                          </p>
+                        </div>
+                        <Badge variant={assistance?.requested_at ? "destructive" : "outline"}>{assistance?.requested_at ? "Assistance" : a.status}</Badge>
+                      </div>
+                      <div className="grid gap-1 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> {a.scheduled_date} · {String(a.scheduled_time_start).slice(0, 5)}–{String(a.scheduled_time_end).slice(0, 5)}</span>
+                        <span className="inline-flex items-center gap-1"><Wrench className="h-3 w-3" /> {order?.service_type || "Service"}{order?.category ? ` · ${order.category}` : ""}</span>
+                        {addr && <span className="line-clamp-2">{addr.address_line}{addr.city ? `, ${addr.city}` : ""}</span>}
+                        {assistance?.requested_at && (
+                          <span className="inline-flex items-start gap-1 text-destructive"><AlertTriangle className="h-3 w-3 mt-0.5" /> {assistance.reason || "Assistance demandée"}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {order?.client_phone && <Button size="sm" variant="outline" onClick={() => window.open(`tel:${order.client_phone}`)}><Phone className="mr-1 h-3 w-3" /> Appeler</Button>}
+                        {a.order_id && <Button size="sm" variant="ghost" onClick={() => window.open(`/core/orders/${a.order_id}`, "_blank")}><ExternalLink className="mr-1 h-3 w-3" /> Commande</Button>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {visibleLocs.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground">Aucune position active selon les filtres.</div>
+              <div className="p-4 text-sm text-muted-foreground">Aucune position GPS active selon les filtres.</div>
             ) : visibleLocs.map((loc) => {
               const speed = loc.speed_kmh ?? 0;
               const job = loc.installation_job_id ? jobsQ.data?.get(loc.installation_job_id) : null;
@@ -291,6 +385,8 @@ export function TechnicianMapView() {
           .map((a: any) => {
             const addr = a.service_addresses;
             const name = getTechName(assignTechNamesQ.data, a.technician_id);
+            const order = assignmentOrdersQ.data?.get(a.order_id);
+            const assistance = a.network_test_results?.assistance;
             const hasAssignmentLive = a.live_location?.lat && a.live_location?.lng;
             const lat = Number(hasAssignmentLive ? a.live_location.lat : addr.latitude);
             const lng = Number(hasAssignmentLive ? a.live_location.lng : addr.longitude);
@@ -300,9 +396,14 @@ export function TechnicianMapView() {
                   <div className="text-xs space-y-1">
                     <div className="font-semibold">{name}</div>
                     <div className="text-muted-foreground">Statut: {a.status}</div>
+                    <div>{order?.order_number ? `Commande #${order.order_number}` : "Commande"}</div>
+                    <div className="text-muted-foreground">{[order?.client_first_name, order?.client_last_name].filter(Boolean).join(" ") || "Client"}</div>
                     <div className="text-muted-foreground">
                       RDV {a.scheduled_date} · {String(a.scheduled_time_start).slice(0, 5)}–{String(a.scheduled_time_end).slice(0, 5)}
                     </div>
+                    {assistance?.requested_at && (
+                      <div style={{ color: "#dc2626" }}>Assistance: {assistance.reason || "demandée"}</div>
+                    )}
                     <div className="text-muted-foreground">
                       {addr.address_line}{addr.city ? `, ${addr.city}` : ""}
                     </div>

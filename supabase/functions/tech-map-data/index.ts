@@ -4,11 +4,7 @@
  * service address so they remain visible once they accept installation work.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -106,7 +102,7 @@ Deno.serve(async (req) => {
 
       const { data: assignments } = await supabase
         .from("technician_assignments")
-        .select("id, technician_id, status, service_address_id, live_location")
+        .select("id, technician_id, status, order_id, service_address_id, live_location, scheduled_date, scheduled_time_start, scheduled_time_end, network_test_results")
         .in("technician_id", allTechnicianKeys)
         .in("status", activeAssignmentStatuses)
         .order("scheduled_date", { ascending: true });
@@ -122,9 +118,11 @@ Deno.serve(async (req) => {
 
     const assignmentByTech = new Map<string, any>();
     const fallbackAddressIds = new Set<string>();
+    const assignmentOrderIds = new Set<string>();
     for (const assignment of assignmentRows) {
       if (!assignmentByTech.has(assignment.technician_id)) assignmentByTech.set(assignment.technician_id, assignment);
       if (assignment.service_address_id) fallbackAddressIds.add(assignment.service_address_id);
+      if (assignment.order_id) assignmentOrderIds.add(assignment.order_id);
     }
 
     let fallbackAddresses: any[] = [];
@@ -137,6 +135,16 @@ Deno.serve(async (req) => {
     }
     const fallbackById = new Map(fallbackAddresses.map((a: any) => [a.id, a]));
 
+    let assignmentOrders: any[] = [];
+    if (assignmentOrderIds.size > 0) {
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, order_number, client_first_name, client_last_name, client_phone, client_full_address, service_type")
+        .in("id", Array.from(assignmentOrderIds));
+      assignmentOrders = orders || [];
+    }
+    const orderById = new Map(assignmentOrders.map((o: any) => [o.id, o]));
+
     const technicianPoints = (techRows || []).flatMap((tech: any) => {
       const live = latestLiveByTech.get(tech.user_id) || latestLiveByTech.get(tech.id);
       const assignment = assignmentByTech.get(tech.user_id) || assignmentByTech.get(tech.id);
@@ -145,6 +153,11 @@ Deno.serve(async (req) => {
       const lat = live?.latitude ?? assignmentLive?.lat ?? fallback?.latitude;
       const lng = live?.longitude ?? assignmentLive?.lng ?? fallback?.longitude;
       if (!lat || !lng) return [];
+      const order = assignment?.order_id ? orderById.get(assignment.order_id) : null;
+      const assistance = assignment?.network_test_results?.assistance && typeof assignment.network_test_results.assistance === "object"
+        ? assignment.network_test_results.assistance
+        : null;
+      const fallbackAddress = [fallback?.address_line, fallback?.city, fallback?.province, fallback?.postal_code].filter(Boolean).join(", ");
       return [{
         id: `tech-${tech.user_id || tech.id}`,
         kind: "technician",
@@ -163,6 +176,18 @@ Deno.serve(async (req) => {
         technician_status: tech.status || null,
         assignment_status: assignment?.status || null,
         location_source: live ? "live_gps" : assignmentLive ? "assignment_live" : "assignment_address",
+        assignment_id: assignment?.id || null,
+        order_id: assignment?.order_id || null,
+        order_number: order?.order_number || null,
+        client_name: order ? [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || "Client" : null,
+        client_phone: order?.client_phone || null,
+        scheduled_date: assignment?.scheduled_date || null,
+        scheduled_time_start: assignment?.scheduled_time_start || null,
+        scheduled_time_end: assignment?.scheduled_time_end || null,
+        service_type: order?.service_type || null,
+        assignment_address: fallbackAddress || order?.client_full_address || null,
+        assistance_requested_at: assistance?.requested_at || null,
+        assistance_reason: assistance?.reason || null,
       }];
     });
 

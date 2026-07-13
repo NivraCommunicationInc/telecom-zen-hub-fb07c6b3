@@ -112,6 +112,11 @@ export default function TechStock() {
                     <p className="text-[11px] truncate" style={{ color: "var(--tp-text-dim)" }}>
                       {[it.sku, it.serial_number, it.warehouse_location].filter(Boolean).join(" · ") || "—"}
                     </p>
+                    {it.stock_scope === "my_mission" && (
+                      <p className="text-[10px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--tp-info)" }}>
+                        Réservé à une de vos installations
+                      </p>
+                    )}
                   </div>
                   <span
                     className="text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full shrink-0"

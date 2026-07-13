@@ -13,7 +13,7 @@ import { EditAppointmentDialog } from "@/core-app/components/account-actions/Edi
 import { AppointmentActionsMenu } from "@/core-app/components/appointments/AppointmentActionsMenu";
 import {
   ArrowLeft, Calendar, MapPin, User, Wrench, Phone, Mail,
-  FileText, Package, Loader2, AlertTriangle, Pencil,
+  FileText, Package, Loader2, AlertTriangle, Pencil, LifeBuoy,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -48,6 +48,61 @@ export default function CoreAppointmentDetail() {
         .maybeSingle();
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: assignmentAssistance = [] } = useQuery({
+    queryKey: ["core-appointment-assistance", apt?.order_id],
+    enabled: !!apt?.order_id,
+    queryFn: async () => {
+      const orderId = apt?.order_id;
+      if (!orderId) return [];
+      const { data, error } = await supabase
+        .from("technician_assignments")
+        .select("id, status, scheduled_date, technician_notes, network_test_results, created_at")
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).filter((row: any) => row.network_test_results?.assistance?.requested_at || String(row.technician_notes || "").includes("[ASSISTANCE TERRAIN]"));
+    },
+  });
+
+  const { data: linkedTickets = [] } = useQuery({
+    queryKey: ["core-appointment-linked-tickets", apt?.order_id, apt?.client_email],
+    enabled: !!apt?.order_id || !!apt?.client_email,
+    queryFn: async () => {
+      const orderId = apt?.order_id;
+      const email = apt?.client_email;
+      if (!orderId && !email) return [];
+
+      const queries = [];
+      if (orderId) {
+        queries.push(
+          supabase
+            .from("support_tickets")
+            .select("id, ticket_number, subject, status, priority, category, created_at, related_order_id, client_email")
+            .eq("related_order_id", orderId)
+            .order("created_at", { ascending: false })
+            .limit(8),
+        );
+      }
+      if (email) {
+        queries.push(
+          supabase
+            .from("support_tickets")
+            .select("id, ticket_number, subject, status, priority, category, created_at, related_order_id, client_email")
+            .eq("client_email", email)
+            .order("created_at", { ascending: false })
+            .limit(8),
+        );
+      }
+
+      const results = await Promise.all(queries);
+      const firstError = results.find((r) => r.error)?.error;
+      if (firstError) throw firstError;
+      const byId = new Map<string, any>();
+      results.flatMap((r) => r.data ?? []).forEach((ticket: any) => byId.set(ticket.id, ticket));
+      return Array.from(byId.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 8);
     },
   });
 
@@ -193,6 +248,59 @@ export default function CoreAppointmentDetail() {
           </div>
         ) : (
           <p className="text-[13px] text-[hsl(220,10%,50%)]">Non assigné</p>
+        )}
+      </div>
+
+      {/* Field assistance */}
+      <div className={`rounded-xl border p-4 ${assignmentAssistance.length ? "border-red-500/35 bg-red-950/20" : "border-[hsl(220,15%,16%)] bg-[hsl(220,20%,10%)]"}`}>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <p className="text-[11px] text-[hsl(220,10%,45%)] uppercase tracking-wide flex items-center gap-2">
+              <LifeBuoy className="h-3.5 w-3.5" /> Assistance terrain
+            </p>
+            <p className="text-[12px] text-[hsl(220,10%,55%)] mt-1">Demandes technicien et tickets reliés à ce rendez-vous.</p>
+          </div>
+          {assignmentAssistance.length > 0 && (
+            <span className="rounded-full border border-red-500/40 bg-red-500/15 px-2 py-1 text-[10px] font-bold uppercase text-red-300">
+              Action requise
+            </span>
+          )}
+        </div>
+
+        {assignmentAssistance.length === 0 && linkedTickets.length === 0 ? (
+          <p className="text-[13px] text-[hsl(220,10%,50%)]">Aucune assistance terrain ouverte pour ce rendez-vous.</p>
+        ) : (
+          <div className="space-y-3">
+            {assignmentAssistance.map((row: any) => {
+              const assistance = row.network_test_results?.assistance;
+              const reason = assistance?.reason || String(row.technician_notes || "").replace("[ASSISTANCE TERRAIN]", "").trim() || "Assistance demandée";
+              return (
+                <div key={row.id} className="rounded-lg border border-red-500/25 bg-red-950/20 p-3 text-[13px]">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-red-200">{reason}</p>
+                    <span className="text-[10px] uppercase text-red-300">{assistance?.status || row.status}</span>
+                  </div>
+                  <p className="mt-1 text-[12px] text-[hsl(220,10%,60%)]">
+                    Demandé: {assistance?.requested_at ? format(new Date(assistance.requested_at), "d MMM yyyy HH:mm", { locale: fr }) : "—"}
+                  </p>
+                </div>
+              );
+            })}
+
+            {linkedTickets.map((ticket: any) => (
+              <div key={ticket.id} className="rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,8%)] p-3 text-[13px]">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-white">{ticket.subject || "Ticket support"}</p>
+                    <p className="text-[12px] text-[hsl(220,10%,55%)]">{ticket.ticket_number || ticket.id} · {ticket.category || "support"}</p>
+                  </div>
+                  <span className="rounded-full border border-[hsl(220,15%,20%)] px-2 py-1 text-[10px] uppercase text-[hsl(220,10%,65%)]">
+                    {ticket.status || "open"}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

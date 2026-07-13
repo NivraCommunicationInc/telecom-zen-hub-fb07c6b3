@@ -8,10 +8,10 @@ export default function CoreTechnicianMapPage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Carte techniciens</h1>
+        <h1 className="text-2xl font-semibold">Centre techniciens actifs</h1>
         <p className="text-sm text-muted-foreground">
-          Positions GPS en temps réel des techniciens partageant leur position.
-          Les marqueurs s'actualisent automatiquement toutes les 30 secondes.
+          Carte live, rendez-vous en cours, assistance terrain et diagnostics réseau.
+          Les données s'actualisent automatiquement toutes les 30 secondes.
         </p>
       </div>
       <TechnicianMapView />

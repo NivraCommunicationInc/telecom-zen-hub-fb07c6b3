@@ -6,10 +6,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { ArrowLeft, Loader2, MapPin, Wifi, Tv, Smartphone, X, Layers, Navigation2, UserRound } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Wifi, Tv, Smartphone, X, Layers, Navigation2, UserRound, Wrench, AlertTriangle } from "lucide-react";
 import { useTechMapData, MapPoint } from "../lib/useTechMapData";
 
-type Filter = "all" | "internet" | "tv" | "mobile";
+type Filter = "all" | "internet" | "tv" | "mobile" | "techs";
 
 function pickColor(services: MapPoint["services"]): string {
   const types = services.map((s) => (s.service_type || "").toLowerCase());
@@ -25,8 +25,9 @@ function markerColor(p: MapPoint): string {
 
 function matchesFilter(p: MapPoint, filter: Filter): boolean {
   if (filter === "all") return true;
-    if (p.kind === "technician") return false;
-    return p.services.some((s) => (s.service_type || "").toLowerCase().includes(filter));
+  if (filter === "techs") return p.kind === "technician";
+  if (p.kind === "technician") return false;
+  return p.services.some((s) => (s.service_type || "").toLowerCase().includes(filter));
 }
 
 export default function TechMap() {
@@ -113,6 +114,7 @@ export default function TechMap() {
     const all = data?.points || [];
     return {
       all: all.length,
+      techs: all.filter((p) => p.kind === "technician").length,
       internet: all.filter((p) => p.services.some((s) => (s.service_type || "").toLowerCase().includes("internet"))).length,
       tv: all.filter((p) => p.services.some((s) => (s.service_type || "").toLowerCase().includes("tv"))).length,
       mobile: all.filter((p) => p.services.some((s) => (s.service_type || "").toLowerCase().includes("mobile"))).length,
@@ -161,7 +163,7 @@ export default function TechMap() {
           >
             <MapPin className="h-4 w-4" style={{ color: "var(--tp-primary-glow)" }} />
             <span className="text-[13px] font-bold tp-display" style={{ color: "var(--tp-text)" }}>
-              {points.length} {points.length > 1 ? "adresses" : "adresse"}
+              {points.length} {filter === "techs" ? "technicien(s)" : points.length > 1 ? "points" : "point"}
             </span>
             {error && (
               <span className="ml-auto text-[10px] font-bold text-red-400">Erreur</span>
@@ -181,6 +183,7 @@ export default function TechMap() {
         <div className="mt-2.5 px-4 flex gap-2 overflow-x-auto no-scrollbar pointer-events-auto pb-1">
           {([
             { id: "all", label: "Tout", icon: MapPin, count: counts.all },
+            { id: "techs", label: "Techs", icon: UserRound, count: counts.techs },
             { id: "internet", label: "Internet", icon: Wifi, count: counts.internet },
             { id: "tv", label: "TV", icon: Tv, count: counts.tv },
                 { id: "mobile", label: "Mobile", icon: Smartphone, count: counts.mobile },
@@ -226,7 +229,7 @@ export default function TechMap() {
           <div className="flex items-start gap-3">
             <div
               className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: pickColor(selected.services) + "20", border: `1px solid ${pickColor(selected.services)}55` }}
+              style={{ background: markerColor(selected) + "20", border: `1px solid ${markerColor(selected)}55` }}
             >
               {selected.kind === "technician" ? (
                 <UserRound className="h-5 w-5" style={{ color: markerColor(selected) }} />
@@ -255,8 +258,22 @@ export default function TechMap() {
           </div>
 
           {selected.kind === "technician" && (
-            <div className="mt-3 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.28)", color: "#fbbf24" }}>
-              <p className="text-[11px] font-bold">Technicien visible sur la carte</p>
+            <div className="mt-3 space-y-2 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.28)", color: "#fbbf24" }}>
+              <p className="text-[11px] font-bold flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" /> Technicien actif sur la route</p>
+              <div className="grid grid-cols-2 gap-2 text-[11px]" style={{ color: "var(--tp-text-muted)" }}>
+                <span>RDV: {selected.scheduled_date || "—"}</span>
+                <span>{selected.scheduled_time_start?.slice(0, 5) || "—"}–{selected.scheduled_time_end?.slice(0, 5) || "—"}</span>
+                <span>Commande: {selected.order_number ? `#${selected.order_number}` : "—"}</span>
+                <span>{selected.service_type || "Service"}</span>
+              </div>
+              {selected.client_name && <p className="text-[12px]" style={{ color: "var(--tp-text)" }}>{selected.client_name}</p>}
+              {selected.assignment_address && <p className="text-[11px] line-clamp-2" style={{ color: "var(--tp-text-muted)" }}>{selected.assignment_address}</p>}
+              {selected.assistance_requested_at && (
+                <div className="rounded-lg px-2 py-1.5 flex items-start gap-2" style={{ background: "rgba(239,68,68,0.16)", border: "1px solid rgba(239,68,68,0.32)", color: "#fecaca" }}>
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span className="text-[11px]">Assistance demandée: {selected.assistance_reason || "Aucun détail"}</span>
+                </div>
+              )}
             </div>
           )}
 
