@@ -30,20 +30,19 @@ Deno.serve(async (req) => {
     if (subsErr) throw subsErr;
 
     const addressIds = Array.from(new Set((subs || []).map((s: any) => s.service_address_id).filter(Boolean)));
-    if (addressIds.length === 0) {
-      return new Response(JSON.stringify({ token: mapboxToken, points: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+    let addrs: any[] = [];
+    if (addressIds.length > 0) {
+      const { data, error: addrErr } = await supabase
+        .from("service_addresses")
+        .select("id, account_id, label, address_line, city, province, postal_code, latitude, longitude")
+        .in("id", addressIds);
+      if (addrErr) throw addrErr;
+      addrs = data || [];
     }
 
-    const { data: addrs, error: addrErr } = await supabase
-      .from("service_addresses")
-      .select("id, account_id, label, address_line, city, province, postal_code, latitude, longitude")
-      .in("id", addressIds);
-    if (addrErr) throw addrErr;
-
     // Geocode missing coords
-    const toGeocode = (addrs || []).filter((a: any) => !a.latitude || !a.longitude);
+    const toGeocode = addrs.filter((a: any) => !a.latitude || !a.longitude);
     if (toGeocode.length && mapboxToken) {
       for (const a of toGeocode) {
         const q = [a.address_line, a.city, a.province, a.postal_code, "Canada"].filter(Boolean).join(", ");
@@ -70,7 +69,7 @@ Deno.serve(async (req) => {
       svcByAddr.set(s.service_address_id, list);
     }
 
-    const servicePoints = (addrs || [])
+    const servicePoints = addrs
       .filter((a: any) => a.latitude && a.longitude)
       .map((a: any) => ({
         id: a.id,
@@ -89,33 +88,34 @@ Deno.serve(async (req) => {
     const activeAssignmentStatuses = ["accepted", "assigned", "en_route", "arrived", "in_progress", "scheduled", "pending_scheduling"];
     const { data: techRows } = await supabase
       .from("technicians")
-      .select("id, full_name, status")
+      .select("id, user_id, full_name, status")
       .in("status", ["active", "available", "busy", "on_route", "on_job"]);
 
     const techIds = Array.from(new Set((techRows || []).map((t: any) => t.id).filter(Boolean)));
+    const techUserIds = Array.from(new Set((techRows || []).map((t: any) => t.user_id).filter(Boolean)));
+    const allTechnicianKeys = Array.from(new Set([...techIds, ...techUserIds]));
     let liveRows: any[] = [];
     let assignmentRows: any[] = [];
-    if (techIds.length > 0) {
+    if (allTechnicianKeys.length > 0) {
       const { data: locs } = await supabase
         .from("technician_locations")
-        .select("technician_id, latitude, longitude, updated_at")
-        .in("technician_id", techIds)
+        .select("technician_id, latitude, longitude, accuracy_meters, recorded_at, updated_at")
+        .in("technician_id", allTechnicianKeys)
         .order("updated_at", { ascending: false });
       liveRows = locs || [];
 
       const { data: assignments } = await supabase
         .from("technician_assignments")
-        .select("id, technician_id, status, service_address_id")
-        .in("technician_id", techIds)
+        .select("id, technician_id, status, service_address_id, live_location")
+        .in("technician_id", allTechnicianKeys)
         .in("status", activeAssignmentStatuses)
-        .not("service_address_id", "is", null)
         .order("scheduled_date", { ascending: true });
       assignmentRows = assignments || [];
     }
 
     const latestLiveByTech = new Map<string, any>();
     for (const loc of liveRows) {
-      if (!latestLiveByTech.has(loc.technician_id) && loc.latitude && loc.longitude) {
+      if (loc.latitude && loc.longitude) {
         latestLiveByTech.set(loc.technician_id, loc);
       }
     }
@@ -138,14 +138,15 @@ Deno.serve(async (req) => {
     const fallbackById = new Map(fallbackAddresses.map((a: any) => [a.id, a]));
 
     const technicianPoints = (techRows || []).flatMap((tech: any) => {
-      const live = latestLiveByTech.get(tech.id);
-      const assignment = assignmentByTech.get(tech.id);
+      const live = latestLiveByTech.get(tech.user_id) || latestLiveByTech.get(tech.id);
+      const assignment = assignmentByTech.get(tech.user_id) || assignmentByTech.get(tech.id);
       const fallback = assignment?.service_address_id ? fallbackById.get(assignment.service_address_id) : null;
-      const lat = live?.latitude ?? fallback?.latitude;
-      const lng = live?.longitude ?? fallback?.longitude;
+      const assignmentLive = assignment?.live_location && typeof assignment.live_location === "object" ? assignment.live_location : null;
+      const lat = live?.latitude ?? assignmentLive?.lat ?? fallback?.latitude;
+      const lng = live?.longitude ?? assignmentLive?.lng ?? fallback?.longitude;
       if (!lat || !lng) return [];
       return [{
-        id: `tech-${tech.id}`,
+        id: `tech-${tech.user_id || tech.id}`,
         kind: "technician",
         account_id: fallback?.account_id || "",
         label: tech.full_name || "Technicien",
@@ -156,11 +157,12 @@ Deno.serve(async (req) => {
         lat: Number(lat),
         lng: Number(lng),
         services: [],
-        technician_id: tech.id,
+        technician_id: tech.user_id || tech.id,
+        technician_profile_id: tech.id,
         technician_name: tech.full_name || "Technicien",
         technician_status: tech.status || null,
         assignment_status: assignment?.status || null,
-        location_source: live ? "live_gps" : "assignment_address",
+        location_source: live ? "live_gps" : assignmentLive ? "assignment_live" : "assignment_address",
       }];
     });
 

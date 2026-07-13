@@ -6,16 +6,16 @@
 
 [data-portal="tech"] {
   /* Surfaces */
-  --tp-bg: #0f0f1a;
-  --tp-bg-elevated: #1a1a2e;
-  --tp-surface: #14142a;
-  --tp-surface-hover: #1e1e38;
+  --tp-bg: #0b0d12;
+  --tp-bg-elevated: #121620;
+  --tp-surface: #161b26;
+  --tp-surface-hover: #1b2230;
   --tp-border: rgba(255, 255, 255, 0.06);
   --tp-border-strong: rgba(255, 255, 255, 0.1);
 
   /* Brand */
   --tp-primary: #7c3aed;
-  --tp-primary-glow: #a78bfa;
+  --tp-primary-glow: #8b5cf6;
   --tp-primary-deep: #5b21b6;
   --tp-primary-soft: rgba(124, 58, 237, 0.14);
 
@@ -32,14 +32,14 @@
   --tp-text-dim: #6b7288;
 
   /* Shadows */
-  --tp-shadow-glow: 0 8px 32px rgba(124, 58, 237, 0.24);
-  --tp-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --tp-shadow-glow: 0 10px 26px rgba(0, 0, 0, 0.34);
+  --tp-shadow-card: 0 8px 22px rgba(0, 0, 0, 0.32);
 
   /* Radii */
-  --tp-radius-sm: 10px;
-  --tp-radius: 16px;
-  --tp-radius-lg: 20px;
-  --tp-radius-xl: 24px;
+  --tp-radius-sm: 8px;
+  --tp-radius: 12px;
+  --tp-radius-lg: 14px;
+  --tp-radius-xl: 16px;
 
   font-family: "Figtree", ui-sans-serif, system-ui, -apple-system, sans-serif;
   color: var(--tp-text);
@@ -53,7 +53,7 @@
 [data-portal="tech"] h3,
 [data-portal="tech"] .tp-display {
   font-family: "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 [data-portal="tech"] .tp-tabular {
@@ -75,15 +75,15 @@
 }
 
 [data-portal="tech"] .tp-card-primary {
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.22) 0%, rgba(91, 33, 182, 0.08) 100%);
-  border: 1px solid rgba(124, 58, 237, 0.35);
+  background: var(--tp-bg-elevated);
+  border: 1px solid rgba(124, 58, 237, 0.28);
   box-shadow: var(--tp-shadow-glow);
 }
 
 [data-portal="tech"] .tp-btn-primary {
-  background: linear-gradient(135deg, var(--tp-primary) 0%, var(--tp-primary-deep) 100%);
-  color: white;
-  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
+  background: var(--tp-primary);
+  color: var(--tp-text);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
   border-radius: var(--tp-radius);
   min-height: 52px;
   font-weight: 700;
@@ -129,8 +129,8 @@
 
 /* Scanner central raised button (bottom nav) */
 [data-portal="tech"] .tp-nav-scanner {
-  background: linear-gradient(135deg, var(--tp-primary) 0%, var(--tp-primary-deep) 100%);
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45), 0 0 0 6px var(--tp-bg);
+  background: var(--tp-primary);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34), 0 0 0 6px var(--tp-bg);
   border: none;
 }
 
