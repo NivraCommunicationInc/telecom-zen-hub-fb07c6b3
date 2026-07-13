@@ -59,6 +59,23 @@ const SCAN_STYLE: Record<ScanStatus, { border: string; icon: React.ReactNode; la
   unknown:     { border: "border-yellow-500/60",  icon: <HelpCircle className="h-5 w-5 text-yellow-400 mt-0.5" />, label: "Appareil non enregistré dans l'inventaire" },
 };
 
+const TECH_PHASES = [
+  { status: "accepted", label: "Accepté" },
+  { status: "en_route", label: "Route" },
+  { status: "arrived", label: "Sur place" },
+  { status: "in_progress", label: "Actif" },
+] as const;
+
+const TECH_PHASE_INDEX: Record<string, number> = {
+  scheduled: -1,
+  confirmed: 0,
+  accepted: 0,
+  en_route: 1,
+  arrived: 2,
+  in_progress: 3,
+  completed: 4,
+};
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function TechInstallation() {
@@ -305,6 +322,8 @@ export default function TechInstallation() {
         p_status: status,
         p_note: note ?? null,
         p_eta: eta ?? null,
+        p_wifi_ssid: wifiSsid.trim() || null,
+        p_wifi_password: wifiPassword.trim() || null,
       });
       if (error) throw error;
       if (status === "in_progress" && !startedAt) setStartedAt(new Date().toISOString());
@@ -313,7 +332,7 @@ export default function TechInstallation() {
     onSuccess: (status) => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
       qc.invalidateQueries({ queryKey: ["tech-assignment", id] });
-      toast.success("Statut mis à jour");
+      toast.success("Statut mis à jour — courriel client envoyé");
       if (status === "en_route") startGps();
       else stopGps();
     },
@@ -539,6 +558,7 @@ export default function TechInstallation() {
   const canComplete = allMandatoryDone && (assignment.service_type !== "internet" || !!coax) && networkOk && wifiReady && !hasWrongOrder;
   const assistanceOpen = !!assignment.network_test_results?.assistance?.requested_at;
   const statusIsActive = ["accepted", "en_route", "arrived", "in_progress"].includes(assignment.status);
+  const currentPhase = TECH_PHASE_INDEX[assignment.status] ?? -1;
 
   const completeCurrentStep = () => {
     if (currentStep?.requires_photo && !photos.some((p) => p.step === currentStep.title_fr)) {
@@ -600,10 +620,16 @@ export default function TechInstallation() {
       <div className="px-4 py-4 space-y-4">
 
         {/* Mission info */}
-        <section className={`tp-job-card p-4 space-y-4 ${statusIsActive ? "tp-live-card" : ""}`}>
+        <section className={`tp-core-hero rounded-2xl p-4 space-y-4 ${statusIsActive ? "tp-live-card" : ""}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1 text-[10px] font-black uppercase text-sky-300">
+              <span className={statusIsActive ? "tp-live-dot" : "h-2 w-2 rounded-full bg-slate-500"} /> Nivra Core · Field Ops
+            </div>
+            {gpsActive && <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-[10px] font-black uppercase text-emerald-300">GPS live</span>}
+          </div>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-base font-bold text-white">{assignment.client_name || "Client"}</p>
+              <p className="text-lg font-black text-white">{assignment.client_name || "Client"}</p>
               <p className="text-xs text-slate-500 mt-1">
                 {assignment.appointment_number ? `RDV ${assignment.appointment_number}` : "Rendez-vous"}
                 {assignment.order_number ? ` · Commande #${assignment.order_number}` : ""}
@@ -614,6 +640,18 @@ export default function TechInstallation() {
             }`}>
               {assignment.status}
             </span>
+          </div>
+
+          <div className="tp-phase-rail" aria-label="Progression technicien">
+            {TECH_PHASES.map((phase, index) => (
+              <div
+                key={phase.status}
+                className={`tp-phase-step ${currentPhase === index ? "is-active" : currentPhase > index ? "is-done" : ""}`}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>{phase.label}</span>
+              </div>
+            ))}
           </div>
 
           <div className="grid gap-2 text-sm">
@@ -669,7 +707,7 @@ export default function TechInstallation() {
           {gpsActive && (
             <div className="flex items-center gap-2 rounded-full bg-emerald-900/40 border border-emerald-600/40 px-3 py-2 text-xs text-emerald-300">
               <Signal className="h-3.5 w-3.5 animate-pulse" />
-              GPS actif — position transmise au client
+              GPS actif — position visible sur la carte Core
             </div>
           )}
           {assistanceOpen && (
@@ -679,7 +717,15 @@ export default function TechInstallation() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-slate-700 bg-slate-950/55 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase text-sky-300">Actions terrain</p>
+                <p className="text-[11px] text-slate-400">Chaque statut envoie le courriel client correspondant.</p>
+              </div>
+              <span className="rounded-full bg-sky-500/15 px-2.5 py-1 text-[10px] font-black text-sky-300">Email auto</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
             <a
               href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(assignment.client_address || "")}`}
               target="_blank"
@@ -693,28 +739,28 @@ export default function TechInstallation() {
               disabled={setFieldStatus.isPending || assignment?.status === "accepted"}
               className="tp-action-btn tp-action-success"
             >
-              <CheckCircle2 className="h-4 w-4" /> Accepter + email
+              <CheckCircle2 className="h-4 w-4" /> Accepter + courriel
             </button>
             <button
               onClick={handleEnRoute}
               disabled={setFieldStatus.isPending}
               className="tp-action-btn tp-action-warning"
             >
-              <Truck className="h-4 w-4" /> En route + GPS
+              <Truck className="h-4 w-4" /> En route + courriel
             </button>
             <button
               onClick={() => setFieldStatus.mutate({ status: "arrived" })}
               disabled={setFieldStatus.isPending}
               className="tp-action-btn tp-action-info"
             >
-              <MapPin className="h-4 w-4" /> Arrivé + email
+              <MapPin className="h-4 w-4" /> Arrivé + courriel
             </button>
             <button
               onClick={() => setFieldStatus.mutate({ status: "in_progress" })}
               disabled={setFieldStatus.isPending}
               className="tp-action-btn tp-action-primary"
             >
-              Démarrer + email
+              <Wrench className="h-4 w-4" /> Démarrer + courriel
             </button>
             <button
               onClick={() => setMissingFor(true)}
@@ -728,6 +774,7 @@ export default function TechInstallation() {
             >
               <LifeBuoy className="h-4 w-4" /> Assistance
             </button>
+            </div>
           </div>
         </section>
 
@@ -906,7 +953,7 @@ export default function TechInstallation() {
             <InputField label="Mot de passe WiFi" value={wifiPassword} onChange={setWifiPassword} type="text" />
           </div>
           <p className="text-[11px] text-slate-400">
-            Obligatoire pour Internet. Ces accès seront envoyés au client dans le courriel de complétion.
+            Obligatoire pour Internet. Ces accès sont conservés dans le dossier et envoyés au client avec le courriel de service activé.
           </p>
         </section>
 
