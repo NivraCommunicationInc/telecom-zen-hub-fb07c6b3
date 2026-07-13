@@ -23,10 +23,30 @@ const getAllowedOrigins = (): string[] => {
   return [
     'https://nivra-telecom.ca',
     'https://www.nivra-telecom.ca',
+    'https://core2617.nivra-telecom.ca',
+    'https://nivra-telecom-ca.lovable.app',
+    'https://id-preview--15339968-8359-42a0-b60e-042f582b4ea7.lovable.app',
+    'https://15339968-8359-42a0-b60e-042f582b4ea7.lovableproject.com',
     'https://telecom-zen-hub.lovable.app',
+    'http://localhost:8080',
     'http://localhost:5173',
     'http://localhost:3000'
   ];
+};
+
+const isDynamicAllowedOrigin = (origin: string): boolean => {
+  if (!origin) return false;
+  try {
+    const { protocol, hostname } = new URL(origin);
+    if (protocol !== 'http:' && protocol !== 'https:') return false;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+    if (hostname.endsWith('.lovable.app')) return true;
+    if (hostname.endsWith('.lovableproject.com')) return true;
+    if (hostname === 'nivra-telecom.ca' || hostname.endsWith('.nivra-telecom.ca')) return true;
+  } catch {
+    return false;
+  }
+  return false;
 };
 
 export const getCorsHeaders = (requestOrigin: string | Request | null | undefined): Record<string, string> => {
@@ -43,7 +63,7 @@ export const getCorsHeaders = (requestOrigin: string | Request | null | undefine
   console.log(`[CORS] Request origin: ${origin}, Allowed: ${JSON.stringify(allowedOrigins)}`);
   
   // Check if the request origin is in the allowed list
-  const isAllowed = allowedOrigins.some(allowed => allowed === origin);
+  const isAllowed = allowedOrigins.some(allowed => allowed === origin) || isDynamicAllowedOrigin(origin);
 
   // Only set the specific origin if it's allowed
   const corsOrigin = isAllowed ? origin : allowedOrigins[0] || '';

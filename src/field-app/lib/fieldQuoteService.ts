@@ -54,6 +54,16 @@ export async function saveQuoteAndEmail(payload: SaveQuotePayload): Promise<Save
           monthlyBeforeDiscount, equipmentTotal, firstMonthCredit,
           agentGps, idempotencyKey } = payload;
 
+  const resolvedMonthlyBeforeDiscount = monthlyBeforeDiscount ?? draft.services.reduce(
+    (sum, service) => sum + Number(service.monthlyPrice || 0),
+    0,
+  );
+  const resolvedEquipmentTotal = equipmentTotal ?? draft.equipment.reduce(
+    (sum, equipment) => sum + Number(equipment.price || 0) * Number(equipment.quantity || 1),
+    0,
+  );
+  const resolvedFirstMonthCredit = firstMonthCredit ?? (draft.services.length > 0 ? resolvedMonthlyBeforeDiscount : 0);
+
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user?.id) throw new Error("Agent non authentifié.");
 
@@ -74,9 +84,9 @@ export async function saveQuoteAndEmail(payload: SaveQuotePayload): Promise<Save
       agent_gps: agentGps,
       client_totals: {
         subtotal, tps, tvq, total,
-        monthly_before_discount: monthlyBeforeDiscount,
-        equipment_total: equipmentTotal,
-        first_month_credit: firstMonthCredit,
+        monthly_before_discount: resolvedMonthlyBeforeDiscount,
+        equipment_total: resolvedEquipmentTotal,
+        first_month_credit: resolvedFirstMonthCredit,
       },
     },
   });

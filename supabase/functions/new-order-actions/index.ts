@@ -548,6 +548,20 @@ serve(async (req) => {
       }
     }
 
+    const requestedFirstMonthCredit = Number(body.client_totals?.first_month_credit ?? 0);
+    const firstMonthCredit = Math.min(
+      monthly_before_discount,
+      Math.max(0, requestedFirstMonthCredit),
+    );
+    if (firstMonthCredit > 0) {
+      cart_items.push({
+        type: "one_time_fee",
+        name: "Crédit automatique — 1er mois offert",
+        amount: -Number(firstMonthCredit.toFixed(2)),
+        quantity: 1,
+      });
+    }
+
     return { resolvedServices, resolvedEquipment, cart_items, equipment_total,
              monthly_before_discount, activation_fee };
   }
