@@ -2353,8 +2353,37 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     }
 
     // ===================================================================
-    // CLIENT — Email address changed by staff (notice to new address)
+    // CLIENT — Temporary password set by staff (must change on next login)
     // ===================================================================
+    case "client_temporary_password": {
+      const firstName = esc(v.first_name || v.FIRST_NAME || clientName || "");
+      const tempPwd = esc(v.temporary_password || "");
+      const loginUrl = String(v.login_url || "https://nivra-telecom.ca/portal/auth");
+      const emailRow = esc(v.email || v.to_email || "Non disponible");
+      return {
+        subject: "Mot de passe temporaire — Nivra Télécom",
+        html: shell({
+          preheader: "Un mot de passe temporaire a été défini pour votre compte Nivra.",
+          badge: "MOT DE PASSE TEMPORAIRE",
+          heroTitle: "Votre mot de passe temporaire",
+          heroSub: "À utiliser une seule fois — vous devrez le changer immédiatement.",
+          icon: "alert",
+          greeting: `Bonjour ${firstName || "Client"},`,
+          bodyText: `À votre demande, notre équipe a défini un <strong>mot de passe temporaire</strong> pour votre compte Nivra. Utilisez-le pour vous connecter, puis <strong style="color:#7c3aed;">changez-le immédiatement</strong> dans votre espace client (Paramètres → Sécurité).`,
+          cardTitle: "Vos identifiants temporaires",
+          cardRows: [
+            ["Courriel", emailRow],
+            ["Mot de passe temporaire", `<code style="font-family:monospace;font-size:15px;color:#111;background:#f4f4f5;padding:2px 6px;border-radius:4px;">${tempPwd}</code>`],
+            ["Action requise", "Changer le mot de passe après connexion"],
+          ],
+          ctaPrimaryUrl: loginUrl,
+          ctaPrimaryLabel: "Me connecter maintenant",
+          helpVariant: "warning",
+          helpHtml: `Si vous n'êtes pas à l'origine de cette demande, contactez-nous immédiatement à <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed;">${SUPPORT_EMAIL}</a>.`,
+        }),
+      };
+    }
+
     case "client_email_changed_notice": {
       const firstName = esc(v.first_name || v.FIRST_NAME || clientName || "");
       const oldEmail = esc(v.old_email || "Précédent courriel");

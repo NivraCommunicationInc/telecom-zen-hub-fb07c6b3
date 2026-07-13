@@ -37,11 +37,13 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
   const [busy, setBusy] = useState<ActionKey | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [changeReason, setChangeReason] = useState("");
+  const [tempReason, setTempReason] = useState("");
+  const [logoutReason, setLogoutReason] = useState("");
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const CONFIRM_MESSAGES: Partial<Record<ActionKey, string>> = {
     force_logout: "Révoquer toutes les sessions actives du client (web + mobile) ?",
-    set_temporary_password: "Générer un nouveau mot de passe temporaire ? L'ancien mot de passe sera invalidé.",
+    set_temporary_password: "Générer un nouveau mot de passe temporaire ? Le client sera déconnecté et devra se reconnecter avec ce mot de passe.",
     change_email: "Changer l'adresse courriel de connexion du client ? L'ancienne adresse sera notifiée.",
   };
 
@@ -91,11 +93,11 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
     } catch (e: any) {
       const msg = e?.message || "Échec de l'action";
       if (msg.includes("Motif obligatoire")) {
-        toast.error("Motif obligatoire pour changer le courriel.");
+        toast.error("Motif obligatoire (min. 5 caractères).");
       } else if (msg.includes("Seul un admin")) {
-        toast.error("Seul un admin Core peut changer le courriel.");
+        toast.error("Seul un admin Core peut exécuter cette action.");
       } else if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("invalide")) {
-        toast.error("Nouveau courriel invalide.");
+        toast.error("Adresse courriel invalide.");
       } else {
         toast.error(msg);
       }
@@ -206,21 +208,34 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
           <Row
             icon={Lock}
             title="Définir un mot de passe temporaire"
-            desc="Génère un mot de passe sécurisé à communiquer verbalement au client."
-            action={
-              <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => run("set_temporary_password")}>
-                {busy === "set_temporary_password" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Générer"}
-              </Button>
-            }
+            desc="Génère un mot de passe sécurisé, envoie au client par courriel et force la déconnexion. Motif obligatoire."
           >
-            {tempPassword && (
-              <div className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5">
-                <code className="text-xs flex-1 break-all">{tempPassword}</code>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { navigator.clipboard.writeText(tempPassword); toast.success("Copié"); }}>
-                  <Copy className="h-3 w-3" />
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Motif (obligatoire, min. 5 caractères — ex: demande du client au téléphone)"
+                value={tempReason}
+                onChange={(e) => setTempReason(e.target.value)}
+                rows={2}
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy !== null || tempReason.trim().length < 5}
+                  onClick={() => run("set_temporary_password", { reason: tempReason.trim() })}
+                >
+                  {busy === "set_temporary_password" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Générer"}
                 </Button>
               </div>
-            )}
+              {tempPassword && (
+                <div className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5">
+                  <code className="text-xs flex-1 break-all">{tempPassword}</code>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { navigator.clipboard.writeText(tempPassword); toast.success("Copié"); }}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </Row>
 
           <Separator />
@@ -228,14 +243,28 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
           <Row
             icon={LogOut}
             title="Forcer la déconnexion"
-            desc="Révoque toutes les sessions actives du client (web + mobile)."
+            desc="Révoque toutes les sessions actives du client (web + mobile). Motif obligatoire."
             danger
-            action={
-              <Button size="sm" variant="destructive" disabled={busy !== null} onClick={() => run("force_logout")}>
-                {busy === "force_logout" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Déconnecter"}
-              </Button>
-            }
-          />
+          >
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Motif (obligatoire, min. 5 caractères)"
+                value={logoutReason}
+                onChange={(e) => setLogoutReason(e.target.value)}
+                rows={2}
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={busy !== null || logoutReason.trim().length < 5}
+                  onClick={() => run("force_logout", { reason: logoutReason.trim() })}
+                >
+                  {busy === "force_logout" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Déconnecter"}
+                </Button>
+              </div>
+            </div>
+          </Row>
         </div>
       </DialogContent>
     </Dialog>
