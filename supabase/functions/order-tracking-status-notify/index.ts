@@ -94,18 +94,30 @@ function buildEmail(opts: {
   const isDelivered = status === "delivered";
 
   if (lang === "en") {
-    const subject = isOFD
+    const subject = isDelivered
+      ? `Delivered — order #${orderNumber}`
+      : isOFD
       ? `Out for delivery — order #${orderNumber}`
       : `Your equipment is on the way — order #${orderNumber}`;
-    const heroTitle = isOFD ? "Your package is out for delivery" : "Your equipment is on the way";
-    const preheader = isOFD
+    const heroTitle = isDelivered
+      ? "Your package has been delivered"
+      : isOFD
+      ? "Your package is out for delivery"
+      : "Your equipment is on the way";
+    const preheader = isDelivered
+      ? `Order #${orderNumber} was delivered by ${carrier}.`
+      : isOFD
       ? `${carrier} is delivering your order #${orderNumber} today.`
       : `Order #${orderNumber} shipped via ${carrier}.`;
     const bodyHtml = `
-      <p>${isOFD
-        ? `Great news — <strong>${carrier}</strong> is out to deliver your Nivra equipment today.`
-        : `Your Nivra equipment was picked up by <strong>${carrier}</strong> and is on its way to your address.`}</p>
-      <p><strong>What to do once you receive the package:</strong></p>
+      <p>${
+        isDelivered
+          ? `Your Nivra equipment was <strong>delivered</strong> by ${carrier}. Please unbox and start the activation below.`
+          : isOFD
+          ? `Great news — <strong>${carrier}</strong> is out to deliver your Nivra equipment today.`
+          : `Your Nivra equipment was picked up by <strong>${carrier}</strong> and is on its way to your address.`
+      }</p>
+      <p><strong>${isDelivered ? "Activation steps:" : "What to do once you receive the package:"}</strong></p>
       <ol style="padding-left:20px;margin:12px 0;">
         <li>Plug the coaxial cable into your WiFi router.</li>
         <li>Plug the power adapter and turn it on.</li>
@@ -118,7 +130,7 @@ function buildEmail(opts: {
       subject,
       html: violetShell({
         preheader,
-        badge: isOFD ? "OUT FOR DELIVERY" : "SHIPMENT IN TRANSIT",
+        badge: isDelivered ? "DELIVERED" : isOFD ? "OUT FOR DELIVERY" : "SHIPMENT IN TRANSIT",
         heroTitle,
         heroSub: `Order #${orderNumber}`,
         greeting: `Hi ${clientName},`,
@@ -130,10 +142,10 @@ function buildEmail(opts: {
           ["Tracking number", trackingNumber],
           ...(estimatedDelivery ? [["Estimated delivery", new Date(estimatedDelivery).toLocaleDateString("en-CA")] as [string, string]] : []),
         ],
-        ctaPrimaryUrl: trackingUrl || PORTAL_ACTIVATION_URL,
-        ctaPrimaryLabel: trackingUrl ? "Track my package" : "Open portal",
-        ctaSecondaryUrl: PORTAL_ACTIVATION_URL,
-        ctaSecondaryLabel: "Activate WiFi",
+        ctaPrimaryUrl: isDelivered ? PORTAL_ACTIVATION_URL : (trackingUrl || PORTAL_ACTIVATION_URL),
+        ctaPrimaryLabel: isDelivered ? "Activate WiFi" : (trackingUrl ? "Track my package" : "Open portal"),
+        ctaSecondaryUrl: isDelivered ? (trackingUrl || PORTAL_ACTIVATION_URL) : PORTAL_ACTIVATION_URL,
+        ctaSecondaryLabel: isDelivered ? "View delivery proof" : "Activate WiFi",
         helpHtml: `Need help? Contact us at <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a>.`,
       }),
     };
