@@ -1,15 +1,18 @@
 /**
  * ShippingTechnicianStep — Step 9: Shipping or Technician assignment
  * All buttons are fully functional with real DB operations and notifications.
+ * When no appointment row exists but an installation is required, an inline
+ * InstallSlotPicker lets the admin pick and persist a slot from Core.
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2 } from "lucide-react";
+import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { resolveTechnicianInput } from "@/core-app/lib/technicians";
+import InstallSlotPicker from "@/components/shared/InstallSlotPicker";
 
 interface Props { proc: any; }
 
@@ -179,12 +182,14 @@ export function ShippingTechnicianStep({ proc }: Props) {
         </>
       ) : (
         <>
-          {appointment && (
+          {appointment ? (
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
               <h4 className="text-xs font-semibold text-blue-700 uppercase mb-1">Rendez-vous planifié</h4>
               <p className="text-sm text-blue-900">{appointment.scheduled_at?.slice(0, 16).replace("T", " ")}</p>
               <p className="text-xs text-blue-700 mt-0.5">{appointment.service_address || "—"}</p>
             </div>
+          ) : (
+            <PickInstallSlotPanel proc={proc} technicianInput={techFields.technician_id} />
           )}
 
           {/* Installation time estimate */}
@@ -232,6 +237,92 @@ export function ShippingTechnicianStep({ proc }: Props) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * PickInstallSlotPanel — Inline picker shown when no appointment
+ * row exists yet. Surfaces any pre-selected date from the order
+ * (checkout step) and lets the admin choose & persist a real slot.
+ * ───────────────────────────────────────────────────────────── */
+function PickInstallSlotPanel({ proc, technicianInput }: { proc: any; technicianInput: string }) {
+  const { order } = proc;
+  const [slot, setSlot] = useState<{ date: string; time_slot: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const preSelected = useMemo(() => {
+    // Legacy: order.appointment_date can be a datetime OR a plain date
+    const raw = order?.appointment_date || order?.appointment_scheduled_at || null;
+    if (!raw) return null;
+    const iso = String(raw);
+    return {
+      date: iso.slice(0, 10),
+      time: iso.length > 10 ? iso.slice(11, 16) : null,
+    };
+  }, [order?.appointment_date, order?.appointment_scheduled_at]);
+
+  const parseSlotWindow = (date: string, timeSlot: string): { start: string; end: string } | null => {
+    // Expected format: "08h00 - 10h00" or "8:00 - 10:00"
+    const m = timeSlot.match(/(\d{1,2})[h:](\d{2})\s*[-–]\s*(\d{1,2})[h:](\d{2})/);
+    if (!m) return null;
+    const pad = (n: string) => n.padStart(2, "0");
+    const start = `${date}T${pad(m[1])}:${pad(m[2])}:00`;
+    const end = `${date}T${pad(m[3])}:${pad(m[4])}:00`;
+    return { start, end };
+  };
+
+  const handleSave = async () => {
+    if (!slot) {
+      toast.error("Sélectionnez une date et un créneau");
+      return;
+    }
+    setSaving(true);
+    try {
+      const window = parseSlotWindow(slot.date, slot.time_slot);
+      const scheduledAt = window?.start ?? `${slot.date}T09:00:00`;
+      await proc.updateFulfillmentDetails({
+        appointment_scheduled_at: scheduledAt,
+        appointment_slot_window: window ?? undefined,
+        appointment_date: scheduledAt,
+        ...(technicianInput?.trim() ? { technician_id: technicianInput.trim() } : {}),
+      });
+      toast.success("Rendez-vous d'installation planifié");
+    } catch (e: any) {
+      toast.error(`Erreur planification: ${e?.message || "inconnue"}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+      <div className="flex items-start gap-2 mb-2">
+        <CalendarClock className="w-4 h-4 text-amber-700 mt-0.5" />
+        <div className="flex-1">
+          <h4 className="text-xs font-semibold text-amber-800 uppercase">Aucun rendez-vous planifié</h4>
+          {preSelected ? (
+            <p className="text-xs text-amber-700 mt-0.5">
+              Le client avait choisi <strong>{preSelected.date}</strong>
+              {preSelected.time ? ` à ${preSelected.time}` : ""} lors de la commande.
+              Confirmez ci-dessous ou choisissez un autre créneau disponible.
+            </p>
+          ) : (
+            <p className="text-xs text-amber-700 mt-0.5">
+              Aucune date n'a été sélectionnée lors de la commande. Choisissez un créneau.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-md border border-amber-100 p-2 mb-2">
+        <InstallSlotPicker value={slot} onChange={setSlot} variant="full" />
+      </div>
+
+      <Button size="sm" onClick={handleSave} disabled={!slot || saving} className="text-xs h-8 bg-amber-600 hover:bg-amber-700 text-white">
+        {saving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+        Confirmer le rendez-vous
+      </Button>
     </div>
   );
 }
