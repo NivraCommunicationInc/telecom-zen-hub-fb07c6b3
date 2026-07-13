@@ -87,10 +87,31 @@ export function ShippingTechnicianStep({ proc }: Props) {
   const requiresTechnician = !isSelfInstall && (isTechnicianInstall || hasInternet || hasTv);
   const requiresShipping = !isSelfInstall && !isTechnicianInstall && (hasMobile || (!hasInternet && !hasTv));
 
+  // Phase 3 — Auto-install gate: for self-install orders we require the
+  // agent to confirm network / wiring / service availability before the
+  // shipping panel unlocks. Detection = latest note tagged NETWORK_CONFIRMED.
+  const { data: networkConfirmed } = useQuery({
+    queryKey: ["network-confirmed-flag", order.id],
+    enabled: !!order.id && isSelfInstall,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_internal_notes")
+        .select("id")
+        .eq("order_id", order.id)
+        .like("content", "[NETWORK_CONFIRMED]%")
+        .limit(1)
+        .maybeSingle();
+      return !!data;
+    },
+  });
+
   const showTechnicianPanel =
     !isSelfInstall && (requiresTechnician || !!appointment);
   const showShippingPanel =
-    !isSelfInstall && !isTechnicianInstall && (requiresShipping || !!order.tracking_number || !!order.carrier || fulfillmentType === "shipping");
+    // Non-self-install: existing rules
+    (!isSelfInstall && !isTechnicianInstall && (requiresShipping || !!order.tracking_number || !!order.carrier || fulfillmentType === "shipping"))
+    // Self-install: shipping panel appears ONLY after network confirmation
+    || (isSelfInstall && !!networkConfirmed);
 
   const [loading, setLoading] = useState<string | null>(null);
   const [contractGate, setContractGate] = useState<{
