@@ -25,7 +25,7 @@ function markerColor(p: MapPoint): string {
 
 function matchesFilter(p: MapPoint, filter: Filter): boolean {
   if (filter === "all") return true;
-    if (p.kind === "technician") return filter === "all";
+    if (p.kind === "technician") return false;
     return p.services.some((s) => (s.service_type || "").toLowerCase().includes(filter));
 }
 
