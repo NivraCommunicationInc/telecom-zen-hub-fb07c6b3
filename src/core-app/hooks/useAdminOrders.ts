@@ -118,8 +118,10 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
           risk_flags: o.risk_flags as string[] | null,
           created_at: o.created_at,
           environment: o.environment,
-          client_full_name: profile?.full_name ?? null,
-          client_email: profile?.email ?? null,
+          client_full_name: profile?.full_name
+            ?? [o.client_first_name, o.client_last_name].filter(Boolean).join(" ").trim()
+            ?? null,
+          client_email: profile?.email ?? o.client_email ?? null,
           account_number: accountNumber,
           invoice_number: invoice?.invoice_number ?? null,
           invoice_status: invoice?.status ?? null,
