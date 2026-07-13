@@ -198,7 +198,10 @@ async function persistAgentAccountPromotion(args: {
       promotion_type: "monthly_discount",
       amount,
       duration_months: durationMonths,
-      months_remaining: Math.max(durationMonths - 1, 0),
+      months_remaining: String(discountData.source || "").toLowerCase() === "custom_core"
+        ? durationMonths
+        : Math.max(durationMonths - 1, 0),
+
       is_active: true,
       created_by_user_id: createdByUserId || null,
       created_by_role: "field_sales",
