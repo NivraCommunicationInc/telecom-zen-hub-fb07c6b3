@@ -116,6 +116,24 @@ export function AppointmentActionsMenu({ appointment: apt, onRefresh }: Props) {
     }
   };
 
+  const doSendConfirmation = async () => {
+    if (!apt.scheduled_at) return toast.error("Ce rendez-vous n'a pas de date planifiée");
+    setLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-appointment-notification", {
+        body: { appointmentId: apt.id, event: "confirmed" },
+      });
+      if (error) throw error;
+      toast.success("Confirmation envoyée au client");
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'envoi de la confirmation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   return (
     <>
       <DropdownMenu>
