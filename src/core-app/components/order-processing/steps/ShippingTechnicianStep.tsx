@@ -376,15 +376,22 @@ export function ShippingTechnicianStep({ proc }: Props) {
 
 
       {isSelfInstall && (
-        <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 mb-4 flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-emerald-200">Auto-installation par le client</p>
-            <p className="text-xs text-emerald-300/80 mt-1">
-              Le client a explicitement choisi l'auto-installation. Aucune assignation de technicien ni expédition gérée n'est requise.
-            </p>
+        <>
+          <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 mb-4 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-200">Auto-installation par le client</p>
+              <p className="text-xs text-emerald-300/80 mt-1">
+                Le client a choisi l'auto-installation. Avant d'expédier, confirme que le réseau et le câblage sont fonctionnels à l'adresse.
+              </p>
+            </div>
           </div>
-        </div>
+          <AutoInstallNetworkGate
+            orderId={order.id}
+            serviceAddress={order.shipping_address || order.client_full_address}
+            onConfirmed={() => queryClient.invalidateQueries({ queryKey: ["network-confirmed-flag", order.id] })}
+          />
+        </>
       )}
 
       {appointment?.status === "completed" && (
