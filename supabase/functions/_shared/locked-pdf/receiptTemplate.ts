@@ -16,6 +16,7 @@ const jsPDF = (jsPDFModule as any).default || jsPDFModule;
 type jsPDF = any;
 import type { PDFGenerationResult } from "./types.ts";
 import { NIVRA } from "./companyInfo.ts";
+import { cleanPdfText } from "./textSanitize.ts";
 
 // ============================================================================
 // DATA INTERFACE
@@ -356,7 +357,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setFontSize(9);
     doc.setTextColor(...TEXT);
     for (const it of positive) {
-      const desc = doc.splitTextToSize(it.description || "Article", 100);
+      const desc = doc.splitTextToSize(cleanPdfText(it.description, "Article"), 100);
       doc.text(desc, 18, y);
       doc.text(String(it.quantity || 1), 130, y, { align: "right" });
       doc.text(fmt(Number(it.unit_price || 0)), 158, y, { align: "right" });
@@ -379,7 +380,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       doc.setFontSize(9);
       for (const it of negatives) {
         doc.setTextColor(...TEXT);
-        doc.text(it.description || "Rabais", 18, y);
+        doc.text(cleanPdfText(it.description, "Rabais"), 18, y);
         doc.setTextColor(...AMBER);
         const amount = Number(it.line_total ?? it.unit_price ?? 0);
         const shown = amount > 0 ? -amount : amount;
@@ -388,7 +389,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       }
       if (data.discount_amount && data.discount_amount > 0 && negatives.length === 0) {
         doc.setTextColor(...TEXT);
-        doc.text(data.discount_label || "Promotion", 18, y);
+        doc.text(cleanPdfText(data.discount_label, "Promotion"), 18, y);
         doc.setTextColor(...AMBER);
         doc.text(fmt(-data.discount_amount), pw - 18, y, { align: "right" });
         y += 5;

@@ -15,6 +15,7 @@ const jsPDF = (jsPDFModule as any).default || jsPDFModule;
 type jsPDF = any;
 import type { InvoiceDataV2, PDFGenerationResult } from "./types.ts";
 import { NIVRA } from "./companyInfo.ts";
+import { cleanPdfText } from "./textSanitize.ts";
 
 // ============================================================================
 // BRAND
@@ -367,8 +368,8 @@ function drawPage2(doc: jsPDF, data: InvoiceDataV2 & { order_number?: string }) 
     amount: number,
     color: [number, number, number],
   ): void => {
-    const descLines: string[] = doc.splitTextToSize(description, 95);
-    const subLines: string[] = subDesc ? doc.splitTextToSize(subDesc, 95) : [];
+    const descLines: string[] = doc.splitTextToSize(cleanPdfText(description, "Article"), 95);
+    const subLines: string[] = subDesc ? doc.splitTextToSize(cleanPdfText(subDesc, ""), 95) : [];
     const rowH = Math.max(9, descLines.length * 4.5 + subLines.length * 3.8 + 4);
 
     if (y + rowH > PAGE_H - 60) return; // avoid overflow into totals
@@ -411,7 +412,7 @@ function drawPage2(doc: jsPDF, data: InvoiceDataV2 & { order_number?: string }) 
   // Discounts
   if (data.discounts && data.discounts.length) {
     for (const d of data.discounts) {
-      drawItem(d.label || "Rabais", null, "Rabais", 1, -Math.abs(d.amount), -Math.abs(d.amount), GREEN);
+      drawItem(cleanPdfText(d.label, "Rabais"), null, "Rabais", 1, -Math.abs(d.amount), -Math.abs(d.amount), GREEN);
     }
   }
 

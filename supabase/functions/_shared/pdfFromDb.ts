@@ -18,6 +18,7 @@ import { generateContractV3PDF, type ContractDataV3 } from "./locked-pdf/contrac
 import { generateOrderSummaryPDF, type OrderSummaryV3Data } from "./locked-pdf/orderSummaryTemplate.ts";
 import type { InvoiceDataV2 } from "./locked-pdf/types.ts";
 import { CONTRACT } from "./locked-pdf/companyInfo.ts";
+import { cleanPdfText } from "./locked-pdf/textSanitize.ts";
 
 export interface QueuedAttachment {
   filename: string;
@@ -329,11 +330,11 @@ function canonicalLineKind(line: CanonicalPdfLine): "service" | "equipment" | "f
 }
 
 function cleanServiceName(description: string): string {
-  return String(description || "Service").replace(/\s+[—-]\s+30\s+jours\s*$/i, "").trim() || "Service";
+  return cleanPdfText(description || "Service", "Service").replace(/\s+[—-]\s+30\s+jours\s*$/i, "").trim() || "Service";
 }
 
 function durationFromPromotionLabel(description: string): string | undefined {
-  const d = String(description || "");
+  const d = cleanPdfText(description || "", "");
   const months = d.match(/(\d+)\s*mois/i)?.[1];
   if (months) return `${months} mois`;
   if (/1er\s+mois|premier\s+mois/i.test(d)) return "1er mois";
@@ -344,18 +345,18 @@ function splitDiscountLineForPdf(
   line: CanonicalPdfLine,
   monthlyServiceSubtotal: number,
 ): Array<{ description: string; unit_price: number; duration_label?: string; code?: string }> {
-  const rawDescription = String(line.description || "Rabais").trim() || "Rabais";
+  const rawDescription = cleanPdfText(line.description || "Rabais", "Rabais");
   const rawAmount = Math.abs(Number(line.line_total ?? line.unit_price ?? 0));
   const meta: any = line.metadata || {};
-  const code = meta.code || meta.promo_code || meta.discount_code || undefined;
+  const code = cleanPdfText(meta.code || meta.promo_code || meta.discount_code || "", "") || undefined;
 
   if (Array.isArray(meta.lines) || Array.isArray(meta.discount_lines) || Array.isArray(meta.promotions)) {
     const nested = (meta.lines || meta.discount_lines || meta.promotions) as any[];
     return nested.map((p: any) => ({
-      description: String(p.description || p.label || p.name || rawDescription),
+      description: cleanPdfText(p.description || p.label || p.name || rawDescription, "Rabais"),
       unit_price: Math.abs(Number(p.amount ?? p.unit_price ?? p.line_total ?? 0)),
-      duration_label: p.duration_label || p.duration || durationFromPromotionLabel(String(p.description || p.label || p.name || "")),
-      code: p.code || p.promo_code || code,
+      duration_label: cleanPdfText(p.duration_label || p.duration || durationFromPromotionLabel(String(p.description || p.label || p.name || "")) || "", "") || undefined,
+      code: cleanPdfText(p.code || p.promo_code || code || "", "") || undefined,
     })).filter((p) => p.unit_price > 0);
   }
 
@@ -410,7 +411,7 @@ function buildPdfSectionsFromInvoiceLines(lines: CanonicalPdfLine[], phones: any
       services.push({
         type: String((line.metadata as any)?.service_type || "Service"),
         name: cleanServiceName(line.description),
-        description: String((line.metadata as any)?.description || ""),
+        description: cleanPdfText((line.metadata as any)?.description || "", ""),
         monthly_price: Number(line.unit_price || line.line_total || 0),
         quantity: Number(line.quantity || 1),
       });
@@ -424,7 +425,7 @@ function buildPdfSectionsFromInvoiceLines(lines: CanonicalPdfLine[], phones: any
         phoneIdx += 1;
       }
       equipment.push({
-        name: label,
+        name: cleanPdfText(label, "Equipement"),
         quantity: Number(line.quantity || 1),
         unit_price: Number(line.unit_price || line.line_total || 0),
       });
@@ -432,7 +433,7 @@ function buildPdfSectionsFromInvoiceLines(lines: CanonicalPdfLine[], phones: any
     }
     if (kind === "fee" || kind === "other") {
       fees.push({
-        label: line.description || "Frais",
+        label: cleanPdfText(line.description || "Frais", "Frais"),
         amount: Number(line.line_total ?? line.unit_price ?? 0),
       });
     }

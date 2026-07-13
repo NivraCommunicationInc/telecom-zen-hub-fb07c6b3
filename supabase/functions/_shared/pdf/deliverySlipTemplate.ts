@@ -9,6 +9,19 @@ import {
   BLUE, BLUE_LIGHT, AMBER, AMBER_BG,
 } from "./_baseTemplate.ts";
 
+function cleanPdfText(value: unknown, fallback = "—"): string {
+  let text = String(value ?? "").trim();
+  if (!text) return fallback;
+  text = text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'");
+  const ampCount = (text.match(/&/g) || []).length;
+  if (ampCount >= 3 && ampCount / Math.max(text.length, 1) > 0.12) text = text.replace(/&+/g, "");
+  return text.replace(/\s+/g, " ").trim() || fallback;
+}
+
 export interface DeliverySlipData {
   slip_number: string;
   issue_date: string;
@@ -50,7 +63,7 @@ export function generateDeliverySlipPDF(data: DeliverySlipData): PDFGenerationRe
     y = drawSectionTitle(doc, "Contenu du colis", y);
     const rows = (data.items || []).map(it => [
       String(it.quantity ?? 1),
-      it.description,
+      cleanPdfText(it.description, "Article"),
       it.serial_number || "-",
       "Neuf scellé",
     ]);

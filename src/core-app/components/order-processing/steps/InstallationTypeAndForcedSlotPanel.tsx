@@ -18,6 +18,7 @@ import { CalendarPlus, Repeat, Loader2, Wrench, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { resolveTechnicianInput } from "@/core-app/lib/technicians";
 
 interface Props { proc: any; }
 
@@ -50,7 +51,7 @@ export function InstallationTypeAndForcedSlotPanel({ proc }: Props) {
   const [forcedFrom, setForcedFrom] = useState<string>("08:00");
   const [forcedTo, setForcedTo] = useState<string>("10:00");
   const [forcedMethod, setForcedMethod] = useState<"technician" | "auto">("technician");
-  const [forcedTechId, setForcedTechId] = useState<string>("");
+  const [forcedTechInput, setForcedTechInput] = useState<string>("");
   const [forcedNotes, setForcedNotes] = useState<string>("");
   const [forcedBusy, setForcedBusy] = useState(false);
 
@@ -85,11 +86,17 @@ export function InstallationTypeAndForcedSlotPanel({ proc }: Props) {
       const endAt = new Date(`${forcedDate}T${forcedTo}:00`);
       const startAt = new Date(`${forcedDate}T${forcedFrom}:00`);
       const durationMin = Math.max(30, Math.round((endAt.getTime() - startAt.getTime()) / 60000));
+      let technician: { id: string; full_name: string } | null = null;
+      if (forcedMethod === "technician" && forcedTechInput.trim()) {
+        const resolved = await resolveTechnicianInput(forcedTechInput);
+        if (!resolved.technician) { toast.error(resolved.error || "Technicien introuvable"); return; }
+        technician = resolved.technician;
+      }
 
       const payload: any = {
         order_id: order.id,
         client_id: order.user_id || null,
-        technician_id: forcedMethod === "technician" ? (forcedTechId || null) : null,
+        technician_id: forcedMethod === "technician" ? (technician?.id || null) : null,
         scheduled_at: scheduledAt,
         duration_minutes: durationMin,
         title: forcedMethod === "technician" ? "Installation technicien (rendez-vous forcé)" : "Installation (rendez-vous forcé)",
@@ -106,13 +113,13 @@ export function InstallationTypeAndForcedSlotPanel({ proc }: Props) {
 
       try {
         await proc.addNote(
-          `[Rendez-vous forcé] ${new Date(scheduledAt).toLocaleString("fr-CA")} — ${forcedFrom}→${forcedTo}${forcedTechId ? ` — tech ${forcedTechId.slice(0,8)}` : ""}${forcedNotes ? ` — ${forcedNotes}` : ""}`
+          `[Rendez-vous forcé] ${new Date(scheduledAt).toLocaleString("fr-CA")} — ${forcedFrom}→${forcedTo}${technician ? ` — tech ${technician.full_name}` : ""}${forcedNotes ? ` — ${forcedNotes}` : ""}`
         );
       } catch {}
 
       toast.success("Rendez-vous forcé créé");
       setForcedOpen(false);
-      setForcedDate(""); setForcedNotes(""); setForcedTechId("");
+      setForcedDate(""); setForcedNotes(""); setForcedTechInput("");
       await queryClient.invalidateQueries({ queryKey: ["order-processing"] });
       await queryClient.invalidateQueries({ queryKey: ["appointment-slot-availability"] });
     } catch (e: any) {
@@ -230,10 +237,10 @@ export function InstallationTypeAndForcedSlotPanel({ proc }: Props) {
             </div>
             {forcedMethod === "technician" && (
               <div>
-                <Label className={labelClass}>ID technicien (optionnel)</Label>
-                <Input value={forcedTechId} onChange={(e) => setForcedTechId(e.target.value)} placeholder="UUID du technicien"
-                  className={`${inputClass} font-mono`} />
-                <p className="text-[10px] text-slate-500 mt-1">Vous pourrez aussi l'assigner via le sélecteur standard après création.</p>
+                <Label className={labelClass}>Nom du technicien (optionnel)</Label>
+                <Input value={forcedTechInput} onChange={(e) => setForcedTechInput(e.target.value)} placeholder="Ex : Jean Tremblay"
+                  className={inputClass} />
+                <p className="text-[10px] text-slate-500 mt-1">Le nom est converti automatiquement vers le technicien actif.</p>
               </div>
             )}
             <div>

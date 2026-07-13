@@ -4,6 +4,7 @@
 import { jsPDF } from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { drawHeader, drawFooter, drawClientBlock, drawSectionTitle, drawKeyValue, drawBoxedText, fmtDate, NAVY, GREY_BG, GREY_BORDER } from "./_baseTemplate";
+import { cleanPdfText } from "./textSanitize";
 
 export interface DeliverySlipData {
   slip_number: string;
@@ -66,7 +67,7 @@ export function generateDeliverySlipPDF(data: DeliverySlipData): PDFGenerationRe
 
     doc.setFont("helvetica", "normal");
     for (const it of data.items) {
-      const lines = doc.splitTextToSize(it.description, 90) as string[];
+      const lines = doc.splitTextToSize(cleanPdfText(it.description, "Article"), 90) as string[];
       let dy = y + 4;
       for (const l of lines) { doc.text(l, 17, dy); dy += 4.5; }
       doc.text(it.serial_number || "—", 110, y + 4);
