@@ -362,6 +362,20 @@ export default function TechInstallation() {
       });
       if (statusError) throw statusError;
 
+      // Enrich the queued completion email with WiFi credentials (SSID/password)
+      // so the client receives them in the branded confirmation email.
+      if (wifiSsid.trim() || wifiPassword.trim()) {
+        await queueTechEmail({
+          assignmentId: id,
+          templateKey: "tech_completed",
+          extraVars: {
+            wifi_ssid: wifiSsid.trim(),
+            wifi_password: wifiPassword.trim(),
+          },
+        });
+      }
+
+
       // Mark matched inventory items as assigned
       const matchedIds = scannedItems
         .filter((i) => i.scan_status === "match" && i.inventory_id)
