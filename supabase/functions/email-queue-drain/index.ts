@@ -128,19 +128,20 @@ Deno.serve(async (req) => {
   const results: Array<{ id: string; status: string; reason?: string }> = [];
 
   for (const row of rows as QueueRow[]) {
-    // Atomic lock: transition to 'processing' only from queued/failed
+    // Atomic lock: transition to 'processing' only from queued/failed.
+    // The rows were already filtered as due above; repeating multiple `.or()`
+    // filters on the update path can make PostgREST skip rows silently, which
+    // leaves the same queued emails at the front forever.
     const { data: locked, error: lockErr } = await supabase
       .from("email_queue")
       .update({ status: "processing", attempts: (row.attempts || 0) + 1 })
       .eq("id", row.id)
       .in("status", ["queued", "failed"])
-        .or(`next_retry_at.is.null,next_retry_at.lte.${nowIso}`)
-        .or(`scheduled_for.is.null,scheduled_for.lte.${nowIso}`)
       .select("id")
       .maybeSingle();
 
     if (lockErr || !locked) {
-      results.push({ id: row.id, status: "skipped", reason: "concurrent_lock" });
+      results.push({ id: row.id, status: "skipped", reason: lockErr?.message || "concurrent_lock" });
       continue;
     }
 
@@ -228,13 +229,14 @@ Deno.serve(async (req) => {
   const sent = results.filter(r => r.status === "sent").length;
   const dlq = results.filter(r => r.status === "dlq").length;
   const failed = results.filter(r => r.status === "failed").length;
+  const skipped = results.filter(r => r.status === "skipped").length;
 
-  console.log(`[email-queue-drain] processed=${results.length} sent=${sent} failed=${failed} dlq=${dlq}`);
+  console.log(`[email-queue-drain] processed=${results.length} sent=${sent} failed=${failed} dlq=${dlq} skipped=${skipped}`);
 
-  await recordHeartbeat(supabase, "email-queue-drain", "success", _cronStartedAt, { processed: results.length, sent, failed, dlq });
+  await recordHeartbeat(supabase, "email-queue-drain", "success", _cronStartedAt, { processed: results.length, sent, failed, dlq, skipped });
 
   return new Response(
-    JSON.stringify({ processed: results.length, sent, failed, dlq }),
+    JSON.stringify({ processed: results.length, sent, failed, dlq, skipped }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
