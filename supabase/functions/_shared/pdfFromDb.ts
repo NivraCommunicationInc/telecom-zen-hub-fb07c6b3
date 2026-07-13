@@ -681,7 +681,7 @@ export async function buildInvoicePdfAttachment(
       if (Array.isArray(orderItems) && orderItems.length > 0) {
         items = (orderItems as any[]).map((r) => ({
           category: (r.service_type as any) || "Other",
-          description: r.plan_name || r.description || r.service_type || "Service",
+          description: cleanPdfText(r.plan_name || r.description || r.service_type || "Service", "Service"),
           qty: Number(r.quantity || 1),
           unit_price: Number(r.unit_price ?? 0),
           amount: Number(r.line_total ?? r.unit_price ?? 0),
@@ -1158,7 +1158,7 @@ export async function buildContractPdfAttachment(
       oneTimeFees = oneTimeLines
         .filter((l: any) => !(l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
         .map((l: any) => ({
-          label: l.name || l.product_name || l.description || "Frais",
+          label: cleanPdfText(l.name || l.product_name || l.description || "Frais", "Frais"),
           amount: Number(l.price || l.unit_price || 0),
         }));
     }
@@ -1437,14 +1437,14 @@ export async function buildSummaryPdfAttachment(
       equipment = oneTime
         .filter((l: any) => (l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
         .map((l: any) => ({
-          name: l.name || l.product_name || "Equipement",
+          name: cleanPdfText(l.name || l.product_name || "Equipement", "Equipement"),
           quantity: Number(l.quantity || 1),
           unit_price: Number(l.price || l.unit_price || 0),
         }));
       fees = oneTime
         .filter((l: any) => !(l.category === "Equipment" || l.kind === "equipment" || l.is_equipment))
         .map((l: any) => ({
-          label: l.name || l.product_name || l.description || "Frais",
+          label: cleanPdfText(l.name || l.product_name || l.description || "Frais", "Frais"),
           amount: Number(l.price || l.unit_price || 0),
         }));
     }

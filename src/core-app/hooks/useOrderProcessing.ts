@@ -1239,13 +1239,26 @@ export function useOrderProcessing(orderId: string | undefined) {
       const {
         appointment_scheduled_at: appointmentScheduledAt,
         appointment_slot_window: appointmentSlotWindow,
+        technician_id: technicianInput,
         ...orderFields
       } = fields;
+
+      let resolvedTechnicianId: string | null | undefined;
+      if (typeof technicianInput !== "undefined") {
+        if (String(technicianInput || "").trim()) {
+          const resolved = await resolveTechnicianInput(String(technicianInput));
+          if (resolved.error || !resolved.technician) throw new Error(resolved.error || "Technicien introuvable");
+          resolvedTechnicianId = resolved.technician.id;
+        } else {
+          resolvedTechnicianId = null;
+        }
+        orderFields.technician_id = resolvedTechnicianId;
+      }
 
       await updateOrder.mutateAsync(orderFields);
 
       const shouldPersistAppointment =
-        typeof appointmentScheduledAt !== "undefined" || typeof fields.technician_id !== "undefined";
+        typeof appointmentScheduledAt !== "undefined" || typeof technicianInput !== "undefined";
 
       if (shouldPersistAppointment && appointmentScheduledAt) {
         const appointmentPayload: Record<string, any> = {
@@ -1263,7 +1276,9 @@ export function useOrderProcessing(orderId: string | undefined) {
           service_postal_code: data?.appointment?.service_postal_code || data?.order?.shipping_postal_code || null,
           title: `Installation — ${data?.order?.order_number || orderId}`,
           scheduled_at: appointmentScheduledAt,
-          technician_id: fields.technician_id || null,
+          technician_id: typeof resolvedTechnicianId !== "undefined"
+            ? resolvedTechnicianId
+            : (data?.appointment?.technician_id || data?.order?.technician_id || null),
           internal_notes: fields.appointment_notes || null,
           installation_method: "technician",
           service_type: data?.order?.service_type || "installation",
