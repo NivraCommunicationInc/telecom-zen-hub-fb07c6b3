@@ -12,11 +12,20 @@ import {
 function cleanPdfText(value: unknown, fallback = "—"): string {
   let text = String(value ?? "").trim();
   if (!text) return fallback;
+
+  const initialAmpCount = (text.match(/&/g) || []).length;
+  if (initialAmpCount >= 3 && initialAmpCount / Math.max(text.length, 1) > 0.12) {
+    text = text.replace(/&+/g, "");
+  }
+
   text = text
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'");
+
+  text = text.replace(/[&§][0-9a-fk-or]/gi, "");
+
   const ampCount = (text.match(/&/g) || []).length;
   if (ampCount >= 3 && ampCount / Math.max(text.length, 1) > 0.12) text = text.replace(/&+/g, "");
   return text.replace(/\s+/g, " ").trim() || fallback;
