@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StepCompletionCard } from "../StepCompletionCard";
 import { AppointmentSlotPicker } from "@/core-app/components/appointments/AppointmentSlotPicker";
+import { InstallationTypeAndForcedSlotPanel } from "./InstallationTypeAndForcedSlotPanel";
 import { useProfileName } from "@/hooks/useProfileName";
 
 interface TechnicianOption {
@@ -346,6 +347,9 @@ export function ShippingTechnicianStep({ proc }: Props) {
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">
         {isSelfInstall ? "Auto-installation" : showTechnicianPanel && showShippingPanel ? "Technicien & Expédition" : showTechnicianPanel ? "Technicien & Installation" : "Expédition"}
       </div>
+
+      <InstallationTypeAndForcedSlotPanel proc={proc} />
+
 
       {isSelfInstall && (
         <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 mb-4 flex items-start gap-3">
