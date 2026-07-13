@@ -110,6 +110,7 @@ export interface FieldSalePayment {
   method: FieldPaymentMethod;
   status: "pending" | "sent" | "completed";
   linkSentTo: string | null;
+  quoteId?: string | null;
   paypalApprovalUrl?: string | null;
   paypalOrderId?: string | null;
   fieldOrderId?: string | null;
@@ -181,6 +182,7 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     method: "square_onsite",
     status: "pending",
     linkSentTo: null,
+    quoteId: null,
     paypalApprovalUrl: null,
     paypalOrderId: null,
     fieldOrderId: null,

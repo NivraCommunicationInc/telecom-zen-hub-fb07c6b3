@@ -37,6 +37,8 @@ const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
 const DRAFT_KEY_BASE = "field_sale_draft";
 
+const createDraftId = () => `sale_${crypto.randomUUID()}`;
+
 interface FieldNewSaleProps {
   /** Path used when the agent cancels/holds/converts. Defaults to fieldPath("/dashboard"). */
   exitRedirect?: string;
@@ -69,6 +71,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
 
   const [draft, setDraft] = useState<FieldSaleDraft>({
     ...EMPTY_DRAFT,
+    id: createDraftId(),
     agentId: user?.id ?? "",
     createdAt: new Date().toISOString(),
   });
@@ -86,7 +89,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
 
   const resetForNewSale = useCallback(() => {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-    setDraft({ ...EMPTY_DRAFT, agentId: user?.id ?? "", createdAt: new Date().toISOString() });
+    setDraft({ ...EMPTY_DRAFT, id: createDraftId(), agentId: user?.id ?? "", createdAt: new Date().toISOString() });
     setCompletedSteps([]);
     setCardSuccess(null);
   }, [DRAFT_KEY, user?.id]);
@@ -130,7 +133,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         return;
       }
       if (allowCoreAdjustments) {
-        setDraft({ ...savedDraft, agentId: user?.id ?? savedDraft.agentId });
+        setDraft({ ...savedDraft, id: savedDraft.id || createDraftId(), agentId: user?.id ?? savedDraft.agentId });
         setCompletedSteps(savedCompleted);
         setPendingRestore(null);
         setRestoreDialogOpen(false);
@@ -177,7 +180,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
 
   const handleRestoreAccept = () => {
     if (pendingRestore) {
-      setDraft({ ...pendingRestore.draft, agentId: user?.id ?? pendingRestore.draft.agentId });
+      setDraft({ ...pendingRestore.draft, id: pendingRestore.draft.id || createDraftId(), agentId: user?.id ?? pendingRestore.draft.agentId });
       setCompletedSteps(pendingRestore.completed);
     }
     setPendingRestore(null);
@@ -246,6 +249,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         const ci: any = (quote as any).client_info || {};
         const restored: FieldSaleDraft = {
           ...EMPTY_DRAFT,
+          id: createDraftId(),
           agentId: user?.id ?? "",
           createdAt: new Date().toISOString(),
           customer: {
@@ -595,15 +599,27 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
   // ── Submit inline (square_inline): create quote + intent, then Square widget charges ──
   const handleSquareInlineInit = async () => {
     if (!user?.id || isSubmitting) return;
+    if (draft.payment.fieldOrderId && draft.payment.paypalApprovalUrl) {
+      setDraft((d) => ({ ...d, payment: { ...d.payment, method: "square_inline", status: "pending" } }));
+      toast.info("Même transaction réutilisée — aucun doublon créé.");
+      return;
+    }
     setIsSubmitting(true);
     setSubmitMessage("Préparation du paiement…");
     try {
       const { saveQuoteAndEmail, sendPaymentLinkFromQuote } = await import("@/field-app/lib/fieldQuoteService");
-      const quote = await saveQuoteAndEmail({ draft, agentName, activationFee, subtotal, tps, tvq, total, agentGps, skipClientEmail: true });
+      const quote = draft.payment.quoteId
+        ? { id: draft.payment.quoteId, valid_until: "" }
+        : await saveQuoteAndEmail({
+            draft, agentName, activationFee, subtotal, tps, tvq, total, agentGps,
+            skipClientEmail: true,
+            idempotencyKey: `quote_${draft.id || createDraftId()}_${user.id}`,
+          });
       const link = await sendPaymentLinkFromQuote(quote.id, "link_only");
       setDraft((d) => ({
         ...d,
-        payment: { ...d.payment, status: "pending", fieldOrderId: link.intent_id, paypalApprovalUrl: link.payment_url },
+        id: d.id || draft.id || createDraftId(),
+        payment: { ...d.payment, quoteId: quote.id, status: "pending", fieldOrderId: link.intent_id, paypalApprovalUrl: link.payment_url },
       }));
       toast.success("Prêt — entrez les informations de carte ci-dessous.");
     } catch (err: any) {
@@ -677,13 +693,37 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     setSubmitMessage("Sauvegarde de la soumission…");
 
     try {
+      if (draft.payment.fieldOrderId && draft.payment.paypalApprovalUrl) {
+        if (draft.payment.method === "square_email") {
+          const { data, error } = await supabase.functions.invoke("new-order-actions", {
+            body: {
+              action: "resend_payment_link",
+              intent_id: draft.payment.fieldOrderId,
+              payment_url: draft.payment.paypalApprovalUrl,
+              customer: draft.customer,
+              agent_name: agentName,
+              client_totals: { subtotal, tps, tvq, total },
+            },
+          });
+          if (error || !data?.ok) throw new Error(data?.error || error?.message || "Échec d'envoi du courriel.");
+          setDraft((d) => ({ ...d, payment: { ...d.payment, status: "sent", linkSentTo: draft.customer.email } }));
+          toast.success("Lien renvoyé au client — même commande conservée.");
+        } else {
+          toast.info("Lien déjà généré — même commande conservée.");
+        }
+        return;
+      }
+
       // 1) Save the quote (no order/invoice yet)
       const { saveQuoteAndEmail, sendPaymentLinkFromQuote } = await import("@/field-app/lib/fieldQuoteService");
-      const quote = await saveQuoteAndEmail({
-        draft, agentName, activationFee,
-        subtotal, tps, tvq, total, agentGps,
-        skipClientEmail: true,
-      });
+      const quote = draft.payment.quoteId
+        ? { id: draft.payment.quoteId, valid_until: "" }
+        : await saveQuoteAndEmail({
+            draft, agentName, activationFee,
+            subtotal, tps, tvq, total, agentGps,
+            skipClientEmail: true,
+            idempotencyKey: `quote_${draft.id || createDraftId()}_${user.id}`,
+          });
 
       // 2) Create/reuse the Review Order/Square payment intent.
       // The client must land on /payer/:intentId, never /commander/GuestCheckout.
@@ -705,6 +745,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
           ...d,
           payment: {
             ...d.payment, status: "sent", linkSentTo: draft.customer.email,
+            quoteId: quote.id,
             paypalApprovalUrl: approvalUrl, paypalOrderId: null,
             fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
@@ -716,6 +757,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
           ...d,
           payment: {
             ...d.payment, status: "pending",
+            quoteId: quote.id,
             paypalApprovalUrl: approvalUrl, paypalOrderId: null,
             fieldOrderId: data.intent_id ?? null, invoiceId: null, coreOrderId: null,
           },
@@ -1031,8 +1073,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
               onChangeMethod={() => {
                 setDraft((d) => ({
                   ...d,
-                  payment: { ...d.payment, method: undefined as any, status: "pending", linkSentTo: null,
-                    paypalApprovalUrl: null, paypalOrderId: null, fieldOrderId: null, invoiceId: null, coreOrderId: null },
+                  payment: { ...d.payment, method: "square_onsite" as any, status: "pending", linkSentTo: null },
                 }));
               }}
               onCancelTransaction={async (reason: string) => {
