@@ -410,7 +410,7 @@ serve(async (req) => {
             pdf = await buildReceiptPdfAttachment(invoiceData.id, "recu-paiement").catch(() => null);
           } catch { /* ignore */ }
         }
-        await enqueueCommunication({
+        await enqueueCommunication(supabase, {
           channel: "email",
           templateKey: "payment_receipt",
           recipient: customerEmail,
