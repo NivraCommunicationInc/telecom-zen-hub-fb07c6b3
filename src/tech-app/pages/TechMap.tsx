@@ -15,8 +15,8 @@ function pickColor(services: MapPoint["services"]): string {
   const types = services.map((s) => (s.service_type || "").toLowerCase());
   if (types.some((t) => t.includes("mobile") || t.includes("sim"))) return "#f59e0b";
   if (types.some((t) => t.includes("tv"))) return "#22d3ee";
-  if (types.some((t) => t.includes("internet") || t.includes("wifi"))) return "#a78bfa";
-  return "#7c3aed";
+  if (types.some((t) => t.includes("internet") || t.includes("wifi"))) return "#38bdf8";
+  return "#0066CC";
 }
 
 function markerColor(p: MapPoint): string {

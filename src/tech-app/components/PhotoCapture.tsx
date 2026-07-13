@@ -68,7 +68,7 @@ export default function PhotoCapture({ onCapture, label = "Prendre une photo", s
       <label
         htmlFor={inputId}
         aria-disabled={uploading}
-        className={`w-full min-h-[56px] rounded-2xl bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white text-sm font-bold flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : "cursor-pointer"}`}
+        className={`w-full min-h-[56px] rounded-2xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : "cursor-pointer"}`}
       >
         {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
         {uploading ? "Envoi en cours..." : label}

@@ -27,7 +27,7 @@ export default function TechActive() {
       <TechHeader title="En cours" />
       <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
         {isLoading ? (
-          <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
         ) : (
           <>
             <div
@@ -43,7 +43,7 @@ export default function TechActive() {
             <Link
               to="/tech/assignments"
               className="inline-flex items-center gap-2 h-[52px] px-7 rounded-full text-[14px] font-bold text-white transition-all active:scale-[0.97]"
-              style={{ background: "linear-gradient(135deg,#7C3AED 0%,#6D28D9 100%)", boxShadow: "0 4px 16px rgba(124,58,237,0.25)" }}
+              style={{ background: "linear-gradient(135deg,#0066CC 0%,#004C99 100%)", boxShadow: "0 4px 16px rgba(0,102,204,0.28)" }}
             >
               Voir mes missions <ArrowRight className="h-4 w-4" />
             </Link>
