@@ -403,14 +403,19 @@ serve(async (req) => {
 
   const queueEmail = async (templateKey: string, toEmail: string, vars: Record<string, any>) => {
     let error: any = null;
-    try { await enqueueCommunication({
-      channel: "email",
-      templateKey: templateKey,
-      recipient: toEmail,
-      idempotencyKey: `${templateKey}_${toEmail}_${Date.now()}`,
-      templateVars: { first_name: firstName, ...vars },
-    }); } catch (__e) { error = __e; }
-    if (error) throw new Error(`Échec mise en file courriel: ${error.message}`);
+    try {
+      await enqueueCommunication(admin as any, {
+        channel: "email",
+        templateKey: templateKey,
+        recipient: toEmail,
+        idempotencyKey: `${templateKey}_${toEmail}_${Date.now()}`,
+        templateVars: { first_name: firstName, ...vars },
+        clientId: targetId ?? null,
+        actorUserId: user.id,
+        actorRole: "admin",
+      });
+    } catch (__e) { error = __e; }
+    if (error) throw new Error(`Échec mise en file courriel: ${(error as any)?.message || String(error)}`);
   };
 
   const genRecoveryLink = async (email: string) => {
