@@ -9,6 +9,7 @@ import { corePath } from "@/core-app/lib/corePaths";
 import { Panel, PanelHeader, InfoLine, MiniTable, trClass, fmtCAD, fmtDate, fmtDateTime, label } from "./Account360Helpers";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { useAccountAddresses, type ServiceAddress, type CreateAddressInput } from "@/hooks/useAccountAddresses";
+import { useAccountServiceTree } from "@/hooks/useAccountServiceTree";
 import { Home, MapPin, Plus, Wifi, Package, Calendar, Ticket, AlertTriangle, Trash2, ShoppingCart, StickyNote, Loader2, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -47,9 +48,20 @@ const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due
 const formatSecondary = (a: ServiceAddress) =>
   [a.city, a.province, a.postal_code].filter(Boolean).join(", ");
 
+const dedupeByKey = (items: any[]) => {
+  const seen = new Set<string>();
+  return items.filter((item, index) => {
+    const key = String(item?.id || `${item?.order_id || "row"}:${item?.subscription_id || "sub"}:${item?.serial_number || item?.catalog_name || index}`);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export function AccountAddressesSection({ account, subscriptions, equipment, appointments, tickets, incidents, orders = [], onRefresh }: Props) {
   const accountId: string | undefined = account?.id;
   const { addresses, isLoading, create, creating, softDelete, deleting } = useAccountAddresses(accountId);
+  const { data: serviceTree } = useAccountServiceTree(accountId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const navigate = useNavigate();
@@ -62,6 +74,16 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
   const byAddress = useMemo(() => {
     const map = new Map<string, { subs: any[]; eq: any[]; appts: any[]; tks: any[]; inc: any[] }>();
     for (const a of addresses) map.set(a.id, { subs: [], eq: [], appts: [], tks: [], inc: [] });
+    for (const node of serviceTree?.addresses || []) {
+      const id = node?.address?.id;
+      if (!id || !map.has(id)) continue;
+      const bucket = map.get(id)!;
+      bucket.subs.push(...((node.subscriptions || []) as any[]), ...((node.service_instances || []) as any[]));
+      bucket.eq.push(...((node.equipment || []) as any[]));
+      bucket.appts.push(...((node.appointments || []) as any[]));
+      bucket.tks.push(...((node.tickets || []) as any[]));
+      bucket.inc.push(...((node.incidents || []) as any[]));
+    }
     const subAddressById = new Map<string, string>();
     for (const sub of subscriptions) {
       const id = getAddressId(sub);
@@ -90,8 +112,15 @@ export function AccountAddressesSection({ account, subscriptions, equipment, app
     appointments.forEach((x) => push("appts", x));
     tickets.forEach((x) => push("tks", x));
     incidents.forEach((x) => push("inc", x));
+    for (const bucket of map.values()) {
+      bucket.subs = dedupeByKey(bucket.subs);
+      bucket.eq = dedupeByKey(bucket.eq);
+      bucket.appts = dedupeByKey(bucket.appts);
+      bucket.tks = dedupeByKey(bucket.tks);
+      bucket.inc = dedupeByKey(bucket.inc);
+    }
     return map;
-  }, [addresses, subscriptions, equipment, appointments, tickets, incidents, orders]);
+  }, [addresses, subscriptions, equipment, appointments, tickets, incidents, orders, serviceTree]);
 
   const selected = addresses.find((a) => a.id === selectedId) || null;
   const bucket = selected ? byAddress.get(selected.id) : null;

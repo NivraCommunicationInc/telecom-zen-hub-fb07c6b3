@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { useAccountAddresses, type ServiceAddress, type CreateAddressInput } from "@/hooks/useAccountAddresses";
+import { useAccountServiceTree } from "@/hooks/useAccountServiceTree";
 import { useToast } from "@/hooks/use-toast";
 import { Home, MapPin, Plus, Wifi, Package, Calendar, LifeBuoy, ShoppingBag, Trash2, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,8 +45,19 @@ const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due
 const secondary = (a: ServiceAddress) =>
   [a.city, a.province, a.postal_code].filter(Boolean).join(", ");
 
+const dedupeByKey = (items: any[]) => {
+  const seen = new Set<string>();
+  return items.filter((item, index) => {
+    const key = String(item?.id || `${item?.order_id || "row"}:${item?.subscription_id || "sub"}:${item?.serial_number || item?.catalog_name || index}`);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export function ClientAddressWorkspace({ accountId, subscriptions = [], equipment = [], appointments = [], tickets = [], orders = [] }: Props) {
   const { addresses, isLoading, create, creating, softDelete } = useAccountAddresses(accountId);
+  const { data: serviceTree } = useAccountServiceTree(accountId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const { toast } = useToast();
@@ -90,6 +102,15 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
   const buckets = useMemo(() => {
     const map = new Map<string, { subs: any[]; eq: any[]; appts: any[]; tks: any[] }>();
     for (const a of addresses) map.set(a.id, { subs: [], eq: [], appts: [], tks: [] });
+    for (const node of serviceTree?.addresses || []) {
+      const id = node?.address?.id;
+      if (!id || !map.has(id)) continue;
+      const bucket = map.get(id)!;
+      bucket.subs.push(...((node.subscriptions || []) as any[]), ...((node.service_instances || []) as any[]));
+      bucket.eq.push(...((node.equipment || []) as any[]));
+      bucket.appts.push(...((node.appointments || []) as any[]));
+      bucket.tks.push(...((node.tickets || []) as any[]));
+    }
     const push = (k: "subs" | "eq" | "appts" | "tks", item: any) => {
       const id = resolveAddress(item);
       if (id && map.has(id)) map.get(id)![k].push(item);
@@ -98,8 +119,14 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
     equipment.forEach((x) => push("eq", x));
     appointments.forEach((x) => push("appts", x));
     tickets.forEach((x) => push("tks", x));
+    for (const bucket of map.values()) {
+      bucket.subs = dedupeByKey(bucket.subs);
+      bucket.eq = dedupeByKey(bucket.eq);
+      bucket.appts = dedupeByKey(bucket.appts);
+      bucket.tks = dedupeByKey(bucket.tks);
+    }
     return map;
-  }, [addresses, subscriptions, equipment, appointments, tickets, subAddressById, orderAddressById]);
+  }, [addresses, subscriptions, equipment, appointments, tickets, subAddressById, orderAddressById, serviceTree]);
 
   const selected = addresses.find((a) => a.id === selectedId) || null;
   const b = selected ? buckets.get(selected.id) : null;

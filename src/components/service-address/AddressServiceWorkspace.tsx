@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ServiceAddressPicker } from "@/components/service-address/ServiceAddressPicker";
 import { useAccountAddresses, type ServiceAddress } from "@/hooks/useAccountAddresses";
+import { useAccountServiceTree } from "@/hooks/useAccountServiceTree";
 import { corePath } from "@/core-app/lib/corePaths";
 import { cn } from "@/lib/utils";
 import {
@@ -92,6 +93,16 @@ const dateLabel = (value: any) => {
 
 const statusLabel = (status: any) => String(status || "non défini").replace(/_/g, " ");
 
+const dedupeByKey = (items: any[]) => {
+  const seen = new Set<string>();
+  return items.filter((item, index) => {
+    const key = String(item?.id || `${item?.order_id || "row"}:${item?.subscription_id || "sub"}:${item?.serial_number || item?.catalog_name || index}`);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 function Metric({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
   return (
     <div className="flex min-h-[44px] items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
@@ -152,6 +163,7 @@ export function AddressServiceWorkspace({
   onAddressCreated,
 }: AddressServiceWorkspaceProps) {
   const { addresses, isLoading, softDelete, deleting } = useAccountAddresses(accountId);
+  const { data: serviceTree } = useAccountServiceTree(accountId);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
@@ -166,6 +178,17 @@ export function AddressServiceWorkspace({
     const map = new Map<string, AddressCollections>();
     for (const address of addresses) map.set(address.id, emptyCollections());
     const loose = emptyCollections();
+
+    for (const node of serviceTree?.addresses || []) {
+      const id = node?.address?.id;
+      if (!id || !map.has(id)) continue;
+      const bucket = map.get(id)!;
+      bucket.subscriptions.push(...((node.subscriptions || []) as any[]), ...((node.service_instances || []) as any[]));
+      bucket.equipment.push(...((node.equipment || []) as any[]));
+      bucket.appointments.push(...((node.appointments || []) as any[]));
+      bucket.tickets.push(...((node.tickets || []) as any[]));
+      bucket.incidents.push(...((node.incidents || []) as any[]));
+    }
 
     const subAddressById = new Map<string, string>();
     for (const sub of subscriptions) {
@@ -201,8 +224,16 @@ export function AddressServiceWorkspace({
     tickets.forEach((item) => push("tickets", item));
     incidents.forEach((item) => push("incidents", item));
 
+    for (const bucket of map.values()) {
+      bucket.subscriptions = dedupeByKey(bucket.subscriptions);
+      bucket.equipment = dedupeByKey(bucket.equipment);
+      bucket.appointments = dedupeByKey(bucket.appointments);
+      bucket.tickets = dedupeByKey(bucket.tickets);
+      bucket.incidents = dedupeByKey(bucket.incidents);
+    }
+
     return { byAddress: map, unassigned: loose };
-  }, [addresses, subscriptions, equipment, appointments, tickets, incidents, orders]);
+  }, [addresses, subscriptions, equipment, appointments, tickets, incidents, orders, serviceTree]);
 
   const selectedAddress = addresses.find((a) => a.id === selectedId) || addresses[0] || null;
   const selectedData = selectedAddress ? byAddress.get(selectedAddress.id) || emptyCollections() : emptyCollections();
