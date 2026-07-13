@@ -78,7 +78,11 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
     return (
       directAddressId(item) ||
       (item?.subscription_id && subAddressById.get(item.subscription_id)) ||
+      (item?.subscriptionId && subAddressById.get(item.subscriptionId)) ||
+      (item?.related_subscription_id && subAddressById.get(item.related_subscription_id)) ||
       (item?.order_id && orderAddressById.get(item.order_id)) ||
+      (item?.related_order_id && orderAddressById.get(item.related_order_id)) ||
+      (item?.linked_order_id && orderAddressById.get(item.linked_order_id)) ||
       null
     );
   };

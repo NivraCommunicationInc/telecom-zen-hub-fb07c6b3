@@ -573,7 +573,7 @@ const ClientProfile = () => {
                 <ClientAddressesList
                   accountId={accounts[0].id}
                   account={accounts[0]}
-                  subscriptions={subscriptions}
+                  subscriptions={canonicalData?.subscriptions || []}
                   equipment={canonicalData?.equipment || []}
                   appointments={canonicalData?.appointments || []}
                   tickets={canonicalData?.supportTickets || []}
