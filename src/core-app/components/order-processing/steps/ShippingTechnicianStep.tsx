@@ -18,6 +18,7 @@ import { AppointmentSlotPicker } from "@/core-app/components/appointments/Appoin
 import { InstallationTypeAndForcedSlotPanel } from "./InstallationTypeAndForcedSlotPanel";
 import { AutoInstallNetworkGate } from "./AutoInstallNetworkGate";
 import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
+import { LiveTrackingTimeline } from "../LiveTrackingTimeline";
 import { FileText } from "lucide-react";
 import { useProfileName } from "@/hooks/useProfileName";
 
@@ -655,6 +656,17 @@ export function ShippingTechnicianStep({ proc }: Props) {
                 <CheckCircle2 className="w-4 h-4" /> Expédié le {order.shipped_at.slice(0, 10)}
               </div>
             )}
+
+            {/* Phase 4 — Live Ship24 tracking timeline */}
+            <LiveTrackingTimeline
+              orderId={order.id}
+              initialStatus={order.tracking_status}
+              initialCarrier={order.carrier}
+              initialTrackingNumber={order.tracking_number}
+              initialTrackingUrl={order.tracking_url}
+              initialLastUpdate={order.tracking_last_update_at}
+            />
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
