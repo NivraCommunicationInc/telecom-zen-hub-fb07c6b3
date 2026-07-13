@@ -153,7 +153,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
     } catch {
       /* quota exceeded — ignore */
     }
-  }, [draft, completedSteps, restoreDialogOpen]);
+  }, [draft, completedSteps, restoreDialogOpen, DRAFT_KEY]);
 
   const clearDraft = useCallback(() => {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
@@ -269,7 +269,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         toast.error("Erreur de rechargement: " + (e?.message || "inconnue"));
       }
     })();
-  }, [resumeIntentId, resumeQuoteId, user?.id]);
+  }, [resumeIntentId, resumeQuoteId, user?.id, DRAFT_KEY]);
 
   // ── Prefill mode: staff opens tunnel from a known account + address ──
   // Query params: ?client=<account_id>&adresse=<service_address_id>
@@ -399,7 +399,7 @@ export default function FieldNewSale({ exitRedirect, allowCoreAdjustments = fals
         setPrefillLoading(false);
       }
     })();
-  }, [prefillAccountId, prefillAddressId]);
+  }, [prefillAccountId, prefillAddressId, allowCoreAdjustments]);
 
 
   // ── Email payload helpers (services / equipment / discount) ──
