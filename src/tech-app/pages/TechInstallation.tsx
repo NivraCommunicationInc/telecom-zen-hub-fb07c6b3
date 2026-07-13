@@ -77,6 +77,8 @@ export default function TechInstallation() {
   const [ping, setPing] = useState("");
   const [signal, setSignal] = useState("");
   const [scanCode, setScanCode] = useState("");
+  const [wifiSsid, setWifiSsid] = useState("");
+  const [wifiPassword, setWifiPassword] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [photos, setPhotos] = useState<{ url: string; step: string; at: string }[]>([]);
   const [showScanner, setShowScanner] = useState(false);
