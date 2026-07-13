@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { resolveTechnicianInput } from "@/core-app/lib/technicians";
 
 interface Props { proc: any; }
 
@@ -93,12 +94,14 @@ export function ShippingTechnicianStep({ proc }: Props) {
 
   const handleAssignTechnician = async () => {
     if (!techFields.technician_id) {
-      toast.error("Veuillez entrer l'ID du technicien");
+      toast.error("Veuillez entrer le nom du technicien");
       return;
     }
     setLoading("tech");
     try {
-      await proc.assignTechnician(techFields.technician_id);
+      const resolved = await resolveTechnicianInput(techFields.technician_id);
+      if (!resolved.technician) { toast.error(resolved.error || "Technicien introuvable"); return; }
+      await proc.assignTechnician(resolved.technician.id);
       if (techFields.installNotes) {
         await proc.addNote(`[Installation] ${techFields.installNotes}`);
       }
@@ -204,8 +207,8 @@ export function ShippingTechnicianStep({ proc }: Props) {
 
           <div className="grid grid-cols-1 gap-4 mb-4">
             <div>
-              <Label className="text-xs text-gray-500">ID Technicien</Label>
-              <Input value={techFields.technician_id} onChange={(e) => setTechFields({ ...techFields, technician_id: e.target.value })} placeholder="UUID du technicien" className="h-9 text-sm border-gray-300 text-gray-900 font-mono" />
+              <Label className="text-xs text-gray-500">Nom du technicien</Label>
+              <Input value={techFields.technician_id} onChange={(e) => setTechFields({ ...techFields, technician_id: e.target.value })} placeholder="Ex : Jean Tremblay" className="h-9 text-sm border-gray-300 text-gray-900" />
             </div>
             <div>
               <Label className="text-xs text-gray-500">Notes d'installation</Label>

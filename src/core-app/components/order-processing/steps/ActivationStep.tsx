@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Zap, RefreshCw, AlertTriangle, ArrowRight } from "lucide-react";
+import { Zap, RefreshCw, AlertTriangle, ArrowRight, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { MobileNumberSection } from "./MobileNumberSection";
 import { StepCompletionCard } from "../StepCompletionCard";
@@ -19,9 +19,10 @@ export function ActivationStep({ proc }: Props) {
   const { order, account, invoice, mobileFulfillment, portRequest } = proc;
   const serviceType = (order.service_type || "").toLowerCase();
   const hasMobile = serviceType.includes("mobile");
-  const [providerRef, setProviderRef] = useState("");
+  const [providerRef, setProviderRef] = useState(order.confirmation_number || "");
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
+  const [isSavingRef, setIsSavingRef] = useState(false);
   const [showOverrideCard, setShowOverrideCard] = useState(false);
   const [activationError, setActivationError] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
@@ -33,6 +34,26 @@ export function ActivationStep({ proc }: Props) {
   const isInOperational = OPERATIONAL_STATES.includes(currentStatus);
   const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoice?.status || "");
   const canActivate = !isActivated;
+
+  const friendlyError = (err: any) => {
+    const msg = String(err?.message || err || "");
+    if (/violates|constraint|null value|foreign key|invalid input|PGRST|SQLSTATE/i.test(msg)) {
+      return "Opération bloquée côté provisionnement. Le code fournisseur peut être sauvegardé séparément; vérifie la facture, le compte et les services.";
+    }
+    return msg || "Erreur lors de l'activation";
+  };
+
+  const handleSaveProviderRef = async () => {
+    if (!providerRef.trim() && !activationNotes.trim()) { toast.error("Code fournisseur ou note requis"); return; }
+    setIsSavingRef(true);
+    try {
+      if (providerRef.trim()) await proc.updateOrder({ confirmation_number: providerRef.trim() });
+      if (activationNotes.trim()) await proc.addNote(`[Activation fournisseur] ${activationNotes.trim()}`);
+      toast.success("Référence fournisseur sauvegardée");
+    } catch (err: any) {
+      toast.error(friendlyError(err));
+    } finally { setIsSavingRef(false); }
+  };
 
   const handleActivate = async () => {
     if (!proc.activateService) { toast.error("Méthode d'activation non disponible"); return; }
@@ -46,7 +67,7 @@ export function ActivationStep({ proc }: Props) {
       });
     } catch (err: any) {
       console.error("[ActivationStep] Activation failed:", err);
-      setActivationError(err?.message || "Erreur lors de l'activation");
+      setActivationError(friendlyError(err));
       setShowOverrideCard(true);
     } finally { setIsActivating(false); }
   };
@@ -66,9 +87,9 @@ export function ActivationStep({ proc }: Props) {
       setOverrideReason("");
     } catch (err: any) {
       console.error("[ActivationStep] Force activation failed:", err);
-      setActivationError(err?.message || "Erreur lors de l'activation forcée");
+      setActivationError(friendlyError(err));
       setShowOverrideCard(true);
-      toast.error(err?.message || "Erreur lors de l'activation forcée");
+      toast.error(friendlyError(err));
     } finally { setIsForcing(false); }
   };
 
@@ -253,6 +274,12 @@ export function ActivationStep({ proc }: Props) {
           <Zap className="w-3 h-3 mr-1" />
           {isActivating ? "Activation en cours…" : "Activer le service"}
         </Button>
+        {!isActivated && (
+          <Button size="sm" onClick={handleSaveProviderRef} disabled={isSavingRef || proc.isUpdating} className="text-sm bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-800">
+            {isSavingRef ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+            Sauvegarder code fournisseur
+          </Button>
+        )}
         {!isActivated && (
           <Button size="sm" onClick={() => proc.changeStatus("provisioning", "Réessai")} disabled={proc.isUpdating} className="text-sm bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-800">
             <RefreshCw className="w-3 h-3 mr-1" /> Réessayer

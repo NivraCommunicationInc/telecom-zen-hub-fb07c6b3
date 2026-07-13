@@ -24,6 +24,7 @@
 import jsPDF from "jspdf";
 import type { PDFGenerationResult } from "./types";
 import { NIVRA } from "./companyInfo";
+import { cleanPdfText } from "./textSanitize";
 
 // ============================================================================
 // DATA INTERFACE (unchanged — kept for compatibility with pdfFromDb.ts)
@@ -638,16 +639,16 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     if (d.promotions && d.promotions.length > 0) {
       for (const p of d.promotions) {
         promoRows.push([
-          p.code || "—",
-          p.label || "Promotion",
-          p.duration || "—",
+          cleanPdfText(p.code, "—"),
+          cleanPdfText(p.label, "Promotion"),
+          cleanPdfText(p.duration, "—"),
           `-${fmt(p.monthly_discount || 0)}`,
         ]);
       }
     } else if (split.discount > 0) {
       promoRows.push([
         "—",
-        d.discount_label || "Promotion appliquée",
+        cleanPdfText(d.discount_label, "Promotion appliquée"),
         "—",
         `-${fmt(split.discount)}`,
       ]);

@@ -13,6 +13,7 @@ const jsPDF = (jsPDFModule as any).default || jsPDFModule;
 type jsPDF = any;
 import type { PDFGenerationResult } from "./types.ts";
 import { NIVRA } from "./companyInfo.ts";
+import { cleanPdfText } from "./textSanitize.ts";
 
 // ============================================================================
 // CONTRACT DATA INTERFACE
@@ -404,11 +405,11 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(...TEXT);
-        doc.text(doc.splitTextToSize(dl.description || "—", 90)[0], 17, y + 3.8);
+        doc.text(doc.splitTextToSize(cleanPdfText(dl.description, "Promotion"), 90)[0], 17, y + 3.8);
         doc.setTextColor(...MUTED);
-        doc.text(dl.duration_label || "—", 110, y + 3.8);
+        doc.text(cleanPdfText(dl.duration_label, "—"), 110, y + 3.8);
         doc.setFont("courier", "normal");
-        doc.text(dl.code || "—", 145, y + 3.8);
+        doc.text(cleanPdfText(dl.code, "—"), 145, y + 3.8);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...GREEN);
         const amt = dl.unit_price < 0 ? dl.unit_price : -Math.abs(dl.unit_price);

@@ -11,6 +11,7 @@ import { useActivityLog } from "@/hooks/useActivityLog";
 import { toast } from "sonner";
 import { orderEmails } from "@/core-app/lib/emails/orderEmails";
 import { addClientAutoNote, fmtMoney } from "@/core-app/lib/clientAutoNotes";
+import { resolveTechnicianInput } from "@/core-app/lib/technicians";
 
 import { enqueueCommunication } from "@/lib/enqueueCommunication";
 /**
@@ -46,6 +47,17 @@ async function enqueueOrderEmail(row: Record<string, any> | null | undefined) {
       entity: row.entity_id,
     });
   }
+}
+
+function humanizeActivationError(message: string): string {
+  const msg = String(message || "");
+  if (/DUPLICATE_SERVICE_AT_ADDRESS/i.test(msg)) return "Service déjà provisionné à cette adresse.";
+  if (/billing_customer|customer/i.test(msg)) return "Profil de facturation client manquant — vérifie le compte client avant l'activation.";
+  if (/line_items|equipment_details|no services|service/i.test(msg)) return "Aucun service provisionnable trouvé sur la commande — vérifie les lignes de commande.";
+  if (/violates|constraint|null value|foreign key|invalid input|PGRST|SQLSTATE/i.test(msg)) {
+    return "Activation bloquée côté provisionnement. Le code fournisseur est sauvegardé; vérifie la facture, le compte client et les services.";
+  }
+  return msg || "Activation bloquée côté provisionnement.";
 }
 
 /** Map order payment_method values to valid billing_payment_method enum values.
@@ -1526,20 +1538,21 @@ export function useOrderProcessing(orderId: string | undefined) {
   /* ── Assign technician ── */
   const assignTechnician = async (technicianId: string) => {
     try {
-      // GUARD: Validate tech ID
-      if (!technicianId) {
-        toast.error("ID technicien manquant");
+      const resolved = await resolveTechnicianInput(technicianId);
+      if (!resolved.technician) {
+        toast.error(resolved.error || "Technicien introuvable");
         return;
       }
+      const technician = resolved.technician;
 
-      await updateOrder.mutateAsync({ technician_id: technicianId });
+      await updateOrder.mutateAsync({ technician_id: technician.id });
 
       // Also update the linked appointment if one exists
       if (data?.appointment?.id) {
         const { error: aptErr } = await supabase
           .from("appointments")
           .update({
-            technician_id: technicianId,
+            technician_id: technician.id,
             updated_at: new Date().toISOString(),
           })
           .eq("id", data.appointment.id);
@@ -1549,16 +1562,17 @@ export function useOrderProcessing(orderId: string | undefined) {
         }
       }
 
-      await logActivity("technician_assigned", "order", orderId, { technician_id: technicianId });
+      await logActivity("technician_assigned", "order", orderId, { technician_id: technician.id, technician_name: technician.full_name });
 
-      toast.success("Technicien assigné");
-      noteClient("technician_assigned", `Technicien ${technicianId.slice(0, 8)}${data?.appointment?.scheduled_at ? ` — installation ${new Date(data.appointment.scheduled_at).toLocaleString("fr-CA")}` : ""}`, {
-        technician_id: technicianId,
+      toast.success(`${technician.full_name} assigné`);
+      noteClient("technician_assigned", `Technicien ${technician.full_name}${data?.appointment?.scheduled_at ? ` — installation ${new Date(data.appointment.scheduled_at).toLocaleString("fr-CA")}` : ""}`, {
+        technician_id: technician.id,
+        technician_name: technician.full_name,
         appointment_id: data?.appointment?.id,
       });
     } catch (err: any) {
       console.error("[GUARDRAIL][Technician] Failed:", err);
-      toast.error(`Erreur assignation technicien: ${err?.message || "Erreur inconnue"}`);
+      toast.error(`Erreur assignation technicien: ${err?.message?.includes("uuid") ? "entre le nom exact du technicien ou sélectionne-le dans la liste" : err?.message || "Erreur inconnue"}`);
     }
   };
 
@@ -1816,6 +1830,11 @@ export function useOrderProcessing(orderId: string | undefined) {
       toast.warning(`Activation forcée — raison: ${overrideReason}`);
     }
 
+    // Save provider reference before provisioning so the activation code is never lost if provisioning blocks.
+    if (opts?.providerRef?.trim()) {
+      await updateOrder.mutateAsync({ confirmation_number: opts.providerRef.trim() });
+    }
+
     // Step 1: Call canonical provisioning RPC (idempotent — safe to call multiple times)
     const { data: provResult, error: provError } = await supabase.rpc(
       "provision_services_for_order" as any,
@@ -1828,8 +1847,9 @@ export function useOrderProcessing(orderId: string | undefined) {
       // DUPLICATE_SERVICE_AT_ADDRESS is non-fatal if we already provisioned
       if (errMsg !== "DUPLICATE_SERVICE_AT_ADDRESS") {
         console.error("[Activation] Provisioning failed:", errMsg, provPayload);
-        toast.error(`Provisionnement échoué: ${errMsg}`);
-        return;
+        const friendly = humanizeActivationError(errMsg);
+        toast.error(friendly);
+        throw new Error(friendly);
       }
     }
 
@@ -1847,9 +1867,6 @@ export function useOrderProcessing(orderId: string | undefined) {
 
     // Step 3: Save provider ref and activation notes on order
     // Use ensureOperationalState to safely transition through required states
-    if (opts?.providerRef) {
-      await updateOrder.mutateAsync({ confirmation_number: opts.providerRef });
-    }
     if (opts?.activationNotes) {
       const existing = data?.order?.internal_notes || "";
       await updateOrder.mutateAsync({ internal_notes: existing + `\n[Activation] ${opts.activationNotes}` });
