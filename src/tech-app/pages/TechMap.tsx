@@ -200,7 +200,7 @@ export default function TechMap() {
                     : "rgba(15,15,26,0.85)",
                   border: active ? "1px solid var(--tp-primary-glow)" : "1px solid var(--tp-border-strong)",
                   color: active ? "#fff" : "var(--tp-text-muted)",
-                  boxShadow: active ? "0 4px 14px rgba(124,58,237,0.35)" : "none",
+                  boxShadow: active ? "0 4px 14px rgba(0,102,204,0.35)" : "none",
                 }}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -284,9 +284,9 @@ export default function TechMap() {
                   key={s.id}
                   className="text-[10px] font-bold px-2 py-1 rounded-full"
                   style={{
-                    background: "rgba(124,58,237,0.15)",
+                    background: "rgba(0,102,204,0.16)",
                     color: "var(--tp-primary-glow)",
-                    border: "1px solid rgba(124,58,237,0.25)",
+                    border: "1px solid rgba(0,102,204,0.28)",
                   }}
                 >
                   {s.plan_name || s.service_type || "Service"}

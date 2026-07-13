@@ -119,7 +119,7 @@ export default function TechProfile() {
     >
       <div
         className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.22)" }}
+        style={{ background: "rgba(0,102,204,0.14)", border: "1px solid rgba(0,102,204,0.28)" }}
       >
         <Icon className="h-4 w-4" style={{ color: "var(--tp-primary-glow)" }} />
       </div>
@@ -211,7 +211,7 @@ export default function TechProfile() {
         <div className="tp-card p-4 flex items-center gap-4">
           <div
             className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.25)" }}
+            style={{ background: "rgba(0,102,204,0.16)", border: "1px solid rgba(0,102,204,0.3)" }}
           >
             <Award className="h-5 w-5" style={{ color: "var(--tp-primary-glow)" }} />
           </div>
