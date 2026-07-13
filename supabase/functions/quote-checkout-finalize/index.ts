@@ -174,6 +174,7 @@ serve(async (req) => {
             scheduled_at: scheduledAt,
             status: "hold",
             installation_method: installationMethod,
+            environment: "live",
             internal_notes: `[BUG-CORE-002C] Hold technicien créé depuis quote checkout • quote=${quote_id} • window=${slotWindow}`,
           } as any);
           if (apptErr) console.warn(`[quote-checkout-finalize] appointment hold insert failed (non-blocking):`, apptErr.message);

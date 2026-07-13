@@ -362,7 +362,7 @@ export function ShippingTechnicianStep({ proc }: Props) {
           service_city: order.service_city || "",
           service_postal_code: order.service_postal_code || "",
           status: "hold",
-          environment: order.environment || "production",
+          environment: "live",
         } as any);
         if (insErr) console.warn("[Technician][assign] appointment insert:", insErr.message);
       }

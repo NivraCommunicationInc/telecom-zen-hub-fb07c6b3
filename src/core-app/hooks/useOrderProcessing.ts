@@ -1285,6 +1285,7 @@ export function useOrderProcessing(orderId: string | undefined) {
           installation_method: "technician",
           service_type: data?.order?.service_type || "installation",
           status: data?.appointment?.status || "hold",
+          environment: "live",
           updated_at: new Date().toISOString(),
         };
 

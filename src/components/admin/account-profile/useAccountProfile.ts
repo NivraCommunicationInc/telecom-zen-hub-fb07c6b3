@@ -231,19 +231,26 @@ export function useAccountProfile(accountId: string | undefined) {
 
   // Appointments
   const appointments = useQuery({
-    queryKey: ["account-profile-appointments", clientId],
+    queryKey: ["account-profile-appointments", accountId, clientId, profile.data?.email, (orders.data || []).map((o: any) => o.id).join("|")],
     queryFn: async () => {
-      if (!clientId) return [];
+      const orderIds = (orders.data || []).map((order: any) => order.id).filter(Boolean);
+      const filters = [
+        clientId ? `client_id.eq.${clientId}` : null,
+        ...orderIds.slice(0, 80).map((id: string) => `order_id.eq.${id}`),
+        profile.data?.email ? `client_email.ilike.${String(profile.data.email).trim()}` : null,
+      ].filter(Boolean);
+      if (filters.length === 0) return [];
       const { data, error } = await supabase
         .from("appointments")
         .select("*")
-        .eq("client_id", clientId)
+        .or(filters.join(","))
         .order("scheduled_at", { ascending: false })
-        .limit(20);
+        .limit(100);
       if (error) throw error;
-      return data || [];
+      const unique = new Map((data || []).map((appointment: any) => [appointment.id, appointment]));
+      return Array.from(unique.values());
     },
-    enabled: !!clientId,
+    enabled: !!clientId || !!accountId || !!profile.data?.email,
   });
 
   // Authorized users
