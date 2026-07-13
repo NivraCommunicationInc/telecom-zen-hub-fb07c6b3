@@ -686,6 +686,11 @@ Deno.serve(async (req) => {
         : "";
       const customerName = [ci.first_name, ci.last_name].filter(Boolean).join(" ").trim()
         || intent.customer_name || "Client";
+      const selectedInstallDate = quote.install_date || ci.install_slot?.date || ci.install_date || null;
+      const selectedInstallWindow = ci.install_slot?.time_slot || ci.appointment_notes || null;
+      const selectedAppointmentDate = selectedInstallDate && selectedInstallWindow
+        ? new Date(`${String(selectedInstallDate).slice(0, 10)}T${String(selectedInstallWindow).split("-")[0]}:00`).toISOString()
+        : selectedInstallDate;
       const fieldServices = [
         ...((Array.isArray(quote.services) ? quote.services : []) as any[]),
         ...((Array.isArray(quote.equipment) ? quote.equipment : []) as any[]),
@@ -736,8 +741,10 @@ Deno.serve(async (req) => {
           customer_city: ci.city || null,
           customer_postal_code: ci.postal_code || ci.postalCode || null,
           customer_date_of_birth: ci.date_of_birth || ci.dob || null,
-          install_date: quote.install_date || ci.install_date || null,
+          install_date: selectedInstallDate,
           install_mode: quote.install_mode || ci.install_mode || null,
+          appointment_date: selectedAppointmentDate,
+          appointment_notes: selectedInstallWindow,
           services: fieldServices,
           total_amount: Number(intent.amount || quote.total || 0),
           payment_method: fsoPaymentMethod,
