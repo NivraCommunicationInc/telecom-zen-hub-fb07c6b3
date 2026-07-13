@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { StepCompletionCard } from "../StepCompletionCard";
+import { ExpectedEquipmentPanel } from "./ExpectedEquipmentPanel";
 
 interface Props { proc: any; }
 
