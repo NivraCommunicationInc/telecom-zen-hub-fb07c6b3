@@ -348,6 +348,9 @@ export function ShippingTechnicianStep({ proc }: Props) {
         {isSelfInstall ? "Auto-installation" : showTechnicianPanel && showShippingPanel ? "Technicien & Expédition" : showTechnicianPanel ? "Technicien & Installation" : "Expédition"}
       </div>
 
+      <InstallationTypeAndForcedSlotPanel proc={proc} />
+
+
       {isSelfInstall && (
         <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 mb-4 flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5 shrink-0" />
