@@ -68,11 +68,12 @@ function carrierLabelFor(carrier: string | undefined, lang: "fr" | "en"): string
   return carrier || (lang === "fr" ? "Transporteur" : "Carrier");
 }
 
-type TrackingKind = "in_transit" | "out_for_delivery";
+type TrackingKind = "in_transit" | "out_for_delivery" | "delivered";
 
 function normalizeStatus(s?: string): TrackingKind | null {
   const k = (s || "").toLowerCase().trim();
   if (!k) return null;
+  if (["delivered", "livre", "livré", "livree", "livrée"].includes(k)) return "delivered";
   if (["out_for_delivery", "out-for-delivery", "delivering", "en_livraison"].includes(k)) return "out_for_delivery";
   if (["in_transit", "in-transit", "shipped", "en_route", "picked_up", "accepted"].includes(k)) return "in_transit";
   return null;
