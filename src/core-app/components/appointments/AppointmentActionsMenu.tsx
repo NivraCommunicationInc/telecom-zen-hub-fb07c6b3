@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { MoreVertical, Calendar, XCircle, CheckCircle2, UserX, Wrench, Loader2 } from "lucide-react";
+import { MoreVertical, Calendar, XCircle, CheckCircle2, UserX, Wrench, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
