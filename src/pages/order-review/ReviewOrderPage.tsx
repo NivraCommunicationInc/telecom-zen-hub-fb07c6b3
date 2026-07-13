@@ -428,8 +428,15 @@ export default function ReviewOrderPage() {
     (s: number, x: any) => s + Number(x?.monthlyPrice || 0),
     0,
   );
-  const monthlyDiscount = Number(quote?.discount?.monthly_amount || quote?.discount?.amount || 0);
+  const isCustomCoreDiscount = String(quote?.discount?.source || "").toLowerCase() === "custom_core";
+  const monthlyDiscount = Number(
+    quote?.discount?.monthly_amount
+      ?? quote?.discount?.value
+      ?? quote?.discount?.amount
+      ?? 0,
+  );
   const monthlyAfter = Math.max(0, monthlyTotal - monthlyDiscount);
+  const discountDurationMonths = Number(quote?.discount?.duration_months || 0);
 
   const billingAddr = ci.billing_address || {
     address: ci.address,
