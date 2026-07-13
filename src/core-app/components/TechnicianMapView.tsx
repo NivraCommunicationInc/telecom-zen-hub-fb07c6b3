@@ -98,6 +98,39 @@ export function TechnicianMapView() {
     },
   });
 
+  // Techniciens assignés à un RDV actif (accepté / en route / en cours) — affichés à l'adresse du job
+  // quand ils n'ont pas encore partagé leur position live.
+  const assignmentsQ = useQuery({
+    queryKey: ["technician-active-assignments"],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("technician_assignments")
+        .select("id, technician_id, status, scheduled_date, scheduled_time_start, scheduled_time_end, order_id, service_address_id, service_addresses:service_address_id(address_line, city, latitude, longitude)")
+        .in("status", ["accepted", "en_route", "in_progress", "arrived"])
+        .gte("scheduled_date", new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10));
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const assignTechIds = Array.from(
+    new Set((assignmentsQ.data ?? []).map((a: any) => a.technician_id).filter(Boolean)),
+  );
+  const assignTechNamesQ = useQuery({
+    queryKey: ["assign-tech-names", assignTechIds.join(",")],
+    enabled: assignTechIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("technicians")
+        .select("user_id, full_name")
+        .in("user_id", assignTechIds);
+      const m = new Map<string, string>();
+      (data ?? []).forEach((t: any) => m.set(t.user_id, t.full_name || "Technicien"));
+      return m;
+    },
+  });
+
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
