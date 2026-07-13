@@ -34,6 +34,7 @@ const colored = (color: string) =>
 const greenIcon = colored("#10b981");
 const blueIcon = colored("#3b82f6");
 const grayIcon = colored("#6b7280");
+const orangeIcon = colored("#f59e0b");
 
 type LocRow = {
   id: string;
