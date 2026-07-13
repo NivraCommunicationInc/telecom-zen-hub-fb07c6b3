@@ -22,6 +22,8 @@ const isStaffAreaPath = (path: string) =>
   path.startsWith("/rh") ||
   path.startsWith("/core") ||
   path.startsWith("/field") ||
+  path.startsWith("/tech") ||
+  path.startsWith("/technician") ||
   path.startsWith("/employee") ||
   path.startsWith("/hub");
 

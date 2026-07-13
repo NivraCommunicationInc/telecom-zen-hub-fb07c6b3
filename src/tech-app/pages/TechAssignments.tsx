@@ -5,7 +5,7 @@
  *                     5 verifications (order status, no other tech, no active reservation),
  *                     priority queue (URGENT / VIP / ENTREPRISE / NORMAL)
  */
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Clock, MapPin, Package, Wrench, Truck, PlayCircle, XCircle,
@@ -220,6 +220,7 @@ export default function TechAssignments() {
   const [claimTimeStart, setClaimTimeStart] = useState("09:00");
   const [claimTimeEnd, setClaimTimeEnd] = useState("11:00");
   const reservationRef = useRef<string | null>(null);
+  const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUid(data.user?.id ?? null));
@@ -240,6 +241,45 @@ export default function TechAssignments() {
     [available],
   );
 
+  const stopGps = useCallback(() => {
+    if (watchIdRef.current !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  }, []);
+
+  const startGpsForAssignment = useCallback((assignmentId: string) => {
+    if (!navigator.geolocation) {
+      toast.warning("GPS non disponible sur cet appareil");
+      return;
+    }
+    stopGps();
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng, accuracy, heading, speed } = pos.coords;
+        const speedKmh = typeof speed === "number" && Number.isFinite(speed) ? speed * 3.6 : null;
+        const { error } = await (supabase.rpc as any)("upsert_my_technician_location", {
+          p_assignment_id: assignmentId,
+          p_latitude: lat,
+          p_longitude: lng,
+          p_accuracy_meters: accuracy ?? null,
+          p_heading: heading ?? null,
+          p_speed_kmh: speedKmh,
+        });
+        if (error) {
+          await supabase
+            .from("technician_assignments")
+            .update({ live_location: { lat, lng, accuracy, updated_at: new Date().toISOString() } } as any)
+            .eq("id", assignmentId);
+        }
+      },
+      () => toast.warning("Position GPS non autorisée — le technicien restera visible à l'adresse du RDV"),
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+    );
+  }, [stopGps]);
+
+  useEffect(() => () => stopGps(), [stopGps]);
+
   // ── Mutations ──────────────────────────────────────────────────────────────
 
   const setStatus = useMutation({
@@ -254,6 +294,8 @@ export default function TechAssignments() {
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
+      if (vars.status === "en_route") startGpsForAssignment(vars.a.id);
+      if (["arrived", "in_progress", "completed", "missed", "cancelled"].includes(vars.status)) stopGps();
       toast.success(vars.status === "en_route" ? "Client notifié ✅" : "Statut mis à jour");
     },
     onError: (e: any) => toast.error(e?.message ?? "Erreur"),

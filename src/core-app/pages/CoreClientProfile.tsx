@@ -527,6 +527,10 @@ const CoreClientProfile = () => {
     }
   };
 
+  const nextConfirmableAppointment = appointments
+    .filter((apt: any) => apt?.scheduled_at && !["completed", "cancelled", "no_show"].includes(String(apt.status || "")))
+    .sort((a: any, b: any) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0] || appointments[0] || null;
+
   // Quick action button component
   const QAction = ({ icon: Icon, label, onClick, color = "emerald" }: { icon: any; label: string; onClick: () => void; color?: string }) => (
     <button
@@ -588,6 +592,21 @@ const CoreClientProfile = () => {
           }}
           onEditProfile={() => { setMainTab("overview"); setOverviewTab("profil"); }}
         />
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-[hsl(220,15%,16%)] pt-3">
+          <button
+            onClick={() => nextConfirmableAppointment ? sendAppointmentConfirmation(nextConfirmableAppointment) : toast.error("Aucun rendez-vous à confirmer")}
+            disabled={!nextConfirmableAppointment}
+            className="h-9 px-3 rounded-md border border-emerald-500/25 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50 disabled:hover:bg-transparent flex items-center gap-1.5"
+          >
+            <Send className="h-3.5 w-3.5" /> Envoyer confirmation RDV
+          </button>
+          {nextConfirmableAppointment?.scheduled_at && (
+            <span className="h-9 px-3 rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] text-[11px] text-[hsl(220,10%,70%)] flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-emerald-400" />
+              {format(new Date(nextConfirmableAppointment.scheduled_at), "d MMM yyyy HH:mm", { locale: fr })}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ═══ TABS ═══ */}
