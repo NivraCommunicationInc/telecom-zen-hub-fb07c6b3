@@ -93,11 +93,11 @@ export function ClientAccountAccessDialog({ open, onClose, clientUserId, clientE
     } catch (e: any) {
       const msg = e?.message || "Échec de l'action";
       if (msg.includes("Motif obligatoire")) {
-        toast.error("Motif obligatoire pour changer le courriel.");
+        toast.error("Motif obligatoire (min. 5 caractères).");
       } else if (msg.includes("Seul un admin")) {
-        toast.error("Seul un admin Core peut changer le courriel.");
+        toast.error("Seul un admin Core peut exécuter cette action.");
       } else if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("invalide")) {
-        toast.error("Nouveau courriel invalide.");
+        toast.error("Adresse courriel invalide.");
       } else {
         toast.error(msg);
       }
