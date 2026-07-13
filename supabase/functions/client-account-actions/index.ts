@@ -456,7 +456,6 @@ async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, 
   const { service_address_id, reason } = input.payload;
   const { data: before } = await svc.from('service_addresses').select('*').eq('id', service_address_id).eq('account_id', input.account_id).maybeSingle();
   if (!before) throw new Error('service_address not found');
-  if (before.is_primary) throw new Error('cannot delete primary service address');
 
   const activeStatuses = ['active', 'pending', 'suspended', 'trial', 'past_due', 'paused', 'pause_requested'];
 
@@ -482,19 +481,26 @@ async function handleAddressSoftDelete(svc: any, actor: any, actorRole: string, 
     throw new Error(`cannot delete: ${activeInstances} active service instance(s) still bound to this address`);
   }
 
-  // Also block if a billing_service_address_id link exists on the account.
+  // Do not block deletion only because the address is marked primary/billing.
+  // If no active service is attached, clear those soft links before hiding it.
   const { data: acctLink } = await svc
     .from('accounts')
     .select('billing_service_address_id')
     .eq('id', input.account_id)
     .maybeSingle();
+
   if (acctLink?.billing_service_address_id === service_address_id) {
-    throw new Error('cannot delete: this address is the billing address');
+    const { error: acctErr } = await svc
+      .from('accounts')
+      .update({ billing_service_address_id: null, billing_same_as_service: false })
+      .eq('id', input.account_id);
+    if (acctErr) throw acctErr;
   }
 
   const patch: Record<string, unknown> = {
     is_active: false,
     deleted_at: new Date().toISOString(),
+    is_primary: false,
   };
   // Preserve existing notes; append reason only if room and non-destructive.
   if (reason) {

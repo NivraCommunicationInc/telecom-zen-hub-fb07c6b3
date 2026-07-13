@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { portalClient } from "@/integrations/backend/portalClient";
 
 export interface AddressServiceNode {
   address: {
@@ -16,6 +17,7 @@ export interface AddressServiceNode {
     [key: string]: any;
   };
   subscriptions: any[];
+  service_instances?: any[];
   equipment: any[];
   appointments: any[];
   tickets: any[];
@@ -28,11 +30,16 @@ export interface AccountServiceTree {
 }
 
 export function useAccountServiceTree(accountId: string | null | undefined) {
+  const backend =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/portal")
+      ? portalClient
+      : supabase;
+
   return useQuery<AccountServiceTree>({
     queryKey: ["account-service-tree", accountId],
     enabled: !!accountId,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_account_service_tree", {
+      const { data, error } = await backend.rpc("get_account_service_tree", {
         _account_id: accountId as string,
       } as any);
       if (error) throw error;
