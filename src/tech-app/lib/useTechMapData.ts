@@ -12,8 +12,11 @@ export interface MapPointService {
   status: string;
 }
 
+export type MapPointKind = "service_address" | "technician";
+
 export interface MapPoint {
   id: string;
+  kind?: MapPointKind;
   account_id: string;
   label: string | null;
   address_line: string;
@@ -23,6 +26,11 @@ export interface MapPoint {
   lat: number;
   lng: number;
   services: MapPointService[];
+  technician_id?: string | null;
+  technician_name?: string | null;
+  technician_status?: string | null;
+  assignment_status?: string | null;
+  location_source?: "live_gps" | "assignment_address";
 }
 
 export interface MapDataPayload {

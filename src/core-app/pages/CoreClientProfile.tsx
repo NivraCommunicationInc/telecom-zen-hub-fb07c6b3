@@ -35,6 +35,7 @@ import { addClientAutoNote } from "@/core-app/lib/clientAutoNotes";
 import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
 import { ClientLoyaltyReferralSection } from "@/core-app/components/loyalty/ClientLoyaltyReferralSection";
 import { Account360QuickActions } from "@/core-app/components/account-360/Account360QuickActions";
+import { AppointmentActionsMenu } from "@/core-app/components/appointments/AppointmentActionsMenu";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -56,6 +57,19 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
 );
 
 const PAGE_SIZE = 5;
+
+const appointmentStatusLabel = (status: any) => ({
+  pending_scheduling: "À planifier",
+  scheduled: "Planifié",
+  confirmed: "Confirmé",
+  en_route: "En route",
+  arrived: "Arrivé",
+  in_progress: "En cours",
+  completed: "Complété",
+  no_show: "No-show",
+  cancelled: "Annulé",
+  rescheduled: "Replanifié",
+}[String(status || "")] || String(status || "—"));
 
 const Paginator = ({ page, total, pageSize, onPage }: { page: number; total: number; pageSize: number; onPage: (p: number) => void }) => {
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -486,6 +500,33 @@ const CoreClientProfile = () => {
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
+  const sendAppointmentConfirmation = async (apt: any) => {
+    if (!apt?.scheduled_at) return toast.error("Ce rendez-vous n'a pas de date planifiée");
+    if (!apt?.client_email) return toast.error("Aucun courriel client sur ce rendez-vous");
+    try {
+      const d = new Date(apt.scheduled_at);
+      const { error } = await supabase.functions.invoke("send-appointment-notification", {
+        body: {
+          email: apt.client_email,
+          name: displayName || apt.title || "Client",
+          appointmentTitle: apt.title || "Installation Nivra",
+          appointmentDate: apt.scheduled_at,
+          appointmentTime: d.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }),
+          appointmentType: apt.service_type || apt.installation_method,
+          orderNumber: apt.order_number || apt.order_id,
+          serviceAddress: [apt.service_address, apt.service_city, apt.service_postal_code].filter(Boolean).join(", "),
+          status: "confirmed",
+          appointmentId: apt.id,
+        },
+      });
+      if (error) throw error;
+      toast.success("Confirmation du RDV envoyée au client");
+      queryClient.invalidateQueries({ queryKey: ["core-client-appointments"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'envoi de la confirmation");
+    }
+  };
+
   // Quick action button component
   const QAction = ({ icon: Icon, label, onClick, color = "emerald" }: { icon: any; label: string; onClick: () => void; color?: string }) => (
     <button
@@ -636,6 +677,38 @@ const CoreClientProfile = () => {
                   <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">
                     Aucun compte lié à ce client — impossible d'afficher les adresses.
                   </p>
+                )}
+              </Section>
+
+              <Section title={`Rendez-vous & techniciens${appointments.length > 0 ? ` (${appointments.length})` : ""}`} icon={Calendar} action={
+                <Link to={corePath("/appointments")}><button className="text-[10px] text-emerald-400 hover:underline">Gérer →</button></Link>
+              }>
+                {appointments.length > 0 ? (
+                  <div className="space-y-2">
+                    {appointments.slice(0, 8).map((apt: any) => (
+                      <div key={apt.id} className="flex items-center gap-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,14%)]">
+                        <Calendar className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-medium text-white truncate">{apt.title || apt.appointment_number || "Rendez-vous"}</p>
+                          <p className="text-[10px] text-[#A1A1AA]">
+                            {apt.scheduled_at ? format(new Date(apt.scheduled_at), "d MMM yyyy HH:mm", { locale: fr }) : "À planifier"}
+                            {apt.service_type ? ` · ${apt.service_type}` : ""}
+                            {apt.service_address ? ` · ${apt.service_address}` : ""}
+                          </p>
+                        </div>
+                        <StatusBadge label={appointmentStatusLabel(apt.status)} variant={statusToVariant(apt.status)} size="sm" />
+                        <button
+                          onClick={() => sendAppointmentConfirmation(apt)}
+                          className="h-7 px-2 rounded border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1"
+                        >
+                          <Send className="h-3 w-3" /> Confirmation
+                        </button>
+                        <AppointmentActionsMenu appointment={apt} onRefresh={() => queryClient.invalidateQueries({ queryKey: ["core-client-appointments"] })} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucun rendez-vous relié à ce client</p>
                 )}
               </Section>
 

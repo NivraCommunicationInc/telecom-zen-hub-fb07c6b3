@@ -8,9 +8,8 @@ import AppRoutes from "@/components/AppRoutes";
 import NivraChat from "@/components/chatbot/NivraChat";
 
 /**
- * FIX 4 — Chat widget is restricted to public marketing pages and the client portal.
- * Internal staff portals (Core, Field, Employee, RH, Hub, Marketing back-office)
- * never render the chat widget.
+ * Chat widget is restricted to public website pages only.
+ * Portals and internal workspaces never render the public live chat.
  */
 const INTERNAL_ROUTE_PREFIXES = [
   "/core",
@@ -21,6 +20,10 @@ const INTERNAL_ROUTE_PREFIXES = [
   "/rh",
   "/nivra-secure-hub-2617-internal",
   "/admin",
+  "/portal",
+  "/account",
+  "/client",
+  "/marketing",
   "/technician",
   "/tech",
   "/influencer",

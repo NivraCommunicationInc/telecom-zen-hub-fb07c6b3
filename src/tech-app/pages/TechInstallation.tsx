@@ -21,7 +21,6 @@ import TechTopBar from "../components/TechTopBar";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useTechAssignment, useInstallationSteps, ExpectedEquipment } from "../lib/useTechAssignments";
-import { queueTechEmail } from "../lib/queueTechEmail";
 import PhotoCapture from "../components/PhotoCapture";
 import QRScanner from "../components/QRScanner";
 import SignaturePad from "../components/SignaturePad";
@@ -122,6 +121,8 @@ export default function TechInstallation() {
     setUpload(assignment.upload_speed ? String(assignment.upload_speed) : "");
     setPing(assignment.ping_ms ? String(assignment.ping_ms) : "");
     setSignal(assignment.signal_strength ? String(assignment.signal_strength) : "");
+    setWifiSsid(assignment.network_test_results?.wifi_ssid ? String(assignment.network_test_results.wifi_ssid) : "");
+    setWifiPassword(assignment.network_test_results?.wifi_password ? String(assignment.network_test_results.wifi_password) : "");
   }, [assignment?.id]);
 
   const allScannedItems: (ScannedItem | any)[] = useMemo(
@@ -342,11 +343,15 @@ export default function TechInstallation() {
       if (upload) payload.upload_speed = parseFloat(upload);
       if (ping) payload.ping_ms = parseInt(ping, 10);
       if (signal) payload.signal_strength = parseInt(signal, 10);
-      if (download || upload || ping) {
+      if (download || upload || ping || signal || wifiSsid.trim() || wifiPassword.trim()) {
         payload.network_test_results = {
+          ...(assignment?.network_test_results ?? {}),
           download_mbps: download ? parseFloat(download) : null,
           upload_mbps: upload ? parseFloat(upload) : null,
           ping_ms: ping ? parseInt(ping, 10) : null,
+          signal_percent: signal ? parseInt(signal, 10) : null,
+          wifi_ssid: wifiSsid.trim() || null,
+          wifi_password: wifiPassword.trim() || null,
           tested_at: finishedAt,
         };
       }
@@ -359,22 +364,10 @@ export default function TechInstallation() {
         p_status: "completed",
         p_note: notes || null,
         p_eta: null,
+        p_wifi_ssid: wifiSsid.trim() || null,
+        p_wifi_password: wifiPassword.trim() || null,
       });
       if (statusError) throw statusError;
-
-      // Enrich the queued completion email with WiFi credentials (SSID/password)
-      // so the client receives them in the branded confirmation email.
-      if (wifiSsid.trim() || wifiPassword.trim()) {
-        await queueTechEmail({
-          assignmentId: id,
-          templateKey: "tech_completed",
-          extraVars: {
-            wifi_ssid: wifiSsid.trim(),
-            wifi_password: wifiPassword.trim(),
-          },
-        });
-      }
-
 
       // Mark matched inventory items as assigned
       const matchedIds = scannedItems
@@ -827,12 +820,34 @@ export default function TechInstallation() {
             <Signal className="h-4 w-4 text-violet-400" /> Configuration WiFi (envoyée au client)
           </h3>
           <div className="grid grid-cols-1 gap-3">
-            <InputField label="Nom du réseau (SSID)" value={wifiSsid} onChange={setWifiSsid} />
-            <InputField label="Mot de passe WiFi" value={wifiPassword} onChange={setWifiPassword} />
+            <InputField label="Nom du réseau (SSID)" value={wifiSsid} onChange={setWifiSsid} type="text" />
+            <InputField label="Mot de passe WiFi" value={wifiPassword} onChange={setWifiPassword} type="text" />
           </div>
           <p className="text-[11px] text-slate-400">
             Ces informations seront envoyées au client dans le courriel de confirmation d'installation.
           </p>
+        </section>
+
+        {/* Advanced diagnostics */}
+        <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-orange-400" /> Diagnostics avancés
+          </h3>
+          <div className="grid grid-cols-1 gap-2 text-xs">
+            <DiagnosticRow label="Client" value={assignment.client_name || "—"} />
+            <DiagnosticRow label="Courriel" value={assignment.client_email || "—"} />
+            <DiagnosticRow label="Commande" value={assignment.order_number ? `#${assignment.order_number}` : "—"} />
+            <DiagnosticRow label="Services" value={serviceLabels.join(" · ") || "—"} />
+            <DiagnosticRow label="Canaux TV" value={assignment.selected_channels?.length ? `${assignment.selected_channels.length} sélectionné(s)` : "—"} />
+            <DiagnosticRow label="Équipement prévu" value={expectedEquipment.length ? `${expectedEquipment.length} appareil(s)` : "—"} />
+            <DiagnosticRow label="Notes internes" value={assignment.appointment_notes || "—"} />
+          </div>
+          <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">État réseau</p>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Download {download || "—"} Mbps · Upload {upload || "—"} Mbps · Ping {ping || "—"} ms · Signal {signal || "—"}%
+            </p>
+          </div>
         </section>
 
 
@@ -1001,13 +1016,22 @@ export default function TechInstallation() {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function InputField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function InputField({ label, value, onChange, type = "number" }: { label: string; value: string; onChange: (v: string) => void; type?: "number" | "text" }) {
   return (
     <label className="block">
       <span className="text-xs text-slate-400 block mb-1">{label}</span>
-      <input type="number" inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)}
+      <input type={type} inputMode={type === "number" ? "decimal" : "text"} value={value} onChange={(e) => onChange(e.target.value)}
         className="w-full min-h-[44px] rounded-lg bg-slate-800 border border-slate-700 text-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-violet-500" />
     </label>
+  );
+}
+
+function DiagnosticRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg bg-slate-950/60 border border-slate-800 px-3 py-2">
+      <span className="text-slate-500 uppercase font-bold tracking-wider">{label}</span>
+      <span className="text-slate-200 text-right break-words max-w-[68%]">{value}</span>
+    </div>
   );
 }
 

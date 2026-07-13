@@ -1,12 +1,12 @@
 /**
- * TechMap — Mapbox map with all active service addresses as pins.
- * Filters by service type. Click pin → drawer with address + services.
+ * TechMap — Mapbox map with active service addresses + technician positions.
+ * Filters by service type. Click pin → drawer with address + services/tech.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { ArrowLeft, Loader2, MapPin, Wifi, Tv, Smartphone, X, Layers, Navigation2 } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Wifi, Tv, Smartphone, X, Layers, Navigation2, UserRound } from "lucide-react";
 import { useTechMapData, MapPoint } from "../lib/useTechMapData";
 
 type Filter = "all" | "internet" | "tv" | "mobile";
@@ -19,9 +19,14 @@ function pickColor(services: MapPoint["services"]): string {
   return "#7c3aed";
 }
 
+function markerColor(p: MapPoint): string {
+  return p.kind === "technician" ? "#f59e0b" : pickColor(p.services);
+}
+
 function matchesFilter(p: MapPoint, filter: Filter): boolean {
   if (filter === "all") return true;
-  return p.services.some((s) => (s.service_type || "").toLowerCase().includes(filter));
+    if (p.kind === "technician") return false;
+    return p.services.some((s) => (s.service_type || "").toLowerCase().includes(filter));
 }
 
 export default function TechMap() {
@@ -81,7 +86,7 @@ export default function TechMap() {
       const el = document.createElement("button");
       el.style.cssText = `
         width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;
-        background:${pickColor(p.services)};box-shadow:0 4px 12px rgba(0,0,0,.45),0 0 0 4px ${pickColor(p.services)}25;
+        background:${markerColor(p)};box-shadow:0 4px 12px rgba(0,0,0,.45),0 0 0 4px ${markerColor(p)}25;
         cursor:pointer;display:flex;align-items:center;justify-content:center;
         transition:transform .15s ease;
       `;
@@ -178,7 +183,7 @@ export default function TechMap() {
             { id: "all", label: "Tout", icon: MapPin, count: counts.all },
             { id: "internet", label: "Internet", icon: Wifi, count: counts.internet },
             { id: "tv", label: "TV", icon: Tv, count: counts.tv },
-            { id: "mobile", label: "Mobile", icon: Smartphone, count: counts.mobile },
+                { id: "mobile", label: "Mobile", icon: Smartphone, count: counts.mobile },
           ] as const).map(({ id, label, icon: Icon, count }) => {
             const active = filter === id;
             return (
@@ -223,14 +228,20 @@ export default function TechMap() {
               className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: pickColor(selected.services) + "20", border: `1px solid ${pickColor(selected.services)}55` }}
             >
-              <MapPin className="h-5 w-5" style={{ color: pickColor(selected.services) }} />
+              {selected.kind === "technician" ? (
+                <UserRound className="h-5 w-5" style={{ color: markerColor(selected) }} />
+              ) : (
+                <MapPin className="h-5 w-5" style={{ color: markerColor(selected) }} />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="tp-display text-[15px] font-black leading-tight" style={{ color: "var(--tp-text)" }}>
-                {selected.label || "Adresse client"}
+                {selected.kind === "technician" ? (selected.technician_name || "Technicien") : (selected.label || "Adresse client")}
               </p>
               <p className="text-[12px] mt-0.5 line-clamp-2" style={{ color: "var(--tp-text-muted)" }}>
-                {[selected.address_line, selected.city, selected.province, selected.postal_code].filter(Boolean).join(", ")}
+                {selected.kind === "technician"
+                  ? `${selected.location_source === "live_gps" ? "Position GPS" : "Adresse du rendez-vous"}${selected.assignment_status ? ` · ${selected.assignment_status}` : ""}`
+                  : [selected.address_line, selected.city, selected.province, selected.postal_code].filter(Boolean).join(", ")}
               </p>
             </div>
             <button
@@ -242,6 +253,12 @@ export default function TechMap() {
               <X className="h-4 w-4" />
             </button>
           </div>
+
+          {selected.kind === "technician" && (
+            <div className="mt-3 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.28)", color: "#fbbf24" }}>
+              <p className="text-[11px] font-bold">Technicien visible sur la carte</p>
+            </div>
+          )}
 
           {selected.services.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
