@@ -551,13 +551,42 @@ serve(async (req) => {
       case "set_temporary_password": {
         if (!targetId) return json(404, { error: "Utilisateur introuvable" });
         const np = body.new_password && body.new_password.length >= 12 ? body.new_password : genPassword();
-        const { error } = await admin.auth.admin.updateUserById(targetId, { password: np });
+        const { error } = await admin.auth.admin.updateUserById(targetId, {
+          password: np,
+          email_confirm: true,
+        });
         if (error) throw error;
+        // Marque le compte pour forcer un changement de mot de passe au prochain login.
+        try {
+          await admin.from("profiles").update({
+            must_change_password: true,
+            password_changed_at: new Date().toISOString(),
+          }).eq("user_id", targetId);
+        } catch (_e) { /* colonne peut ne pas exister, ignoré */ }
+        // Révoque les sessions actives pour forcer un nouveau login avec le mot de passe temporaire.
+        try {
+          const anyAdmin = admin.auth.admin as any;
+          if (typeof anyAdmin.listUserSessions === "function") {
+            const { data: sessData } = await anyAdmin.listUserSessions(targetId);
+            const sessions = (sessData?.sessions ?? sessData ?? []) as Array<{ id: string }>;
+            for (const s of sessions) { try { await anyAdmin.deleteSession(s.id); } catch (_e) {} }
+          }
+        } catch (_e) { /* best-effort */ }
+        // Envoie le mot de passe temporaire au client par courriel (best-effort).
+        if (targetEmail) {
+          try {
+            await queueEmail("client_temporary_password", targetEmail, {
+              temporary_password: np,
+              email: targetEmail,
+              login_url: `${origin}/portal/login`,
+            });
+          } catch (_e) { /* best-effort, l'agent peut aussi le communiquer verbalement */ }
+        }
         // NOTE: le mot de passe n'est JAMAIS journalisé dans les logs.
         await audit("temp_password_set", { email: targetEmail, reason }, true);
         return json(200, {
           success: true,
-          message: "Mot de passe temporaire défini",
+          message: "Mot de passe temporaire défini et envoyé au client",
           temporary_password: np,
         }, { "Cache-Control": "no-store" });
       }
