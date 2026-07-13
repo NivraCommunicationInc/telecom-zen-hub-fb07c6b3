@@ -235,6 +235,45 @@ export function ShippingTechnicianStep({ proc }: Props) {
     } finally { setLoading(null); }
   };
 
+  const handleDeliverySlip = () => {
+    try {
+      const equipmentItems = Array.isArray(order.equipment_details)
+        ? (order.equipment_details as any[]).map((item: any) => ({
+            description: item.label || item.name || item.type || "Équipement",
+            serial_number: item.serial_number || undefined,
+            quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+          }))
+        : (Array.isArray(items) ? items : []).map((it: any) => ({
+            description: it.product_name || it.name || it.description || "Équipement",
+            serial_number: it.serial_number || undefined,
+            quantity: Math.max(1, Number(it.quantity || 1)),
+          }));
+
+      const result = generateDeliverySlipPDF({
+        slip_number: `BL-${order.order_number || String(order.id || "").slice(0, 8)}`,
+        issue_date: order.shipped_at || order.created_at || new Date().toISOString(),
+        client_name: [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || "Client Nivra",
+        client_email: order.client_email || "",
+        client_phone: order.client_phone || "",
+        account_number: order.account_number || "",
+        delivery_address: order.shipping_address || order.client_full_address || "",
+        delivery_city: order.shipping_city || "",
+        delivery_province: order.shipping_province || "QC",
+        delivery_postal: order.shipping_postal_code || "",
+        order_number: String(order.order_number || ""),
+        carrier: shippingFields.carrier || order.carrier || "En préparation",
+        tracking_number: shippingFields.tracking_number || order.tracking_number || "—",
+        items: equipmentItems.length ? equipmentItems : [{ description: "Équipement à expédier", quantity: 1 }],
+      });
+      if (!result.success || !result.blob) { toast.error("Bordereau non disponible"); return; }
+      const url = URL.createObjectURL(result.blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la génération du bon de livraison");
+    }
+  };
+
   const handleConfirmAppointment = async () => {
     setLoading("confirm-apt");
     try {
