@@ -521,12 +521,16 @@ serve(async (req) => {
         quantity: 1,
       });
     }
+    // Ajustements Core (crédit/promotion/frais personnalisés) — appliqués POST-TAXES
+    // afin que le montant saisi par l'agent corresponde exactement à ce qui est
+    // ajouté/déduit du total. Ne sont PAS envoyés au moteur de tarification
+    // (compute_checkout_pricing) — ils sont conservés séparément et matérialisés
+    // comme lignes de facture hors-taxes par field-sales-sync.
+    let customAdjustmentsPostTax = 0;
     for (const adj of body.custom_adjustments || []) {
-      if (Number(adj?.amount || 0) !== 0) {
-        const amount = Math.max(0, Number(adj.amount || 0));
-        const signedAmount = adj.kind === "fee" ? amount : -amount;
-        cart_items.push({ type: "one_time_fee", name: adj.label || "Ajustement", amount: signedAmount, quantity: 1 });
-      }
+      const amount = Math.max(0, Number(adj?.amount || 0));
+      if (amount === 0) continue;
+      customAdjustmentsPostTax += adj?.kind === "fee" ? amount : -amount;
     }
     if (body.discount) {
       const d = body.discount as any;
