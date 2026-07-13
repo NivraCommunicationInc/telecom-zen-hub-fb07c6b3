@@ -634,6 +634,49 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "Intent sans quote — impossible de matérialiser" }), { status: 400, headers });
       }
 
+      const { data: existingFso } = await admin
+        .from("field_sales_orders")
+        .select("id, converted_order_id, sync_status")
+        .eq("source_field_payment_intent_id", intent.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingFso) {
+        if (existingFso.converted_order_id) {
+          const { data: existingInvoice } = await admin
+            .from("billing_invoices")
+            .select("id")
+            .eq("order_id", existingFso.converted_order_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          await admin.from("field_payment_intents").update({
+            converted_field_order_id: existingFso.id,
+            converted_order_id: existingFso.converted_order_id,
+            converted_invoice_id: existingInvoice?.id ?? null,
+          }).eq("id", intent.id);
+          return new Response(JSON.stringify({
+            success: true,
+            order_id: existingFso.converted_order_id,
+            field_order_id: existingFso.id,
+            invoice_id: existingInvoice?.id ?? null,
+            already_materialized: true,
+          }), { headers });
+        }
+        await admin.from("field_payment_intents").update({
+          converted_field_order_id: existingFso.id,
+        }).eq("id", intent.id);
+        return new Response(JSON.stringify({
+          success: true,
+          deferred: true,
+          field_order_id: existingFso.id,
+          order_id: null,
+          invoice_id: null,
+          already_materialized: true,
+        }), { headers });
+      }
+
       const { data: quote } = await admin.from("field_quotes").select("*").eq("id", intent.quote_id).maybeSingle();
       if (!quote) return new Response(JSON.stringify({ error: "Soumission introuvable" }), { status: 404, headers });
 

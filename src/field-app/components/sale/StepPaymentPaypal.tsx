@@ -71,7 +71,9 @@ export default function StepPaymentPaypal({
 
   const isCompleted = payment.status === "completed";
   const isLinkReady = !!payment.paypalApprovalUrl;
-  const isSent = (payment.method as string) === "square_email" && payment.status === "sent";
+  const selectedMethod = payment.method as string | undefined;
+  const needsMethodSelection = !selectedMethod;
+  const isSent = selectedMethod === "square_email" && payment.status === "sent";
   const isSquareInlineReady = (payment.method as string) === "square_inline" && !!payment.fieldOrderId;
 
   const stopAll = useCallback(() => {
@@ -192,8 +194,10 @@ export default function StepPaymentPaypal({
   const setMethod = (method: FieldPaymentMethod) => {
     stopAll(); setWaiting(false); setExpired(false);
     onChange({
-      ...payment, method, status: "pending", linkSentTo: null,
-      paypalApprovalUrl: null, paypalOrderId: null, fieldOrderId: null, invoiceId: null, coreOrderId: null,
+      ...payment,
+      method,
+      status: method === "square_email" && payment.status === "sent" ? "sent" : "pending",
+      linkSentTo: method === "square_email" ? payment.linkSentTo : null,
     });
     setQrDataUrl(null);
   };
@@ -228,7 +232,7 @@ export default function StepPaymentPaypal({
       </div>
 
       {/* Method selection */}
-      {!isLinkReady && !isCompleted && !isSquareInlineReady && (
+      {(!isLinkReady || needsMethodSelection) && !isCompleted && !isSquareInlineReady && (
         <div className="grid gap-3">
           {[
             { id: "square_inline" as const, icon: CreditCard, title: "💳 Carte — saisie directe", desc: "Le client saisit sa carte sur votre appareil. Paiement immédiat.", badge: "IMMÉDIAT" },
@@ -256,14 +260,16 @@ export default function StepPaymentPaypal({
       )}
 
       {/* QR / Email — generate button */}
-      {((payment.method as string) === "square_onsite" || (payment.method as string) === "square_email") && !isLinkReady && !isCompleted && (
+      {((selectedMethod === "square_onsite" && !isLinkReady) || (selectedMethod === "square_email" && (!isLinkReady || !isSent))) && !isCompleted && (
         <button type="button" onClick={onSubmit}
-          disabled={isSubmitting || ((payment.method as string) === "square_email" && !customer.email)}
+          disabled={isSubmitting || (selectedMethod === "square_email" && !customer.email)}
           className="w-full h-14 rounded-2xl field-gradient-accent text-white font-bold text-base field-glow hover:field-glow-strong transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSubmitting ? (
             <><Loader2 className="h-5 w-5 animate-spin" />{submitMessage || "Génération du lien…"}</>
-          ) : (payment.method as string) === "square_onsite" ? (
+          ) : selectedMethod === "square_onsite" ? (
             <>Générer le lien de paiement <CreditCard className="h-4 w-4" /></>
+          ) : isLinkReady ? (
+            <>Envoyer ce même lien au client <Mail className="h-4 w-4" /></>
           ) : (
             <>Envoyer le lien au client <Mail className="h-4 w-4" /></>
           )}

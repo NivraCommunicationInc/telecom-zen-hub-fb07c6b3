@@ -222,12 +222,17 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (prior) {
+      const details = (prior.details || {}) as Record<string, unknown>;
       return json(200, {
         ok: true,
         replayed: true,
         idempotency_key: body.idempotency_key,
         original_action: prior.action,
-        original_details: prior.details,
+        original_details: details,
+        quote_id: details.quote_id ?? null,
+        valid_until: details.valid_until ?? null,
+        order_id: details.order_id ?? null,
+        intent_id: details.intent_id ?? null,
       });
     }
   }

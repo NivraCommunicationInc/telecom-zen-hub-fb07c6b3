@@ -91,7 +91,9 @@ export async function saveQuoteAndEmail(payload: SaveQuotePayload): Promise<Save
     },
   });
   if (error || !data?.ok) throw await extractEdgeError(error, data, "Échec de la soumission");
-  return { id: data.quote_id, valid_until: data.valid_until };
+  const quoteId = data.quote_id || data.original_details?.quote_id;
+  if (!quoteId) throw new Error("Soumission introuvable après enregistrement.");
+  return { id: quoteId, valid_until: data.valid_until || data.original_details?.valid_until };
 }
 
 /**
