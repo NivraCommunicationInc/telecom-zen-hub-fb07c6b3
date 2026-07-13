@@ -572,10 +572,10 @@ serve(async (req) => {
     }
 
     return { resolvedServices, resolvedEquipment, cart_items, equipment_total,
-             monthly_before_discount, activation_fee };
+             monthly_before_discount, activation_fee, customAdjustmentsPostTax };
   }
 
-  async function verifyClientTotals(cart_items: any[]) {
+  async function verifyClientTotals(cart_items: any[], customAdjustmentsPostTax = 0) {
     // Try compute_checkout_pricing first; fall back to manual QC math (5% + 9.975%).
     let server_subtotal = 0, server_tps = 0, server_tvq = 0, server_total = 0;
     try {
