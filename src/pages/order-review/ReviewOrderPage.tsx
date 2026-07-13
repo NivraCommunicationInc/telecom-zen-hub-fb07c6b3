@@ -778,7 +778,7 @@ export default function ReviewOrderPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            <div ref={containerRef} id="sq-payer-card-container" className="min-h-[90px]" />
+            <div ref={containerRef} id="sq-payer-card-container" className="h-12 overflow-hidden" />
             {sqLoading && (
               <div className="flex items-center justify-center gap-2 py-2 text-sm text-white/50">
                 <Loader2 className="w-4 h-4 animate-spin" />

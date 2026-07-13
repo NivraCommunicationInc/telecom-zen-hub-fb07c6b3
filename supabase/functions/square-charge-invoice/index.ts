@@ -26,6 +26,15 @@ const SQUARE_VERSION = "2024-11-20";
 
 type JsonResponse = (body: object, status?: number) => Response;
 
+async function ignoreFailure<T>(operation: PromiseLike<T>, label?: string): Promise<T | null> {
+  try {
+    return await operation;
+  } catch (e) {
+    if (label) console.warn(label, e);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -117,7 +126,7 @@ serve(async (req) => {
         .eq("id", intent_id).single();
 
       if (!intent) {
-        await supabase.rpc("field_intent_release_lock", { p_intent_id: intent_id }).catch(() => {});
+        await ignoreFailure(supabase.rpc("field_intent_release_lock", { p_intent_id: intent_id }));
         return json({ ok: false, error: "Intention de paiement introuvable" }, 404);
       }
 
@@ -196,7 +205,7 @@ serve(async (req) => {
       const detail = sqErr.detail || "";
       const category = sqErr.category || "";
 
-      await supabase.from("square_payment_attempts").insert({
+      await ignoreFailure(supabase.from("square_payment_attempts").insert({
         invoice_id: invoiceData?.id ?? null,
         customer_id: customerId,
         amount: amountCents / 100,
@@ -206,14 +215,14 @@ serve(async (req) => {
         square_error_category: category,
         status: "failed",
         response_raw: squareData,
-      }).catch(() => {});
+      }));
 
       if (intent_id) {
-        await supabase.rpc("field_intent_release_lock", { p_intent_id: intent_id }).catch(() => {});
-        await supabase.rpc("log_field_order_event", {
+        await ignoreFailure(supabase.rpc("field_intent_release_lock", { p_intent_id: intent_id }));
+        await ignoreFailure(supabase.rpc("log_field_order_event", {
           p_intent_id: intent_id, p_event_type: "payment_failed",
           p_payload: { code, detail, category },
-        }).catch(() => {});
+        }));
       }
 
       console.error("[square-charge-invoice] Square error:", JSON.stringify(squareData.errors));
@@ -268,7 +277,7 @@ serve(async (req) => {
           // Journaliser comme "success" côté Square + alerte système. AUCUNE écriture
           // directe sur billing_invoices : la reconciliation devra rejouer la RPC.
           console.error("[square-charge-invoice] RPC apply_payment_to_invoice failed:", rpcErr.message);
-          await supabase.from("square_payment_attempts").insert({
+          await ignoreFailure(supabase.from("square_payment_attempts").insert({
             invoice_id: invoiceData.id,
             customer_id: customerId,
             amount: amountPaid,
@@ -276,14 +285,14 @@ serve(async (req) => {
             square_payment_id: paymentId,
             status: "success",
             response_raw: { payment, rpc_error: rpcErr.message },
-          }).catch(() => {});
-          await supabase.from("billing_system_alerts").insert({
+          }));
+          await ignoreFailure(supabase.from("billing_system_alerts").insert({
             alert_type: "square_rpc_apply_failed",
             entity_type: "billing_invoice",
             entity_id: invoiceData.id,
             entity_reference: paymentId,
             details: { error: rpcErr.message, payment_id: paymentId, amount: amountPaid },
-          }).catch(() => {});
+          }));
           return json({
             ok: false,
             error: "Paiement débité mais application canonique échouée. Conservez ce numéro Square.",
@@ -296,7 +305,7 @@ serve(async (req) => {
     }
 
     // ── Log tentative réussie ──────────────────────────────────────────────
-    await supabase.from("square_payment_attempts").insert({
+    await ignoreFailure(supabase.from("square_payment_attempts").insert({
       invoice_id: invoiceData?.id ?? null,
       customer_id: customerId,
       amount: amountPaid,
@@ -304,13 +313,13 @@ serve(async (req) => {
       square_payment_id: paymentId,
       status: "success",
       response_raw: payment,
-    }).catch(() => {});
+    }));
 
     if (intent_id) {
-      await supabase.rpc("log_field_order_event", {
+      await ignoreFailure(supabase.rpc("log_field_order_event", {
         p_intent_id: intent_id, p_event_type: "payment_succeeded",
         p_payload: { square_payment_id: paymentId, amount: amountPaid },
-      }).catch(() => {});
+      }));
 
       await supabase.from("field_payment_intents")
         .update({ status: "completed", paid_at: new Date().toISOString() })
@@ -410,7 +419,7 @@ serve(async (req) => {
             pdf = await buildReceiptPdfAttachment(invoiceData.id, "recu-paiement").catch(() => null);
           } catch { /* ignore */ }
         }
-        await enqueueCommunication({
+        await enqueueCommunication(supabase, {
           channel: "email",
           templateKey: "payment_receipt",
           recipient: customerEmail,
@@ -480,6 +489,9 @@ serve(async (req) => {
       message: `Paiement approuvé par Square (${payment.status ?? "COMPLETED"}) — Référence Square : ${paymentId}`,
     });
   } catch (err: any) {
+    if (intent_id) {
+      await ignoreFailure(supabase.rpc("field_intent_release_lock", { p_intent_id: intent_id }), "[square-charge-invoice] lock release after fatal failed");
+    }
     console.error("[square-charge-invoice] Fatal:", err);
     return json({ ok: false, error: err?.message || String(err) }, 500);
   }
