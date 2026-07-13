@@ -1,6 +1,7 @@
 /**
  * EquipmentStep — Step 6: Assign equipment to the order
  * Dynamically adapts fields based on ordered service type and items.
+ * Includes an inline stock picker (equipment_inventory in_stock rows).
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { EquipmentStockPicker, type StockItem, type StockUnitType } from "../EquipmentStockPicker";
 
 interface Props { proc: any; }
 
@@ -150,6 +154,7 @@ function isNetworkType(type: EquipmentType): boolean {
 
 export function EquipmentStep({ proc }: Props) {
   const { order, items } = proc;
+  const queryClient = useQueryClient();
   const suggestedTypes = getEquipmentTypesForOrder(order, items);
 
   // Initialize units from existing equipment data
