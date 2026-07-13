@@ -22,15 +22,18 @@ interface Props {
   equipment?: any[];
   appointments?: any[];
   tickets?: any[];
+  orders?: any[];
 }
 
-const getAddressId = (item: any) =>
+const directAddressId = (item: any) =>
   item?.service_address_id || item?.address_id || item?.service_address?.id || null;
+
+const ACTIVE_SUB = new Set(["active", "pending", "suspended", "trial", "past_due", "paused", "pause_requested"]);
 
 const secondary = (a: ServiceAddress) =>
   [a.city, a.province, a.postal_code].filter(Boolean).join(", ");
 
-export function ClientAddressWorkspace({ accountId, subscriptions = [], equipment = [], appointments = [], tickets = [] }: Props) {
+export function ClientAddressWorkspace({ accountId, subscriptions = [], equipment = [], appointments = [], tickets = [], orders = [] }: Props) {
   const { addresses, isLoading, create, creating, softDelete } = useAccountAddresses(accountId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -40,11 +43,40 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
     if (!selectedId && addresses[0]?.id) setSelectedId(addresses[0].id);
   }, [addresses, selectedId]);
 
+  // Resolver maps for indirect linkage: equipment/appointments/tickets rarely carry
+  // service_address_id directly; they reference a subscription or order.
+  const subAddressById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of subscriptions) {
+      const aid = directAddressId(s);
+      if (s?.id && aid) m.set(s.id, aid);
+    }
+    return m;
+  }, [subscriptions]);
+
+  const orderAddressById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const o of orders) {
+      const aid = directAddressId(o);
+      if (o?.id && aid) m.set(o.id, aid);
+    }
+    return m;
+  }, [orders]);
+
+  const resolveAddress = (item: any): string | null => {
+    return (
+      directAddressId(item) ||
+      (item?.subscription_id && subAddressById.get(item.subscription_id)) ||
+      (item?.order_id && orderAddressById.get(item.order_id)) ||
+      null
+    );
+  };
+
   const buckets = useMemo(() => {
     const map = new Map<string, { subs: any[]; eq: any[]; appts: any[]; tks: any[] }>();
     for (const a of addresses) map.set(a.id, { subs: [], eq: [], appts: [], tks: [] });
     const push = (k: "subs" | "eq" | "appts" | "tks", item: any) => {
-      const id = getAddressId(item);
+      const id = resolveAddress(item);
       if (id && map.has(id)) map.get(id)![k].push(item);
     };
     subscriptions.forEach((x) => push("subs", x));
@@ -52,7 +84,7 @@ export function ClientAddressWorkspace({ accountId, subscriptions = [], equipmen
     appointments.forEach((x) => push("appts", x));
     tickets.forEach((x) => push("tks", x));
     return map;
-  }, [addresses, subscriptions, equipment, appointments, tickets]);
+  }, [addresses, subscriptions, equipment, appointments, tickets, subAddressById, orderAddressById]);
 
   const selected = addresses.find((a) => a.id === selectedId) || null;
   const b = selected ? buckets.get(selected.id) : null;
