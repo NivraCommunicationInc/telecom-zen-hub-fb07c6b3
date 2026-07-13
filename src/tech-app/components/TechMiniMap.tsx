@@ -33,8 +33,8 @@ export default function TechMiniMap() {
           const el = document.createElement("div");
           el.style.cssText = `
             width:10px;height:10px;border-radius:50%;
-            background:#a78bfa;border:2px solid #fff;
-            box-shadow:0 0 0 3px rgba(124,58,237,0.35);
+            background:#38bdf8;border:2px solid #fff;
+            box-shadow:0 0 0 3px rgba(0,102,204,0.35);
           `;
           new mapboxgl.Marker({ element: el }).setLngLat([p.lng, p.lat]).addTo(map);
         }

@@ -119,7 +119,7 @@ export default function TechProfile() {
     >
       <div
         className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.22)" }}
+        style={{ background: "rgba(0,102,204,0.14)", border: "1px solid rgba(0,102,204,0.28)" }}
       >
         <Icon className="h-4 w-4" style={{ color: "var(--tp-primary-glow)" }} />
       </div>
@@ -153,15 +153,15 @@ export default function TechProfile() {
       {/* Hero banner */}
       <div
         className="relative px-5 pt-6 pb-6 flex items-start gap-4"
-        style={{ background: "linear-gradient(180deg, #1E1040 0%, #0A0A12 100%)" }}
+        style={{ background: "linear-gradient(180deg, #06162C 0%, #0A0A12 100%)" }}
       >
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse 60% 80% at 20% 50%, rgba(124,58,237,0.15) 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(ellipse 60% 80% at 20% 50%, rgba(0,102,204,0.18) 0%, transparent 70%)" }}
         />
         <div
           className="relative h-16 w-16 rounded-2xl flex items-center justify-center text-white text-xl font-black shrink-0 shadow-xl"
-          style={{ background: "linear-gradient(135deg,#7C3AED 0%,#5B21B6 100%)", boxShadow: "0 8px 24px rgba(124,58,237,0.35)" }}
+          style={{ background: "linear-gradient(135deg,#0066CC 0%,#004C99 100%)", boxShadow: "0 8px 24px rgba(0,102,204,0.32)" }}
         >
           {initials}
         </div>
@@ -171,8 +171,8 @@ export default function TechProfile() {
           {profile?.phone && <p className="text-[11px] text-slate-500 mt-0.5">{profile.phone}</p>}
           <div className="mt-2 flex flex-wrap gap-1.5">
             <span
-              className="inline-flex items-center gap-1 text-[10px] font-bold text-violet-300 uppercase tracking-[0.08em] px-2.5 py-1 rounded-full"
-              style={{ background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.3)" }}
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-300 uppercase tracking-[0.08em] px-2.5 py-1 rounded-full"
+              style={{ background: "rgba(0,102,204,0.2)", border: "1px solid rgba(0,102,204,0.35)" }}
             >
               <ShieldCheck className="h-3 w-3" /> Technicien
             </span>
@@ -194,7 +194,7 @@ export default function TechProfile() {
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] mb-2.5" style={{ color: "var(--tp-text-dim)" }}>Cette semaine</p>
           <div className="grid grid-cols-3 gap-2.5">
             {[
-              { icon: TrendingUp, label: "Installations", value: String(weekCompleted), color: "text-violet-400", iconColor: "text-violet-500" },
+              { icon: TrendingUp, label: "Installations", value: String(weekCompleted), color: "text-sky-400", iconColor: "text-blue-500" },
               { icon: Timer, label: "Heures", value: fmtDuration(weekMinutes), color: "text-emerald-400", iconColor: "text-emerald-500" },
               { icon: Award, label: "Complétion", value: `${completionRate}%`, color: weekCompleted === 0 ? "text-slate-400" : completionRate >= 80 ? "text-emerald-400" : "text-amber-400", iconColor: "text-amber-500" },
             ].map(({ icon: Icon, label, value, color, iconColor }) => (
@@ -211,7 +211,7 @@ export default function TechProfile() {
         <div className="tp-card p-4 flex items-center gap-4">
           <div
             className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.25)" }}
+            style={{ background: "rgba(0,102,204,0.16)", border: "1px solid rgba(0,102,204,0.3)" }}
           >
             <Award className="h-5 w-5" style={{ color: "var(--tp-primary-glow)" }} />
           </div>

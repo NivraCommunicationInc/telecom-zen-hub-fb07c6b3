@@ -157,7 +157,7 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       <header className="flex items-center justify-between px-4 py-3 bg-slate-950/95 border-b border-slate-800">
         <div className="flex items-center gap-2 text-white font-semibold">
-          <QrCode className="h-5 w-5 text-violet-400" />
+          <QrCode className="h-5 w-5 text-sky-400" />
           Scanner l'équipement
         </div>
         <button
@@ -173,7 +173,7 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
       {error ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
           <p className="text-white text-sm">{error}</p>
-          <label className="min-h-[56px] px-6 rounded-full bg-violet-600 text-white text-sm font-bold flex items-center gap-2 cursor-pointer">
+          <label className="min-h-[56px] px-6 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center gap-2 cursor-pointer">
             <Upload className="h-5 w-5" />
             Scanner depuis une photo
             <input type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
@@ -188,7 +188,7 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
             muted
           />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-64 h-64 border-4 border-violet-400 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]" />
+            <div className="w-64 h-64 border-4 border-sky-400 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]" />
           </div>
           <p className="absolute bottom-24 left-0 right-0 text-center text-white text-sm font-semibold drop-shadow">
             Centrez le QR code dans le cadre

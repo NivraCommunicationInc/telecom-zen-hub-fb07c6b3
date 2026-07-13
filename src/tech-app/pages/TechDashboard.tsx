@@ -96,7 +96,7 @@ export default function TechDashboard() {
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div
               className="h-8 w-8 rounded-[10px] flex items-center justify-center text-white font-black text-[14px] shrink-0"
-              style={{ background: "linear-gradient(135deg,var(--tp-primary) 0%,var(--tp-primary-deep) 100%)", boxShadow: "0 4px 14px rgba(124,58,237,0.4)" }}
+              style={{ background: "linear-gradient(135deg,var(--tp-primary) 0%,var(--tp-primary-deep) 100%)", boxShadow: "0 4px 14px rgba(0,102,204,0.4)" }}
             >
               N
             </div>

@@ -38,7 +38,7 @@ export default function TechHeader({ title, subtitle, back, alertCount = 0, righ
         ) : (
           <div
             className="shrink-0 h-8 w-8 rounded-[10px] flex items-center justify-center text-white font-black text-[13px] shadow-lg"
-            style={{ background: "linear-gradient(135deg, var(--tp-primary) 0%, var(--tp-primary-deep) 100%)", boxShadow: "0 4px 12px rgba(124,58,237,0.35)" }}
+            style={{ background: "linear-gradient(135deg, var(--tp-primary) 0%, var(--tp-primary-deep) 100%)", boxShadow: "0 4px 12px rgba(0,102,204,0.35)" }}
           >
             N
           </div>
