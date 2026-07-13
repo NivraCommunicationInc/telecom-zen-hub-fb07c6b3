@@ -116,6 +116,19 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
     }),
 
     // ── Technician flow (queued by queue_tech_status_email) ─────────────────
+    tech_accepted: () => ({
+      subject: `Nivra — Votre technicien est assigné ✅`,
+      html: buildEmail("Technicien assigné", "Votre rendez-vous est pris en charge", "success", "✅",
+        "Votre technicien est assigné",
+        `${vars.tech_name || "Votre technicien Nivra"} a accepté votre installation. Vous recevrez un autre message lorsqu'il sera en route.`,
+        vars, [
+          ...(vars.tech_name ? [{ label: "Technicien", value: vars.tech_name }] : []),
+          ...(vars.scheduled_date ? [{ label: "Date", value: vars.scheduled_date }] : []),
+          ...(vars.scheduled_time ? [{ label: "Heure", value: vars.scheduled_time }] : []),
+          ...(vars.service_address ? [{ label: "Adresse", value: vars.service_address }] : []),
+        ], "Voir ma commande", portalUrl),
+    }),
+
     tech_en_route: () => ({
       subject: `Nivra — Votre technicien est en route 🚚`,
       html: buildEmail("Technicien en route", "Votre technicien arrive bientôt", "warning", "🚚",

@@ -98,7 +98,7 @@ function DispatchCard({ job, uid, onClaim, claimPending }: DispatchCardProps) {
   const countdown = job.reservation_expires_at ? formatCountdown(job.reservation_expires_at) : null;
 
   return (
-    <li className={`rounded-2xl border p-4 space-y-3 ${
+    <li className={`tp-job-card p-4 space-y-3 ${
       isLockedByOther ? "bg-slate-900/50 border-slate-700 opacity-70" :
       job.dispatch_priority === "urgent" ? "bg-red-950/30 border-red-600/40" :
       job.dispatch_priority === "vip" ? "bg-amber-950/30 border-amber-600/40" :
@@ -448,7 +448,7 @@ export default function TechAssignments() {
                 {filtered.map((a) => {
                   const terminal = ["completed","cancelled","missed","no_show"].includes(a.status);
                   return (
-                    <li key={a.id} className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+                    <li key={a.id} className={`tp-job-card p-4 space-y-3 ${["accepted", "en_route", "arrived", "in_progress"].includes(a.status) ? "tp-live-card" : ""}`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className={`inline-flex items-center text-xs font-bold px-3 py-1 rounded-full border ${STATUS_STYLES[a.status] ?? STATUS_STYLES.scheduled}`}>
                           {STATUS_LABELS[a.status] ?? a.status}
@@ -488,20 +488,20 @@ export default function TechAssignments() {
                             <button
                               onClick={() => setStatus.mutate({ a, status: "en_route" })}
                               disabled={setStatus.isPending}
-                              className="w-full min-h-[48px] rounded-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                              className="tp-action-btn tp-action-warning w-full"
                             >
-                              <Truck className="h-4 w-4" /> En Route
+                              <Truck className="h-4 w-4" /> En route + email client
                             </button>
                           )}
                           <button
                             onClick={() => navigate(`/tech/installation/${a.id}`)}
-                            className="w-full min-h-[48px] rounded-full bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold flex items-center justify-center gap-2"
+                            className="tp-action-btn tp-action-primary w-full"
                           >
                             <PlayCircle className="h-4 w-4" /> Démarrer l'installation
                           </button>
                           <button
                             onClick={() => setMissingFor(a)}
-                            className="w-full min-h-[44px] rounded-full bg-transparent border-2 border-red-600/60 text-red-300 text-sm font-bold flex items-center justify-center gap-2 hover:bg-red-600/10"
+                            className="tp-action-btn tp-action-danger w-full"
                           >
                             <XCircle className="h-4 w-4" /> Rendez-vous manqué
                           </button>

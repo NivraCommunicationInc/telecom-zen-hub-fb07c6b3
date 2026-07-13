@@ -533,8 +533,10 @@ export default function TechInstallation() {
   const currentStep = steps[stepIdx];
   const allMandatoryDone = doneMandatory >= mandatoryCount;
   const networkOk = assignment.service_type !== "internet" || (!!download && !!upload);
+  const wifiRequired = ["internet", "bundle"].includes(String(assignment.service_type || "").toLowerCase());
+  const wifiReady = !wifiRequired || (!!wifiSsid.trim() && !!wifiPassword.trim());
   const hasWrongOrder = scannedItems.some((i) => i.scan_status === "wrong_order");
-  const canComplete = allMandatoryDone && (assignment.service_type !== "internet" || !!coax) && networkOk && !hasWrongOrder;
+  const canComplete = allMandatoryDone && (assignment.service_type !== "internet" || !!coax) && networkOk && wifiReady && !hasWrongOrder;
   const assistanceOpen = !!assignment.network_test_results?.assistance?.requested_at;
   const statusIsActive = ["accepted", "en_route", "arrived", "in_progress"].includes(assignment.status);
 
@@ -598,9 +600,7 @@ export default function TechInstallation() {
       <div className="px-4 py-4 space-y-4">
 
         {/* Mission info */}
-        <section className={`rounded-2xl border p-4 space-y-4 shadow-lg shadow-slate-950/40 ${
-          statusIsActive ? "bg-emerald-950/25 border-emerald-600/40" : "bg-slate-900 border-slate-800"
-        }`}>
+        <section className={`tp-job-card p-4 space-y-4 ${statusIsActive ? "tp-live-card" : ""}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-base font-bold text-white">{assignment.client_name || "Client"}</p>
@@ -632,7 +632,7 @@ export default function TechInstallation() {
             )}
           </div>
 
-          <div className="rounded-xl bg-slate-950/60 border border-slate-800 p-3 space-y-2">
+          <div className="tp-status-strip space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-violet-300">
               <Wrench className="h-4 w-4" /> Services / matériel
             </div>
@@ -684,47 +684,47 @@ export default function TechInstallation() {
               href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(assignment.client_address || "")}`}
               target="_blank"
               rel="noreferrer"
-              className="col-span-2 min-h-[48px] rounded-full bg-slate-800 border border-slate-700 text-white text-sm font-semibold flex items-center justify-center gap-2"
+              className="tp-action-btn col-span-2"
             >
               <Navigation2 className="h-4 w-4" /> Ouvrir la route GPS
             </a>
             <button
               onClick={() => setFieldStatus.mutate({ status: "accepted" })}
               disabled={setFieldStatus.isPending || assignment?.status === "accepted"}
-              className="min-h-[48px] rounded-full bg-emerald-600/20 border border-emerald-600/40 text-emerald-300 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+              className="tp-action-btn tp-action-success"
             >
-              <CheckCircle2 className="h-4 w-4" /> Accepter
+              <CheckCircle2 className="h-4 w-4" /> Accepter + email
             </button>
             <button
               onClick={handleEnRoute}
               disabled={setFieldStatus.isPending}
-              className="min-h-[48px] rounded-full bg-orange-600/20 border border-orange-600/40 text-orange-300 text-sm font-semibold flex items-center justify-center gap-2"
+              className="tp-action-btn tp-action-warning"
             >
-              <Truck className="h-4 w-4" /> En route
+              <Truck className="h-4 w-4" /> En route + GPS
             </button>
             <button
               onClick={() => setFieldStatus.mutate({ status: "arrived" })}
               disabled={setFieldStatus.isPending}
-              className="min-h-[48px] rounded-full bg-blue-600/20 border border-blue-600/40 text-blue-300 text-sm font-semibold flex items-center justify-center gap-2"
+              className="tp-action-btn tp-action-info"
             >
-              <MapPin className="h-4 w-4" /> Arrivé
+              <MapPin className="h-4 w-4" /> Arrivé + email
             </button>
             <button
               onClick={() => setFieldStatus.mutate({ status: "in_progress" })}
               disabled={setFieldStatus.isPending}
-              className="min-h-[48px] rounded-full bg-violet-600 text-white text-sm font-semibold flex items-center justify-center gap-2"
+              className="tp-action-btn tp-action-primary"
             >
-              Démarrer
+              Démarrer + email
             </button>
             <button
               onClick={() => setMissingFor(true)}
-              className="min-h-[48px] rounded-full bg-purple-600/20 border border-purple-600/40 text-purple-300 text-sm font-semibold flex items-center justify-center gap-2"
+              className="tp-action-btn"
             >
               <RotateCcw className="h-4 w-4" /> Replanifier
             </button>
             <button
               onClick={() => setShowAssistanceDialog(true)}
-              className="min-h-[48px] rounded-full bg-red-600/20 border border-red-600/50 text-red-300 text-sm font-semibold flex items-center justify-center gap-2"
+              className="tp-action-btn tp-action-danger"
             >
               <LifeBuoy className="h-4 w-4" /> Assistance
             </button>
@@ -897,16 +897,16 @@ export default function TechInstallation() {
         </section>
 
         {/* WiFi configuration — envoyé au client par courriel à la fin */}
-        <section className="rounded-2xl bg-slate-900 border border-violet-800/50 p-4 space-y-3">
+        <section className={`rounded-2xl bg-slate-900 border p-4 space-y-3 ${wifiReady ? "border-emerald-500/40" : "border-amber-500/45"}`}>
           <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
-            <Wifi className="h-4 w-4 text-emerald-400" /> Configuration WiFi (envoyée au client)
+            <Wifi className="h-4 w-4 text-emerald-400" /> Configuration WiFi client
           </h3>
           <div className="grid grid-cols-1 gap-3">
             <InputField label="Nom du réseau (SSID)" value={wifiSsid} onChange={setWifiSsid} type="text" />
             <InputField label="Mot de passe WiFi" value={wifiPassword} onChange={setWifiPassword} type="text" />
           </div>
           <p className="text-[11px] text-slate-400">
-            Ces informations seront envoyées au client dans le courriel de confirmation d'installation.
+            Obligatoire pour Internet. Ces accès seront envoyés au client dans le courriel de complétion.
           </p>
         </section>
 
@@ -976,7 +976,7 @@ export default function TechInstallation() {
           </button>
           {!canComplete && (
             <p className="text-xs text-slate-400 text-center">
-              {hasWrongOrder ? "❌ Retirez les équipements invalides." : `Complétez toutes les étapes obligatoires${assignment.service_type === "internet" ? " + coaxial + test réseau" : ""}.`}
+              {hasWrongOrder ? "❌ Retirez les équipements invalides." : !wifiReady ? "Ajoutez le nom du réseau WiFi et le mot de passe client." : `Complétez toutes les étapes obligatoires${assignment.service_type === "internet" ? " + coaxial + test réseau" : ""}.`}
             </p>
           )}
           <button
@@ -1135,7 +1135,7 @@ function InputField({ label, value, onChange, type = "number" }: { label: string
     <label className="block">
       <span className="text-xs text-slate-400 block mb-1">{label}</span>
       <input type={type} inputMode={type === "number" ? "decimal" : "text"} value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full min-h-[44px] rounded-lg bg-slate-800 border border-slate-700 text-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-violet-500" />
+        className="tp-field-input w-full min-h-[44px] px-3 text-base" />
     </label>
   );
 }
