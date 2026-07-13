@@ -16,6 +16,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { StepCompletionCard } from "../StepCompletionCard";
 import { AppointmentSlotPicker } from "@/core-app/components/appointments/AppointmentSlotPicker";
 import { InstallationTypeAndForcedSlotPanel } from "./InstallationTypeAndForcedSlotPanel";
+import { AutoInstallNetworkGate } from "./AutoInstallNetworkGate";
+import { generateDeliverySlipPDF } from "@/lib/pdf/deliverySlipTemplate";
+import { FileText } from "lucide-react";
 import { useProfileName } from "@/hooks/useProfileName";
 
 interface TechnicianOption {
@@ -84,10 +87,31 @@ export function ShippingTechnicianStep({ proc }: Props) {
   const requiresTechnician = !isSelfInstall && (isTechnicianInstall || hasInternet || hasTv);
   const requiresShipping = !isSelfInstall && !isTechnicianInstall && (hasMobile || (!hasInternet && !hasTv));
 
+  // Phase 3 — Auto-install gate: for self-install orders we require the
+  // agent to confirm network / wiring / service availability before the
+  // shipping panel unlocks. Detection = latest note tagged NETWORK_CONFIRMED.
+  const { data: networkConfirmed } = useQuery({
+    queryKey: ["network-confirmed-flag", order.id],
+    enabled: !!order.id && isSelfInstall,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("order_internal_notes")
+        .select("id")
+        .eq("order_id", order.id)
+        .like("content", "[NETWORK_CONFIRMED]%")
+        .limit(1)
+        .maybeSingle();
+      return !!data;
+    },
+  });
+
   const showTechnicianPanel =
     !isSelfInstall && (requiresTechnician || !!appointment);
   const showShippingPanel =
-    !isSelfInstall && !isTechnicianInstall && (requiresShipping || !!order.tracking_number || !!order.carrier || fulfillmentType === "shipping");
+    // Non-self-install: existing rules
+    (!isSelfInstall && !isTechnicianInstall && (requiresShipping || !!order.tracking_number || !!order.carrier || fulfillmentType === "shipping"))
+    // Self-install: shipping panel appears ONLY after network confirmation
+    || (isSelfInstall && !!networkConfirmed);
 
   const [loading, setLoading] = useState<string | null>(null);
   const [contractGate, setContractGate] = useState<{
@@ -209,6 +233,45 @@ export function ShippingTechnicianStep({ proc }: Props) {
         tracking_url: shippingFields.tracking_url || order.tracking_url || "",
       });
     } finally { setLoading(null); }
+  };
+
+  const handleDeliverySlip = () => {
+    try {
+      const equipmentItems = Array.isArray(order.equipment_details)
+        ? (order.equipment_details as any[]).map((item: any) => ({
+            description: item.label || item.name || item.type || "Équipement",
+            serial_number: item.serial_number || undefined,
+            quantity: Math.max(1, Number(item.quantity || item.qty || 1)),
+          }))
+        : (Array.isArray(items) ? items : []).map((it: any) => ({
+            description: it.product_name || it.name || it.description || "Équipement",
+            serial_number: it.serial_number || undefined,
+            quantity: Math.max(1, Number(it.quantity || 1)),
+          }));
+
+      const result = generateDeliverySlipPDF({
+        slip_number: `BL-${order.order_number || String(order.id || "").slice(0, 8)}`,
+        issue_date: order.shipped_at || order.created_at || new Date().toISOString(),
+        client_name: [order.client_first_name, order.client_last_name].filter(Boolean).join(" ") || "Client Nivra",
+        client_email: order.client_email || "",
+        client_phone: order.client_phone || "",
+        account_number: order.account_number || "",
+        delivery_address: order.shipping_address || order.client_full_address || "",
+        delivery_city: order.shipping_city || "",
+        delivery_province: order.shipping_province || "QC",
+        delivery_postal: order.shipping_postal_code || "",
+        order_number: String(order.order_number || ""),
+        carrier: shippingFields.carrier || order.carrier || "En préparation",
+        tracking_number: shippingFields.tracking_number || order.tracking_number || "—",
+        items: equipmentItems.length ? equipmentItems : [{ description: "Équipement à expédier", quantity: 1 }],
+      });
+      if (!result.success || !result.blob) { toast.error("Bordereau non disponible"); return; }
+      const url = URL.createObjectURL(result.blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la génération du bon de livraison");
+    }
   };
 
   const handleConfirmAppointment = async () => {
@@ -352,15 +415,22 @@ export function ShippingTechnicianStep({ proc }: Props) {
 
 
       {isSelfInstall && (
-        <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 mb-4 flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-emerald-200">Auto-installation par le client</p>
-            <p className="text-xs text-emerald-300/80 mt-1">
-              Le client a explicitement choisi l'auto-installation. Aucune assignation de technicien ni expédition gérée n'est requise.
-            </p>
+        <>
+          <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 mb-4 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-200">Auto-installation par le client</p>
+              <p className="text-xs text-emerald-300/80 mt-1">
+                Le client a choisi l'auto-installation. Avant d'expédier, confirme que le réseau et le câblage sont fonctionnels à l'adresse.
+              </p>
+            </div>
           </div>
-        </div>
+          <AutoInstallNetworkGate
+            orderId={order.id}
+            serviceAddress={order.shipping_address || order.client_full_address}
+            onConfirmed={() => queryClient.invalidateQueries({ queryKey: ["network-confirmed-flag", order.id] })}
+          />
+        </>
       )}
 
       {appointment?.status === "completed" && (
@@ -624,6 +694,9 @@ export function ShippingTechnicianStep({ proc }: Props) {
               </Button>
               <Button size="sm" onClick={handleNotifyShipping} disabled={loading === "notify-ship"} className="text-sm bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-800">
                 {loading === "notify-ship" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Bell className="w-3 h-3 mr-1" />} Notifier
+              </Button>
+              <Button size="sm" onClick={handleDeliverySlip} className="text-sm bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-800">
+                <FileText className="w-3 h-3 mr-1" /> Bon de livraison
               </Button>
             </div>
           </div>
