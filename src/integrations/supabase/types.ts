@@ -32396,6 +32396,10 @@ export type Database = {
         Args: { _order_id: string }
         Returns: Json
       }
+      fn_resolve_account_service_address_id: {
+        Args: { _account_id: string }
+        Returns: string
+      }
       fn_resolve_order_monthly_service: {
         Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: {
