@@ -375,69 +375,67 @@ export default function TechAssignments() {
 
   return (
     <div>
-      <TechHeader title="Missions" />
-      <div className="px-4 py-4">
+      <TechHeader title="Missions" subtitle="Portail terrain Nivra" />
+      <div className="tp-dark-header">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: "#a1a1aa" }}>Technicien Nivra</p>
+            <h1 className="text-xl font-black italic uppercase" style={{ color: "#fafafa", letterSpacing: "-0.02em" }}>Tableau terrain</h1>
+          </div>
+          <div className="flex gap-2">
+            <span className="tp-hv-pill"><span className="tp-live-dot" /> GPS ON</span>
+            <span className={urgentCount > 0 ? "tp-hv-pill tp-hv-pill--danger" : "tp-hv-pill tp-hv-pill--dark"}>{urgentCount} Urgent</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="tp-dark-kpi is-active">
+            <span className="tp-dark-kpi-label">Missions</span>
+            <span className="tp-dark-kpi-value tp-kpi">{String(assignments.filter((a) => !["completed","cancelled","missed"].includes(a.status)).length).padStart(2,"0")}</span>
+          </div>
+          <div className="tp-dark-kpi">
+            <span className="tp-dark-kpi-label">Dispatch</span>
+            <span className="tp-dark-kpi-value tp-kpi">{String(available.length).padStart(2,"0")}</span>
+          </div>
+          <div className="tp-dark-kpi">
+            <span className="tp-dark-kpi-label">Complétées</span>
+            <span className="tp-dark-kpi-value tp-kpi">{String(assignments.filter((a) => a.status === "completed").length).padStart(2,"0")}</span>
+          </div>
+        </div>
+      </div>
 
-        <section className="tp-core-hero rounded-2xl p-4 mb-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase text-sky-300">Nivra Core · Portail technicien</p>
-              <h1 className="text-xl font-black text-white mt-1">Tableau terrain</h1>
-            </div>
-            <div className="rounded-xl border border-slate-700 bg-slate-950/65 px-3 py-2 text-right">
-              <p className="text-[10px] font-bold uppercase text-slate-400">Actives</p>
-              <p className="tp-kpi text-2xl text-white">
-                {assignments.filter((a) => !["completed","cancelled","missed"].includes(a.status)).length}
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-lg border border-slate-700 bg-slate-950/55 p-2">
-              <p className="text-[10px] text-slate-400 uppercase font-bold">Dispatch</p>
-              <p className="text-lg font-black text-sky-300">{available.length}</p>
-            </div>
-            <div className="rounded-lg border border-slate-700 bg-slate-950/55 p-2">
-              <p className="text-[10px] text-slate-400 uppercase font-bold">Urgent</p>
-              <p className="text-lg font-black text-amber-300">{urgentCount}</p>
-            </div>
-            <div className="rounded-lg border border-slate-700 bg-slate-950/55 p-2">
-              <p className="text-[10px] text-slate-400 uppercase font-bold">GPS</p>
-              <p className="text-lg font-black text-emerald-300">Live</p>
-            </div>
-          </div>
-        </section>
+      <div className="px-4 py-4 -mt-4">
 
         {/* Tab switcher */}
-        <div className="grid grid-cols-2 gap-2 mb-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-1">
+        <div className="grid grid-cols-2 gap-2 mb-4 rounded-lg border p-1" style={{ background: "#ffffff", borderColor: "#e4e4e7" }}>
           <button
             onClick={() => setActiveTab("missions")}
-            className={`min-h-[48px] rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-colors ${
+            className={`min-h-[44px] rounded-md text-xs font-black italic uppercase flex items-center justify-center gap-2 transition-colors ${
               activeTab === "missions"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
-                : "bg-slate-900 border border-slate-800 text-slate-300"
+                ? "bg-zinc-900 text-white"
+                : "bg-transparent text-zinc-500"
             }`}
           >
             <ListChecks className="h-4 w-4" />
             Mes Missions
             {assignments.filter((a) => !["completed","cancelled","missed"].includes(a.status)).length > 0 && (
-              <span className="rounded-full bg-blue-400/20 px-2 py-0.5 text-xs font-bold">
+              <span className="rounded-sm bg-[#fbbf24] text-zinc-900 px-1.5 py-0.5 text-[10px] font-black not-italic">
                 {assignments.filter((a) => !["completed","cancelled","missed"].includes(a.status)).length}
               </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab("dispatch")}
-            className={`min-h-[48px] rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-colors relative ${
+            className={`min-h-[44px] rounded-md text-xs font-black italic uppercase flex items-center justify-center gap-2 transition-colors relative ${
               activeTab === "dispatch"
-                ? "bg-orange-600 text-white shadow-lg shadow-orange-500/30"
-                : "bg-slate-900 border border-slate-800 text-slate-300"
+                ? "bg-[#fbbf24] text-zinc-900"
+                : "bg-transparent text-zinc-500"
             }`}
           >
             <Radio className="h-4 w-4" />
             Disponibles
             {available.length > 0 && (
-              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                urgentCount > 0 ? "bg-red-500 text-white animate-pulse" : "bg-orange-400/20 text-orange-300"
+              <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-black not-italic ${
+                urgentCount > 0 ? "bg-red-600 text-white animate-pulse" : "bg-zinc-900 text-white"
               }`}>
                 {available.length}
               </span>
