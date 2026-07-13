@@ -642,7 +642,7 @@ serve(async (req) => {
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
 
-      const verify = await verifyClientTotals(pricing.cart_items);
+      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       const clientInfo = {
@@ -705,7 +705,7 @@ serve(async (req) => {
       let pricing;
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
-      const verify = await verifyClientTotals(pricing.cart_items);
+      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       // 1. Create the field_quote (source of truth for intent)
@@ -1038,7 +1038,7 @@ serve(async (req) => {
       let pricing;
       try { pricing = await resolveCatalogAndPrice(); }
       catch (e: any) { return err(400, "CATALOG_INVALID", e?.message || "Catalogue invalide"); }
-      const verify = await verifyClientTotals(pricing.cart_items);
+      const verify = await verifyClientTotals(pricing.cart_items, pricing.customAdjustmentsPostTax || 0);
       if (!verify.ok) return err(422, "PRICE_MISMATCH", verify.error || "Prix incohérents");
 
       const customerName = `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Client";
