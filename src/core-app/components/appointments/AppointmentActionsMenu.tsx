@@ -153,10 +153,14 @@ export function AppointmentActionsMenu({ appointment: apt, onRefresh }: Props) {
           <DropdownMenuItem onClick={() => setDlg("assign")} className="text-xs">
             <Wrench className="h-3.5 w-3.5 mr-2 text-amber-400" /> Assigner technicien…
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={doSendConfirmation} className="text-xs">
+            <Send className="h-3.5 w-3.5 mr-2 text-emerald-400" /> Envoyer confirmation du RDV
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={doSendReminder} className="text-xs">
             <Send className="h-3.5 w-3.5 mr-2 text-cyan-400" />
             {apt.reminder_sent_at ? "Renvoyer le rappel" : "Envoyer un rappel"}
           </DropdownMenuItem>
+          <DropdownMenuSeparator className="bg-slate-800" />
           <DropdownMenuSeparator className="bg-slate-800" />
           <DropdownMenuItem onClick={doComplete} className="text-xs">
             <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-400" /> Marquer complété
