@@ -90,6 +90,28 @@ export const AppointmentDetailDialog = ({
   const canModify = hoursUntil >= 24;
   const serviceType = SERVICE_TYPE_LABELS[apt.service_type];
   const ServiceIcon = serviceType?.icon || Wifi;
+  const [sendingReminder, setSendingReminder] = useState(false);
+
+  const handleSendReminder = async () => {
+    try {
+      setSendingReminder(true);
+      const { data, error } = await supabase.functions.invoke("send-appointment-reminder", {
+        body: { appointmentId: apt.id, force: !!apt.reminder_sent_at },
+      });
+      if (error) throw error;
+      if (data?.alreadySent && !data?.success) {
+        toast.info("Rappel déjà envoyé");
+      } else if (data?.success) {
+        toast.success("Rappel envoyé au client");
+      } else {
+        toast.error(data?.reason || "Impossible d'envoyer le rappel");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'envoi du rappel");
+    } finally {
+      setSendingReminder(false);
+    }
+  };
 
   const showInternalFields = isAdmin || isEmployee;
   const showFullCard = isAdmin;
