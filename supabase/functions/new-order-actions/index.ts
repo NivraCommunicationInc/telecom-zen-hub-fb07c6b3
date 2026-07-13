@@ -575,7 +575,10 @@ serve(async (req) => {
     // Try compute_checkout_pricing first; fall back to manual QC math (5% + 9.975%).
     let server_subtotal = 0, server_tps = 0, server_tvq = 0, server_total = 0;
     try {
-      const promoCode = body.discount?.code || body.discount?.name || null;
+      // Custom Core discounts apply only to renewal invoices (via account_promotions),
+      // never to the initial order transaction — do NOT feed them to the pricing RPC.
+      const isCustomCore = String(body.discount?.source || "").toLowerCase() === "custom_core";
+      const promoCode = isCustomCore ? null : (body.discount?.code || body.discount?.name || null);
       const { data, error } = await admin.rpc("compute_checkout_pricing" as any, {
         p_cart_items: cart_items,
         p_promo_code: promoCode,
