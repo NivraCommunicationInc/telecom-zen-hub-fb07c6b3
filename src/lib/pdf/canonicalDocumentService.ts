@@ -17,6 +17,7 @@ import { generateServiceTermsPDF, CURRENT_TERMS_VERSION } from "./serviceTermsTe
 import type { InvoiceDataV2, PDFGenerationResult, InvoiceItem } from "./types";
 import { TAX } from "./companyInfo";
 import { fetchInvoiceBreakdown, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
+import { cleanPdfText } from "./textSanitize";
 
 // ============================================================================
 // PORTABLE DATA FETCHER — works with ANY Supabase client (admin or portal)
@@ -235,7 +236,7 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
     const qty = item.quantity || 1;
 
     if (item.line_type === "discount" || item.line_type === "credit") {
-      discounts.push({ label: item.description, amount: Math.abs(amount) });
+      discounts.push({ label: cleanPdfText(item.description, "Rabais"), amount: Math.abs(amount) });
       continue;
     }
 
@@ -252,11 +253,11 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
       || descLower.includes("sim card") || descLower.includes("carte sim");
 
     if (item.line_type === "equipment" || isEquipmentByDescription) {
-      equipment.push({ name: item.description, quantity: qty, unit_price: unitPrice });
-      invoiceItems.push({ category: "Equipment", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
+      equipment.push({ name: cleanPdfText(item.description, "Équipement"), quantity: qty, unit_price: unitPrice });
+      invoiceItems.push({ category: "Equipment", description: cleanPdfText(item.description, "Équipement"), qty, unit_price: unitPrice, amount, is_recurring: false });
     } else if (item.line_type === "fee" || isFeeByDescription) {
-      fees.push({ label: item.description, amount });
-      invoiceItems.push({ category: "Fees", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
+      fees.push({ label: cleanPdfText(item.description, "Frais"), amount });
+      invoiceItems.push({ category: "Fees", description: cleanPdfText(item.description, "Frais"), qty, unit_price: unitPrice, amount, is_recurring: false });
     } else {
       const type = descLower.includes("internet") || descLower.includes("giga") ? "Internet"
         : descLower.includes("mobile") || descLower.includes("talk") || descLower.includes("text") ? "Mobile"
@@ -264,10 +265,10 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
         : descLower.includes("streaming") ? "Streaming"
         : descLower.includes("sécurité") || descLower.includes("security") ? "Sécurité"
         : "Télécom";
-      services.push({ type, name: item.description, monthly_price: amount });
+      services.push({ type, name: cleanPdfText(item.description, "Service"), monthly_price: amount });
       invoiceItems.push({
         category: type as any,
-        description: item.description,
+        description: cleanPdfText(item.description, "Service"),
         qty, unit_price: unitPrice, amount,
         is_recurring: bd.type === "renewal",
         service_address: order.shipping_address,

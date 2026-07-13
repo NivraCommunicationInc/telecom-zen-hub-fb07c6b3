@@ -16,9 +16,6 @@ export function cleanPdfText(value: unknown, fallback = "—"): string {
     text = text.replace(/&+/g, "");
   }
 
-  // Strip Minecraft/legacy formatting codes (&1, &e, &r, etc.) when not character-corrupted.
-  text = text.replace(/[&§][0-9a-fk-or]/gi, "");
-
   text = text
     .replace(/&([a-z]+);/gi, (_m, name) => HTML_ENTITIES[String(name).toLowerCase()] ?? _m)
     .replace(/&#(\d+);/g, (_m, n) => {
@@ -29,6 +26,9 @@ export function cleanPdfText(value: unknown, fallback = "—"): string {
       const code = parseInt(n, 16);
       return Number.isFinite(code) ? String.fromCharCode(code) : _m;
     });
+
+  // Strip Minecraft/legacy formatting codes (&1, &e, &r, etc.) after HTML entities are decoded.
+  text = text.replace(/[&§][0-9a-fk-or]/gi, "");
 
   const ampCount = (text.match(/&/g) || []).length;
   if (ampCount >= 3 && ampCount / Math.max(text.length, 1) > 0.12) {
