@@ -27463,6 +27463,7 @@ export type Database = {
           id: string
           installation_photos: Json | null
           installation_steps: Json | null
+          live_location: Json | null
           missed_at: string | null
           network_test_results: Json | null
           order_id: string | null
@@ -27492,6 +27493,7 @@ export type Database = {
           id?: string
           installation_photos?: Json | null
           installation_steps?: Json | null
+          live_location?: Json | null
           missed_at?: string | null
           network_test_results?: Json | null
           order_id?: string | null
@@ -27521,6 +27523,7 @@ export type Database = {
           id?: string
           installation_photos?: Json | null
           installation_steps?: Json | null
+          live_location?: Json | null
           missed_at?: string | null
           network_test_results?: Json | null
           order_id?: string | null
@@ -32470,6 +32473,10 @@ export type Database = {
         }
         Returns: string
       }
+      fn_resolve_technician_profile_id: {
+        Args: { _user_id: string }
+        Returns: string
+      }
       fn_start_final_exam: {
         Args: { _portal: string; _question_count?: number }
         Returns: Json
@@ -34203,6 +34210,17 @@ export type Database = {
       update_template_last_used_at: {
         Args: { p_template_key: string }
         Returns: undefined
+      }
+      upsert_my_technician_location: {
+        Args: {
+          p_accuracy_meters?: number
+          p_assignment_id: string
+          p_heading?: number
+          p_latitude: number
+          p_longitude: number
+          p_speed_kmh?: number
+        }
+        Returns: Json
       }
       validate_active_staff_impersonation: {
         Args: { _portal: string; _session_id: string; _target_user_id: string }

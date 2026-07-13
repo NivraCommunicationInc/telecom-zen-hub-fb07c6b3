@@ -1,0 +1,1 @@
+drop function if exists public.upsert_my_technician_location(uuid, numeric, numeric, numeric, numeric, numeric);

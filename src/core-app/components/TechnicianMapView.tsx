@@ -47,6 +47,11 @@ type LocRow = {
   is_active: boolean;
 };
 
+const getTechName = (map: Map<string, string> | undefined, technicianId: string | null | undefined) => {
+  if (!technicianId) return "Technicien";
+  return map?.get(technicianId) ?? "Technicien";
+};
+
 export function TechnicianMapView() {
   const [search, setSearch] = useState("");
   const [activityFilter, setActivityFilter] = useState("all");
@@ -76,10 +81,13 @@ export function TechnicianMapView() {
     queryFn: async () => {
       const { data } = await supabase
         .from("technicians")
-        .select("user_id, full_name")
-        .in("user_id", techIds);
+        .select("id, user_id, full_name")
+        .or(`id.in.(${techIds.join(",")}),user_id.in.(${techIds.join(",")})`);
       const m = new Map<string, string>();
-      (data ?? []).forEach((t: any) => m.set(t.user_id, t.full_name || "Technicien"));
+      (data ?? []).forEach((t: any) => {
+        if (t.id) m.set(t.id, t.full_name || "Technicien");
+        if (t.user_id) m.set(t.user_id, t.full_name || "Technicien");
+      });
       return m;
     },
   });
@@ -106,8 +114,9 @@ export function TechnicianMapView() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("technician_assignments")
-        .select("id, technician_id, status, scheduled_date, scheduled_time_start, scheduled_time_end, order_id, service_address_id, service_addresses:service_address_id(address_line, city, latitude, longitude)")
-        .in("status", ["accepted", "en_route", "in_progress", "arrived"])
+        .select("id, technician_id, status, scheduled_date, scheduled_time_start, scheduled_time_end, order_id, service_address_id, live_location, service_addresses:service_address_id(address_line, city, latitude, longitude)")
+        .in("status", ["accepted", "assigned", "scheduled", "pending_scheduling", "en_route", "in_progress", "arrived"])
+        .not("technician_id", "is", null)
         .gte("scheduled_date", new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10));
       if (error) throw error;
       return (data ?? []) as any[];
@@ -123,10 +132,13 @@ export function TechnicianMapView() {
     queryFn: async () => {
       const { data } = await supabase
         .from("technicians")
-        .select("user_id, full_name")
-        .in("user_id", assignTechIds);
+        .select("id, user_id, full_name")
+        .or(`id.in.(${assignTechIds.join(",")}),user_id.in.(${assignTechIds.join(",")})`);
       const m = new Map<string, string>();
-      (data ?? []).forEach((t: any) => m.set(t.user_id, t.full_name || "Technicien"));
+      (data ?? []).forEach((t: any) => {
+        if (t.id) m.set(t.id, t.full_name || "Technicien");
+        if (t.user_id) m.set(t.user_id, t.full_name || "Technicien");
+      });
       return m;
     },
   });
@@ -140,7 +152,7 @@ export function TechnicianMapView() {
   const visibleLocs = useMemo(() => locs.filter((loc) => {
     const speed = loc.speed_kmh ?? 0;
     const job = loc.installation_job_id ? jobsQ.data?.get(loc.installation_job_id) : null;
-    const name = techsQ.data?.get(loc.technician_id) ?? "Technicien";
+    const name = getTechName(techsQ.data, loc.technician_id);
     if (activityFilter === "moving" && speed <= 5) return false;
     if (activityFilter === "assigned" && !job) return false;
     if (activityFilter === "idle" && (speed > 5 || job)) return false;
@@ -197,7 +209,7 @@ export function TechnicianMapView() {
             ) : visibleLocs.map((loc) => {
               const speed = loc.speed_kmh ?? 0;
               const job = loc.installation_job_id ? jobsQ.data?.get(loc.installation_job_id) : null;
-              const name = techsQ.data?.get(loc.technician_id) ?? "Technicien";
+               const name = getTechName(techsQ.data, loc.technician_id);
               const ageSec = Math.max(0, Math.round((now - new Date(loc.recorded_at).getTime()) / 1000));
               return (
                 <div key={loc.id} className="p-3 space-y-2">
@@ -269,16 +281,21 @@ export function TechnicianMapView() {
         {/* Techniciens avec RDV actif mais sans position live → épinglés à l'adresse du client */}
         {(assignmentsQ.data ?? [])
           .filter((a: any) => {
+            if (!a.technician_id) return false;
             const addr = a.service_addresses;
-            if (!addr?.latitude || !addr?.longitude) return false;
+            const hasAssignmentLive = a.live_location?.lat && a.live_location?.lng;
+            if (!hasAssignmentLive && (!addr?.latitude || !addr?.longitude)) return false;
             // Skip si déjà affiché en live
             return !locs.some((l) => l.technician_id === a.technician_id);
           })
           .map((a: any) => {
             const addr = a.service_addresses;
-            const name = assignTechNamesQ.data?.get(a.technician_id) ?? "Technicien";
+            const name = getTechName(assignTechNamesQ.data, a.technician_id);
+            const hasAssignmentLive = a.live_location?.lat && a.live_location?.lng;
+            const lat = Number(hasAssignmentLive ? a.live_location.lat : addr.latitude);
+            const lng = Number(hasAssignmentLive ? a.live_location.lng : addr.longitude);
             return (
-              <Marker key={`asn-${a.id}`} position={[Number(addr.latitude), Number(addr.longitude)]} icon={orangeIcon}>
+              <Marker key={`asn-${a.id}`} position={[lat, lng]} icon={orangeIcon}>
                 <Popup>
                   <div className="text-xs space-y-1">
                     <div className="font-semibold">{name}</div>
@@ -289,9 +306,11 @@ export function TechnicianMapView() {
                     <div className="text-muted-foreground">
                       {addr.address_line}{addr.city ? `, ${addr.city}` : ""}
                     </div>
-                    <div className="text-[10px] italic text-muted-foreground">Position estimée (adresse du RDV)</div>
+                    <div className="text-[10px] italic text-muted-foreground">
+                      {hasAssignmentLive ? "Position live du portail technicien" : "Position estimée (adresse du RDV)"}
+                    </div>
                     <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${addr.latitude},${addr.longitude}`}
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 text-primary"

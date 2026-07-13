@@ -156,11 +156,22 @@ export default function TechInstallation() {
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
         setGpsActive(true);
-        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-        await supabase
-          .from("technician_assignments")
-          .update({ live_location: { lat, lng, accuracy, updated_at: new Date().toISOString() } } as any)
-          .eq("id", id);
+        const { latitude: lat, longitude: lng, accuracy, heading, speed } = pos.coords;
+        const speedKmh = typeof speed === "number" && Number.isFinite(speed) ? speed * 3.6 : null;
+        const { error } = await (supabase.rpc as any)("upsert_my_technician_location", {
+          p_assignment_id: id,
+          p_latitude: lat,
+          p_longitude: lng,
+          p_accuracy_meters: accuracy ?? null,
+          p_heading: heading ?? null,
+          p_speed_kmh: speedKmh,
+        });
+        if (error) {
+          await supabase
+            .from("technician_assignments")
+            .update({ live_location: { lat, lng, accuracy, updated_at: new Date().toISOString() } } as any)
+            .eq("id", id);
+        }
       },
       () => setGpsActive(false),
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
@@ -620,6 +631,13 @@ export default function TechInstallation() {
           )}
           <div className="grid grid-cols-2 gap-2">
             <button
+              onClick={() => setFieldStatus.mutate({ status: "accepted" })}
+              disabled={setFieldStatus.isPending || assignment?.status === "accepted"}
+              className="min-h-[48px] rounded-full bg-emerald-600/20 border border-emerald-600/40 text-emerald-300 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" /> Accepter
+            </button>
+            <button
               onClick={handleEnRoute}
               disabled={setFieldStatus.isPending}
               className="min-h-[48px] rounded-full bg-orange-600/20 border border-orange-600/40 text-orange-300 text-sm font-semibold flex items-center justify-center gap-2"
@@ -642,7 +660,7 @@ export default function TechInstallation() {
             </button>
             <button
               onClick={() => setMissingFor(true)}
-              className="min-h-[48px] rounded-full bg-purple-600/20 border border-purple-600/40 text-purple-300 text-sm font-semibold flex items-center justify-center gap-2"
+              className="col-span-2 min-h-[48px] rounded-full bg-purple-600/20 border border-purple-600/40 text-purple-300 text-sm font-semibold flex items-center justify-center gap-2"
             >
               <RotateCcw className="h-4 w-4" /> Replanifier
             </button>

@@ -30,7 +30,8 @@ export interface MapPoint {
   technician_name?: string | null;
   technician_status?: string | null;
   assignment_status?: string | null;
-  location_source?: "live_gps" | "assignment_address";
+  technician_profile_id?: string | null;
+  location_source?: "live_gps" | "assignment_live" | "assignment_address";
 }
 
 export interface MapDataPayload {

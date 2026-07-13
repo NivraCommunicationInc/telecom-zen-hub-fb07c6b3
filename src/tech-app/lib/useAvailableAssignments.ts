@@ -39,6 +39,13 @@ export function useAvailableAssignments() {
     refetchInterval: 30_000,
     queryFn: async (): Promise<DispatchJob[]> => {
       const { data: { user } } = await supabase.auth.getUser();
+      let technicianProfileId: string | null = null;
+      if (user?.id) {
+        const { data: resolvedTechId } = await (supabase.rpc as any)("fn_resolve_technician_profile_id", {
+          _user_id: user.id,
+        });
+        technicianProfileId = resolvedTechId ?? null;
+      }
 
       const today = new Date().toISOString().slice(0, 10);
 
@@ -128,7 +135,7 @@ export function useAvailableAssignments() {
             dispatch_priority: o.dispatch_priority ?? "normal",
             estimated_duration_minutes: appt?.duration_minutes ?? o.estimated_duration_minutes ?? 90,
             reservation_expires_at: res?.expires_at ?? null,
-            reserved_by_me: res ? res.technician_id === user?.id : false,
+            reserved_by_me: res ? res.technician_id === technicianProfileId || res.technician_id === user?.id : false,
           } as DispatchJob;
         })
         .sort((a, b) => (PRIORITY_ORDER[a.dispatch_priority] ?? 3) - (PRIORITY_ORDER[b.dispatch_priority] ?? 3));
