@@ -34,7 +34,7 @@ export default function TechBottomNav() {
       aria-label="Navigation technicien"
       className="fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]"
       style={{
-        background: "rgba(9,11,16,0.96)",
+        background: "rgba(5,8,6,0.96)",
         backdropFilter: "blur(18px)",
         WebkitBackdropFilter: "blur(18px)",
         borderTop: "1px solid var(--tp-border)",
@@ -61,7 +61,7 @@ export default function TechBottomNav() {
                       <span
                         className="tp-nav-scanner relative flex items-center justify-center h-14 w-14 rounded-2xl transition-transform duration-150 active:scale-95"
                       >
-                        <Icon className="h-6 w-6 text-white" strokeWidth={2.4} />
+                        <Icon className="h-6 w-6" style={{ color: "var(--tp-text)" }} strokeWidth={2.4} />
                       </span>
                       <span
                         className={`text-[10px] font-bold leading-none ${

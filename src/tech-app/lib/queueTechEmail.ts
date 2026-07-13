@@ -7,6 +7,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type TechEmailKey =
+  | "tech_accepted"
   | "tech_en_route"
   | "tech_arrived"
   | "tech_in_progress"
