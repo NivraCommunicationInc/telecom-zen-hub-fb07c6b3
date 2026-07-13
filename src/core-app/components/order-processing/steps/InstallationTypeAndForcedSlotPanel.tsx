@@ -28,8 +28,17 @@ export function InstallationTypeAndForcedSlotPanel({ proc }: Props) {
   const { order, appointment } = proc;
   const queryClient = useQueryClient();
 
-  const currentType = String(order?.fulfillment_type || order?.installation_type || "").toLowerCase();
-  const isAuto = currentType === "auto" || currentType === "self_install";
+  const fulfillmentType = String(order?.fulfillment_type || "").toLowerCase();
+  const installationType = String(order?.installation_type || "").toLowerCase();
+  const apptMethod = String(appointment?.installation_method || "").toLowerCase();
+  const hasSelectedTechnicianDate = Boolean(order?.appointment_date || appointment?.scheduled_at);
+  const isTechnician =
+    apptMethod === "technician" ||
+    fulfillmentType === "technician" ||
+    fulfillmentType === "installation" ||
+    installationType === "technician" ||
+    (hasSelectedTechnicianDate && !["self_install", "auto", "ship", "shipping"].includes(fulfillmentType));
+  const isAuto = !isTechnician;
   const targetType: "auto" | "technician" = isAuto ? "technician" : "auto";
 
   const [swapOpen, setSwapOpen] = useState(false);

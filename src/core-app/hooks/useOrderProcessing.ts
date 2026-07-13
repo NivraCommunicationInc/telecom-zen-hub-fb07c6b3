@@ -469,6 +469,9 @@ export function useOrderProcessing(orderId: string | undefined) {
         .from("appointments")
         .select("*")
         .eq("order_id", orderId!)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       // Fetch KYC session: try by session ID first, then by order_id
@@ -1307,7 +1310,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         const appointmentPayload: Record<string, any> = {
           order_id: orderId,
           client_id: data?.order?.user_id || null,
-          client_email: data?.order?.customer_email || data?.profile?.email || null,
+          client_email: data?.order?.client_email || data?.profile?.email || null,
           client_phone: data?.order?.client_phone || data?.profile?.phone || null,
           service_address:
             data?.appointment?.service_address ||

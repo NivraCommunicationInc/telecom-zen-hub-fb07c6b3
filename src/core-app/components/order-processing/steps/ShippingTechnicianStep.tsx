@@ -72,20 +72,28 @@ export function ShippingTechnicianStep({ proc }: Props) {
   //   3) legacy inference from service_type / items
   const apptMethod = String(appointment?.installation_method || "").toLowerCase();
   const fulfillmentType = String(order.fulfillment_type || "").toLowerCase();
-  const isSelfInstall =
-    apptMethod === "auto" ||
-    fulfillmentType === "self_install" ||
-    String(order.installation_type || "").toLowerCase() === "auto";
+  const installationType = String(order.installation_type || "").toLowerCase();
+  const hasSelectedTechnicianDate = Boolean(order.appointment_date || appointment?.scheduled_at);
   const isTechnicianInstall =
     apptMethod === "technician" ||
     fulfillmentType === "technician" ||
-    fulfillmentType === "installation";
+    fulfillmentType === "installation" ||
+    installationType === "technician" ||
+    (hasSelectedTechnicianDate && !["self_install", "auto", "ship", "shipping"].includes(fulfillmentType));
+  const isSelfInstall =
+    !isTechnicianInstall && (
+      apptMethod === "auto" ||
+      fulfillmentType === "self_install" ||
+      fulfillmentType === "ship" ||
+      fulfillmentType === "shipping" ||
+      installationType === "auto"
+    );
 
   // Fulfillment rules — canonical signals override inference:
   //  • technician install (canonical) → technician panel only
   //  • self_install (canonical)       → confirmation only, no panels
   //  • otherwise fall back to service composition
-  const requiresTechnician = !isSelfInstall && (isTechnicianInstall || hasInternet || hasTv);
+  const requiresTechnician = isTechnicianInstall;
   const requiresShipping = !isSelfInstall && !isTechnicianInstall && (hasMobile || (!hasInternet && !hasTv));
 
   // Phase 3 — Auto-install gate: for self-install orders we require the
