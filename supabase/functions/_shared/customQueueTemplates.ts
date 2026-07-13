@@ -7080,6 +7080,31 @@ Bonne chance et bienvenue dans l'équipe! 🎉</div>
     // ===================================================================
     // TECHNICIAN INSTALLATION FLOW (tech portal triggers)
     // ===================================================================
+    case "tech_accepted": {
+      const techName = esc(v.tech_name || "Votre technicien");
+      const scheduled = fmtDate(v.scheduled_date);
+      return {
+        subject: "Votre installation Nivra est acceptée par un technicien",
+        html: shell({
+          preheader: `${techName} a accepté votre rendez-vous d'installation.`,
+          badge: "MISSION ACCEPTÉE",
+          heroTitle: "Votre technicien est assigné",
+          icon: "check",
+          greeting,
+          bodyText: "Votre rendez-vous d'installation est maintenant pris en charge par un technicien Nivra Telecom. Vous recevrez un autre courriel lorsque le technicien sera en route.",
+          cardTitle: "Détails du rendez-vous",
+          cardRows: [
+            ["Technicien", techName],
+            ["Date", scheduled],
+            ["Heure", esc(v.scheduled_time || "À confirmer")],
+            ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+          ],
+          ctaPrimaryUrl: `mailto:${SUPPORT_EMAIL}`,
+          ctaPrimaryLabel: "Contacter le support",
+        }),
+      };
+    }
+
     case "tech_en_route": {
       const techName = esc(v.tech_name || "Votre technicien");
       const eta = esc(v.eta || "sous peu");
