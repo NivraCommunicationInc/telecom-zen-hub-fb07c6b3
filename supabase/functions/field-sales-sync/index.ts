@@ -107,6 +107,11 @@ function numberFrom(...values: any[]): number {
 function computeAgentDiscountLine(discountData: any, monthlyTotal: number, activationFee: number): { desc: string; amount: number } | null {
   if (!discountData) return null;
 
+  // Custom Core discounts are recurring-only: they apply to renewal invoices via
+  // account_promotions and must NOT be deducted from the initial order invoice.
+  const source = String(discountData.source || "").toLowerCase();
+  if (source === "custom_core") return null;
+
   const getDiscountLabel = (raw: string): string => {
     const clean = String(raw || "Rabais").trim();
     return /^rabais\b/i.test(clean) ? clean : `Rabais ${clean}`;
@@ -142,6 +147,9 @@ function agentDiscountDurationMonths(discountData: any): number {
 function isRecurringMonthlyAgentDiscount(discountData: any): boolean {
   if (!discountData) return false;
   const type = String(discountData.type || "").toLowerCase();
+  const source = String(discountData.source || "").toLowerCase();
+  // Custom Core discounts are always recurring (renewal-only), regardless of duration.
+  if (source === "custom_core" && ["fixed", "fixed_monthly", "percentage"].includes(type)) return true;
   return ["fixed", "fixed_monthly", "percentage"].includes(type) && agentDiscountDurationMonths(discountData) > 1;
 }
 
@@ -190,7 +198,10 @@ async function persistAgentAccountPromotion(args: {
       promotion_type: "monthly_discount",
       amount,
       duration_months: durationMonths,
-      months_remaining: Math.max(durationMonths - 1, 0),
+      months_remaining: String(discountData.source || "").toLowerCase() === "custom_core"
+        ? durationMonths
+        : Math.max(durationMonths - 1, 0),
+
       is_active: true,
       created_by_user_id: createdByUserId || null,
       created_by_role: "field_sales",
