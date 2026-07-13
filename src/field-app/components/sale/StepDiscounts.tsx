@@ -211,6 +211,12 @@ export default function StepDiscounts({
     lastDiscountIdsRef.current = ids;
 
     if (!selected) return;
+    // Custom Core discounts are not part of the catalogue — never auto-drop them here.
+    if (selected.source === "custom_core") {
+      const { eligible } = isDiscountEligible(selected, services, installationFee);
+      if (!eligible) onChange(null);
+      return;
+    }
     if (!ids.has(selected.id)) {
       onChange(null);
       return;
