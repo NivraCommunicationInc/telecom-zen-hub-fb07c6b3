@@ -821,6 +821,21 @@ export default function TechInstallation() {
           </div>
         </section>
 
+        {/* WiFi configuration — envoyé au client par courriel à la fin */}
+        <section className="rounded-2xl bg-slate-900 border border-violet-800/50 p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+            <Signal className="h-4 w-4 text-violet-400" /> Configuration WiFi (envoyée au client)
+          </h3>
+          <div className="grid grid-cols-1 gap-3">
+            <InputField label="Nom du réseau (SSID)" value={wifiSsid} onChange={setWifiSsid} />
+            <InputField label="Mot de passe WiFi" value={wifiPassword} onChange={setWifiPassword} />
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Ces informations seront envoyées au client dans le courriel de confirmation d'installation.
+          </p>
+        </section>
+
+
         {/* Technician notes */}
         <section className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
           <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 flex items-center gap-2">
