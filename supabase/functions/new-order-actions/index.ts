@@ -426,6 +426,7 @@ serve(async (req) => {
     equipment_total: number;
     monthly_before_discount: number;
     activation_fee: number;
+    customAdjustmentsPostTax?: number;
     error?: string;
   }> {
     const services = Array.isArray(body.services) ? body.services : [];
