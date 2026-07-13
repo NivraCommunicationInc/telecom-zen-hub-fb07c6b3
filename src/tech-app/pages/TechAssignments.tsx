@@ -333,12 +333,21 @@ export default function TechAssignments() {
       if (result.error) throw result.error;
       const data = result.data as any;
       if (!data?.success) throw new Error(data?.error ?? "Attribution échouée");
+      if (data.assignment_id) {
+        const { error: statusError } = await (supabase.rpc as any)("tech_update_assignment_status", {
+          p_assignment_id: data.assignment_id,
+          p_status: "accepted",
+          p_note: "Mission acceptée par le technicien depuis le portail terrain",
+          p_eta: null,
+        });
+        if (statusError) throw statusError;
+      }
       return data.assignment_id as string;
     },
     onSuccess: (assignmentId) => {
       qc.invalidateQueries({ queryKey: ["dispatch-available"] });
       qc.invalidateQueries({ queryKey: ["tech-assignments-all"] });
-      toast.success("Mission confirmée ✅ Elle apparaît dans vos missions.");
+      toast.success("Mission acceptée ✅ Courriel client envoyé.");
       setClaimJob(null);
       reservationRef.current = null;
       if (assignmentId) navigate(`/tech/installation/${assignmentId}`);
@@ -369,13 +378,42 @@ export default function TechAssignments() {
       <TechHeader title="Missions" />
       <div className="px-4 py-4">
 
+        <section className="tp-core-hero rounded-2xl p-4 mb-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase text-sky-300">Nivra Core · Portail technicien</p>
+              <h1 className="text-xl font-black text-white mt-1">Tableau terrain</h1>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-950/65 px-3 py-2 text-right">
+              <p className="text-[10px] font-bold uppercase text-slate-400">Actives</p>
+              <p className="tp-kpi text-2xl text-white">
+                {assignments.filter((a) => !["completed","cancelled","missed"].includes(a.status)).length}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg border border-slate-700 bg-slate-950/55 p-2">
+              <p className="text-[10px] text-slate-400 uppercase font-bold">Dispatch</p>
+              <p className="text-lg font-black text-sky-300">{available.length}</p>
+            </div>
+            <div className="rounded-lg border border-slate-700 bg-slate-950/55 p-2">
+              <p className="text-[10px] text-slate-400 uppercase font-bold">Urgent</p>
+              <p className="text-lg font-black text-amber-300">{urgentCount}</p>
+            </div>
+            <div className="rounded-lg border border-slate-700 bg-slate-950/55 p-2">
+              <p className="text-[10px] text-slate-400 uppercase font-bold">GPS</p>
+              <p className="text-lg font-black text-emerald-300">Live</p>
+            </div>
+          </div>
+        </section>
+
         {/* Tab switcher */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2 mb-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-1">
           <button
             onClick={() => setActiveTab("missions")}
-            className={`min-h-[48px] rounded-full text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
+            className={`min-h-[48px] rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-colors ${
               activeTab === "missions"
-                ? "bg-violet-600 text-white shadow-lg shadow-violet-500/30"
+                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
                 : "bg-slate-900 border border-slate-800 text-slate-300"
             }`}
           >
@@ -389,7 +427,7 @@ export default function TechAssignments() {
           </button>
           <button
             onClick={() => setActiveTab("dispatch")}
-            className={`min-h-[48px] rounded-full text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${
+            className={`min-h-[48px] rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-colors relative ${
               activeTab === "dispatch"
                 ? "bg-orange-600 text-white shadow-lg shadow-orange-500/30"
                 : "bg-slate-900 border border-slate-800 text-slate-300"
@@ -423,8 +461,8 @@ export default function TechAssignments() {
                   role="tab"
                   aria-selected={filter === k}
                   onClick={() => setFilter(k)}
-                  className={`min-h-[44px] px-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                    filter === k ? "bg-violet-600 text-white" : "bg-slate-900 border border-slate-800 text-slate-300"
+                  className={`min-h-[44px] px-2 rounded-lg text-xs font-black whitespace-nowrap transition-colors ${
+                    filter === k ? "bg-blue-600 text-white" : "bg-slate-900 border border-slate-800 text-slate-300"
                   }`}
                 >
                   {lbl}
@@ -449,6 +487,10 @@ export default function TechAssignments() {
                   const terminal = ["completed","cancelled","missed","no_show"].includes(a.status);
                   return (
                     <li key={a.id} className={`tp-job-card p-4 space-y-3 ${["accepted", "en_route", "arrived", "in_progress"].includes(a.status) ? "tp-live-card" : ""}`}>
+                      <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-950/55 px-3 py-2">
+                        <span className="text-[10px] font-black uppercase text-sky-300">Mission terrain</span>
+                        <span className="text-[10px] font-black uppercase text-slate-400">Email statut actif</span>
+                      </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className={`inline-flex items-center text-xs font-bold px-3 py-1 rounded-full border ${STATUS_STYLES[a.status] ?? STATUS_STYLES.scheduled}`}>
                           {STATUS_LABELS[a.status] ?? a.status}
