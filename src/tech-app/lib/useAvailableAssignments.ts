@@ -8,6 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface DispatchJob {
   id: string;
+  appointment_id?: string | null;
+  appointment_number?: string | null;
+  scheduled_at?: string | null;
   order_number: string | null;
   service_type: string | null;
   category: string | null;
@@ -37,8 +40,24 @@ export function useAvailableAssignments() {
     queryFn: async (): Promise<DispatchJob[]> => {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Orders ready for scheduling
-      const { data: orders, error } = await supabase
+      const today = new Date().toISOString().slice(0, 10);
+
+      // Canonical source for technician dispatch: unassigned install appointments.
+      const { data: appts, error: apptError } = await supabase
+        .from("appointments")
+        .select("id, order_id, appointment_number, title, status, service_type, service_address, service_city, service_postal_code, client_phone, equipment_details, internal_notes, scheduled_at, duration_minutes, installation_method, created_at")
+        .in("status", ["pending_scheduling", "scheduled", "confirmed"])
+        .is("technician_id", null)
+        .not("order_id", "is", null)
+        .gte("scheduled_at", `${today}T00:00:00`)
+        .order("scheduled_at", { ascending: true })
+        .limit(100);
+      if (apptError) throw apptError;
+
+      const apptOrderIds = (appts ?? []).map((a: any) => a.order_id).filter(Boolean);
+
+      // Backward-compatible pool for orders explicitly marked ready for scheduling.
+      const { data: readyOrders, error: readyError } = await supabase
         .from("orders")
         .select(`
           id, order_number, service_type, category,
@@ -49,11 +68,25 @@ export function useAvailableAssignments() {
         .eq("scheduling_status", "ready_for_scheduling")
         .order("dispatch_priority", { ascending: true })
         .order("created_at", { ascending: true });
+      if (readyError) throw readyError;
+
+      const orderIds = Array.from(new Set([
+        ...apptOrderIds,
+        ...((readyOrders ?? []).map((o: any) => o.id).filter(Boolean)),
+      ]));
+      if (!orderIds.length) return [];
+
+      const { data: orders, error } = await supabase
+        .from("orders")
+        .select(`
+          id, order_number, service_type, category,
+          client_first_name, client_last_name, client_phone, client_full_address,
+          equipment_details, dispatch_priority, dispatch_notes,
+          estimated_duration_minutes, created_at
+        `)
+        .in("id", orderIds);
 
       if (error) throw error;
-      if (!orders?.length) return [];
-
-      const orderIds = orders.map((o: any) => o.id);
 
       // Active assignments (already claimed)
       const { data: assignments } = await supabase
@@ -74,14 +107,26 @@ export function useAvailableAssignments() {
 
       const reservationMap = new Map((reservations ?? []).map((r: any) => [r.order_id, r]));
 
-      return orders
+      const apptByOrder = new Map((appts ?? []).map((a: any) => [a.order_id, a]));
+
+      return (orders ?? [])
         .filter((o: any) => !claimedOrderIds.has(o.id))
         .map((o: any) => {
           const res = reservationMap.get(o.id);
+          const appt: any = apptByOrder.get(o.id);
+          const apptAddress = [appt?.service_address, appt?.service_city, appt?.service_postal_code].filter(Boolean).join(", ");
           return {
             ...o,
+            appointment_id: appt?.id ?? null,
+            appointment_number: appt?.appointment_number ?? null,
+            scheduled_at: appt?.scheduled_at ?? null,
+            service_type: appt?.service_type ?? o.service_type,
+            client_phone: appt?.client_phone ?? o.client_phone,
+            client_full_address: apptAddress || o.client_full_address,
+            equipment_details: appt?.equipment_details ?? o.equipment_details,
+            dispatch_notes: appt?.internal_notes ?? o.dispatch_notes,
             dispatch_priority: o.dispatch_priority ?? "normal",
-            estimated_duration_minutes: o.estimated_duration_minutes ?? 90,
+            estimated_duration_minutes: appt?.duration_minutes ?? o.estimated_duration_minutes ?? 90,
             reservation_expires_at: res?.expires_at ?? null,
             reserved_by_me: res ? res.technician_id === user?.id : false,
           } as DispatchJob;
