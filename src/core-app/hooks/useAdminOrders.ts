@@ -46,7 +46,7 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
     queryFn: async () => {
       let query = supabase
         .from("orders")
-        .select("id, order_number, user_id, account_id, service_type, order_type, status, payment_status, payment_method, total_amount, risk_flags, created_at, environment, kyc_status, sla_deadline, sla_status, source, created_by_agent_id")
+        .select("id, order_number, user_id, account_id, service_type, order_type, status, payment_status, payment_method, total_amount, risk_flags, created_at, environment, kyc_status, sla_deadline, sla_status, source, created_by_agent_id, client_email, client_first_name, client_last_name")
         .order("created_at", { ascending: false })
         .limit(500);
       if (environment !== "all") query = query.eq("environment", environment);
