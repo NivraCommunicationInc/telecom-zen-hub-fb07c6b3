@@ -156,7 +156,8 @@ export default function TechWorkOrder() {
         <div className="fixed inset-0 z-[100] bg-black/70 flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-2xl p-4">
             <h3 className="text-[15px] font-black italic uppercase mb-2">Signature du client</h3>
-            <SignaturePad onSave={(data) => { setSignature(data); setShowSig(false); }} onCancel={() => setShowSig(false)} />
+            <SignaturePad onConfirm={(data) => { setSignature(data); setShowSig(false); }} />
+            <button onClick={() => setShowSig(false)} className="mt-2 w-full h-10 rounded-lg bg-zinc-100 text-[12px] font-black italic uppercase">Annuler</button>
           </div>
         </div>
       )}
