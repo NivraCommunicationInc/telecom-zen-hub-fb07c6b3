@@ -1,11 +1,12 @@
 /**
- * TechWorkOrder — Bon de travail : checklist qualité, photos, signature client, PDF.
+ * TechWorkOrder v2 — Bon de travail moderne (checklist, photos, signature).
+ * Design aligné Nivra Core. Logique métier inchangée.
  */
 import { useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Camera, PenLine, FileDown, Check } from "lucide-react";
+import { Camera, PenLine, FileDown, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import TechHeader from "../components/TechHeader";
+import TechPageHeader from "../components/TechPageHeader";
 import SignaturePad from "../components/SignaturePad";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -78,104 +79,152 @@ export default function TechWorkOrder() {
 
   return (
     <>
-      <TechHeader title="Bon de travail" subtitle={assignmentId ? `Mission ${assignmentId.slice(0, 8)}` : "Nouveau"} back />
+      <TechPageHeader
+        title="Bon de travail"
+        subtitle={assignmentId ? `Mission ${assignmentId.slice(0, 8)}` : "Nouveau"}
+        back
+      />
 
-      <section className="px-4 mt-4">
-        <div className="rounded-2xl bg-zinc-900 text-white p-4">
+      <main className="max-w-[900px] mx-auto px-4 sm:px-6 py-6 space-y-5">
+        {/* Progress hero */}
+        <section className="tc-mission-hero animate-fade-in">
           <div className="flex items-baseline justify-between">
-            <span className="text-[10px] font-black italic uppercase tracking-widest text-amber-400">Progression</span>
-            <span className="text-2xl font-black italic">{progress}%</span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "hsl(var(--primary-glow))" }}>
+                Progression
+              </p>
+              <h1 className="text-[32px] font-bold tracking-tight mt-1 tc-tabular" style={{ color: "hsl(var(--foreground))" }}>
+                {progress}%
+              </h1>
+            </div>
+            <p className="text-[12.5px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {Object.values(checks).filter(Boolean).length} / {CHECKLIST.length} tâches
+            </p>
           </div>
-          <div className="mt-2 h-1.5 rounded-full bg-zinc-700 overflow-hidden">
-            <div className="h-full" style={{ width: `${progress}%`, background: "#fbbf24" }} />
+          <div className="mt-4 h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--muted))" }}>
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: "var(--tc-gradient-primary)" }} />
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="px-4 mt-5">
-        <h2 className="tp-italic-label text-[11px] font-black uppercase tracking-widest text-zinc-500 mb-2">Checklist qualité</h2>
-        <div className="space-y-1.5">
-          {CHECKLIST.map((label, i) => {
-            const on = !!checks[i];
-            return (
-              <button
-                key={i}
-                onClick={() => toggle(i)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl bg-white border text-left transition-colors"
-                style={{ borderColor: on ? "#fbbf24" : "#e4e4e7" }}
-              >
-                <span
-                  className="h-6 w-6 rounded-md flex items-center justify-center shrink-0"
-                  style={{ background: on ? "#fbbf24" : "#f4f4f5", color: on ? "#18181b" : "transparent" }}
+        {/* Checklist */}
+        <section>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
+            Checklist qualité
+          </h2>
+          <div className="space-y-1.5">
+            {CHECKLIST.map((label, i) => {
+              const on = !!checks[i];
+              return (
+                <button
+                  key={i}
+                  onClick={() => toggle(i)}
+                  className="w-full tc-surface tc-surface-hover flex items-center gap-3 p-3 text-left tc-focus-ring"
+                  style={{ borderColor: on ? "hsl(var(--primary) / 0.5)" : "hsl(var(--border))" }}
                 >
-                  <Check className="h-4 w-4" strokeWidth={3} />
-                </span>
-                <span className="text-[13px] font-bold text-zinc-900">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="px-4 mt-5">
-        <h2 className="tp-italic-label text-[11px] font-black uppercase tracking-widest text-zinc-500 mb-2">Photos avant / après ({photos.length})</h2>
-        <input ref={fileRef} type="file" accept="image/*" multiple capture="environment" onChange={onPhoto} className="hidden" />
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="w-full h-14 rounded-xl bg-white border border-zinc-200 flex items-center justify-center gap-2 font-black italic uppercase text-[13px] text-zinc-900"
-        >
-          <Camera className="h-4 w-4 text-amber-500" /> Ajouter des photos
-        </button>
-        {photos.length > 0 && (
-          <div className="mt-2 grid grid-cols-4 gap-1.5">
-            {photos.map((p, i) => (
-              <img key={i} src={p} alt="" className="aspect-square w-full object-cover rounded-lg border border-zinc-200" />
-            ))}
+                  <span
+                    className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 transition-colors"
+                    style={{
+                      background: on ? "hsl(var(--primary))" : "hsl(var(--muted))",
+                      color: on ? "hsl(var(--primary-foreground))" : "transparent",
+                    }}
+                  >
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  </span>
+                  <span className="text-[13.5px] font-medium" style={{ color: "hsl(var(--foreground))" }}>{label}</span>
+                </button>
+              );
+            })}
           </div>
-        )}
-      </section>
+        </section>
 
-      <section className="px-4 mt-5">
-        <h2 className="tp-italic-label text-[11px] font-black uppercase tracking-widest text-zinc-500 mb-2">Signature client</h2>
-        {signature ? (
-          <div className="rounded-xl bg-white border border-zinc-200 p-2">
-            <img src={signature} alt="Signature" className="w-full h-24 object-contain" />
-            <button onClick={() => { setSignature(null); setShowSig(true); }} className="mt-2 text-[11px] font-black italic uppercase text-amber-600">Refaire</button>
-          </div>
-        ) : (
+        {/* Photos */}
+        <section>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
+            Photos avant / après <span className="tc-tabular">({photos.length})</span>
+          </h2>
+          <input ref={fileRef} type="file" accept="image/*" multiple capture="environment" onChange={onPhoto} className="hidden" />
           <button
-            onClick={() => setShowSig(true)}
-            className="w-full h-14 rounded-xl bg-white border border-zinc-200 flex items-center justify-center gap-2 font-black italic uppercase text-[13px] text-zinc-900"
+            onClick={() => fileRef.current?.click()}
+            className="w-full h-14 tc-surface tc-surface-hover flex items-center justify-center gap-2 font-semibold text-[13.5px] tc-focus-ring"
+            style={{ color: "hsl(var(--foreground))" }}
           >
-            <PenLine className="h-4 w-4 text-amber-500" /> Faire signer le client
+            <Camera className="h-4 w-4" style={{ color: "hsl(var(--primary-glow))" }} />
+            Ajouter des photos
           </button>
-        )}
-      </section>
+          {photos.length > 0 && (
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              {photos.map((p, i) => (
+                <img key={i} src={p} alt={`Photo ${i + 1}`} className="aspect-square w-full object-cover rounded-lg" style={{ border: "1px solid hsl(var(--border))" }} />
+              ))}
+            </div>
+          )}
+        </section>
 
-      {showSig && (
-        <div className="fixed inset-0 z-[100] bg-black/70 flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl p-4">
-            <h3 className="text-[15px] font-black italic uppercase mb-2">Signature du client</h3>
-            <SignaturePad onConfirm={(data) => { setSignature(data); setShowSig(false); }} />
-            <button onClick={() => setShowSig(false)} className="mt-2 w-full h-10 rounded-lg bg-zinc-100 text-[12px] font-black italic uppercase">Annuler</button>
+        {/* Signature */}
+        <section>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
+            Signature client
+          </h2>
+          {signature ? (
+            <div className="tc-surface p-3">
+              <img src={signature} alt="Signature client" className="w-full h-24 object-contain rounded-md" style={{ background: "hsl(var(--muted))" }} />
+              <button
+                onClick={() => { setSignature(null); setShowSig(true); }}
+                className="mt-2 text-[12px] font-semibold"
+                style={{ color: "hsl(var(--primary-glow))" }}
+              >
+                Refaire la signature
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSig(true)}
+              className="w-full h-14 tc-surface tc-surface-hover flex items-center justify-center gap-2 font-semibold text-[13.5px] tc-focus-ring"
+              style={{ color: "hsl(var(--foreground))" }}
+            >
+              <PenLine className="h-4 w-4" style={{ color: "hsl(var(--primary-glow))" }} />
+              Faire signer le client
+            </button>
+          )}
+        </section>
+
+        {/* Signature modal */}
+        {showSig && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 animate-fade-in" style={{ background: "hsl(var(--background) / 0.85)", backdropFilter: "blur(4px)" }}>
+            <div className="w-full max-w-md tc-surface p-4 animate-scale-in">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[15px] font-semibold" style={{ color: "hsl(var(--foreground))" }}>Signature du client</h3>
+                <button onClick={() => setShowSig(false)} aria-label="Fermer" className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: "hsl(var(--muted))" }}>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <SignaturePad onConfirm={(data) => { setSignature(data); setShowSig(false); }} />
+            </div>
           </div>
-        </div>
-      )}
-
-      <section className="px-4 mt-5 mb-8">
-        <button
-          onClick={finalize}
-          disabled={!canFinalize || saving}
-          className="w-full h-14 rounded-xl font-black italic uppercase tracking-wide flex items-center justify-center gap-2 disabled:opacity-40"
-          style={{ background: "#18181b", color: "#fbbf24" }}
-        >
-          <FileDown className="h-5 w-5" />
-          {saving ? "Enregistrement…" : "Finaliser & générer PDF"}
-        </button>
-        {!canFinalize && (
-          <p className="mt-2 text-center text-[11px] text-zinc-500">Compléter la checklist et la signature client pour finaliser.</p>
         )}
-      </section>
+
+        {/* Finalize */}
+        <section className="pt-2">
+          <button
+            onClick={finalize}
+            disabled={!canFinalize || saving}
+            className="w-full h-14 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all tc-focus-ring"
+            style={{
+              background: canFinalize ? "var(--tc-gradient-primary)" : "hsl(var(--muted))",
+              color: canFinalize ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+              boxShadow: canFinalize ? "0 10px 24px hsl(var(--primary) / 0.35)" : "none",
+            }}
+          >
+            {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileDown className="h-5 w-5" />}
+            {saving ? "Enregistrement…" : "Finaliser & générer le PDF"}
+          </button>
+          {!canFinalize && (
+            <p className="mt-2 text-center text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+              Compléter la checklist et la signature client pour finaliser.
+            </p>
+          )}
+        </section>
+      </main>
     </>
   );
 }

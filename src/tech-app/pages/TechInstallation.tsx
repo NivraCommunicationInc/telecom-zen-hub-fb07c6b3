@@ -18,7 +18,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import TechTopBar from "../components/TechTopBar";
+import TechPageHeader from "../components/TechPageHeader";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useTechAssignment, useInstallationSteps, ExpectedEquipment } from "../lib/useTechAssignments";
@@ -543,7 +543,7 @@ export default function TechInstallation() {
   if (!assignment) {
     return (
       <div>
-        <TechTopBar title="Installation" back />
+        <TechPageHeader title="Installation" back />
         <p className="text-center text-slate-400 py-12">Assignation introuvable.</p>
       </div>
     );
@@ -581,7 +581,7 @@ export default function TechInstallation() {
   if (summary) {
     return (
       <div>
-        <TechTopBar title="Récapitulatif" back />
+        <TechPageHeader title="Récapitulatif" back />
         <OfflineIndicator />
         <div className="px-4 py-6 space-y-4">
           <div className="rounded-2xl bg-emerald-600/15 border-2 border-emerald-500/40 p-5 text-center">
@@ -615,7 +615,7 @@ export default function TechInstallation() {
 
   return (
     <div>
-      <TechTopBar title={`Installation #${assignment.order_number ?? ""}`} back />
+      <TechPageHeader title={`Installation #${assignment.order_number ?? ""}`} back />
       <OfflineIndicator />
       <div className="px-4 py-4 space-y-4">
 

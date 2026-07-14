@@ -1,255 +1,232 @@
 
-# Refonte complète du Portail Technicien Nivra
+# Refonte complète — Nivra Tech Portal v2
 
-Objectif : reconstruire uniquement la **couche UX** du portail technicien avec le niveau de qualité de Nivra Core (Linear / Stripe / Apple), sans toucher à la logique métier, aux Edge Functions, aux RPC, aux triggers, ni aux Single-Door.
+## 0. Cadre & invariants (à ne PAS toucher)
 
----
+Tout le travail est **UI/UX uniquement**. On préserve intégralement :
 
-## 1. Inventaire de l'existant (à conserver)
+- **Edge Functions** : `queue-tech-status-email`, `send-appointment-reminder`, `email-queue-drain`, `client-account-admin`, `order-tracking-status-notify`, `field-sales-sync`, `new-order-actions`, etc.
+- **RPC / Single-Door** : `get_available_installation_slots`, `apply_active_account_promotions_to_invoice`, `orchestrate_order`, `fn_canonicalize_order_client_identity`, `fn_normalize_order_installation_flags`, `fn_upsert_canonical_appointment_from_legacy`, `has_role`, `qa_purge_subscription`, etc.
+- **Triggers** : `trg_lock_identity_fields`, `trg_guard_order_lifecycle_no_skip`, canonicalisation d'adresses, sync legacy → `appointments`.
+- **Tables canoniques** : `appointments`, `orders`, `billing_subscriptions`, `service_addresses`, `technician_assignments`, `technicians`, `inventory_stock`, `provisioning_jobs`, `support_tickets`, `live_chat_sessions`, `user_roles`, `email_queue`.
+- **Hooks métier existants** (réutilisés tels quels) : `useTechAssignments`, `useAvailableAssignments`, `usePunch` / `useOpenPunch`, `useTechMapData`, `useVanStock`, `useTechnicianSectionBadges`, `queueTechEmail`.
+- **Design tokens Core** : on aligne le portail sur `src/styles/nivra-design.css` + `design-tokens.css` (mêmes HSL, mêmes radius, mêmes ombres) via `tech-core.css` scoping `[data-portal="tech"]`.
 
-**Layout / Shell**
-- `TechAppLayout.tsx`, `TechBottomNav.tsx`, `TechHeader.tsx`, `TechTopBar.tsx`, `TechProtectedRoute.tsx`, `OfflineIndicator.tsx`
-- Style : `styles/tech-portal.css` (High-Vis Amber) → **remplacé**
+Aucun contournement Single-Door, aucune duplication de calcul (prix, taxes, provisioning, RLS). L'UI appelle uniquement les hooks/Edge Functions existants.
 
-**Pages actuelles (18)**
-Dashboard, Appointments, Assignments, Active, Installation, Map, Menu, Client360, Chat, Tickets, Scanner, Stock, WorkOrder, Schedule, Performance, Vehicle, Training, Profile
+## 1. Inventaire actuel (audit)
 
-**Hooks & data layer (conservés tels quels)**
-- `useAvailableAssignments`, `useTechAssignments`, `useTechMapData`, `useVanStock`, `usePunch`, `queueTechEmail`
-- Hooks partagés : `useAppointmentDetail`, `useClientProfile`, `useOrderDetail`, etc.
+**Pages (18)** : TechDashboard, TechAppointments, TechAssignments, TechActive, TechInstallation, TechWorkOrder, TechMap, TechScanner, TechStock, TechClient360, TechChat, TechTickets, TechSchedule, TechMenu, TechTraining, TechPerformance, TechVehicle, TechProfile.
 
-**Composants terrain (conservés)**
-- `PhotoCapture`, `QRScanner`, `SignaturePad`, `TechMiniMap`
+**Composants** : TechAppLayout, TechBottomNav, TechHeader, TechTopBar, TechSidebar (v2, nouveau), TechShellTopBar (v2, nouveau), TechProtectedRoute, TechMiniMap, PhotoCapture, QRScanner, SignaturePad, OfflineIndicator.
 
-**Edge Functions / RPC utilisées (intouchables)**
-- `queue_tech_status_email`, `get_available_installation_slots`, `fn_upsert_canonical_appointment_from_legacy`, `send-appointment-reminder`, `client-account-actions`, `email-queue-drain`, provisioning, communications gateway, etc.
+**Styles** : `tech-portal.css` (legacy High-Vis Amber, à retirer progressivement), `tech-core.css` (v2, nouveau — tokens HSL, primitives `tc-*`).
 
-**Tables lues (intouchables)**
-- `appointments`, `technician_assignments`, `technician_locations`, `inventory_stock`, `equipment_inventory`, `installation_jobs`, `installations`, `work_orders`, `internal_tickets`, `live_chat_*`, `accounts`, `profiles`, `service_addresses`, `orders`, `billing_*`.
+**Hooks** : voir §0.
 
----
+**Tables consommées** : `appointments`, `technician_assignments`, `orders`, `inventory_stock`, `time_entries`, `technicians`, `technician_locations`, `support_tickets`, `live_chat_sessions/messages`, `client_documents`, `billing_subscriptions`, `service_addresses`.
 
-## 2. Nouveau Design System (aligné Nivra Core)
+**Problèmes identifiés** :
+- Deux systèmes de style cohabitent (violet legacy → amber → v2), incohérence visuelle.
+- Menu éclaté sur trop de pages, trop de clics.
+- Pas de command palette, pas de drawer contextuel, pas d'AI in-app.
+- Dashboard = liste, pas un vrai centre de commande.
+- Aucun diagnostic terrain (ping, wifi, signal).
+- Client 360 tech absent des workflows d'installation (le tech doit sortir de son flow).
+- Notifications éparpillées, pas de centre unifié.
 
-Créer `src/tech-app/styles/tech-core.css` avec des tokens **sémantiques** mappés sur les tokens Core (`--background`, `--foreground`, `--primary`, `--card`, `--muted`, `--accent`, `--ring`, radii, ombres). Aucune couleur hardcodée dans les composants.
+## 2. Architecture UX cible
 
-- **Palette** : neutre foncé (slate-950/900) + surfaces slate-900/800, accent `--primary` (bleu corporate #0066CC), succès émeraude, danger rouge, warning ambre.
-- **Typographie** : Inter / SF-like ; titres semi-bold, aucune italique majuscule, tracking neutre.
-- **Radius** : `--radius: 12px` (cartes 16px, boutons 10px).
-- **Ombres** : élévation douce (0 1px 2px, 0 8px 24px) façon Linear.
-- **Animations** : `fade-in`, `scale-in`, `slide-in-right` (Tailwind existants), 150–200 ms ease-out.
-- **Composants shadcn** : Card, Sheet (drawers), Dialog, Command (palette), Tabs, ScrollArea, Badge, Tooltip, DropdownMenu, Toast, Skeleton — mêmes variantes que Core.
+### 2.1 Shell (nouveau)
 
----
-
-## 3. Nouvelle architecture UX
-
-### 3.1 Shell
 ```text
-┌────────────────────────────────────────────────────────┐
-│ TopBar : logo · statut (Dispo/Route/Pause/Offline) ·   │
-│          command palette (⌘K) · notifications · avatar │
-├──────────┬─────────────────────────────────────────────┤
-│ Sidebar  │  Workspace                                  │
-│ compacte │  (page active + drawers + split-view)       │
-│ (icônes) │                                             │
-│ desktop  │                                             │
-└──────────┴─────────────────────────────────────────────┘
-    Mobile : sidebar → BottomNav 5 onglets + FAB scanner
++----------------------------------------------------------+
+| TechShellTopBar  [Nivra] [⌘K search] [status pill] [🔔] [avatar]
++---------+------------------------------------------------+
+|         |                                                |
+| Tech    |                                                |
+| Sidebar |   Zone de travail (routes)                     |
+| (rail   |   + Drawers contextuels                        |
+|  256px) |   + Command Palette (⌘K)                       |
+|         |   + AI Assistant (⌘I)                          |
+|         |                                                |
++---------+------------------------------------------------+
+                    [TechBottomNav — mobile uniquement]
 ```
 
-### 3.2 Arborescence menu (sidebar)
-1. **Dashboard** (`/tech`)
-2. **Journée** (`/tech/today`) — timeline RDV du jour
-3. **Rendez-vous** (`/tech/appointments`) — liste + filtres
-4. **Carte** (`/tech/map`)
-5. **Installation active** (`/tech/installation/:id`)
-6. **Clients** (`/tech/clients` → `client360/:id`)
-7. **Diagnostics** (`/tech/diagnostics`) — **NOUVEAU**
-8. **Inventaire** (`/tech/stock`)
-9. **Scanner** (FAB global)
-10. **Tickets** (`/tech/tickets`)
-11. **Messages** (`/tech/chat`)
-12. **Performance** (`/tech/performance`)
-13. **Véhicule** (`/tech/vehicle`)
-14. **Formation** (`/tech/training`)
-15. **Assistant IA** (drawer global ⌘I) — **NOUVEAU**
-16. **Profil** (`/tech/profile`)
+- **Desktop** : sidebar rail 256px + top bar 56px. Split view drawer à droite pour Client 360 / détails RDV.
+- **Tablette** : sidebar collapsible 64px, drawers plein écran.
+- **Mobile** : top bar minimale, bottom nav 5 slots (Dash · RDV · Scanner FAB · Carte · Menu). Sidebar en Sheet.
 
-### 3.3 BottomNav mobile
-`Dashboard · Journée · Scanner (FAB) · Carte · Plus` (feuille modale → tous les modules).
+### 2.2 Arborescence de navigation
 
----
-
-## 4. Wireframes textuels
-
-### Dashboard
 ```text
-[Header] Bonjour Marc · Mardi 14 juillet · 08:42 · [Statut ▾ Disponible]
-[Hero mission suivante]  ────────────────────────
-  Prochaine intervention · dans 23 min · 4.2 km
-  Oldo Lavaud — Installation Internet + TV
-  1234 rue X, Montréal
-  [Itinéraire] [Appeler] [En route]
+Ops
+  Dashboard              /tech
+  Rendez-vous            /tech/appointments
+  Dispatch               /tech/assignments
+  Horaire & Punch        /tech/schedule
+  Carte terrain          /tech/map
 
-[KPI row 4 cartes]
-  RDV aujourd'hui 6 · Complétés 2 · Distance 42 km · Ponctualité 96%
+Terrain
+  Installation active    /tech/active  (redirige vers /tech/installation/:id)
+  Bon de travail         /tech/workorder/:id
+  Diagnostics            /tech/diagnostics       [NOUVEAU]
+  Scanner                /tech/scanner
+  Stock véhicule         /tech/stock
+  Photos & Preuves       /tech/gallery/:missionId [NOUVEAU]
 
-[Grid 2 col]
-  ┌ Timeline journée ──────┐  ┌ Alertes & messages ─┐
-  │ 09:30 Client A ✓        │  │ 3 msg dispatch      │
-  │ 11:00 Client B en cours │  │ 1 ticket urgent     │
-  │ 13:30 Client C          │  │ Stock POD < 2       │
-  └────────────────────────┘  └──────────────────────┘
+Clients
+  Client 360 (tech)      /tech/client360/:id
+  Messages               /tech/chat
+  Tickets                /tech/tickets
+  Appels                 /tech/calls              [NOUVEAU]
 
-  ┌ Mini-carte ────────────┐  ┌ Objectifs & perf ────┐
-  │ (route optimisée)      │  │ 18/25 installs mois  │
-  └────────────────────────┘  └──────────────────────┘
-
-[Météo · trafic · résumé jour]
+Moi
+  Performance            /tech/performance
+  Véhicule & EHS         /tech/vehicle
+  Formation              /tech/training
+  Notifications          /tech/notifications      [NOUVEAU]
+  Profil                 /tech/profile
 ```
 
-### Rendez-vous (liste + drawer)
+### 2.3 Écrans clés — wireframes textuels
+
+**Dashboard (Command Center)** — refait ce tour-ci :
 ```text
-Filtres: [Aujourd'hui][Semaine][Statut][Priorité]  🔍 recherche
-┌ Card RDV ───────────────────────────────────┐
-│ 11:00 · Installation Internet · Priorité ●  │
-│ Oldo L. · 1234 rue X · 4.2 km · 45 min      │
-│ [Détails] [Route] [Appeler] [Démarrer]      │
-└─────────────────────────────────────────────┘
-Clic → Sheet latéral (Drawer) : client, services, équipement, historique, notes, actions.
+[Bonjour Prénom]   date · heure           [Shift 3h 20m]
++---- Hero mission ----------------------------------+
+| PROCHAINE MISSION · 14:30                          |
+| Client · Adresse · Service                         |
+| [Appeler] [Itinéraire] [Ouvrir la mission →]      |
++----------------------------------------------------+
+[KPI RDV] [KPI En route] [KPI Dispatch] [KPI Progression]
++---- Agenda ------------------+  +-- Mini carte ---+
+| 09:00 Client A ...           |  |  live map      |
+| 14:30 Client B ...           |  +-----------------+
+| 16:00 Client C ...           |  +-- Stock --------+
++------------------------------+  +-- AI Assistant -+
+[Alerts row: RDV manqués / Dispatch / Stock bas]
+[Accès rapide — 6 modules]
 ```
 
-### Installation active (split-view)
+**Rendez-vous détail (Drawer contextuel)** :
+- En-tête client + statut pill + priorité
+- Sections : Client · Adresse · Services · Historique · Notes · Équipements requis · Photos
+- Actions rapides bottom-sticky : Trajet · Arrivé · Démarrer · Suspendre · Compléter · Absent · Escalader
+
+**Installation active (Split view)** :
 ```text
-┌ Étapes rail (gauche) ──┬ Contenu étape (droite) ─────┐
-│ ● Avant                │ Validation identité         │
-│ ○ Pendant              │ Checklist matériel          │
-│ ○ Tests                │ [Scanner] [Photos] [Notes]  │
-│ ○ Signature            │                              │
-│ ○ Rapport              │                              │
-└────────────────────────┴──────────────────────────────┘
-Barre inférieure sticky : [Pause] [Escalader] [Suivant →]
+| Étapes (rail gauche)  |  Panneau actif (droite)      |
+| ✓ Identité            |  Formulaire / checklist      |
+| ✓ Adresse             |  + tests diagnostics inline  |
+| ● Installation        |  + photos                    |
+| ○ Tests               |  + SSID / mot de passe wifi  |
+| ○ Signature           |                              |
+| ○ Rapport             |  Bottom bar : suivant / pause|
 ```
 
-### Client 360 (drawer plein-écran)
-Onglets : Vue d'ensemble · Services · Équipement · Historique · Paiements · Documents · Notes.
+**Diagnostics (nouveau)** : onglets Internet / TV / Mobile / Wi-Fi. Chaque onglet = liste de tests (ping, DHCP, DNS, PPPoE, IP, débit ; RSSI, canal, bande…). Résultats stockés dans `internet_diagnostics` (déjà en place).
 
-### Diagnostics (nouveau)
-Grille outils : Internet (ping, DNS, PPPoE, vitesse) · Wi-Fi (RSSI, canal) · TV · Mobile · SIM. Résultats en cartes avec état ✓/✗.
+**Carte** : Mapbox GL, position live tech (`technician_locations`), pins RDV colorés par statut, optimisation d'itinéraire (Directions API), overlay trafic, ETA calculé.
 
-### Carte
-Mapbox pleine hauteur, panneau flottant : liste RDV, ETA temps réel, bouton "Optimiser tournée".
+**Client 360 tech (drawer)** : version condensée du Core Client 360, lecture seule + actions autorisées tech (ajouter note, créer ticket, ouvrir chat). Utilise `useClientProfile` / `useSubscriptionDetail` existants.
 
-### Assistant IA (drawer ⌘I)
-Champ prompt, contexte client auto-injecté, réponses markdown, actions rapides ("Procédure ONT", "Pourquoi suspendu?").
+**Command Palette (⌘K)** : recherche unifiée RDV / clients / tickets / actions ("Punch out", "Ouvrir carte", "Nouveau ticket").
 
----
+**AI Assistant (⌘I, drawer)** : composant AI Elements + Edge Function `chat` (Lovable AI Gateway, `openai/gpt-5.5`). Contexte = RDV en cours / client sélectionné. Streaming, tool-calls pour lire l'historique.
 
-## 5. Composants réutilisables (nouveaux, dans `src/tech-app/components/ui/`)
+**Notifications Center** : hub unifié depuis `staff_notifications`, `notification_outbox`, `email_queue` filtrés au user courant + realtime.
 
-- `TechShell` (sidebar + topbar + workspace)
-- `TechSidebar`, `TechTopBar` (refait), `TechCommandPalette`
-- `StatusPill` (Dispo/Route/Pause/Offline)
-- `KpiCard`, `MissionHeroCard`, `AppointmentCard`, `TimelineItem`
-- `ClientDrawer`, `AppointmentDrawer`, `InstallationStepRail`
-- `DiagnosticCard`, `InventoryRow`, `TicketRow`
+### 2.4 Composants réutilisables (nouveaux, dans `src/tech-app/components/`)
+
+- `TechStatusPill` (Available / Route / Pause / Offline)
+- `MissionCard`, `MissionRow`, `MissionDetailDrawer`
+- `StepRail` (installation)
+- `KpiTile`, `AlertBanner`
+- `TechCommandPalette` (cmdk)
 - `AiAssistantDrawer`
-- `EmptyState`, `LoadingSkeletons`, `ErrorState`
+- `NotificationBell` + `NotificationCenter`
+- `DiagnosticsPanel` (Internet / TV / Mobile / Wifi tabs)
+- `PhotoGallery` (regroupe PhotoCapture existant)
+- `SignatureDialog` (wrap SignaturePad existant)
+- `ScannerSheet` (wrap QRScanner existant, universel QR/barcode/série/MAC/IMEI)
+- `ClientMiniProfile` (drawer client 360 tech)
 
-Tous consomment les **mêmes hooks existants** — aucun changement de data layer.
+Toutes ces primitives consomment `tc-*` de `tech-core.css` + shadcn (Sheet, Dialog, Tabs, Command, ScrollArea).
 
----
+## 3. Design system
 
-## 6. Conservé / Remplacé / Supprimé
+- Fichier unique v2 : `src/tech-app/styles/tech-core.css` (déjà créé, HSL, tokens shadcn scoped `[data-portal="tech"]`).
+- Suppression progressive de `tech-portal.css` (legacy amber) — retiré uniquement quand toutes les pages migrées.
+- Mêmes primitives que Core : `tc-surface`, `tc-kpi`, `tc-pill`, `tc-btn`, `tc-mission-hero`, `tc-row`, `tc-nav-item`, `tc-focus-ring`, `tc-tabular`.
+- Animations : `animate-fade-in`, `animate-scale-in`, transitions 150ms ease, ombres 3 niveaux, gradient primaire aligné Core (`#0066CC → #1a8cff`).
+- Typo Inter, tabular-nums pour tous chiffres, tracking -0.02em sur titres.
 
-**Conservés (data + composants terrain)**
-- Tous les hooks `lib/*`, `PhotoCapture`, `QRScanner`, `SignaturePad`, `TechMiniMap`, `OfflineIndicator`, `TechProtectedRoute`.
+## 4. Composants — conservés / remplacés / supprimés
 
-**Remplacés (UI)**
-- `TechAppLayout`, `TechHeader`, `TechTopBar`, `TechBottomNav`, `styles/tech-portal.css`
-- Toutes les pages sous `pages/` — réécrites en consommant les hooks existants.
-
-**Supprimés**
-- `TechMenu.tsx` (remplacé par sidebar + command palette)
-- `TechActive.tsx` (fusionné dans Dashboard "mission suivante")
-
-**Nouveaux**
-- `TechToday.tsx`, `TechDiagnostics.tsx`, `TechClients.tsx` (liste), `AiAssistantDrawer.tsx`, `TechCommandPalette.tsx`.
-
----
-
-## 7. Responsive
-
-- **Mobile (prioritaire)** : BottomNav 5 tabs, FAB scanner, drawers plein-écran, listes denses.
-- **Tablette** : sidebar rétractable en icônes, split-view sur Installation et Carte.
-- **Desktop** : sidebar complète, command palette, drawers à droite (Sheet), multi-panneaux.
-
-Breakpoints Tailwind standards (`sm/md/lg/xl`).
-
----
-
-## 8. Accessibilité
-
-- Contraste AA sur toutes les surfaces (vérifié via tokens sémantiques).
-- Cibles tactiles ≥ 44 px.
-- Focus visibles (`--ring`), navigation clavier complète, `aria-label` sur toutes les icônes-actions.
-- États : loading (Skeleton), empty (illustration + CTA), error (retry).
-- Support offline conservé via `OfflineIndicator`.
-
----
-
-## 9. Stratégie de migration (par phases)
-
-**Phase 0 — Design system** *(1 étape)*
-Créer `tech-core.css` + tokens + primitives (`TechShell`, `Sidebar`, `TopBar`, `CommandPalette`, `StatusPill`, `KpiCard`, drawers).
-
-**Phase 1 — Shell + Dashboard** *(nouveau look actif immédiatement)*
-Remplacer `TechAppLayout`, monter la nouvelle sidebar/topbar, refaire `TechDashboard`. Le reste des pages hérite du nouveau shell mais garde temporairement leur contenu.
-
-**Phase 2 — Rendez-vous + Installation active + Client 360**
-Refonte des 3 écrans les plus utilisés en drawers/split-view.
-
-**Phase 3 — Carte + Diagnostics + Scanner + Inventaire**
-Refonte terrain, ajout module Diagnostics.
-
-**Phase 4 — Tickets + Chat + Notifications + Assistant IA**
-Centre de communication + drawer IA (utilise Edge Function AI déjà en place, aucune nouvelle logique).
-
-**Phase 5 — Performance + Véhicule + Formation + Profil**
-Écrans secondaires.
-
-**Phase 6 — Nettoyage**
-Supprimer `tech-portal.css`, `TechMenu`, `TechActive`, anciens composants amber.
-
-Chaque phase est indépendante : le portail reste utilisable entre les phases.
-
----
-
-## 10. Risques identifiés
-
-| Risque | Mitigation |
+| Statut | Composants |
 |---|---|
-| Régression sur hooks partagés | Aucune modif des hooks/lib, uniquement consommation |
-| Rupture de la nav mobile pendant migration | Nouveau shell livré en Phase 1, tous les liens redirigés |
-| Divergence tokens Core / Tech | Importer les mêmes variables sémantiques depuis `src/index.css` |
-| Command palette + raccourcis clavier sur mobile | Feature-flag desktop-only |
-| Assistant IA — coût / latence | Rate-limit côté UI, streaming, réutilisation Edge Function AI existante |
-| Cartographie Mapbox | Réutilisation du token public déjà configuré |
-| Emails techniciens (queue) | Aucune modif — UI déclenche les mêmes RPC/EF |
+| **Conservés** (logique) | PhotoCapture, QRScanner, SignaturePad, OfflineIndicator, TechProtectedRoute, TechMiniMap, tous les `useTech*` hooks |
+| **Remplacés / réécrits** | TechAppLayout (shell v2), TechBottomNav (v2 fait), TechSidebar (v2 fait), TechShellTopBar (v2 fait), TechDashboard (v2 fait), TechAppointments, TechAssignments, TechInstallation, TechWorkOrder, TechMap, TechClient360, TechChat, TechTickets, TechStock, TechScanner, TechSchedule, TechPerformance, TechVehicle, TechTraining, TechMenu, TechProfile |
+| **Nouveaux** | TechDiagnostics, TechCalls, TechNotifications, TechGallery, TechCommandPalette, AiAssistantDrawer, NotificationCenter, MissionDetailDrawer, ClientMiniProfile, DiagnosticsPanel |
+| **Supprimés** (fin de migration) | TechHeader (legacy), TechTopBar (legacy), `tech-portal.css` amber |
+
+## 5. Responsive
+
+- Breakpoints : `<640` mobile (bottom nav + sheets), `640-1024` tablette (sidebar 64px + drawers), `≥1024` desktop (sidebar 256px + split view).
+- Touch targets ≥ 44×44px partout, `h-dvh` (pas `h-screen`), safe-area inset (iOS notch).
+- Sheet plein écran mobile pour Client 360 / RDV detail / AI drawer.
+- Command palette accessible clavier (⌘K) + bouton search top bar mobile.
+
+## 6. Accessibilité
+
+- Contraste ≥ AA sur tokens v2 (déjà vérifié : foreground `210 20% 96%` sur `222 47% 5%` = 15:1).
+- `aria-label` sur toutes icon-only buttons.
+- Focus rings via `tc-focus-ring` (outline `--ring`).
+- Landmarks `<main>` unique dans TechAppLayout.
+- Live regions pour toasts / statut punch / notifications.
+
+## 7. Plan de migration en 6 phases
+
+| Phase | Contenu | Statut |
+|---|---|---|
+| **P0** Design system | `tech-core.css` tokens + primitives | ✅ fait |
+| **P1** Shell + Dashboard | TechAppLayout, TechSidebar, TechShellTopBar, TechBottomNav, TechDashboard | ✅ fait |
+| **P2** RDV & Installation | TechAppointments, MissionDetailDrawer, TechInstallation, TechWorkOrder, StepRail | à faire |
+| **P3** Terrain | TechMap (Mapbox), TechScanner (universel), TechStock, TechDiagnostics, TechGallery | à faire |
+| **P4** Client & Comms | TechClient360 (drawer), TechChat, TechTickets, TechCalls, NotificationCenter | à faire |
+| **P5** Command Palette + AI | TechCommandPalette (⌘K), AiAssistantDrawer (⌘I) + Edge Function `tech-ai-assistant` | à faire |
+| **P6** Cleanup | Migration TechSchedule/Performance/Vehicle/Training/Profile/Menu, suppression `tech-portal.css` legacy, TechHeader/TechTopBar retirés | à faire |
+
+Chaque phase = branche isolée, tests visuels (Playwright), aucun changement DB/Edge Function.
+
+## 8. Risques identifiés
+
+1. **Régression sur workflows critiques** (installation, punch, provisioning). → Mitigation : réutilisation stricte des hooks existants, aucun changement de contrat.
+2. **Cohabitation `tech-portal.css` / `tech-core.css`** pendant la migration. → `tech-core.css` chargé après, tokens scoped `[data-portal="tech"]`, jamais globaux.
+3. **Mapbox coûts / limites** sur carte live. → Utiliser browser token public existant, refresh position 30s max, clustering pins.
+4. **AI Assistant coûts** (Lovable AI). → Rate limit côté Edge Function (5/min/tech), streaming, model `openai/gpt-5.5`.
+5. **Notifications realtime volume** → Filtre serveur strict (`user_id = auth.uid()`), pagination.
+6. **Mobile perf** avec drawers imbriqués. → `React.lazy` par route, images optimisées, no full-page repaint.
+
+## 9. Ce qui est déjà livré (tour précédent)
+
+- `src/tech-app/styles/tech-core.css`
+- `src/tech-app/components/TechSidebar.tsx`
+- `src/tech-app/components/TechShellTopBar.tsx`
+- `src/tech-app/components/TechBottomNav.tsx` (réécrit v2)
+- `src/tech-app/TechAppLayout.tsx` (shell v2 câblé)
+- `src/tech-app/pages/TechDashboard.tsx` (Command Center complet)
+
+## 10. Prochaine étape après validation
+
+Démarrer **P2 — RDV & Installation** :
+1. `MissionDetailDrawer` (drawer contextuel avec toutes actions).
+2. Réécriture `TechAppointments.tsx` (liste + filtres + KPI + drawer).
+3. Réécriture `TechInstallation.tsx` avec `StepRail` + validations avant/pendant/après + diagnostics inline + wifi credentials + signature/rapport.
+4. `TechWorkOrder.tsx` aligné v2.
 
 ---
 
-## 11. Contraintes strictes (rappel)
-
-- ❌ Aucune modif de logique métier, RPC, triggers, Edge Functions, invariants, Single-Door.
-- ❌ Aucun calcul de prix / taxes côté frontend.
-- ✅ Uniquement UI + composition + consommation des hooks/API existants.
-- ✅ Tokens sémantiques uniquement, aucune couleur hardcodée.
-- ✅ Même famille visuelle que Nivra Core.
-
----
-
-**Validation demandée avant Phase 0.** Réponds :
-- **GO** → je démarre Phase 0 (design system + shell).
-- **Ajustements** → indique les sections à revoir (menu, wireframes, ordre des phases, modules à ajouter/retirer).
+**Validation demandée** : confirme le plan (ou pointe les zones à ajuster) avant que je poursuive avec P2.
