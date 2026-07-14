@@ -38,6 +38,7 @@ const MaJournee = lazy(() => import("@/tech/pages/MaJournee"));
 
 const TechDomains = {
   Day:         lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.DayPage }))),
+  Intervention: lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.InterventionHubPage }))),
   Terrain:     lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.TerrainPage }))),
   Customers:   lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.CustomersPage }))),
   Inventory:   lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.InventoryPage }))),
@@ -809,8 +810,9 @@ const AppRoutes = () => {
         }
       >
         <Route element={<Suspense fallback={null}><TechShell /></Suspense>}>
-          <Route index                            element={<Suspense fallback={null}><TechHome /></Suspense>} />
+          <Route index                            element={<Suspense fallback={null}><MissionControl /></Suspense>} />
           <Route path="intervention/:sessionId"   element={<Suspense fallback={null}><InterventionRunner /></Suspense>} />
+          <Route path="intervention"              element={<Suspense fallback={null}><TechDomains.Intervention /></Suspense>} />
           <Route path="mission"                   element={<Suspense fallback={null}><MissionControl /></Suspense>} />
           <Route path="journee"                   element={<Suspense fallback={null}><MaJournee /></Suspense>} />
           <Route path="terrain"                   element={<Suspense fallback={null}><TechDomains.Terrain /></Suspense>} />

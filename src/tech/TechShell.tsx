@@ -3,6 +3,7 @@ import "./design/tech.css";
 import { TechTopbar } from "./components/TechTopbar";
 import { TechRail } from "./components/TechRail";
 import { TechDock } from "./components/TechDock";
+import { GlobalOpsLayer } from "./components/GlobalOpsLayer";
 
 export default function TechShell() {
   return (
@@ -15,6 +16,7 @@ export default function TechShell() {
         </main>
         <TechDock />
       </div>
+      <GlobalOpsLayer />
     </div>
   );
 }
