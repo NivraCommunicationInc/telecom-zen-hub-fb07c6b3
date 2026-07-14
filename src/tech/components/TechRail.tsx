@@ -5,17 +5,19 @@ import {
 } from "lucide-react";
 
 const NAV = [
-  { to: "/tech",              label: "Accueil",       icon: Home,          state: "live" as const },
-  { to: "/tech/intervention", label: "Intervention",  icon: Wrench,        state: "live" as const },
-  { to: "/tech/journee",      label: "Ma journée",    icon: CalendarDays,  state: "soon" as const },
-  { to: "/tech/terrain",      label: "Terrain",       icon: Map,           state: "soon" as const },
-  { to: "/tech/clients",      label: "Clients",       icon: Users,         state: "soon" as const },
-  { to: "/tech/inventaire",   label: "Inventaire",    icon: Package,       state: "soon" as const },
-  { to: "/tech/communication",label: "Communication", icon: MessagesSquare,state: "soon" as const },
-  { to: "/tech/ressources",   label: "Ressources",    icon: GraduationCap, state: "soon" as const },
-  { to: "/tech/performance",  label: "Performance",   icon: TrendingUp,    state: "soon" as const },
-  { to: "/tech/parametres",   label: "Paramètres",    icon: Settings,      state: "soon" as const },
+  { to: "/tech",               label: "Accueil",        icon: Home,          state: "live" as const },
+  { to: "/tech/mission",       label: "Mission Control",icon: TrendingUp,    state: "live" as const },
+  { to: "/tech/journee",       label: "Ma journée",     icon: CalendarDays,  state: "live" as const },
+  { to: "/tech/intervention",  label: "Intervention",   icon: Wrench,        state: "live" as const },
+  { to: "/tech/terrain",       label: "Terrain",        icon: Map,           state: "soon" as const },
+  { to: "/tech/clients",       label: "Clients",        icon: Users,         state: "soon" as const },
+  { to: "/tech/inventaire",    label: "Inventaire",     icon: Package,       state: "soon" as const },
+  { to: "/tech/communication", label: "Communication",  icon: MessagesSquare,state: "soon" as const },
+  { to: "/tech/ressources",    label: "Ressources",     icon: GraduationCap, state: "soon" as const },
+  { to: "/tech/performance",   label: "Performance",    icon: TrendingUp,    state: "soon" as const },
+  { to: "/tech/parametres",    label: "Paramètres",     icon: Settings,      state: "soon" as const },
 ];
+
 
 export function TechRail() {
   return (
