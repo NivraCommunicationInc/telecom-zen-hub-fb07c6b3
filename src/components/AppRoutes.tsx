@@ -44,6 +44,7 @@ const TechClient360 = lazy(() => import("@/tech-app/pages/TechClient360"));
 const TechTraining = lazy(() => import("@/tech-app/pages/TechTraining"));
 const TechPerformance = lazy(() => import("@/tech-app/pages/TechPerformance"));
 const TechVehicle = lazy(() => import("@/tech-app/pages/TechVehicle"));
+const TechDiagnostics = lazy(() => import("@/tech-app/pages/TechDiagnostics"));
 
 // HR Portal (lazy-loaded, fully isolated)
 const HrAppLayout = lazy(() => import("@/hr-app/HrAppLayout"));
@@ -808,6 +809,7 @@ const AppRoutes = () => {
           <Route path="training" element={<Suspense fallback={null}><TechTraining /></Suspense>} />
           <Route path="performance" element={<Suspense fallback={null}><TechPerformance /></Suspense>} />
           <Route path="vehicle" element={<Suspense fallback={null}><TechVehicle /></Suspense>} />
+          <Route path="diagnostics" element={<Suspense fallback={null}><TechDiagnostics /></Suspense>} />
         </Route>
       </Route>
 

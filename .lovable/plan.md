@@ -194,7 +194,7 @@ Toutes ces primitives consomment `tc-*` de `tech-core.css` + shadcn (Sheet, Dial
 | **P0** Design system | `tech-core.css` tokens + primitives | ✅ fait |
 | **P1** Shell + Dashboard | TechAppLayout, TechSidebar, TechShellTopBar, TechBottomNav, TechDashboard | ✅ fait |
 | **P2** RDV & Installation | TechAppointments, MissionDetailDrawer, TechInstallation, TechWorkOrder, StepRail | à faire |
-| **P3** Terrain | TechMap (Mapbox), TechScanner (universel), TechStock, TechDiagnostics, TechGallery | à faire |
+| **P3** Terrain | TechMap (Mapbox), TechScanner (universel), TechStock, TechDiagnostics, TechGallery | ✅ Stock/Scanner/Diagnostics migrés · Map/Gallery à finir |
 | **P4** Client & Comms | TechClient360 (drawer), TechChat, TechTickets, TechCalls, NotificationCenter | à faire |
 | **P5** Command Palette + AI | TechCommandPalette (⌘K), AiAssistantDrawer (⌘I) + Edge Function `tech-ai-assistant` | à faire |
 | **P6** Cleanup | Migration TechSchedule/Performance/Vehicle/Training/Profile/Menu, suppression `tech-portal.css` legacy, TechHeader/TechTopBar retirés | à faire |
