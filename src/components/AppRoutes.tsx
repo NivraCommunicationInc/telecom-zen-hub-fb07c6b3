@@ -24,27 +24,25 @@ const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/Empl
 const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
 
 // Tech Portal (lazy-loaded, fully isolated mobile-first PWA)
-const TechAppLayout = lazy(() => import("@/tech-app/TechAppLayout"));
 const TechProtectedRoute = lazy(() => import("@/tech-app/components/TechProtectedRoute"));
-const TechDashboard = lazy(() => import("@/tech-app/pages/TechDashboard"));
-const TechAssignments = lazy(() => import("@/tech-app/pages/TechAssignments"));
-const TechInstallation = lazy(() => import("@/tech-app/pages/TechInstallation"));
-const TechActive = lazy(() => import("@/tech-app/pages/TechActive"));
-const TechScanner = lazy(() => import("@/tech-app/pages/TechScanner"));
-const TechProfile = lazy(() => import("@/tech-app/pages/TechProfile"));
-const TechMap = lazy(() => import("@/tech-app/pages/TechMap"));
-const TechStock = lazy(() => import("@/tech-app/pages/TechStock"));
-const TechMenu = lazy(() => import("@/tech-app/pages/TechMenu"));
-const TechAppointments = lazy(() => import("@/tech-app/pages/TechAppointments"));
-const TechSchedule = lazy(() => import("@/tech-app/pages/TechSchedule"));
-const TechChat = lazy(() => import("@/tech-app/pages/TechChat"));
-const TechTickets = lazy(() => import("@/tech-app/pages/TechTickets"));
-const TechWorkOrder = lazy(() => import("@/tech-app/pages/TechWorkOrder"));
-const TechClient360 = lazy(() => import("@/tech-app/pages/TechClient360"));
-const TechTraining = lazy(() => import("@/tech-app/pages/TechTraining"));
-const TechPerformance = lazy(() => import("@/tech-app/pages/TechPerformance"));
-const TechVehicle = lazy(() => import("@/tech-app/pages/TechVehicle"));
-const TechDiagnostics = lazy(() => import("@/tech-app/pages/TechDiagnostics"));
+
+// ============================================
+// NIVRA TECH v3 — Intervention-first product overhaul
+// Replaces the legacy /tech portal.
+// ============================================
+const TechShell = lazy(() => import("@/tech/TechShell"));
+const TechHome = lazy(() => import("@/tech/pages/TechHome"));
+const InterventionRunner = lazy(() => import("@/tech/pages/InterventionRunner"));
+const TechDomains = {
+  Day:         lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.DayPage }))),
+  Terrain:     lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.TerrainPage }))),
+  Customers:   lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.CustomersPage }))),
+  Inventory:   lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.InventoryPage }))),
+  Comms:       lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.CommsPage }))),
+  Resources:   lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.ResourcesPage }))),
+  Performance: lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.PerformancePage }))),
+  Settings:    lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.SettingsPage }))),
+};
 
 // ============================================
 // NIVRA FIELD PLATFORM v3 — Product overhaul
@@ -794,7 +792,8 @@ const AppRoutes = () => {
       <Route path="/portal/login" element={<Navigate to="/portal/auth" replace />} />
 
       {/* ============================================ */}
-      {/* TECH PORTAL — Mobile-first PWA for technicians */}
+      {/* NIVRA TECH v3 — Intervention-first product     */}
+      {/* /tech now serves the rebuilt platform.         */}
       {/* ============================================ */}
       <Route
         path="/tech"
@@ -806,28 +805,23 @@ const AppRoutes = () => {
           </Suspense>
         }
       >
-        <Route element={<Suspense fallback={null}><TechAppLayout /></Suspense>}>
-          <Route index element={<Suspense fallback={null}><TechDashboard /></Suspense>} />
+        <Route element={<Suspense fallback={null}><TechShell /></Suspense>}>
+          <Route index                            element={<Suspense fallback={null}><TechHome /></Suspense>} />
+          <Route path="intervention/:sessionId"   element={<Suspense fallback={null}><InterventionRunner /></Suspense>} />
+          <Route path="journee"                   element={<Suspense fallback={null}><TechDomains.Day /></Suspense>} />
+          <Route path="terrain"                   element={<Suspense fallback={null}><TechDomains.Terrain /></Suspense>} />
+          <Route path="clients"                   element={<Suspense fallback={null}><TechDomains.Customers /></Suspense>} />
+          <Route path="inventaire"                element={<Suspense fallback={null}><TechDomains.Inventory /></Suspense>} />
+          <Route path="communication"             element={<Suspense fallback={null}><TechDomains.Comms /></Suspense>} />
+          <Route path="ressources"                element={<Suspense fallback={null}><TechDomains.Resources /></Suspense>} />
+          <Route path="performance"               element={<Suspense fallback={null}><TechDomains.Performance /></Suspense>} />
+          <Route path="parametres"                element={<Suspense fallback={null}><TechDomains.Settings /></Suspense>} />
+          {/* Legacy paths -> home while migration completes */}
           <Route path="dashboard" element={<Navigate to="/tech" replace />} />
-          <Route path="assignments" element={<Suspense fallback={null}><TechAssignments /></Suspense>} />
-          <Route path="appointments" element={<Suspense fallback={null}><TechAppointments /></Suspense>} />
-          <Route path="active" element={<Suspense fallback={null}><TechActive /></Suspense>} />
-          <Route path="installation/:id" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
-          <Route path="installation/:assignmentId" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
-          <Route path="scanner" element={<Suspense fallback={null}><TechScanner /></Suspense>} />
-          <Route path="map" element={<Suspense fallback={null}><TechMap /></Suspense>} />
-          <Route path="stock" element={<Suspense fallback={null}><TechStock /></Suspense>} />
-          <Route path="profile" element={<Suspense fallback={null}><TechProfile /></Suspense>} />
-          <Route path="menu" element={<Suspense fallback={null}><TechMenu /></Suspense>} />
-          <Route path="schedule" element={<Suspense fallback={null}><TechSchedule /></Suspense>} />
-          <Route path="chat" element={<Suspense fallback={null}><TechChat /></Suspense>} />
-          <Route path="tickets" element={<Suspense fallback={null}><TechTickets /></Suspense>} />
-          <Route path="workorder" element={<Suspense fallback={null}><TechWorkOrder /></Suspense>} />
-          <Route path="client360" element={<Suspense fallback={null}><TechClient360 /></Suspense>} />
-          <Route path="training" element={<Suspense fallback={null}><TechTraining /></Suspense>} />
-          <Route path="performance" element={<Suspense fallback={null}><TechPerformance /></Suspense>} />
-          <Route path="vehicle" element={<Suspense fallback={null}><TechVehicle /></Suspense>} />
-          <Route path="diagnostics" element={<Suspense fallback={null}><TechDiagnostics /></Suspense>} />
+          <Route path="assignments" element={<Navigate to="/tech" replace />} />
+          <Route path="appointments" element={<Navigate to="/tech" replace />} />
+          <Route path="menu" element={<Navigate to="/tech" replace />} />
+          <Route path="*" element={<Navigate to="/tech" replace />} />
         </Route>
       </Route>
 
