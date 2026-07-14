@@ -95,7 +95,6 @@ export function useInterventionSession(sessionId: string | undefined) {
 
   const advance = useCallback(async (from: Step, to: Step, payload: Record<string, unknown> = {}) => {
     if (!sessionId) throw new Error("no_session");
-    // @ts-expect-error RPC not in generated types until regen
     const { data, error } = await supabase.rpc("fn_advance_step", {
       p_session_id: sessionId, p_from_step: from, p_to_step: to, p_payload: payload,
     });
@@ -106,7 +105,6 @@ export function useInterventionSession(sessionId: string | undefined) {
 
   const closeSession = useCallback(async () => {
     if (!sessionId) throw new Error("no_session");
-    // @ts-expect-error RPC not in generated types until regen
     const { data, error } = await supabase.rpc("fn_close_intervention", { p_session_id: sessionId });
     if (error) throw error;
     setSession(data as Session);
@@ -115,7 +113,6 @@ export function useInterventionSession(sessionId: string | undefined) {
 
   const activateService = useCallback(async () => {
     if (!sessionId) throw new Error("no_session");
-    // @ts-expect-error RPC not in generated types until regen
     const { data, error } = await supabase.rpc("fn_activate_service_for_intervention", { p_session_id: sessionId });
     if (error) throw error;
     return data as { ok: boolean };
