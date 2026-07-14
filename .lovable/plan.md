@@ -1,232 +1,185 @@
+# Refonte Produit — Nivra Field Service Platform
 
-# Refonte complète — Nivra Tech Portal v2
-
-## 0. Cadre & invariants (à ne PAS toucher)
-
-Tout le travail est **UI/UX uniquement**. On préserve intégralement :
-
-- **Edge Functions** : `queue-tech-status-email`, `send-appointment-reminder`, `email-queue-drain`, `client-account-admin`, `order-tracking-status-notify`, `field-sales-sync`, `new-order-actions`, etc.
-- **RPC / Single-Door** : `get_available_installation_slots`, `apply_active_account_promotions_to_invoice`, `orchestrate_order`, `fn_canonicalize_order_client_identity`, `fn_normalize_order_installation_flags`, `fn_upsert_canonical_appointment_from_legacy`, `has_role`, `qa_purge_subscription`, etc.
-- **Triggers** : `trg_lock_identity_fields`, `trg_guard_order_lifecycle_no_skip`, canonicalisation d'adresses, sync legacy → `appointments`.
-- **Tables canoniques** : `appointments`, `orders`, `billing_subscriptions`, `service_addresses`, `technician_assignments`, `technicians`, `inventory_stock`, `provisioning_jobs`, `support_tickets`, `live_chat_sessions`, `user_roles`, `email_queue`.
-- **Hooks métier existants** (réutilisés tels quels) : `useTechAssignments`, `useAvailableAssignments`, `usePunch` / `useOpenPunch`, `useTechMapData`, `useVanStock`, `useTechnicianSectionBadges`, `queueTechEmail`.
-- **Design tokens Core** : on aligne le portail sur `src/styles/nivra-design.css` + `design-tokens.css` (mêmes HSL, mêmes radius, mêmes ombres) via `tech-core.css` scoping `[data-portal="tech"]`.
-
-Aucun contournement Single-Door, aucune duplication de calcul (prix, taxes, provisioning, RLS). L'UI appelle uniquement les hooks/Edge Functions existants.
-
-## 1. Inventaire actuel (audit)
-
-**Pages (18)** : TechDashboard, TechAppointments, TechAssignments, TechActive, TechInstallation, TechWorkOrder, TechMap, TechScanner, TechStock, TechClient360, TechChat, TechTickets, TechSchedule, TechMenu, TechTraining, TechPerformance, TechVehicle, TechProfile.
-
-**Composants** : TechAppLayout, TechBottomNav, TechHeader, TechTopBar, TechSidebar (v2, nouveau), TechShellTopBar (v2, nouveau), TechProtectedRoute, TechMiniMap, PhotoCapture, QRScanner, SignaturePad, OfflineIndicator.
-
-**Styles** : `tech-portal.css` (legacy High-Vis Amber, à retirer progressivement), `tech-core.css` (v2, nouveau — tokens HSL, primitives `tc-*`).
-
-**Hooks** : voir §0.
-
-**Tables consommées** : `appointments`, `technician_assignments`, `orders`, `inventory_stock`, `time_entries`, `technicians`, `technician_locations`, `support_tickets`, `live_chat_sessions/messages`, `client_documents`, `billing_subscriptions`, `service_addresses`.
-
-**Problèmes identifiés** :
-- Deux systèmes de style cohabitent (violet legacy → amber → v2), incohérence visuelle.
-- Menu éclaté sur trop de pages, trop de clics.
-- Pas de command palette, pas de drawer contextuel, pas d'AI in-app.
-- Dashboard = liste, pas un vrai centre de commande.
-- Aucun diagnostic terrain (ping, wifi, signal).
-- Client 360 tech absent des workflows d'installation (le tech doit sortir de son flow).
-- Notifications éparpillées, pas de centre unifié.
-
-## 2. Architecture UX cible
-
-### 2.1 Shell (nouveau)
-
-```text
-+----------------------------------------------------------+
-| TechShellTopBar  [Nivra] [⌘K search] [status pill] [🔔] [avatar]
-+---------+------------------------------------------------+
-|         |                                                |
-| Tech    |                                                |
-| Sidebar |   Zone de travail (routes)                     |
-| (rail   |   + Drawers contextuels                        |
-|  256px) |   + Command Palette (⌘K)                       |
-|         |   + AI Assistant (⌘I)                          |
-|         |                                                |
-+---------+------------------------------------------------+
-                    [TechBottomNav — mobile uniquement]
-```
-
-- **Desktop** : sidebar rail 256px + top bar 56px. Split view drawer à droite pour Client 360 / détails RDV.
-- **Tablette** : sidebar collapsible 64px, drawers plein écran.
-- **Mobile** : top bar minimale, bottom nav 5 slots (Dash · RDV · Scanner FAB · Carte · Menu). Sidebar en Sheet.
-
-### 2.2 Arborescence de navigation
-
-```text
-Ops
-  Dashboard              /tech
-  Rendez-vous            /tech/appointments
-  Dispatch               /tech/assignments
-  Horaire & Punch        /tech/schedule
-  Carte terrain          /tech/map
-
-Terrain
-  Installation active    /tech/active  (redirige vers /tech/installation/:id)
-  Bon de travail         /tech/workorder/:id
-  Diagnostics            /tech/diagnostics       [NOUVEAU]
-  Scanner                /tech/scanner
-  Stock véhicule         /tech/stock
-  Photos & Preuves       /tech/gallery/:missionId [NOUVEAU]
-
-Clients
-  Client 360 (tech)      /tech/client360/:id
-  Messages               /tech/chat
-  Tickets                /tech/tickets
-  Appels                 /tech/calls              [NOUVEAU]
-
-Moi
-  Performance            /tech/performance
-  Véhicule & EHS         /tech/vehicle
-  Formation              /tech/training
-  Notifications          /tech/notifications      [NOUVEAU]
-  Profil                 /tech/profile
-```
-
-### 2.3 Écrans clés — wireframes textuels
-
-**Dashboard (Command Center)** — refait ce tour-ci :
-```text
-[Bonjour Prénom]   date · heure           [Shift 3h 20m]
-+---- Hero mission ----------------------------------+
-| PROCHAINE MISSION · 14:30                          |
-| Client · Adresse · Service                         |
-| [Appeler] [Itinéraire] [Ouvrir la mission →]      |
-+----------------------------------------------------+
-[KPI RDV] [KPI En route] [KPI Dispatch] [KPI Progression]
-+---- Agenda ------------------+  +-- Mini carte ---+
-| 09:00 Client A ...           |  |  live map      |
-| 14:30 Client B ...           |  +-----------------+
-| 16:00 Client C ...           |  +-- Stock --------+
-+------------------------------+  +-- AI Assistant -+
-[Alerts row: RDV manqués / Dispatch / Stock bas]
-[Accès rapide — 6 modules]
-```
-
-**Rendez-vous détail (Drawer contextuel)** :
-- En-tête client + statut pill + priorité
-- Sections : Client · Adresse · Services · Historique · Notes · Équipements requis · Photos
-- Actions rapides bottom-sticky : Trajet · Arrivé · Démarrer · Suspendre · Compléter · Absent · Escalader
-
-**Installation active (Split view)** :
-```text
-| Étapes (rail gauche)  |  Panneau actif (droite)      |
-| ✓ Identité            |  Formulaire / checklist      |
-| ✓ Adresse             |  + tests diagnostics inline  |
-| ● Installation        |  + photos                    |
-| ○ Tests               |  + SSID / mot de passe wifi  |
-| ○ Signature           |                              |
-| ○ Rapport             |  Bottom bar : suivant / pause|
-```
-
-**Diagnostics (nouveau)** : onglets Internet / TV / Mobile / Wi-Fi. Chaque onglet = liste de tests (ping, DHCP, DNS, PPPoE, IP, débit ; RSSI, canal, bande…). Résultats stockés dans `internet_diagnostics` (déjà en place).
-
-**Carte** : Mapbox GL, position live tech (`technician_locations`), pins RDV colorés par statut, optimisation d'itinéraire (Directions API), overlay trafic, ETA calculé.
-
-**Client 360 tech (drawer)** : version condensée du Core Client 360, lecture seule + actions autorisées tech (ajouter note, créer ticket, ouvrir chat). Utilise `useClientProfile` / `useSubscriptionDetail` existants.
-
-**Command Palette (⌘K)** : recherche unifiée RDV / clients / tickets / actions ("Punch out", "Ouvrir carte", "Nouveau ticket").
-
-**AI Assistant (⌘I, drawer)** : composant AI Elements + Edge Function `chat` (Lovable AI Gateway, `openai/gpt-5.5`). Contexte = RDV en cours / client sélectionné. Streaming, tool-calls pour lire l'historique.
-
-**Notifications Center** : hub unifié depuis `staff_notifications`, `notification_outbox`, `email_queue` filtrés au user courant + realtime.
-
-### 2.4 Composants réutilisables (nouveaux, dans `src/tech-app/components/`)
-
-- `TechStatusPill` (Available / Route / Pause / Offline)
-- `MissionCard`, `MissionRow`, `MissionDetailDrawer`
-- `StepRail` (installation)
-- `KpiTile`, `AlertBanner`
-- `TechCommandPalette` (cmdk)
-- `AiAssistantDrawer`
-- `NotificationBell` + `NotificationCenter`
-- `DiagnosticsPanel` (Internet / TV / Mobile / Wifi tabs)
-- `PhotoGallery` (regroupe PhotoCapture existant)
-- `SignatureDialog` (wrap SignaturePad existant)
-- `ScannerSheet` (wrap QRScanner existant, universel QR/barcode/série/MAC/IMEI)
-- `ClientMiniProfile` (drawer client 360 tech)
-
-Toutes ces primitives consomment `tc-*` de `tech-core.css` + shadcn (Sheet, Dialog, Tabs, Command, ScrollArea).
-
-## 3. Design system
-
-- Fichier unique v2 : `src/tech-app/styles/tech-core.css` (déjà créé, HSL, tokens shadcn scoped `[data-portal="tech"]`).
-- Suppression progressive de `tech-portal.css` (legacy amber) — retiré uniquement quand toutes les pages migrées.
-- Mêmes primitives que Core : `tc-surface`, `tc-kpi`, `tc-pill`, `tc-btn`, `tc-mission-hero`, `tc-row`, `tc-nav-item`, `tc-focus-ring`, `tc-tabular`.
-- Animations : `animate-fade-in`, `animate-scale-in`, transitions 150ms ease, ombres 3 niveaux, gradient primaire aligné Core (`#0066CC → #1a8cff`).
-- Typo Inter, tabular-nums pour tous chiffres, tracking -0.02em sur titres.
-
-## 4. Composants — conservés / remplacés / supprimés
-
-| Statut | Composants |
-|---|---|
-| **Conservés** (logique) | PhotoCapture, QRScanner, SignaturePad, OfflineIndicator, TechProtectedRoute, TechMiniMap, tous les `useTech*` hooks |
-| **Remplacés / réécrits** | TechAppLayout (shell v2), TechBottomNav (v2 fait), TechSidebar (v2 fait), TechShellTopBar (v2 fait), TechDashboard (v2 fait), TechAppointments, TechAssignments, TechInstallation, TechWorkOrder, TechMap, TechClient360, TechChat, TechTickets, TechStock, TechScanner, TechSchedule, TechPerformance, TechVehicle, TechTraining, TechMenu, TechProfile |
-| **Nouveaux** | TechDiagnostics, TechCalls, TechNotifications, TechGallery, TechCommandPalette, AiAssistantDrawer, NotificationCenter, MissionDetailDrawer, ClientMiniProfile, DiagnosticsPanel |
-| **Supprimés** (fin de migration) | TechHeader (legacy), TechTopBar (legacy), `tech-portal.css` amber |
-
-## 5. Responsive
-
-- Breakpoints : `<640` mobile (bottom nav + sheets), `640-1024` tablette (sidebar 64px + drawers), `≥1024` desktop (sidebar 256px + split view).
-- Touch targets ≥ 44×44px partout, `h-dvh` (pas `h-screen`), safe-area inset (iOS notch).
-- Sheet plein écran mobile pour Client 360 / RDV detail / AI drawer.
-- Command palette accessible clavier (⌘K) + bouton search top bar mobile.
-
-## 6. Accessibilité
-
-- Contraste ≥ AA sur tokens v2 (déjà vérifié : foreground `210 20% 96%` sur `222 47% 5%` = 15:1).
-- `aria-label` sur toutes icon-only buttons.
-- Focus rings via `tc-focus-ring` (outline `--ring`).
-- Landmarks `<main>` unique dans TechAppLayout.
-- Live regions pour toasts / statut punch / notifications.
-
-## 7. Plan de migration en 6 phases
-
-| Phase | Contenu | Statut |
-|---|---|---|
-| **P0** Design system | `tech-core.css` tokens + primitives | ✅ fait |
-| **P1** Shell + Dashboard | TechAppLayout, TechSidebar, TechShellTopBar, TechBottomNav, TechDashboard | ✅ fait |
-| **P2** RDV & Installation | TechAppointments, MissionDetailDrawer, TechInstallation, TechWorkOrder, StepRail | à faire |
-| **P3** Terrain | TechMap (Mapbox), TechScanner (universel), TechStock, TechDiagnostics, TechGallery | ✅ Stock/Scanner/Diagnostics migrés · Map/Gallery à finir |
-| **P4** Client & Comms | TechClient360 (drawer), TechChat, TechTickets, TechCalls, NotificationCenter | à faire |
-| **P5** Command Palette + AI | TechCommandPalette (⌘K), AiAssistantDrawer (⌘I) + Edge Function `tech-ai-assistant` | à faire |
-| **P6** Cleanup | Migration TechSchedule/Performance/Vehicle/Training/Profile/Menu, suppression `tech-portal.css` legacy, TechHeader/TechTopBar retirés | à faire |
-
-Chaque phase = branche isolée, tests visuels (Playwright), aucun changement DB/Edge Function.
-
-## 8. Risques identifiés
-
-1. **Régression sur workflows critiques** (installation, punch, provisioning). → Mitigation : réutilisation stricte des hooks existants, aucun changement de contrat.
-2. **Cohabitation `tech-portal.css` / `tech-core.css`** pendant la migration. → `tech-core.css` chargé après, tokens scoped `[data-portal="tech"]`, jamais globaux.
-3. **Mapbox coûts / limites** sur carte live. → Utiliser browser token public existant, refresh position 30s max, clustering pins.
-4. **AI Assistant coûts** (Lovable AI). → Rate limit côté Edge Function (5/min/tech), streaming, model `openai/gpt-5.5`.
-5. **Notifications realtime volume** → Filtre serveur strict (`user_id = auth.uid()`), pagination.
-6. **Mobile perf** avec drawers imbriqués. → `React.lazy` par route, images optimisées, no full-page repaint.
-
-## 9. Ce qui est déjà livré (tour précédent)
-
-- `src/tech-app/styles/tech-core.css`
-- `src/tech-app/components/TechSidebar.tsx`
-- `src/tech-app/components/TechShellTopBar.tsx`
-- `src/tech-app/components/TechBottomNav.tsx` (réécrit v2)
-- `src/tech-app/TechAppLayout.tsx` (shell v2 câblé)
-- `src/tech-app/pages/TechDashboard.tsx` (Command Center complet)
-
-## 10. Prochaine étape après validation
-
-Démarrer **P2 — RDV & Installation** :
-1. `MissionDetailDrawer` (drawer contextuel avec toutes actions).
-2. Réécriture `TechAppointments.tsx` (liste + filtres + KPI + drawer).
-3. Réécriture `TechInstallation.tsx` avec `StepRail` + validations avant/pendant/après + diagnostics inline + wifi credentials + signature/rapport.
-4. `TechWorkOrder.tsx` aligné v2.
+Objectif: **remplacer** le portail technicien actuel par une nouvelle plateforme terrain construite depuis zéro. On garde uniquement la logique métier (RPC, tables, Edge Functions). Tout le shell, la navigation, les workflows et les écrans sont nouveaux et vivent dans un **nouveau namespace** `src/field-platform/` — les anciens fichiers `src/tech-app/*` seront supprimés à la fin.
 
 ---
 
-**Validation demandée** : confirme le plan (ou pointe les zones à ajuster) avant que je poursuive avec P2.
+## Principes directeurs (non-négociables)
+
+1. **Aucune page reprise** de l'ancien portail. Chaque écran est reconçu autour d'une tâche terrain, pas d'un CRUD.
+2. **Navigation par domaine métier** (10 domaines ci-dessous), pas par entité DB.
+3. **Action-first**: chaque écran commence par les actions du technicien à cet instant, pas par une liste.
+4. **Zero context switch**: recherche universelle (⌘K), drawers contextuels, actions rapides globales, aucun aller-retour vers un menu.
+5. **Offline-ready**: file d'attente locale (IndexedDB) + sync, obligatoire dès la V1 sur intervention/inventaire/photos.
+6. **Assistant IA contextuel** présent partout (diagnostic, procédure, note client, résumé RDV).
+
+---
+
+## Nouvelle architecture applicative
+
+```text
+src/field-platform/
+├── app/
+│   ├── FieldShell.tsx           # coque unique (topbar globale + rail domaine + zone contextuelle)
+│   ├── FieldRouter.tsx          # routes /field/*
+│   ├── CommandPalette.tsx       # ⌘K universel (clients, RDV, équipement, actions, docs)
+│   ├── QuickActionsDock.tsx     # actions globales flottantes (scanner, appel dispatch, SOS, photo)
+│   ├── NotificationCenter.tsx
+│   └── AIAssistantPanel.tsx     # copilote contextuel (drawer droit)
+├── domains/
+│   ├── home/                    # 🏠 Mission Control
+│   ├── day/                     # 📅 Ma journée
+│   ├── field/                   # 🗺 Terrain (map, GPS, ETA, zones)
+│   ├── customers/               # 👤 Client 360
+│   ├── intervention/            # 🧰 Intervention guidée (checklist + diag + signature)
+│   ├── inventory/               # 📦 Camion & stock
+│   ├── comms/                   # 💬 Communication (dispatch, NOC, appels, messages)
+│   ├── resources/               # 🎓 Procédures, formations, docs
+│   ├── performance/             # 📈 KPI & commissions
+│   └── settings/                # ⚙ Profil, véhicule, offline
+├── workflows/                   # machines à états métier (intervention, retour, échange…)
+├── services/                    # accès RPC/Edge (réutilise la logique existante)
+├── offline/                     # IndexedDB queue + sync
+├── ai/                          # prompts + tools de l'assistant
+└── design/
+    └── field.css                # nouveau design system (tokens HSL dédiés)
+```
+
+Route racine: **`/field`** (nouvelle). L'ancienne `/tech` redirige vers `/field` pendant la transition, puis est supprimée en P6.
+
+---
+
+## Nouvelle navigation (rien de commun avec l'ancienne)
+
+Rail latéral desktop / dock adaptatif mobile, **10 domaines** exactement:
+
+Accueil · Ma journée · Terrain · Clients · Intervention · Inventaire · Communication · Ressources · Performance · Paramètres
+
+Global (toujours accessible, hors rail):
+- **⌘K** recherche universelle (clients, RDV, S/N, MAC, adresse, procédure, action)
+- **Scanner universel** (bouton flottant caméra: S/N, MAC, code-barre, QR client)
+- **Assistant IA** (drawer droit)
+- **Notifications** (centre unifié: dispatch, NOC, client, système)
+- **Statut technicien** (Disponible / En route / Sur site / Pause / Fin de journée) — pilote la carte dispatch et les emails automatiques
+
+---
+
+## Détail des 10 domaines (ce qui change vs. ancien)
+
+### 🏠 Accueil — Mission Control
+Pas un dashboard de cartes. Une **timeline verticale de la journée** avec: prochain RDV en gros, ETA live, urgences NOC, alertes stock camion, KPI du jour, actions requises (signatures manquantes, RMA à clore). Bouton unique "Démarrer ma journée" qui déclenche checklist camion + géoloc + statut dispatch.
+
+### 📅 Ma journée
+Timeline + carte + optimisation trajet auto (RPC nouveau `fn_optimize_route`). Drag pour réordonner, recalcul ETA en direct, envoi automatique email "en route" au client suivant. Vue semaine repliée.
+
+### 🗺 Terrain
+Carte plein écran Mapbox: RDV, techniciens actifs, zones de couverture, trafic, NOC incidents. Navigation turn-by-turn embarquée. ETA partagé au client via lien signé.
+
+### 👤 Clients
+Recherche instantanée (nom, tél, adresse, compte, S/N). Client 360 = un seul écran scrollable: identité, services actifs, équipement déployé, factures, RMA, notes techniques, photos historiques, contrats signés, timeline complète. Actions inline (appeler, SMS, créer ticket, ouvrir intervention).
+
+### 🧰 Intervention (le cœur)
+Écran guidé pas-à-pas, une seule action à la fois:
+1. Arrivée (geofence + photo façade)
+2. Checklist contextuelle (générée depuis le type: Internet / TV / Mobile / SAV)
+3. Scan équipement installé (S/N + MAC obligatoires)
+4. Diagnostics intégrés (ping/débit Internet, canaux Wi-Fi, signal TV, activation SIM)
+5. Configuration Wi-Fi (SSID + mot de passe) — envoyée au client par email + PDF
+6. Tests validés par le client (checklist visible côté client via lien)
+7. Signature électronique + photos avant/après
+8. Rapport auto généré (PDF) + email statut `tech_completed`
+
+Chaque étape verrouille la précédente. Reprise offline.
+
+### 📦 Inventaire
+Vue "mon camion" (stock physique en poche). Scan pour sortir/rentrer. Alertes seuil bas. Demande de réappro en 1 tap. Retour/bris/échange = workflows séparés, pas des filtres.
+
+### 💬 Communication
+Un seul inbox: dispatch, NOC, chat client (live chat site inclus), SMS, appels. Historique d'appels avec enregistrement (si consenti). Bouton "Escalade NOC" contextuel à une intervention.
+
+### 🎓 Ressources
+Procédures interactives (steps + vidéos), FAQ recherchable, fiches équipement (Borne Wi-Fi, Terminal TV, POD). Consultable offline.
+
+### 📈 Performance
+Objectifs jour/semaine/mois, commissions temps réel, temps moyen par type, NPS clients, classement équipe.
+
+### ⚙ Paramètres
+Profil, véhicule (plaque, capacité stock), préférences notifications, gestion offline (taille cache, sync manuelle), déconnexion.
+
+---
+
+## Nouvelles capacités transverses (obligatoires V1)
+
+- Recherche universelle ⌘K (indexée: clients, RDV, équipement, procédures, actions)
+- Scanner universel caméra (S/N, MAC, QR, code-barre) accessible partout
+- Signature électronique avancée (pression, horodatage, geoloc, hash)
+- Diagnostics Internet / Wi-Fi / TV / Mobile (RPC + tests réels côté device quand possible)
+- GPS live technicien (déjà en DB, on branche le broadcast + la carte dispatch)
+- Optimisation trajet auto
+- Assistant IA contextuel (résumé client, suggestion diagnostic, rédaction note, réponse email)
+- File offline + sync visible (badge "3 actions en attente")
+- Centre de notifications unifié
+- Statuts dispatch pilotant les emails automatiques (déjà en place, on rebranche)
+
+---
+
+## Réutilisation de la logique métier (ce qu'on garde)
+
+Tout le backend reste. On réutilise **sans réécrire**:
+- RPC: `get_available_installation_slots`, `queue_tech_status_email`, `fn_normalize_order_installation_flags`, `has_role`, etc.
+- Tables: `appointments`, `technician_assignments`, `equipment_inventory`, `installations`, `work_orders`, `technician_locations`, `live_chat_sessions`, `email_queue`, etc.
+- Edge Functions: `send-appointment-reminder`, `email-queue-drain`, `client-account-admin`, etc.
+
+Nouveaux ajouts backend limités et justifiés:
+- RPC `fn_optimize_route(technician_id, date)` (P3)
+- RPC `fn_field_universal_search(query)` (P2)
+- Table `field_offline_queue` (client-side IndexedDB en fait — pas de DB serveur)
+- Table `field_checklists_template` + `field_checklist_runs` (P4)
+
+---
+
+## Plan d'exécution (6 phases, validées une à une)
+
+**P1 — Fondations (aucun écran fonctionnel encore)**
+- `src/field-platform/` créé, design system `field.css` (tokens HSL neufs, aucun `tc-*` réutilisé)
+- FieldShell + FieldRouter + rail 10 domaines + dock mobile + route `/field`
+- CommandPalette ⌘K squelette, NotificationCenter squelette, AIAssistantPanel squelette
+- Suppression progressive interdite: on laisse `src/tech-app` intact, `/tech` continue de marcher
+
+**P2 — Accueil + Ma journée + Clients**
+- Mission Control réel (timeline, "Démarrer ma journée")
+- Ma journée (timeline + optimisation trajet)
+- Client 360 unifié + recherche universelle branchée
+
+**P3 — Terrain + Intervention**
+- Carte plein écran + GPS live + ETA partagé
+- Workflow Intervention guidé complet (checklist → diag → Wi-Fi → signature → rapport)
+
+**P4 — Inventaire + Communication**
+- Camion + scanner universel + retours/bris/échanges
+- Inbox unifié dispatch/NOC/chat/SMS/appels
+
+**P5 — Ressources + Performance + Paramètres + Offline + IA**
+- Procédures interactives, KPI, offline queue, assistant IA branché sur Lovable AI Gateway
+
+**P6 — Bascule & suppression**
+- `/tech/*` redirige vers `/field/*`
+- Suppression de `src/tech-app/` en entier
+- Nettoyage routes, tests de non-régression sur la logique métier
+
+---
+
+## Ce que je ne ferai PAS
+
+- Aucun re-skin de `TechDashboard`, `TechAppointments`, `TechInstallation`, `TechStock`, `TechScanner`, `TechMenu`, `TechBottomNav`, `TechShellTopBar`, `TechAppLayout`. Ces fichiers seront **supprimés** en P6, pas modifiés.
+- Aucun ajout de classe `tc-*` supplémentaire. Nouveau design system isolé.
+- Aucune "carte KPI" décorative sans action derrière.
+
+---
+
+## Livrable de cette étape
+
+Ce plan. **Je n'écris pas de code tant que tu ne l'as pas validé.** Dis-moi:
+1. OK sur les 10 domaines et leurs frontières, ou tu veux ajuster ?
+2. OK sur le namespace `/field` + suppression de `/tech` en P6 ?
+3. OK pour démarrer par P1 (fondations sans écran fonctionnel) dès validation ?
