@@ -4,7 +4,7 @@
  * Uses design tokens from tech-portal.css.
  */
 import { NavLink } from "react-router-dom";
-import { ClipboardList, Map, ScanLine, Package, User } from "lucide-react";
+import { ClipboardList, Map, ScanLine, Package, LayoutGrid } from "lucide-react";
 import { useAvailableAssignments } from "../lib/useAvailableAssignments";
 
 interface Tab {
@@ -26,7 +26,7 @@ export default function TechBottomNav() {
     { to: "/tech/map", icon: Map, label: "Carte" },
     { to: "/tech/scanner", icon: ScanLine, label: "Scanner", center: true },
     { to: "/tech/stock", icon: Package, label: "Stock" },
-    { to: "/tech/profile", icon: User, label: "Profil" },
+    { to: "/tech/menu", icon: LayoutGrid, label: "Menu" },
   ];
 
   return (
