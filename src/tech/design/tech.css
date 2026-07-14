@@ -238,3 +238,76 @@
 .tk-alert--warn { color: hsl(var(--tk-warn)); background: hsl(var(--tk-warn) / 0.08); border-color: hsl(var(--tk-warn) / 0.3); }
 .tk-alert--danger { color: hsl(var(--tk-danger)); background: hsl(var(--tk-danger) / 0.08); border-color: hsl(var(--tk-danger) / 0.3); }
 .tk-alert--ok { color: hsl(var(--tk-ok)); background: hsl(var(--tk-ok) / 0.08); border-color: hsl(var(--tk-ok) / 0.3); }
+
+/* ============ Tour 2 : Mission Control + Ma journée ============ */
+.tk-mc-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.tk-mc-hero {
+  display: grid; gap: 14px;
+  grid-template-columns: 2fr 1fr;
+  margin-bottom: 14px;
+}
+@media (max-width: 900px) { .tk-mc-hero { grid-template-columns: 1fr; } }
+
+.tk-widget { padding: 16px; }
+.tk-widget__head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: hsl(var(--tk-fg-dim)); font-weight: 700;
+}
+.tk-widget__head svg { width: 14px; height: 14px; }
+.tk-widget__value { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+.tk-widget__sub { font-size: 13px; color: hsl(var(--tk-fg-mut)); margin-top: 2px; }
+
+.tk-timeline { display: grid; gap: 10px; position: relative; }
+.tk-timeline::before {
+  content: ""; position: absolute; left: 34px; top: 8px; bottom: 8px;
+  width: 2px; background: linear-gradient(hsl(var(--tk-accent) / 0.3), transparent);
+}
+.tk-appt {
+  display: grid; grid-template-columns: 68px 1fr auto; gap: 12px; align-items: center;
+  padding: 12px 14px; border-radius: 12px;
+  background: hsl(var(--tk-bg-1)); border: 1px solid hsl(var(--tk-line));
+  position: relative;
+}
+.tk-appt[data-cur="1"] { border-color: hsl(var(--tk-accent) / 0.5); box-shadow: 0 0 0 3px hsl(var(--tk-accent) / 0.12); }
+.tk-appt[data-done="1"] { opacity: 0.65; }
+.tk-appt__time {
+  display: grid; place-items: center; padding: 6px 8px; border-radius: 8px;
+  background: hsl(var(--tk-bg-3)); border: 1px solid hsl(var(--tk-line));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; font-size: 13px;
+}
+.tk-appt__body { min-width: 0; }
+.tk-appt__title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-appt__meta { font-size: 12px; color: hsl(var(--tk-fg-mut)); display: flex; gap: 10px; margin-top: 3px; flex-wrap: wrap; }
+.tk-appt__actions { display: flex; gap: 6px; }
+.tk-appt__handle {
+  width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px;
+  color: hsl(var(--tk-fg-dim)); cursor: grab; background: hsl(var(--tk-bg-2)); border: 1px solid hsl(var(--tk-line));
+}
+.tk-appt__handle:active { cursor: grabbing; }
+.tk-appt.dragging { opacity: 0.7; transform: scale(1.01); box-shadow: 0 12px 30px -12px hsl(var(--tk-accent) / 0.5); }
+
+.tk-noc-item { padding: 10px 12px; border-radius: 8px; background: hsl(var(--tk-danger) / 0.06); border: 1px solid hsl(var(--tk-danger) / 0.25); font-size: 13px; }
+.tk-noc-item + .tk-noc-item { margin-top: 6px; }
+.tk-noc-item__t { font-weight: 700; color: hsl(var(--tk-fg)); }
+.tk-noc-item__m { color: hsl(var(--tk-fg-mut)); font-size: 12px; margin-top: 2px; }
+
+.tk-mini-map { width: 100%; height: 340px; border-radius: 12px; overflow: hidden; border: 1px solid hsl(var(--tk-line)); background: hsl(var(--tk-bg-2)); }
+@media (max-width: 900px) { .tk-mini-map { height: 240px; } }
+
+.tk-route-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.tk-route-summary > div { padding: 10px; border-radius: 10px; background: hsl(var(--tk-bg-2)); border: 1px solid hsl(var(--tk-line)); text-align: center; }
+.tk-route-summary strong { display: block; font-size: 20px; font-weight: 800; }
+.tk-route-summary span { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: hsl(var(--tk-fg-dim)); }
+
+.tk-weather-list { display: grid; gap: 8px; }
+.tk-weather-row { display: grid; grid-template-columns: 60px 1fr auto; gap: 10px; align-items: center; font-size: 13px; padding: 8px 10px; border-radius: 8px; background: hsl(var(--tk-bg-2)); }
+.tk-weather-row__t { font-family: ui-monospace, monospace; color: hsl(var(--tk-fg-mut)); font-size: 12px; }
+.tk-weather-row__c { font-weight: 700; }
+.tk-weather-row__temp { font-weight: 800; font-size: 15px; }
+
+.tk-spin { animation: tk-spin 1s linear infinite; }
+@keyframes tk-spin { to { transform: rotate(360deg); } }
+
