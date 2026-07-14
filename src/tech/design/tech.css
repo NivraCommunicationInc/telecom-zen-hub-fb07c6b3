@@ -607,7 +607,14 @@
 }
 
 @media (max-width: 900px) {
-  .tk-shell { grid-template-rows: var(--tk-topbar-h) minmax(0, 1fr) var(--tk-dock-h); }
+  .tk-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--tk-topbar-h) minmax(0, 1fr) var(--tk-dock-h);
+    grid-template-areas: "bar" "main" "dock";
+  }
+  .tk-rail { display: none !important; }
+  .tk-dock { display: flex !important; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; }
+  .tk-quick-actions { bottom: calc(var(--tk-dock-h) + 14px + env(safe-area-inset-bottom)) !important; }
   .tk-main { padding: 14px 10px calc(116px + env(safe-area-inset-bottom)); }
   .tk-topbar { grid-template-columns: auto minmax(0, 1fr) auto; padding: 0 10px; gap: 8px; }
   .tk-brand-sub, .tk-status, .tk-top-actions button:nth-child(-n+2), .tk-top-actions button:nth-last-child(1), .tk-global-strip { display: none; }
