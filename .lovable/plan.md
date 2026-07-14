@@ -1,131 +1,255 @@
-# Refonte Workflow Annulation Commande — Nivra Telecom
 
-Objectif : un seul moteur canonique `cancel_order(order_id, reason, actor, source)` appelé par **tous** les portals (Core, Field, Checkout public, Client portal, CRM), avec cascade complète, audit, notifications et synchronisation temps réel.
+# Refonte complète du Portail Technicien Nivra
 
----
-
-## Phase 1 — Audit lecture seule (livrable écrit, aucune modification)
-
-Je vais produire `AUDIT_Cancellation_Workflow.md` documentant :
-
-1. **Sources de commandes détectées** — pour chacune : composant frontend, Edge Function appelée, tables écrites, statut initial, workflow post-création.
-   - Nivra Core → Nouvelle commande manuelle (`FieldNewSale` + `field-sales-sync` / `new-order-actions`)
-   - Field Sales / POS
-   - Checkout public (`/checkout`)
-   - Client Portal (renouvellements, upgrades)
-   - CRM (conversion lead → commande)
-   - Système (renouvellements auto, provisioning replay)
-
-2. **Cartographie des données liées à une commande** (28 tables identifiées) classées par domaine :
-   - Commerce, Client, Billing, Contrats, Installation, Field, Provisioning, Communications, Audit
-
-3. **Inventaire des chemins d'annulation existants** — chaque bouton "Annuler" / RPC / Edge Function qui touche `orders.status`, avec ce qu'ils font (et ne font pas). Preuves : refs `rg` + extraits.
-
-4. **Matrice cascade attendue par cas** (Cas 1–4 du brief) : pour chaque table, action = `delete | cancel | void | archive | keep_audit`.
-
-5. **Problèmes identifiés** — liste priorisée (P0/P1/P2) avec root cause.
+Objectif : reconstruire uniquement la **couche UX** du portail technicien avec le niveau de qualité de Nivra Core (Linear / Stripe / Apple), sans toucher à la logique métier, aux Edge Functions, aux RPC, aux triggers, ni aux Single-Door.
 
 ---
 
-## Phase 2 — État machine officiel + contrats
+## 1. Inventaire de l'existant (à conserver)
 
-Définir dans un doc + migration :
+**Layout / Shell**
+- `TechAppLayout.tsx`, `TechBottomNav.tsx`, `TechHeader.tsx`, `TechTopBar.tsx`, `TechProtectedRoute.tsx`, `OfflineIndicator.tsx`
+- Style : `styles/tech-portal.css` (High-Vis Amber) → **remplacé**
 
+**Pages actuelles (18)**
+Dashboard, Appointments, Assignments, Active, Installation, Map, Menu, Client360, Chat, Tickets, Scanner, Stock, WorkOrder, Schedule, Performance, Vehicle, Training, Profile
+
+**Hooks & data layer (conservés tels quels)**
+- `useAvailableAssignments`, `useTechAssignments`, `useTechMapData`, `useVanStock`, `usePunch`, `queueTechEmail`
+- Hooks partagés : `useAppointmentDetail`, `useClientProfile`, `useOrderDetail`, etc.
+
+**Composants terrain (conservés)**
+- `PhotoCapture`, `QRScanner`, `SignaturePad`, `TechMiniMap`
+
+**Edge Functions / RPC utilisées (intouchables)**
+- `queue_tech_status_email`, `get_available_installation_slots`, `fn_upsert_canonical_appointment_from_legacy`, `send-appointment-reminder`, `client-account-actions`, `email-queue-drain`, provisioning, communications gateway, etc.
+
+**Tables lues (intouchables)**
+- `appointments`, `technician_assignments`, `technician_locations`, `inventory_stock`, `equipment_inventory`, `installation_jobs`, `installations`, `work_orders`, `internal_tickets`, `live_chat_*`, `accounts`, `profiles`, `service_addresses`, `orders`, `billing_*`.
+
+---
+
+## 2. Nouveau Design System (aligné Nivra Core)
+
+Créer `src/tech-app/styles/tech-core.css` avec des tokens **sémantiques** mappés sur les tokens Core (`--background`, `--foreground`, `--primary`, `--card`, `--muted`, `--accent`, `--ring`, radii, ombres). Aucune couleur hardcodée dans les composants.
+
+- **Palette** : neutre foncé (slate-950/900) + surfaces slate-900/800, accent `--primary` (bleu corporate #0066CC), succès émeraude, danger rouge, warning ambre.
+- **Typographie** : Inter / SF-like ; titres semi-bold, aucune italique majuscule, tracking neutre.
+- **Radius** : `--radius: 12px` (cartes 16px, boutons 10px).
+- **Ombres** : élévation douce (0 1px 2px, 0 8px 24px) façon Linear.
+- **Animations** : `fade-in`, `scale-in`, `slide-in-right` (Tailwind existants), 150–200 ms ease-out.
+- **Composants shadcn** : Card, Sheet (drawers), Dialog, Command (palette), Tabs, ScrollArea, Badge, Tooltip, DropdownMenu, Toast, Skeleton — mêmes variantes que Core.
+
+---
+
+## 3. Nouvelle architecture UX
+
+### 3.1 Shell
 ```text
-draft → pending_payment → paid → processing → scheduled → active
-                          ↓         ↓            ↓         ↓
-                       cancelled  cancelled  cancelled  service_cancelled
+┌────────────────────────────────────────────────────────┐
+│ TopBar : logo · statut (Dispo/Route/Pause/Offline) ·   │
+│          command palette (⌘K) · notifications · avatar │
+├──────────┬─────────────────────────────────────────────┤
+│ Sidebar  │  Workspace                                  │
+│ compacte │  (page active + drawers + split-view)       │
+│ (icônes) │                                             │
+│ desktop  │                                             │
+└──────────┴─────────────────────────────────────────────┘
+    Mobile : sidebar → BottomNav 5 onglets + FAB scanner
 ```
 
-- Statuts terminaux : `cancelled`, `service_cancelled`, `refunded`, `completed`.
-- Table `order_cancellation_reasons` (enum: client_changed_mind, payment_issue, address_not_serviceable, agent_error, fraud, duplicate, other).
-- Contrat de transition : quelles transitions sont autorisées depuis quel statut.
+### 3.2 Arborescence menu (sidebar)
+1. **Dashboard** (`/tech`)
+2. **Journée** (`/tech/today`) — timeline RDV du jour
+3. **Rendez-vous** (`/tech/appointments`) — liste + filtres
+4. **Carte** (`/tech/map`)
+5. **Installation active** (`/tech/installation/:id`)
+6. **Clients** (`/tech/clients` → `client360/:id`)
+7. **Diagnostics** (`/tech/diagnostics`) — **NOUVEAU**
+8. **Inventaire** (`/tech/stock`)
+9. **Scanner** (FAB global)
+10. **Tickets** (`/tech/tickets`)
+11. **Messages** (`/tech/chat`)
+12. **Performance** (`/tech/performance`)
+13. **Véhicule** (`/tech/vehicle`)
+14. **Formation** (`/tech/training`)
+15. **Assistant IA** (drawer global ⌘I) — **NOUVEAU**
+16. **Profil** (`/tech/profile`)
+
+### 3.3 BottomNav mobile
+`Dashboard · Journée · Scanner (FAB) · Carte · Plus` (feuille modale → tous les modules).
 
 ---
 
-## Phase 3 — Moteur canonique `cancel_order`
+## 4. Wireframes textuels
 
-**Fonction SQL** `public.cancel_order_v1(p_order_id, p_reason_code, p_reason_note, p_actor_id, p_source, p_idempotency_key)` qui, en une transaction :
+### Dashboard
+```text
+[Header] Bonjour Marc · Mardi 14 juillet · 08:42 · [Statut ▾ Disponible]
+[Hero mission suivante]  ────────────────────────
+  Prochaine intervention · dans 23 min · 4.2 km
+  Oldo Lavaud — Installation Internet + TV
+  1234 rue X, Montréal
+  [Itinéraire] [Appeler] [En route]
 
-1. Verrouille la commande (`FOR UPDATE`), vérifie la transition légale.
-2. Snapshot `previous_status` → `order_status_history` + `order_events` (`event_type='order_cancelled'`).
-3. Cascade selon statut avant annulation :
-   - **Cas 1 (avant paiement)** : void quote, void invoice draft, cancel payment intent, cancel appointment, release technician slot.
-   - **Cas 2 (payé non activé)** : cas 1 + cancel subscription future, cancel provisioning_jobs pending, marque `refund_required=true` (le remboursement Square se fait dans l'Edge Function côté serveur).
-   - **Cas 3 (installation planifiée)** : cas 2 + libère `technician_slot_bookings`, retire `technician_assignments`, notifie tech via `notification_outbox`.
-   - **Cas 4 (service actif)** : ne supprime rien — passe `billing_subscriptions.status='cancelled'` avec `end_date`, `service_instances.status='terminated'`, déclenche facture finale, garde historique.
-4. Enqueue notifications (client + tech + interne) via `email_queue` / `notification_outbox`.
-5. Écrit `admin_audit_log` avec actor, source, reason, IP, diff.
+[KPI row 4 cartes]
+  RDV aujourd'hui 6 · Complétés 2 · Distance 42 km · Ponctualité 96%
 
-**Edge Function** `cancel-order` (unique point d'entrée réseau) :
-- valide JWT + permission (`has_role`),
-- appelle `cancel_order_v1`,
-- si `refund_required` → appelle `square-refund` puis met à jour `billing_payments`,
-- retourne un rapport structuré (ce qui a été fait par table).
+[Grid 2 col]
+  ┌ Timeline journée ──────┐  ┌ Alertes & messages ─┐
+  │ 09:30 Client A ✓        │  │ 3 msg dispatch      │
+  │ 11:00 Client B en cours │  │ 1 ticket urgent     │
+  │ 13:30 Client C          │  │ Stock POD < 2       │
+  └────────────────────────┘  └──────────────────────┘
 
-**Idempotence** : clé `cancel_{order_id}_{actor}_{hour}` dans `client_account_action_idempotency`.
+  ┌ Mini-carte ────────────┐  ┌ Objectifs & perf ────┐
+  │ (route optimisée)      │  │ 18/25 installs mois  │
+  └────────────────────────┘  └──────────────────────┘
 
----
+[Météo · trafic · résumé jour]
+```
 
-## Phase 4 — Consolidation frontend
+### Rendez-vous (liste + drawer)
+```text
+Filtres: [Aujourd'hui][Semaine][Statut][Priorité]  🔍 recherche
+┌ Card RDV ───────────────────────────────────┐
+│ 11:00 · Installation Internet · Priorité ●  │
+│ Oldo L. · 1234 rue X · 4.2 km · 45 min      │
+│ [Détails] [Route] [Appeler] [Démarrer]      │
+└─────────────────────────────────────────────┘
+Clic → Sheet latéral (Drawer) : client, services, équipement, historique, notes, actions.
+```
 
-Remplacer **tous** les chemins d'annulation existants (à identifier en Phase 1) par un hook unique `useCancelOrder()` qui invoque `cancel-order`. Portals visés :
-- `src/core-app/**` (bouton Annuler dans OrderDetails, OrderProcessing, liste commandes)
-- `src/pages/field/**`
-- `src/pages/checkout/**` (annulation session)
-- `src/pages/client/**`
-- CRM
+### Installation active (split-view)
+```text
+┌ Étapes rail (gauche) ──┬ Contenu étape (droite) ─────┐
+│ ● Avant                │ Validation identité         │
+│ ○ Pendant              │ Checklist matériel          │
+│ ○ Tests                │ [Scanner] [Photos] [Notes]  │
+│ ○ Signature            │                              │
+│ ○ Rapport              │                              │
+└────────────────────────┴──────────────────────────────┘
+Barre inférieure sticky : [Pause] [Escalader] [Suivant →]
+```
 
-Composant partagé `<CancelOrderDialog />` :
-1. Confirmation.
-2. Sélection raison (radio) + note optionnelle.
-3. **Pré-visualisation cascade** : appel dry-run `cancel-order?dryRun=true` → affiche la liste ("✓ Annuler rendez-vous", "✓ Rembourser 89,99 $", …).
-4. Confirmation finale + toast + refresh.
+### Client 360 (drawer plein-écran)
+Onglets : Vue d'ensemble · Services · Équipement · Historique · Paiements · Documents · Notes.
 
-Les anciens boutons/RPC sont supprimés (pas dépréciés — supprimés) pour éviter la dérive.
+### Diagnostics (nouveau)
+Grille outils : Internet (ping, DNS, PPPoE, vitesse) · Wi-Fi (RSSI, canal) · TV · Mobile · SIM. Résultats en cartes avec état ✓/✗.
 
----
+### Carte
+Mapbox pleine hauteur, panneau flottant : liste RDV, ETA temps réel, bouton "Optimiser tournée".
 
-## Phase 5 — Realtime + triggers
-
-- Trigger AFTER UPDATE OF `status` sur `orders` → NOTIFY + insert `order_events`.
-- `ALTER PUBLICATION supabase_realtime ADD TABLE public.orders, public.appointments, public.billing_invoices, public.billing_subscriptions;` (si pas déjà en place).
-- Client Core/Field/Tech s'abonnent → refresh instant.
-
----
-
-## Phase 6 — Tests runtime (preuves obligatoires)
-
-Script Playwright + SQL de vérif pour 5 scénarios :
-
-| # | Scénario | Setup | Assertions |
-|---|---|---|---|
-| 1 | Core manuelle avant paiement | crée commande shell | orders/quote/invoice/appointment tous cancelled, email queued |
-| 2 | Field payée non activée | commande payée Square sandbox | + subscription cancelled, refund_required=true, refund exécuté |
-| 3 | Checkout public annulé côté client | session expirée | idempotent, pas de double annulation |
-| 4 | Installation planifiée | tech assigné | slot libéré, assignment removed, notif tech |
-| 5 | Service actif | subscription active | service_cancelled, end_date set, facture finale générée |
-
-Chaque test capture : screenshots + `psql` verifs + logs Edge Function.
+### Assistant IA (drawer ⌘I)
+Champ prompt, contexte client auto-injecté, réponses markdown, actions rapides ("Procédure ONT", "Pourquoi suspendu?").
 
 ---
 
-## Livrables finaux
+## 5. Composants réutilisables (nouveaux, dans `src/tech-app/components/ui/`)
 
-- `AUDIT_Cancellation_Workflow.md` (Phase 1)
-- Migration SQL (`cancel_order_v1`, `order_events`, contraintes, triggers, realtime)
-- Edge Function `cancel-order` + suppression des anciens endpoints
-- Hook + dialog frontend + suppression des anciens boutons
-- Rapport de tests avec preuves (screenshots + extraits SQL)
+- `TechShell` (sidebar + topbar + workspace)
+- `TechSidebar`, `TechTopBar` (refait), `TechCommandPalette`
+- `StatusPill` (Dispo/Route/Pause/Offline)
+- `KpiCard`, `MissionHeroCard`, `AppointmentCard`, `TimelineItem`
+- `ClientDrawer`, `AppointmentDrawer`, `InstallationStepRail`
+- `DiagnosticCard`, `InventoryRow`, `TicketRow`
+- `AiAssistantDrawer`
+- `EmptyState`, `LoadingSkeletons`, `ErrorState`
+
+Tous consomment les **mêmes hooks existants** — aucun changement de data layer.
 
 ---
 
-## Question avant démarrage
+## 6. Conservé / Remplacé / Supprimé
 
-Ce chantier touche 5 portals + billing + provisioning. Deux options :
+**Conservés (data + composants terrain)**
+- Tous les hooks `lib/*`, `PhotoCapture`, `QRScanner`, `SignaturePad`, `TechMiniMap`, `OfflineIndicator`, `TechProtectedRoute`.
 
-**A. Full run enchaîné** — je fais Phase 1 → 6 en séquence, tu revois le rapport final. Risque : gros diff à revoir.
+**Remplacés (UI)**
+- `TechAppLayout`, `TechHeader`, `TechTopBar`, `TechBottomNav`, `styles/tech-portal.css`
+- Toutes les pages sous `pages/` — réécrites en consommant les hooks existants.
 
-**B. Gate après Phase 1** — je livre l'audit + la matrice cascade, tu valides / ajustes, puis je continue. Recommandé pour un chantier de cette taille.
+**Supprimés**
+- `TechMenu.tsx` (remplacé par sidebar + command palette)
+- `TechActive.tsx` (fusionné dans Dashboard "mission suivante")
 
-Dis-moi **A** ou **B**, et si tu veux que je limite la Phase 4 à Core d'abord (rollout progressif) ou tout d'un coup.
+**Nouveaux**
+- `TechToday.tsx`, `TechDiagnostics.tsx`, `TechClients.tsx` (liste), `AiAssistantDrawer.tsx`, `TechCommandPalette.tsx`.
+
+---
+
+## 7. Responsive
+
+- **Mobile (prioritaire)** : BottomNav 5 tabs, FAB scanner, drawers plein-écran, listes denses.
+- **Tablette** : sidebar rétractable en icônes, split-view sur Installation et Carte.
+- **Desktop** : sidebar complète, command palette, drawers à droite (Sheet), multi-panneaux.
+
+Breakpoints Tailwind standards (`sm/md/lg/xl`).
+
+---
+
+## 8. Accessibilité
+
+- Contraste AA sur toutes les surfaces (vérifié via tokens sémantiques).
+- Cibles tactiles ≥ 44 px.
+- Focus visibles (`--ring`), navigation clavier complète, `aria-label` sur toutes les icônes-actions.
+- États : loading (Skeleton), empty (illustration + CTA), error (retry).
+- Support offline conservé via `OfflineIndicator`.
+
+---
+
+## 9. Stratégie de migration (par phases)
+
+**Phase 0 — Design system** *(1 étape)*
+Créer `tech-core.css` + tokens + primitives (`TechShell`, `Sidebar`, `TopBar`, `CommandPalette`, `StatusPill`, `KpiCard`, drawers).
+
+**Phase 1 — Shell + Dashboard** *(nouveau look actif immédiatement)*
+Remplacer `TechAppLayout`, monter la nouvelle sidebar/topbar, refaire `TechDashboard`. Le reste des pages hérite du nouveau shell mais garde temporairement leur contenu.
+
+**Phase 2 — Rendez-vous + Installation active + Client 360**
+Refonte des 3 écrans les plus utilisés en drawers/split-view.
+
+**Phase 3 — Carte + Diagnostics + Scanner + Inventaire**
+Refonte terrain, ajout module Diagnostics.
+
+**Phase 4 — Tickets + Chat + Notifications + Assistant IA**
+Centre de communication + drawer IA (utilise Edge Function AI déjà en place, aucune nouvelle logique).
+
+**Phase 5 — Performance + Véhicule + Formation + Profil**
+Écrans secondaires.
+
+**Phase 6 — Nettoyage**
+Supprimer `tech-portal.css`, `TechMenu`, `TechActive`, anciens composants amber.
+
+Chaque phase est indépendante : le portail reste utilisable entre les phases.
+
+---
+
+## 10. Risques identifiés
+
+| Risque | Mitigation |
+|---|---|
+| Régression sur hooks partagés | Aucune modif des hooks/lib, uniquement consommation |
+| Rupture de la nav mobile pendant migration | Nouveau shell livré en Phase 1, tous les liens redirigés |
+| Divergence tokens Core / Tech | Importer les mêmes variables sémantiques depuis `src/index.css` |
+| Command palette + raccourcis clavier sur mobile | Feature-flag desktop-only |
+| Assistant IA — coût / latence | Rate-limit côté UI, streaming, réutilisation Edge Function AI existante |
+| Cartographie Mapbox | Réutilisation du token public déjà configuré |
+| Emails techniciens (queue) | Aucune modif — UI déclenche les mêmes RPC/EF |
+
+---
+
+## 11. Contraintes strictes (rappel)
+
+- ❌ Aucune modif de logique métier, RPC, triggers, Edge Functions, invariants, Single-Door.
+- ❌ Aucun calcul de prix / taxes côté frontend.
+- ✅ Uniquement UI + composition + consommation des hooks/API existants.
+- ✅ Tokens sémantiques uniquement, aucune couleur hardcodée.
+- ✅ Même famille visuelle que Nivra Core.
+
+---
+
+**Validation demandée avant Phase 0.** Réponds :
+- **GO** → je démarre Phase 0 (design system + shell).
+- **Ajustements** → indique les sections à revoir (menu, wireframes, ordre des phases, modules à ajouter/retirer).
