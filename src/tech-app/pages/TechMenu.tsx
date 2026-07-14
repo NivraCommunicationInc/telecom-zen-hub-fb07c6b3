@@ -12,9 +12,9 @@ import TechHeader from "../components/TechHeader";
 
 interface Tile {
   to: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<any>;
   label: string;
-  hint: string;
+  hint?: string;
 }
 
 const OPS: Tile[] = [
