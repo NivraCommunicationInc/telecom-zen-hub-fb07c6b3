@@ -27792,9 +27792,11 @@ export type Database = {
           network_test_results: Json | null
           order_id: string | null
           ping_ms: number | null
+          route_optimized_at: string | null
           scheduled_date: string
           scheduled_time_end: string
           scheduled_time_start: string
+          sequence_order: number | null
           service_address_id: string | null
           service_location_id: string | null
           signal_strength: number | null
@@ -27822,9 +27824,11 @@ export type Database = {
           network_test_results?: Json | null
           order_id?: string | null
           ping_ms?: number | null
+          route_optimized_at?: string | null
           scheduled_date: string
           scheduled_time_end: string
           scheduled_time_start: string
+          sequence_order?: number | null
           service_address_id?: string | null
           service_location_id?: string | null
           signal_strength?: number | null
@@ -27852,9 +27856,11 @@ export type Database = {
           network_test_results?: Json | null
           order_id?: string | null
           ping_ms?: number | null
+          route_optimized_at?: string | null
           scheduled_date?: string
           scheduled_time_end?: string
           scheduled_time_start?: string
+          sequence_order?: number | null
           service_address_id?: string | null
           service_location_id?: string | null
           signal_strength?: number | null
@@ -32814,6 +32820,32 @@ export type Database = {
         Returns: Json
       }
       fn_generate_subscription_number: { Args: never; Returns: string }
+      fn_get_my_day: {
+        Args: { _date?: string }
+        Returns: {
+          address_line: string
+          assignment_id: string
+          city: string
+          client_email: string
+          client_full_name: string
+          client_phone: string
+          intervention_progress: number
+          intervention_session_id: string
+          intervention_status: string
+          intervention_step: string
+          latitude: number
+          longitude: number
+          order_id: string
+          postal_code: string
+          scheduled_date: string
+          sequence_order: number
+          service_address_id: string
+          service_type: string
+          status: string
+          time_end: string
+          time_start: string
+        }[]
+      }
       fn_is_equipment_label: { Args: { _label: string }; Returns: boolean }
       fn_nivra_appointment_address: {
         Args: {
@@ -32835,10 +32867,18 @@ export type Database = {
         Returns: string
       }
       fn_nivra_order_number: { Args: { p_order_id: string }; Returns: string }
+      fn_optimize_route: {
+        Args: { _date: string; _tech_id: string }
+        Returns: Json
+      }
       fn_parse_legacy_slot_start: { Args: { _slot: string }; Returns: string }
       fn_queue_existing_confirmed_installation_emails: {
         Args: never
         Returns: Json
+      }
+      fn_reorder_assignments: {
+        Args: { _ordered_ids: string[]; _tech_id: string }
+        Returns: undefined
       }
       fn_repair_activated_order_canonical_chain: {
         Args: { _order_id: string }
@@ -32939,6 +32979,16 @@ export type Database = {
           _title?: string
         }
         Returns: string
+      }
+      fn_upsert_technician_location: {
+        Args: {
+          _accuracy?: number
+          _heading?: number
+          _lat: number
+          _lng: number
+          _speed?: number
+        }
+        Returns: undefined
       }
       fn_validate_client_referral: {
         Args: {

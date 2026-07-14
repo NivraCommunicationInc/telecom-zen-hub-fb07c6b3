@@ -33,6 +33,9 @@ const TechProtectedRoute = lazy(() => import("@/tech-app/components/TechProtecte
 const TechShell = lazy(() => import("@/tech/TechShell"));
 const TechHome = lazy(() => import("@/tech/pages/TechHome"));
 const InterventionRunner = lazy(() => import("@/tech/pages/InterventionRunner"));
+const MissionControl = lazy(() => import("@/tech/pages/MissionControl"));
+const MaJournee = lazy(() => import("@/tech/pages/MaJournee"));
+
 const TechDomains = {
   Day:         lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.DayPage }))),
   Terrain:     lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.TerrainPage }))),
@@ -808,9 +811,11 @@ const AppRoutes = () => {
         <Route element={<Suspense fallback={null}><TechShell /></Suspense>}>
           <Route index                            element={<Suspense fallback={null}><TechHome /></Suspense>} />
           <Route path="intervention/:sessionId"   element={<Suspense fallback={null}><InterventionRunner /></Suspense>} />
-          <Route path="journee"                   element={<Suspense fallback={null}><TechDomains.Day /></Suspense>} />
+          <Route path="mission"                   element={<Suspense fallback={null}><MissionControl /></Suspense>} />
+          <Route path="journee"                   element={<Suspense fallback={null}><MaJournee /></Suspense>} />
           <Route path="terrain"                   element={<Suspense fallback={null}><TechDomains.Terrain /></Suspense>} />
           <Route path="clients"                   element={<Suspense fallback={null}><TechDomains.Customers /></Suspense>} />
+
           <Route path="inventaire"                element={<Suspense fallback={null}><TechDomains.Inventory /></Suspense>} />
           <Route path="communication"             element={<Suspense fallback={null}><TechDomains.Comms /></Suspense>} />
           <Route path="ressources"                element={<Suspense fallback={null}><TechDomains.Resources /></Suspense>} />
