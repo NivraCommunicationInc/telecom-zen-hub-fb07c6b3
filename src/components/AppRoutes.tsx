@@ -46,6 +46,24 @@ const TechPerformance = lazy(() => import("@/tech-app/pages/TechPerformance"));
 const TechVehicle = lazy(() => import("@/tech-app/pages/TechVehicle"));
 const TechDiagnostics = lazy(() => import("@/tech-app/pages/TechDiagnostics"));
 
+// ============================================
+// NIVRA FIELD PLATFORM v3 — Product overhaul
+// New namespace under /technicien. Reuses TechProtectedRoute for auth only.
+// ============================================
+const FieldShell = lazy(() => import("@/field-platform/app/FieldShell"));
+const FieldPages = {
+  Home:         lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldHomePage }))),
+  Day:          lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldDayPage }))),
+  Terrain:      lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldTerrainPage }))),
+  Customers:    lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldCustomersPage }))),
+  Intervention: lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldInterventionPage }))),
+  Inventory:    lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldInventoryPage }))),
+  Comms:        lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldCommsPage }))),
+  Resources:    lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldResourcesPage }))),
+  Performance:  lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldPerformancePage }))),
+  Settings:     lazy(() => import("@/field-platform/domains/pages").then(m => ({ default: m.FieldSettingsPage }))),
+};
+
 // HR Portal (lazy-loaded, fully isolated)
 const HrAppLayout = lazy(() => import("@/hr-app/HrAppLayout"));
 const HrProtectedRoute = lazy(() => import("@/hr-app/components/HrProtectedRoute"));
