@@ -35,6 +35,7 @@ const TechProfile = lazy(() => import("@/tech-app/pages/TechProfile"));
 const TechMap = lazy(() => import("@/tech-app/pages/TechMap"));
 const TechStock = lazy(() => import("@/tech-app/pages/TechStock"));
 const TechMenu = lazy(() => import("@/tech-app/pages/TechMenu"));
+const TechAppointments = lazy(() => import("@/tech-app/pages/TechAppointments"));
 const TechSchedule = lazy(() => import("@/tech-app/pages/TechSchedule"));
 const TechChat = lazy(() => import("@/tech-app/pages/TechChat"));
 const TechTickets = lazy(() => import("@/tech-app/pages/TechTickets"));
@@ -790,6 +791,7 @@ const AppRoutes = () => {
           <Route index element={<Suspense fallback={null}><TechDashboard /></Suspense>} />
           <Route path="dashboard" element={<Navigate to="/tech" replace />} />
           <Route path="assignments" element={<Suspense fallback={null}><TechAssignments /></Suspense>} />
+          <Route path="appointments" element={<Suspense fallback={null}><TechAppointments /></Suspense>} />
           <Route path="active" element={<Suspense fallback={null}><TechActive /></Suspense>} />
           <Route path="installation/:id" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
           <Route path="installation/:assignmentId" element={<Suspense fallback={null}><TechInstallation /></Suspense>} />
