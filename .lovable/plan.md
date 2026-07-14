@@ -1,103 +1,119 @@
-# Plan — Portail /tech reconstruit, tranche verticale INTERVENTION
+# Tour 2 — Mission Control + Ma journée
 
-## Règle de livraison
-Une tranche verticale à la fois, fonctionnelle de bout en bout. Zéro placeholder. `/tech` bascule dès la première livraison sur le nouveau portail. L'ancien code `src/tech-app/` est déprécié (dossier renommé `_deprecated_tech_app/`, retiré du router). Aucun écran de l'ancien portail ne reste accessible.
+Livraison 100% fonctionnelle, aucune donnée fictive, tout branché sur les tables réelles.
 
-## Périmètre de CE tour — Intervention + shell minimal
+## Portée
 
-Ne pas confondre "shell minimal" avec "placeholders". Le shell (topbar + rail + dock) est nécessaire pour ouvrir l'application. Les autres domaines (Journée, Terrain, Clients, Inventaire, Comms, Ressources, Perf, Paramètres) restent explicitement marqués **"En cours de construction — livraison dans les prochaines tranches"** avec date d'engagement. Pas de faux dashboards.
+Deux pages jumelles dans `/tech` :
 
-### Livraison fonctionnelle 100% — Intervention
+- **`/tech/mission-control`** — vue temps réel de la journée du technicien connecté
+- **`/tech/ma-journee`** — planification interactive (drag & drop, réordonner, optimiser)
 
-Workflow guidé plein écran, 12 étapes verrouillées séquentiellement. Persisté en base. Reprise si fermeture app.
+## Sources de données (existantes, rien à inventer)
 
+- `technician_assignments` + `appointments` → rendez-vous du jour
+- `technician_locations` → position GPS live
+- `intervention_sessions` → statut réel de chaque intervention
+- `equipment_inventory` / `inventory_assignments` → stock camion
+- `service_incidents` + `system_status` → urgences / NOC
+- `orders` + `service_addresses` → contexte client par RDV
+
+Météo & trafic via connecteur Google Maps déjà en place (Weather API + Routes API).
+
+## Composants livrés
+
+### Mission Control (`/tech/mission-control`)
+1. **Bandeau statut live** — position GPS, batterie, connexion, prochain RDV avec compte à rebours
+2. **Timeline verticale du jour** — chaque RDV = carte (heure, client, adresse, service, statut intervention, ETA, distance)
+3. **Widget météo** — conditions actuelles + heure de chaque RDV (Weather API)
+4. **Widget trafic** — retard estimé vers prochain RDV (Routes API)
+5. **Widget NOC** — `service_incidents` actifs dans les zones du tech
+6. **Widget stock camion** — items critiques faibles (<3)
+7. **Widget urgences** — RDV `priority=urgent` non commencés
+8. **Realtime** — canal Supabase sur `technician_assignments`, `intervention_sessions`, `service_incidents`
+
+### Ma journée (`/tech/ma-journee`)
+1. **Liste ordonnée** des RDV du jour (dnd-kit)
+2. **Drag & drop** pour réordonner → persiste dans `technician_assignments.sequence_order`
+3. **Bouton "Optimiser la tournée"** → RPC `fn_optimize_route(tech_id, date)` qui appelle Routes API `computeRouteMatrix` et écrit l'ordre optimal
+4. **Mini-carte Mapbox** synchronisée avec l'ordre courant (polyline + numéros)
+5. **Bouton "Démarrer intervention"** sur chaque carte → crée session + redirige vers runner
+6. **Compteurs** : distance totale, temps total, économies vs ordre initial
+
+## Base de données
+
+Migration légère :
+
+```sql
+-- Colonne d'ordre planifié (si absente)
+ALTER TABLE technician_assignments
+  ADD COLUMN IF NOT EXISTS sequence_order int,
+  ADD COLUMN IF NOT EXISTS route_optimized_at timestamptz;
+
+-- RPC d'optimisation
+CREATE OR REPLACE FUNCTION public.fn_optimize_route(_tech_id uuid, _date date)
+RETURNS jsonb  -- { ordered_ids[], total_km, total_min, saved_min }
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
+
+-- RPC de réordonnancement manuel
+CREATE OR REPLACE FUNCTION public.fn_reorder_assignments(_tech_id uuid, _ordered_ids uuid[])
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
 ```
-1. Arrivée (geofence + photo façade)
-   ↓ écrit intervention_events(step='arrival', gps, photo_url)
-2. Checklist dynamique (branchée sur type : Internet / TV / Mobile / SAV)
-   ↓ chaque item coché = row intervention_checklist_items
-3. Scan équipement (S/N + MAC en saisie manuelle + scan barcode via BarcodeDetector web API)
-   ↓ intervention_equipment(serial, mac, kind)
-4. Tests Internet (ping, download, upload via speedtest embarqué)
-   ↓ intervention_tests(kind='internet', payload jsonb)
-5. Tests Wi-Fi (canaux, RSSI si dispo, sinon saisie manuelle)
-6. Tests TV (signal, canaux reçus)
-7. Activation (RPC fn_activate_service_for_intervention → écrit services + subscription)
-8. Configuration Wi-Fi (SSID + password → intervention_wifi_config)
-9. Validation client (case à cocher + nom)
-10. Photos avant/après (upload storage intervention-media)
-11. Signature électronique (canvas → base64 → storage)
-12. Clôture (RPC fn_close_intervention → status=completed, déclenche PDF + email tech_completed)
+
+Grants + RLS : lecture/écriture uniquement pour le tech propriétaire (`auth.uid() = technician_id`) + service_role.
+
+## Edge Functions
+
+- **`tech-route-optimize`** — reçoit `{tech_id, date}`, appelle Google Routes `computeRouteMatrix`, résout TSP glouton (≤ 15 points), écrit `sequence_order`, retourne le résumé
+- **`tech-weather-batch`** — reçoit `[{lat, lng, time}]`, appelle Weather API par lot, retourne conditions par point
+
+## Frontend
+
+Nouveaux fichiers sous `src/tech/` :
+
+```text
+pages/MissionControl.tsx          # widget grid + timeline
+pages/MaJournee.tsx               # dnd list + mini-map
+components/mission/
+  StatusBar.tsx                   # position/battery/next-eta
+  TimelineList.tsx
+  AppointmentCard.tsx
+  WidgetWeather.tsx
+  WidgetTraffic.tsx
+  WidgetNOC.tsx
+  WidgetTruckStock.tsx
+  WidgetUrgent.tsx
+components/planning/
+  SortableAppointment.tsx         # @dnd-kit item
+  RouteMiniMap.tsx                # Mapbox GL + polyline
+  RouteSummary.tsx
+hooks/
+  useMyDayAssignments.ts          # realtime feed
+  useTechnicianLocation.ts        # geolocation watcher + upsert technician_locations
+  useServiceIncidents.ts
+  useTruckStock.ts
 ```
 
-Chaque étape :
-- **verrouille visuellement** les suivantes (opacity + pointer-events)
-- **verrouille les précédentes** une fois validées (édition impossible)
-- écrit son état en DB immédiatement (pas de "brouillon local")
-- affiche progression x/12 en persistant
-- reprend au bon step après refresh (lecture DB au mount)
+Design system existant (`tech.css`) réutilisé — même identité anthracite/ambre que Tour 1.
 
-## Livrables techniques exacts
+## Routing
 
-### Base de données (1 migration)
-Tables nouvelles (public + GRANT + RLS + policies) :
-- `intervention_sessions` — session unique par assignment (id, technician_id, assignment_id, order_id, service_kind, current_step, status, started_at, completed_at)
-- `intervention_events` — journal append-only de chaque étape (session_id, step, payload jsonb, gps_lat, gps_lng, actor)
-- `intervention_checklist_items` — items dynamiques (session_id, code, label, required, checked, checked_at)
-- `intervention_equipment` — S/N + MAC scannés (session_id, kind, serial, mac, verified)
-- `intervention_tests` — résultats tests (session_id, kind, payload jsonb, passed)
-- `intervention_wifi_config` — SSID + password chiffrés (session_id, ssid, password_encrypted, band)
-- `intervention_media` — pointeurs storage (session_id, kind: facade/before/after/signature, path)
+Mise à jour de `TechRail`/`TechDock` : les entrées "Mission Control" et "Ma journée" deviennent actives (plus de placeholder). Les 8 autres domaines restent en "En construction" avec calendrier honnête.
 
-RPC nouvelles :
-- `fn_start_intervention(assignment_id uuid)` → crée session, valide geofence
-- `fn_advance_step(session_id uuid, from_step text, to_step text, payload jsonb)` → transition atomique verrouillée
-- `fn_activate_service_for_intervention(session_id uuid)` → active service canonique
-- `fn_close_intervention(session_id uuid)` → clôt + déclenche email + PDF
+## Preuves de livraison
 
-Bucket storage : `intervention-media` (privé, RLS par technician_id).
+À la fin, je fournis :
+1. Migration exécutée + `\d technician_assignments` avant/après
+2. Edge Functions déployées + `curl` de démo
+3. Typecheck `tsgo` = 0 erreur
+4. Capture Playwright de `/tech/mission-control` et `/tech/ma-journee` en session authentifiée
+5. Démo drag & drop → vérif SQL que `sequence_order` a bien changé
+6. Démo "Optimiser" → vérif `route_optimized_at` + Routes API log
 
-### Edge Functions
-- `intervention-generate-pdf` — génère rapport signé + upload storage
-- Réutilise `queue_tech_status_email` existant pour `tech_completed`
+## Ce qui N'EST PAS dans ce tour
 
-### Frontend `src/tech/` (nouveau namespace, pas field-platform)
-- `TechShell.tsx` — topbar + rail desktop + dock mobile, réel, distinctif
-- `useInterventionSession.ts` — hook central : lecture DB, transitions, realtime
-- `pages/InterventionRunner.tsx` — orchestrateur plein écran
-- `intervention/steps/` — 12 composants d'étape, un par fichier
-- `intervention/StepRail.tsx` — progression verticale gauche
-- `intervention/BarcodeScanner.tsx` — scanner caméra via `BarcodeDetector` API (fallback saisie)
-- `intervention/SignaturePad.tsx` — canvas signature
-- `intervention/SpeedTest.tsx` — mesure débit navigateur réelle
-- Autres domaines : composant unique `DomainInConstruction.tsx` honnête (pas de faux KPI)
+- Client 360 unifié → Tour 3
+- Terrain (carte live cross-techs) → Tour 4
+- Intervention, Inventaire, Communication, Ressources, Performance, Paramètres → tours suivants
 
-### Router
-- `/tech/*` remonté sur `TechShell` (nouveau)
-- `/tech` → redirect vers dernière intervention active OU liste courte du jour
-- `/tech/intervention/:sessionId` → runner plein écran
-- Ancien `src/tech-app/` retiré du router (fichiers renommés en `_deprecated_`)
-
-## Preuves fournies à la fin
-1. Liste exacte : fichiers créés / renommés / supprimés
-2. Migration SQL complète collée
-3. RPC signatures + body
-4. Capture d'écran de chaque étape 1→12 via Playwright headless
-5. Test end-to-end : démarrage → chaque étape → clôture → vérification DB (session status=completed, PDF présent, email en queue)
-6. Ce qui **ne** marche pas encore et sera livré au prochain tour (nommé explicitement)
-
-## Ce qui **N'EST PAS** dans ce tour (et sera livré ensuite, dans cet ordre)
-- Tour 2 : Client 360 unifié (une page scrollable réelle, actions inline)
-- Tour 3 : Mission Control + Ma journée (timeline + drag&drop + optimisation trajet)
-- Tour 4 : Terrain (carte Mapbox live multi-techs)
-- Tour 5 : Inventaire (scan + mouvements + RMA)
-- Tour 6 : Communication unifiée (inbox dispatch/NOC/chat/SMS)
-- Tour 7 : Ressources (procédures + offline)
-- Tour 8 : Performance + Paramètres
-- Tour 9 : Command Palette globale, Assistant IA contextuel, Offline queue transverse
-
-Le shell affichera clairement l'état de chaque domaine ("En cours" / "Planifié tour N") pour que tu voies la progression réelle et ne confondes pas avec des placeholders décoratifs.
-
-## Confirmation demandée
-- Le renommage de `src/tech-app/` en `_deprecated_tech_app/` te convient ? (garde le code au cas où)
-- Le workflow 12 étapes ci-dessus correspond à ce que tu veux, ou tu veux ajouter/retirer/réordonner des étapes avant que je commence ?
+Ordre de livraison strict : un domaine à la fois, 100% avant de passer au suivant.
