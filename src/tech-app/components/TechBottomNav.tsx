@@ -4,7 +4,7 @@
  */
 import { Link, NavLink, useLocation } from "react-router-dom";
 import type { ComponentType } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   CalendarClock,
@@ -80,6 +80,12 @@ export default function TechBottomNav() {
   const location = useLocation();
   const [toolsOpen, setToolsOpen] = useState(false);
 
+  useEffect(() => {
+    const open = () => setToolsOpen(true);
+    window.addEventListener("tech:open-tools", open);
+    return () => window.removeEventListener("tech:open-tools", open);
+  }, []);
+
   const tabs: Tab[] = useMemo(() => [
     { to: "/tech", icon: LayoutDashboard, label: "Accueil", end: true },
     { to: "/tech/appointments", icon: CalendarClock, label: "RDV", badge: available.length },
@@ -95,7 +101,8 @@ export default function TechBottomNav() {
         <div className="lg:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu outils technicien">
           <button
             type="button"
-            className="absolute inset-0 bg-black/55"
+            className="absolute inset-0"
+            style={{ background: "hsl(var(--background) / 0.72)" }}
             aria-label="Fermer le menu"
             onClick={() => setToolsOpen(false)}
           />
