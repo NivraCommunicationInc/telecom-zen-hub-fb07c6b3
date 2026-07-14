@@ -77,9 +77,11 @@ export default function TechBottomNav() {
                         />
                         {badge != null && badge > 0 && (
                           <span
-                            className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-[4px] rounded-full text-[9px] font-black flex items-center justify-center leading-none italic ${
-                              urgent ? "bg-red-600 text-white animate-pulse" : "bg-[#fbbf24] text-zinc-900"
-                            }`}
+                            className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-[4px] rounded-full text-[9px] font-black flex items-center justify-center leading-none italic"
+                            style={{
+                              background: urgent ? "var(--tp-danger)" : "var(--tp-primary)",
+                              color: urgent ? "#fff" : "var(--tp-dark)",
+                            }}
                           >
                             {badge > 9 ? "9+" : badge}
                           </span>

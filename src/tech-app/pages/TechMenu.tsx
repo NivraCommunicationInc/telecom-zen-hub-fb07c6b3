@@ -3,17 +3,18 @@
  * Grille de tuiles vers tous les modules (Ops, Terrain, Formation, Perf).
  */
 import { Link } from "react-router-dom";
+import type { ComponentType } from "react";
 import {
   CalendarClock, MessageSquare, Ticket, FileSignature,
   UserSquare2, GraduationCap, BarChart3, Truck,
-  User, ChevronRight, ClipboardList, Map, Package, ScanLine,
+  ChevronRight, ClipboardList, Map, Package, ScanLine,
   Gauge, Radio, ShieldCheck, Route, Camera, Headphones,
 } from "lucide-react";
 import TechHeader from "../components/TechHeader";
 
 interface Tile {
   to: string;
-  icon: React.ComponentType<any>;
+  icon: ComponentType<any>;
   label: string;
   hint?: string;
 }
@@ -27,7 +28,7 @@ const OPS: Tile[] = [
   { to: "/tech/tickets", icon: Ticket, label: "Tickets & SAV", hint: "Ouvrir · escalader" },
 ];
 const TERRAIN: Tile[] = [
-  { to: "/tech/installation/active", icon: Route, label: "Installation active", hint: "Route · arrivée · service" },
+  { to: "/tech/appointments", icon: Route, label: "Installation active", hint: "Route · arrivée · service" },
   { to: "/tech/workorder", icon: FileSignature, label: "Bon de travail", hint: "Signature · photos · PDF" },
   { to: "/tech/client360", icon: UserSquare2, label: "Client 360", hint: "Services · factures · paiement" },
   { to: "/tech/scanner", icon: ScanLine, label: "Scan équipement", hint: "Série · MAC · IMEI" },
