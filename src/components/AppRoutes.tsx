@@ -34,6 +34,15 @@ const TechScanner = lazy(() => import("@/tech-app/pages/TechScanner"));
 const TechProfile = lazy(() => import("@/tech-app/pages/TechProfile"));
 const TechMap = lazy(() => import("@/tech-app/pages/TechMap"));
 const TechStock = lazy(() => import("@/tech-app/pages/TechStock"));
+const TechMenu = lazy(() => import("@/tech-app/pages/TechMenu"));
+const TechSchedule = lazy(() => import("@/tech-app/pages/TechSchedule"));
+const TechChat = lazy(() => import("@/tech-app/pages/TechChat"));
+const TechTickets = lazy(() => import("@/tech-app/pages/TechTickets"));
+const TechWorkOrder = lazy(() => import("@/tech-app/pages/TechWorkOrder"));
+const TechClient360 = lazy(() => import("@/tech-app/pages/TechClient360"));
+const TechTraining = lazy(() => import("@/tech-app/pages/TechTraining"));
+const TechPerformance = lazy(() => import("@/tech-app/pages/TechPerformance"));
+const TechVehicle = lazy(() => import("@/tech-app/pages/TechVehicle"));
 
 // HR Portal (lazy-loaded, fully isolated)
 const HrAppLayout = lazy(() => import("@/hr-app/HrAppLayout"));
@@ -788,6 +797,15 @@ const AppRoutes = () => {
           <Route path="map" element={<Suspense fallback={null}><TechMap /></Suspense>} />
           <Route path="stock" element={<Suspense fallback={null}><TechStock /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><TechProfile /></Suspense>} />
+          <Route path="menu" element={<Suspense fallback={null}><TechMenu /></Suspense>} />
+          <Route path="schedule" element={<Suspense fallback={null}><TechSchedule /></Suspense>} />
+          <Route path="chat" element={<Suspense fallback={null}><TechChat /></Suspense>} />
+          <Route path="tickets" element={<Suspense fallback={null}><TechTickets /></Suspense>} />
+          <Route path="workorder" element={<Suspense fallback={null}><TechWorkOrder /></Suspense>} />
+          <Route path="client360" element={<Suspense fallback={null}><TechClient360 /></Suspense>} />
+          <Route path="training" element={<Suspense fallback={null}><TechTraining /></Suspense>} />
+          <Route path="performance" element={<Suspense fallback={null}><TechPerformance /></Suspense>} />
+          <Route path="vehicle" element={<Suspense fallback={null}><TechVehicle /></Suspense>} />
         </Route>
       </Route>
 
