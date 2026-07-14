@@ -24,27 +24,25 @@ const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/Empl
 const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
 
 // Tech Portal (lazy-loaded, fully isolated mobile-first PWA)
-const TechAppLayout = lazy(() => import("@/tech-app/TechAppLayout"));
 const TechProtectedRoute = lazy(() => import("@/tech-app/components/TechProtectedRoute"));
-const TechDashboard = lazy(() => import("@/tech-app/pages/TechDashboard"));
-const TechAssignments = lazy(() => import("@/tech-app/pages/TechAssignments"));
-const TechInstallation = lazy(() => import("@/tech-app/pages/TechInstallation"));
-const TechActive = lazy(() => import("@/tech-app/pages/TechActive"));
-const TechScanner = lazy(() => import("@/tech-app/pages/TechScanner"));
-const TechProfile = lazy(() => import("@/tech-app/pages/TechProfile"));
-const TechMap = lazy(() => import("@/tech-app/pages/TechMap"));
-const TechStock = lazy(() => import("@/tech-app/pages/TechStock"));
-const TechMenu = lazy(() => import("@/tech-app/pages/TechMenu"));
-const TechAppointments = lazy(() => import("@/tech-app/pages/TechAppointments"));
-const TechSchedule = lazy(() => import("@/tech-app/pages/TechSchedule"));
-const TechChat = lazy(() => import("@/tech-app/pages/TechChat"));
-const TechTickets = lazy(() => import("@/tech-app/pages/TechTickets"));
-const TechWorkOrder = lazy(() => import("@/tech-app/pages/TechWorkOrder"));
-const TechClient360 = lazy(() => import("@/tech-app/pages/TechClient360"));
-const TechTraining = lazy(() => import("@/tech-app/pages/TechTraining"));
-const TechPerformance = lazy(() => import("@/tech-app/pages/TechPerformance"));
-const TechVehicle = lazy(() => import("@/tech-app/pages/TechVehicle"));
-const TechDiagnostics = lazy(() => import("@/tech-app/pages/TechDiagnostics"));
+
+// ============================================
+// NIVRA TECH v3 — Intervention-first product overhaul
+// Replaces the legacy /tech portal.
+// ============================================
+const TechShell = lazy(() => import("@/tech/TechShell"));
+const TechHome = lazy(() => import("@/tech/pages/TechHome"));
+const InterventionRunner = lazy(() => import("@/tech/pages/InterventionRunner"));
+const TechDomains = {
+  Day:         lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.DayPage }))),
+  Terrain:     lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.TerrainPage }))),
+  Customers:   lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.CustomersPage }))),
+  Inventory:   lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.InventoryPage }))),
+  Comms:       lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.CommsPage }))),
+  Resources:   lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.ResourcesPage }))),
+  Performance: lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.PerformancePage }))),
+  Settings:    lazy(() => import("@/tech/pages/domainPages").then(m => ({ default: m.SettingsPage }))),
+};
 
 // ============================================
 // NIVRA FIELD PLATFORM v3 — Product overhaul
