@@ -31,7 +31,6 @@ const TechProtectedRoute = lazy(() => import("@/tech-app/components/TechProtecte
 // Replaces the legacy /tech portal.
 // ============================================
 const TechShell = lazy(() => import("@/tech/TechShell"));
-const TechHome = lazy(() => import("@/tech/pages/TechHome"));
 const InterventionRunner = lazy(() => import("@/tech/pages/InterventionRunner"));
 const MissionControl = lazy(() => import("@/tech/pages/MissionControl"));
 const MaJournee = lazy(() => import("@/tech/pages/MaJournee"));
