@@ -1,34 +1,32 @@
 import { NavLink } from "react-router-dom";
 import {
-  Home, CalendarDays, Map, Users, Wrench, Package, MessagesSquare,
-  GraduationCap, TrendingUp, Settings, LogOut,
+  Activity, CalendarDays, Map, Users, Wrench, MessagesSquare,
+  GraduationCap, TrendingUp, Settings, LogOut, Boxes, RadioTower,
 } from "lucide-react";
 
 const NAV = [
-  { to: "/tech",               label: "Accueil",        icon: Home,          state: "live" as const },
-  { to: "/tech/mission",       label: "Mission Control",icon: TrendingUp,    state: "live" as const },
+  { to: "/tech",               label: "Mission Control",icon: Activity,      state: "live" as const },
   { to: "/tech/journee",       label: "Ma journée",     icon: CalendarDays,  state: "live" as const },
+  { to: "/tech/terrain",       label: "Terrain",        icon: Map,           state: "live" as const },
+  { to: "/tech/clients",       label: "Client 360",     icon: Users,         state: "live" as const },
   { to: "/tech/intervention",  label: "Intervention",   icon: Wrench,        state: "live" as const },
-  { to: "/tech/terrain",       label: "Terrain",        icon: Map,           state: "soon" as const },
-  { to: "/tech/clients",       label: "Clients",        icon: Users,         state: "soon" as const },
-  { to: "/tech/inventaire",    label: "Inventaire",     icon: Package,       state: "soon" as const },
-  { to: "/tech/communication", label: "Communication",  icon: MessagesSquare,state: "soon" as const },
-  { to: "/tech/ressources",    label: "Ressources",     icon: GraduationCap, state: "soon" as const },
-  { to: "/tech/performance",   label: "Performance",    icon: TrendingUp,    state: "soon" as const },
-  { to: "/tech/parametres",    label: "Paramètres",     icon: Settings,      state: "soon" as const },
+  { to: "/tech/inventaire",    label: "Inventaire",     icon: Boxes,         state: "live" as const },
+  { to: "/tech/communication", label: "Communication",  icon: MessagesSquare,state: "live" as const },
+  { to: "/tech/ressources",    label: "Ressources",     icon: GraduationCap, state: "live" as const },
+  { to: "/tech/performance",   label: "Performance",    icon: TrendingUp,    state: "live" as const },
+  { to: "/tech/parametres",    label: "Paramètres",     icon: Settings,      state: "live" as const },
 ];
 
 
 export function TechRail() {
   return (
     <aside className="tk-rail" aria-label="Navigation">
-      <div className="tk-rail__label">Plateforme</div>
+      <div className="tk-rail__label"><RadioTower size={12} /> Opérations terrain</div>
       {NAV.map((n) => (
         <NavLink key={n.to} to={n.to} end={n.to === "/tech"} className="tk-rail__item">
           <n.icon />
           <span>{n.label}</span>
-          {n.state === "soon" && <span className="tk-rail__tag tk-rail__tag--soon">Bientôt</span>}
-          {n.state === "live" && <span className="tk-rail__tag" style={{ background: "hsl(var(--tk-ok) / 0.15)", color: "hsl(var(--tk-ok))", borderColor: "hsl(var(--tk-ok) / 0.3)" }}>Actif</span>}
+          {n.state === "live" && <span className="tk-rail__tag">Live</span>}
         </NavLink>
       ))}
       <div style={{ marginTop: "auto", paddingTop: 12, borderTop: "1px solid hsl(var(--tk-line))" }}>
