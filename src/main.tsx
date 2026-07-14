@@ -16,6 +16,7 @@ import "@fontsource/figtree/500.css";
 import "@fontsource/figtree/600.css";
 import "@fontsource/figtree/700.css";
 import "./tech-app/styles/tech-portal.css";
+import "./tech-app/styles/tech-core.css";
 
 // Initialize Sentry FIRST so it can capture any boot-time error.
 // No-op when VITE_SENTRY_DSN is not set (safe to ship without it).

@@ -1,26 +1,27 @@
 /**
- * TechDashboard — High-level operations dashboard for technicians.
- * First screen is a real command center: today's installs, dispatch, GPS, stock, quick modules.
+ * TechDashboard v2 — Nivra Tech command center.
+ * Layout inspired by Linear / Stripe: hero mission, KPI grid, timeline, side panels.
+ * Consumes existing hooks — zero business logic changes.
  */
-import { useMemo, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  AlertTriangle, Bell, CalendarClock, CheckCircle2, ChevronRight, Clock,
-  FileSignature, LayoutGrid, Loader2, MapPin, Navigation, Package,
-  Play, Power, Radio, ScanLine, Square, Truck,
+  AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2, ChevronRight,
+  Clock, Loader2, MapPin, Navigation, Package, Phone, Radio, Sparkles,
+  TrendingUp, Zap,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTechAssignments } from "../lib/useTechAssignments";
 import { useAvailableAssignments } from "../lib/useAvailableAssignments";
-import { useOpenPunch, usePunchIn, usePunchOut } from "../lib/usePunch";
+import { useOpenPunch } from "../lib/usePunch";
 import { useVanStock } from "../lib/useVanStock";
 import TechMiniMap from "../components/TechMiniMap";
 
-function formatElapsed(ms: number): string {
+function formatShift(ms: number) {
   const s = Math.floor(ms / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}` : `${m}min`;
+  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
 }
 
 export default function TechDashboard() {
@@ -29,9 +30,7 @@ export default function TechDashboard() {
   const { data: available = [] } = useAvailableAssignments();
   const { data: openPunch } = useOpenPunch();
   const { data: vanStock } = useVanStock();
-  const punchIn = usePunchIn();
-  const punchOut = usePunchOut();
-  const [profile, setProfile] = useState<{ full_name?: string; first_name?: string } | null>(null);
+  const [profile, setProfile] = useState<{ first_name?: string; full_name?: string } | null>(null);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -43,11 +42,7 @@ export default function TechDashboard() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, first_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const { data } = await supabase.from("profiles").select("first_name, full_name").eq("user_id", user.id).maybeSingle();
       setProfile(data ?? {});
     })();
   }, []);
@@ -55,191 +50,275 @@ export default function TechDashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const todays = useMemo(() => assignments.filter((a) => a.scheduled_date === today), [assignments, today]);
   const completedToday = todays.filter((a) => a.status === "completed").length;
-  const missedToday = todays.filter((a) => ["missed", "no_show"].includes(a.status));
+  const missed = todays.filter((a) => ["missed", "no_show"].includes(a.status));
   const activeCount = assignments.filter((a) => !["completed", "cancelled", "missed", "no_show"].includes(a.status)).length;
-  const enRouteCount = assignments.filter((a) => ["en_route", "arrived", "in_progress"].includes(a.status)).length;
+  const enRoute = assignments.filter((a) => ["en_route", "arrived", "in_progress"].includes(a.status)).length;
   const nextMission = useMemo(
-    () =>
-      todays.find((a) => !["completed", "cancelled", "missed", "no_show"].includes(a.status)) ??
+    () => todays.find((a) => !["completed", "cancelled", "missed", "no_show"].includes(a.status)) ??
       assignments.find((a) => !["completed", "cancelled", "missed", "no_show"].includes(a.status)),
     [todays, assignments],
   );
-  const upcoming = assignments
-    .filter((a) => !["completed", "cancelled", "missed", "no_show"].includes(a.status))
-    .slice(0, 4);
+  const upcoming = assignments.filter((a) => !["completed", "cancelled", "missed", "no_show"].includes(a.status)).slice(0, 5);
 
-  const onShift = !!openPunch;
-  const punchStart = openPunch ? ((openPunch as any).punch_in_at || (openPunch as any).punch_in) : null;
-  const shiftMs = punchStart ? now - new Date(punchStart).getTime() : 0;
   const firstName = profile?.first_name || profile?.full_name?.split(" ")?.[0] || "Technicien";
   const dateLabel = new Date().toLocaleDateString("fr-CA", { weekday: "long", day: "numeric", month: "long" });
-  const urgentCount = available.filter((j) => j.dispatch_priority === "urgent").length;
+  const timeLabel = new Date().toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" });
   const progressPct = todays.length > 0 ? Math.round((completedToday / todays.length) * 100) : 0;
+  const punchStart = openPunch ? ((openPunch as any).punch_in_at || (openPunch as any).punch_in) : null;
+  const shiftMs = punchStart ? now - new Date(punchStart).getTime() : 0;
   const lowStock = Boolean(vanStock?.lowStock);
 
   return (
-    <div className="tp-shell min-h-screen">
-      <header className="tp-ops-header sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
-        <div className="max-w-[1180px] mx-auto h-[68px] px-4 flex items-center gap-3">
-          <div className="h-11 w-11 rounded-md flex items-center justify-center font-black italic text-[17px]" style={{ background: "var(--tp-primary)", color: "var(--tp-dark)" }}>N</div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase" style={{ color: "var(--tp-primary)" }}>Nivra Tech Command</p>
-            <h1 className="text-[20px] font-black italic uppercase leading-none truncate" style={{ color: "var(--tp-dark-text)" }}>Ops terrain · {firstName}</h1>
-          </div>
-          <Link to="/tech/appointments" className="hidden sm:flex h-10 px-4 rounded-md items-center gap-2 font-black italic uppercase text-[12px]" style={{ background: "var(--tp-primary)", color: "var(--tp-dark)" }}>
-            <CalendarClock className="h-4 w-4" /> Rendez-vous
-          </Link>
-          <button aria-label="Notifications" className="relative h-11 w-11 rounded-md flex items-center justify-center" style={{ background: "var(--tp-dark-2)", color: "var(--tp-dark-text)" }}>
-            <Bell className="h-5 w-5" />
-            {(missedToday.length > 0 || urgentCount > 0) && <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full" style={{ background: "var(--tp-danger)", boxShadow: "0 0 0 2px var(--tp-dark)" }} />}
-          </button>
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {/* Greeting */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[12px] font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>{dateLabel} · {timeLabel}</p>
+          <h1 className="text-[26px] sm:text-[32px] font-bold tracking-tight mt-1" style={{ color: "hsl(var(--foreground))" }}>
+            Bonjour {firstName} 👋
+          </h1>
         </div>
-      </header>
-
-      <div className="tp-page space-y-4">
-        <section className="tp-ops-hero">
-          <div className="tp-ops-hero-grid">
-            <div className="tp-ops-hero-main p-4 sm:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-black uppercase" style={{ color: "var(--tp-primary)" }}>{dateLabel}</p>
-                  <h2 className="mt-1 text-[32px] sm:text-[42px] font-black italic uppercase leading-none" style={{ color: "var(--tp-dark-text)" }}>Dashboard tech</h2>
-                  <p className="mt-2 text-[14px] max-w-[560px]" style={{ color: "var(--tp-dark-text-dim)" }}>
-                    {todays.length > 0 ? `${todays.length} rendez-vous installation aujourd'hui · ${completedToday} complété${completedToday > 1 ? "s" : ""}` : "Aucun rendez-vous planifié aujourd'hui"}
-                  </p>
-                </div>
-                <span className="tp-hv-pill"><span className="tp-live-dot" /> {onShift ? "Shift live" : "Hors shift"}</span>
-              </div>
-
-              <div className="mt-5 grid grid-cols-3 gap-2">
-                <div className="tp-dark-kpi is-active"><span className="tp-dark-kpi-label">RDV actifs</span><span className="tp-dark-kpi-value">{activeCount}</span></div>
-                <div className="tp-dark-kpi"><span className="tp-dark-kpi-label">En route</span><span className="tp-dark-kpi-value">{enRouteCount}</span></div>
-                <div className="tp-dark-kpi"><span className="tp-dark-kpi-label">Dispatch</span><span className="tp-dark-kpi-value">{available.length}</span></div>
-              </div>
-            </div>
-
-            <div className="tp-ops-hero-side p-4 sm:p-6">
-              <p className="text-[11px] font-black italic uppercase" style={{ color: "var(--tp-primary)" }}>Prochaine installation</p>
-              {isLoading ? (
-                <div className="h-[174px] flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--tp-primary)" }} /></div>
-              ) : nextMission ? (
-                <div className="mt-3 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-[22px] font-black leading-tight truncate" style={{ color: "var(--tp-dark-text)" }}>{nextMission.client_name || "Client"}</h3>
-                    <span className="text-[22px] font-black tabular-nums" style={{ color: "var(--tp-primary)" }}>{nextMission.scheduled_time_start?.slice(0, 5) ?? "—"}</span>
-                  </div>
-                  {nextMission.client_address && <p className="text-[13px] line-clamp-2 flex gap-2" style={{ color: "var(--tp-dark-text-dim)" }}><MapPin className="h-4 w-4 shrink-0" />{nextMission.client_address}</p>}
-                  <button onClick={() => navigate(`/tech/installation/${nextMission.id}`)} className="tp-btn-amber w-full h-[54px] flex items-center justify-center gap-2">
-                    Ouvrir le dossier <ChevronRight className="h-5 w-5" />
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-5 rounded-md p-4" style={{ background: "var(--tp-dark-2)", color: "var(--tp-dark-text-dim)" }}>Aucune installation active.</div>
-              )}
-            </div>
+        {openPunch && (
+          <div className="flex items-center gap-2 text-[12.5px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+            <Clock className="h-3.5 w-3.5" style={{ color: "hsl(var(--success))" }} />
+            Shift · <span className="tc-tabular font-semibold" style={{ color: "hsl(var(--foreground))" }}>{formatShift(shiftMs)}</span>
           </div>
-        </section>
-
-        <section className="tp-control-strip">
-          <Link to="/tech/appointments" className="tp-control-card"><CalendarClock className="h-5 w-5 mb-3" /><p className="text-[11px] font-black uppercase">Liste RDV</p><p className="text-[22px] font-black">{activeCount}</p></Link>
-          <Link to="/tech/assignments" className="tp-control-card"><Radio className="h-5 w-5 mb-3" /><p className="text-[11px] font-black uppercase">À prendre</p><p className="text-[22px] font-black">{available.length}</p></Link>
-          <Link to="/tech/map" className="tp-control-card"><Navigation className="h-5 w-5 mb-3" /><p className="text-[11px] font-black uppercase">Carte live</p><p className="text-[22px] font-black">GPS</p></Link>
-          <Link to="/tech/stock" className="tp-control-card"><Package className="h-5 w-5 mb-3" /><p className="text-[11px] font-black uppercase">Stock van</p><p className="text-[22px] font-black" style={{ color: lowStock ? "var(--tp-danger)" : "var(--tp-text)" }}>{lowStock ? "Bas" : "OK"}</p></Link>
-        </section>
-
-        <section>
-          <div className="tp-section-title"><h2 className="text-[16px] font-black italic uppercase">Modules rapides</h2></div>
-          <div className="tp-module-grid">
-            {[
-              { to: "/tech/appointments", icon: CalendarClock, title: "Rendez-vous", hint: "Toutes les installations" },
-              { to: "/tech/workorder", icon: FileSignature, title: "Bon de travail", hint: "Photos · signature" },
-              { to: "/tech/scanner", icon: ScanLine, title: "Scanner équipement", hint: "Série · MAC · IMEI" },
-              { to: "/tech/menu", icon: LayoutGrid, title: "Tous les menus", hint: "Ops · terrain · perf" },
-            ].map((m) => {
-              const Icon = m.icon;
-              return <Link key={m.to} to={m.to} className="tp-module-tile"><span className="tp-module-icon"><Icon className="h-5 w-5" /></span><span className="min-w-0"><span className="block text-[14px] font-black italic uppercase truncate">{m.title}</span><span className="block text-[11px] truncate" style={{ color: "var(--tp-text-dim)" }}>{m.hint}</span></span><ChevronRight className="h-4 w-4" /></Link>;
-            })}
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
-          <section className="tp-card overflow-hidden">
-            <div className="p-4 flex items-center justify-between border-b" style={{ borderColor: "var(--tp-border)" }}>
-              <div><p className="text-[11px] font-black uppercase" style={{ color: "var(--tp-text-dim)" }}>Agenda installation</p><h2 className="text-[18px] font-black italic uppercase">Prochains rendez-vous</h2></div>
-              <Link to="/tech/appointments" className="text-[12px] font-black italic uppercase flex items-center gap-1" style={{ color: "var(--tp-primary-deep)" }}>Liste complète <ChevronRight className="h-4 w-4" /></Link>
-            </div>
-            {upcoming.length === 0 ? (
-              <div className="p-8 text-center"><CheckCircle2 className="h-10 w-10 mx-auto mb-2" style={{ color: "var(--tp-success)" }} /><p className="font-bold">Aucun rendez-vous actif</p></div>
-            ) : (
-              <div className="p-3 space-y-2">
-                {upcoming.map((a) => (
-                  <Link key={a.id} to={`/tech/installation/${a.id}`} className="tp-schedule-row">
-                    <span className="rounded-md flex flex-col items-center justify-center" style={{ background: "var(--tp-dark)", color: "var(--tp-primary)" }}><strong className="text-[18px] leading-none">{a.scheduled_time_start?.slice(0, 5) ?? "—"}</strong><span className="text-[9px] font-black uppercase" style={{ color: "var(--tp-dark-text-dim)" }}>{a.scheduled_date?.slice(5)}</span></span>
-                    <span className="min-w-0"><span className="block text-[15px] font-black truncate">{a.client_name || "Client"}</span><span className="block text-[12px] truncate" style={{ color: "var(--tp-text-muted)" }}><MapPin className="inline h-3.5 w-3.5 mr-1" />{a.client_address || "Adresse à confirmer"}</span></span>
-                    <span className="tp-schedule-row-action self-center tp-status-chip">{a.status}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <aside className="space-y-4">
-            <div className="tp-card p-4 flex flex-col justify-between min-h-[140px]">
-              <div className="flex items-center gap-2">
-                {onShift ? <span className="tp-live-dot" /> : <Power className="h-4 w-4" style={{ color: "var(--tp-text-dim)" }} />}
-                <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: onShift ? "var(--tp-success)" : "var(--tp-text-dim)" }}>{onShift ? "En service" : "Hors service"}</p>
-              </div>
-              {onShift ? (
-                <>
-                  <p className="tp-kpi text-[26px] mt-2" style={{ color: "var(--tp-text)" }}>{formatElapsed(shiftMs)}</p>
-                  <button onClick={() => punchOut.mutate((openPunch as any).id)} disabled={punchOut.isPending} className="mt-2 h-10 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-black disabled:opacity-60 transition active:scale-95" style={{ background: "linear-gradient(135deg,#DC2626,#B91C1C)", color: "#fff" }}>
-                    {punchOut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" fill="currentColor" />} Terminer
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-[12px] mt-2" style={{ color: "var(--tp-text-muted)" }}>Commencer la journée terrain</p>
-                  <button onClick={() => punchIn.mutate()} disabled={punchIn.isPending} className="mt-2 h-10 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-black disabled:opacity-60 transition active:scale-95" style={{ background: "linear-gradient(135deg,var(--tp-success),#047857)", color: "#fff" }}>
-                    {punchIn.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" fill="currentColor" />} Pointer
-                  </button>
-                </>
-              )}
-            </div>
-
-            <div className="tp-card p-4 flex flex-col justify-between min-h-[132px]">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: "var(--tp-text-dim)" }}>Progression aujourd'hui</p>
-              <div><p className="tp-kpi text-[28px]" style={{ color: "var(--tp-primary-deep)" }}>{completedToday}<span className="text-[16px]" style={{ color: "var(--tp-text-dim)" }}>/{todays.length}</span></p><p className="text-[11px] mt-0.5" style={{ color: "var(--tp-text-muted)" }}>Installations complétées</p></div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: "#e5e7eb" }}><div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg,var(--tp-primary),var(--tp-primary-glow))" }} /></div>
-            </div>
-
-            <Link to="/tech/map" className="tp-card tp-card-hover overflow-hidden relative min-h-[156px] flex flex-col justify-end" style={{ background: "var(--tp-dark)" }}>
-              <TechMiniMap />
-              <div aria-hidden className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(17,24,39,0.94) 75%)" }} />
-              <div className="relative p-4"><p className="text-[10px] font-black uppercase mb-1" style={{ color: "var(--tp-primary)" }}>Carte opérationnelle</p><p className="text-[15px] font-black flex items-center gap-1" style={{ color: "var(--tp-dark-text)" }}><Navigation className="h-4 w-4" /> Voir les techniciens</p></div>
-            </Link>
-
-            <Link to="/tech/stock" className="tp-card tp-card-hover p-4 flex flex-col justify-between min-h-[128px]">
-              <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: "var(--tp-text-dim)" }}>Stock véhicule</p>{lowStock ? <AlertTriangle className="h-4 w-4" style={{ color: "var(--tp-warning)" }} /> : <Package className="h-4 w-4" />}</div>
-              <div className="space-y-1.5 text-[12px]"><div className="flex items-center justify-between"><span>Bornes WiFi</span><span className="tp-kpi">{vanStock ? vanStock.bornes : "—"}</span></div><div className="flex items-center justify-between"><span>Terminaux TV</span><span className="tp-kpi">{vanStock ? vanStock.terminals : "—"}</span></div><div className="flex items-center justify-between"><span>POD WiFi</span><span className="tp-kpi">{vanStock ? vanStock.pods : "—"}</span></div></div>
-            </Link>
-          </aside>
-        </div>
-
-        {missedToday.length > 0 && (
-          <section className="p-4 flex items-center gap-3 rounded-md" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.28)" }}>
-            <AlertTriangle className="h-5 w-5 shrink-0" style={{ color: "var(--tp-danger)" }} />
-            <div className="flex-1 min-w-0"><p className="text-[14px] font-bold">{missedToday.length} rendez-vous manqué{missedToday.length > 1 ? "s" : ""}</p><p className="text-[11px] mt-0.5" style={{ color: "var(--tp-danger)" }}>Action requise — à replanifier</p></div>
-            <Link to="/tech/appointments" className="shrink-0 h-9 px-4 rounded-md text-[12px] font-black flex items-center" style={{ background: "var(--tp-danger)", color: "#fff" }}>Voir</Link>
-          </section>
-        )}
-
-        {available.length > 0 && (
-          <section className="tp-card overflow-hidden mb-8">
-            <div className="px-4 pt-4 pb-2 flex items-center justify-between"><div className="flex items-center gap-2"><Truck className="h-4 w-4" style={{ color: urgentCount > 0 ? "var(--tp-danger)" : "var(--tp-primary-deep)" }} /><p className="text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: "var(--tp-text-dim)" }}>Dispatch live</p></div><Link to="/tech/assignments" className="text-[11px] font-bold flex items-center gap-0.5" style={{ color: "var(--tp-primary-deep)" }}>Tout voir <ChevronRight className="h-3 w-3" /></Link></div>
-            <ul>{available.slice(0, 3).map((job) => (<li key={job.id}><Link to="/tech/assignments" className="flex items-center gap-3 px-4 py-3 transition-colors" style={{ borderTop: "1px solid var(--tp-border)" }}><div className="h-9 w-9 rounded-md flex items-center justify-center shrink-0" style={{ background: job.dispatch_priority === "urgent" ? "rgba(220,38,38,0.14)" : "var(--tp-primary-soft)" }}><Clock className="h-4 w-4" style={{ color: job.dispatch_priority === "urgent" ? "var(--tp-danger)" : "var(--tp-primary-deep)" }} /></div><div className="min-w-0 flex-1"><p className="text-[13px] font-bold truncate">{[job.client_first_name, job.client_last_name].filter(Boolean).join(" ") || "Nouveau job"}</p><p className="text-[11px] truncate" style={{ color: "var(--tp-text-muted)" }}>{job.client_full_address || job.service_type || "—"}</p></div>{job.dispatch_priority === "urgent" && <span className="shrink-0 text-[9px] font-black px-2 py-0.5 rounded-sm uppercase tracking-wider" style={{ background: "var(--tp-danger)", color: "#fff" }}>Urgent</span>}<ChevronRight className="h-4 w-4 shrink-0" style={{ color: "var(--tp-text-dim)" }} /></Link></li>))}</ul>
-          </section>
         )}
       </div>
+
+      {/* Hero mission */}
+      <section className="tc-mission-hero animate-fade-in">
+        {isLoading ? (
+          <div className="h-32 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin" style={{ color: "hsl(var(--primary))" }} />
+          </div>
+        ) : nextMission ? (
+          <div className="grid lg:grid-cols-[1fr_auto] gap-6 items-end">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="tc-pill is-route"><span className="tc-pill-dot" />Prochaine mission</span>
+                <span className="text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>{nextMission.scheduled_time_start?.slice(0, 5) ?? "—"}</span>
+              </div>
+              <h2 className="text-[22px] sm:text-[28px] font-bold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
+                {nextMission.client_name || "Client"}
+              </h2>
+              <p className="text-[13.5px] mt-1.5 flex items-start gap-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                <MapPin className="h-4 w-4 mt-px shrink-0" />
+                {nextMission.client_address || "Adresse à confirmer"}
+              </p>
+              {nextMission.service_type && (
+                <p className="text-[12.5px] mt-1 uppercase tracking-wider font-medium" style={{ color: "hsl(var(--primary-glow))" }}>
+                  {nextMission.service_type}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {nextMission.client_phone && (
+                <a href={`tel:${nextMission.client_phone}`} className="tc-btn tc-btn-ghost"><Phone className="h-4 w-4" />Appeler</a>
+              )}
+              <button className="tc-btn tc-btn-ghost"><Navigation className="h-4 w-4" />Itinéraire</button>
+              <button onClick={() => navigate(`/tech/installation/${nextMission.id}`)} className="tc-btn tc-btn-primary">
+                Ouvrir la mission <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--success) / 0.15)" }}>
+              <CheckCircle2 className="h-5 w-5" style={{ color: "hsl(var(--success))" }} />
+            </div>
+            <div>
+              <p className="font-semibold">Aucune mission active</p>
+              <p className="text-[13px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Toutes vos installations sont terminées, bon travail.
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* KPI row */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="tc-kpi">
+          <span className="tc-kpi-label">RDV aujourd'hui</span>
+          <span className="tc-kpi-value">{todays.length}</span>
+          <span className="tc-kpi-sub">{completedToday} complété{completedToday > 1 ? "s" : ""}</span>
+        </div>
+        <div className="tc-kpi">
+          <span className="tc-kpi-label">En route</span>
+          <span className="tc-kpi-value">{enRoute}</span>
+          <span className="tc-kpi-sub">Missions actives</span>
+        </div>
+        <div className="tc-kpi">
+          <span className="tc-kpi-label">Dispatch</span>
+          <span className="tc-kpi-value">{available.length}</span>
+          <span className="tc-kpi-sub">Disponibles à prendre</span>
+        </div>
+        <div className="tc-kpi">
+          <span className="tc-kpi-label">Progression</span>
+          <span className="tc-kpi-value">{progressPct}%</span>
+          <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: "hsl(var(--muted))" }}>
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: "var(--tc-gradient-primary)" }} />
+          </div>
+        </div>
+      </section>
+
+      {/* Main grid: timeline + side */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
+        {/* Timeline */}
+        <div className="tc-surface overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "hsl(var(--border))" }}>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "hsl(var(--muted-foreground))" }}>Agenda</p>
+              <h3 className="text-[15px] font-semibold mt-0.5">Prochains rendez-vous</h3>
+            </div>
+            <Link to="/tech/appointments" className="text-[12.5px] font-medium inline-flex items-center gap-1" style={{ color: "hsl(var(--primary-glow))" }}>
+              Voir tout <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          {upcoming.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <div className="h-12 w-12 mx-auto rounded-full flex items-center justify-center mb-3" style={{ background: "hsl(var(--success) / 0.15)" }}>
+                <CheckCircle2 className="h-5 w-5" style={{ color: "hsl(var(--success))" }} />
+              </div>
+              <p className="font-medium text-[14px]">Journée complétée</p>
+              <p className="text-[12.5px] mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>Aucune mission active.</p>
+            </div>
+          ) : (
+            <ul className="p-2 space-y-1.5">
+              {upcoming.map((a) => (
+                <li key={a.id}>
+                  <Link to={`/tech/installation/${a.id}`} className="tc-row tc-focus-ring">
+                    <div className="h-11 rounded-lg flex flex-col items-center justify-center" style={{ background: "hsl(var(--muted))" }}>
+                      <strong className="text-[14px] leading-none tc-tabular">{a.scheduled_time_start?.slice(0, 5) ?? "—"}</strong>
+                      <span className="text-[9.5px] mt-1 uppercase tracking-wider" style={{ color: "hsl(var(--muted-foreground))" }}>{a.scheduled_date?.slice(5)}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold truncate">{a.client_name || "Client"}</p>
+                      <p className="text-[12px] truncate mt-0.5 flex items-center gap-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        <MapPin className="h-3 w-3 shrink-0" />{a.client_address || "Adresse à confirmer"}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Side panels */}
+        <aside className="space-y-3">
+          {/* Mini map */}
+          <Link to="/tech/map" className="tc-surface tc-surface-hover block overflow-hidden relative h-[180px]">
+            <TechMiniMap />
+            <div className="absolute inset-x-0 bottom-0 p-3" style={{ background: "linear-gradient(180deg, transparent, hsl(var(--card)) 85%)" }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "hsl(var(--primary-glow))" }}>Carte live</p>
+              <p className="text-[13.5px] font-semibold flex items-center gap-1.5">
+                <Navigation className="h-3.5 w-3.5" /> Voir la carte
+              </p>
+            </div>
+          </Link>
+
+          {/* Stock */}
+          <Link to="/tech/stock" className="tc-surface tc-surface-hover block p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "hsl(var(--muted-foreground))" }}>Stock véhicule</p>
+              {lowStock ? <AlertTriangle className="h-4 w-4" style={{ color: "hsl(var(--warning))" }} /> : <Package className="h-4 w-4" style={{ color: "hsl(var(--muted-foreground))" }} />}
+            </div>
+            <div className="space-y-1.5 text-[13px]">
+              <div className="flex justify-between"><span style={{ color: "hsl(var(--muted-foreground))" }}>Bornes WiFi</span><span className="font-semibold tc-tabular">{vanStock?.bornes ?? "—"}</span></div>
+              <div className="flex justify-between"><span style={{ color: "hsl(var(--muted-foreground))" }}>Terminaux TV</span><span className="font-semibold tc-tabular">{vanStock?.terminals ?? "—"}</span></div>
+              <div className="flex justify-between"><span style={{ color: "hsl(var(--muted-foreground))" }}>POD WiFi</span><span className="font-semibold tc-tabular">{vanStock?.pods ?? "—"}</span></div>
+            </div>
+          </Link>
+
+          {/* Assistant IA */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("tech:open-ai"))}
+            className="tc-surface tc-surface-hover w-full text-left p-4 flex items-start gap-3"
+          >
+            <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: "hsl(var(--primary) / 0.14)" }}>
+              <Sparkles className="h-4.5 w-4.5" style={{ color: "hsl(var(--primary-glow))" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13.5px] font-semibold">Assistant IA terrain</p>
+              <p className="text-[12px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Diagnostics, procédures, contexte client.</p>
+            </div>
+            <ArrowUpRight className="h-4 w-4 shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
+          </button>
+        </aside>
+      </section>
+
+      {/* Alerts row */}
+      {(missed.length > 0 || available.length > 0 || lowStock) && (
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {missed.length > 0 && (
+            <div className="tc-surface p-4 flex items-start gap-3" style={{ borderColor: "hsl(var(--destructive) / 0.35)", background: "hsl(var(--destructive) / 0.08)" }}>
+              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" style={{ color: "hsl(var(--destructive))" }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13.5px] font-semibold">{missed.length} RDV manqué{missed.length > 1 ? "s" : ""}</p>
+                <p className="text-[12px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>À replanifier avec dispatch.</p>
+              </div>
+              <Link to="/tech/appointments" className="text-[12px] font-semibold" style={{ color: "hsl(var(--destructive))" }}>Voir →</Link>
+            </div>
+          )}
+          {available.length > 0 && (
+            <div className="tc-surface p-4 flex items-start gap-3" style={{ borderColor: "hsl(var(--primary) / 0.35)", background: "hsl(var(--primary) / 0.08)" }}>
+              <Radio className="h-5 w-5 shrink-0 mt-0.5" style={{ color: "hsl(var(--primary-glow))" }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13.5px] font-semibold">{available.length} mission{available.length > 1 ? "s" : ""} disponible{available.length > 1 ? "s" : ""}</p>
+                <p className="text-[12px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Dispatch ouvert dans votre zone.</p>
+              </div>
+              <Link to="/tech/assignments" className="text-[12px] font-semibold" style={{ color: "hsl(var(--primary-glow))" }}>Prendre →</Link>
+            </div>
+          )}
+          {lowStock && (
+            <div className="tc-surface p-4 flex items-start gap-3" style={{ borderColor: "hsl(var(--warning) / 0.35)", background: "hsl(var(--warning) / 0.08)" }}>
+              <Package className="h-5 w-5 shrink-0 mt-0.5" style={{ color: "hsl(var(--warning))" }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13.5px] font-semibold">Stock véhicule bas</p>
+                <p className="text-[12px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Réapprovisionner avant la prochaine mission.</p>
+              </div>
+              <Link to="/tech/stock" className="text-[12px] font-semibold" style={{ color: "hsl(var(--warning))" }}>Voir →</Link>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Quick modules */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "hsl(var(--muted-foreground))" }}>Modules</p>
+            <h3 className="text-[15px] font-semibold mt-0.5">Accès rapide</h3>
+          </div>
+          <Link to="/tech/menu" className="text-[12.5px] font-medium inline-flex items-center gap-1" style={{ color: "hsl(var(--primary-glow))" }}>
+            Tous les modules <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { to: "/tech/appointments", label: "Rendez-vous", icon: CalendarClock },
+            { to: "/tech/scanner", label: "Scanner", icon: Zap },
+            { to: "/tech/client360", label: "Clients", icon: TrendingUp },
+            { to: "/tech/workorder", label: "Bon travail", icon: CheckCircle2 },
+            { to: "/tech/tickets", label: "Tickets", icon: AlertTriangle },
+            { to: "/tech/performance", label: "Performance", icon: TrendingUp },
+          ].map((m) => {
+            const Icon = m.icon;
+            return (
+              <Link key={m.to} to={m.to} className="tc-surface tc-surface-hover p-3 flex flex-col items-start gap-2">
+                <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: "hsl(var(--primary) / 0.14)" }}>
+                  <Icon className="h-4 w-4" style={{ color: "hsl(var(--primary-glow))" }} />
+                </div>
+                <span className="text-[12.5px] font-semibold">{m.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
