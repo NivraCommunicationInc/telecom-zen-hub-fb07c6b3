@@ -6,7 +6,6 @@ import {
   CalendarClock,
   Camera,
   ChevronRight,
-  ClipboardCheck,
   Compass,
   FileSignature,
   Gauge,
