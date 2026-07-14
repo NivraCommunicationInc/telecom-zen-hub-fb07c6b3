@@ -35,6 +35,10 @@ export default function TechShellTopBar({ onOpenMobileNav }: { onOpenMobileNav?:
   const statusClass = { available: "is-available", route: "is-route", pause: "is-pause", offline: "is-offline" }[status];
   const firstName = profile?.first_name || profile?.full_name?.split(" ")?.[0] || "Tech";
   const initials = firstName.slice(0, 2).toUpperCase();
+  const openMobileTools = () => {
+    if (onOpenMobileNav) onOpenMobileNav();
+    else window.dispatchEvent(new CustomEvent("tech:open-tools"));
+  };
 
   return (
     <header
@@ -43,7 +47,7 @@ export default function TechShellTopBar({ onOpenMobileNav }: { onOpenMobileNav?:
     >
       {/* Mobile brand */}
       <button
-        onClick={onOpenMobileNav}
+        onClick={openMobileTools}
         className="lg:hidden h-9 w-9 rounded-lg flex items-center justify-center"
         style={{ background: "hsl(var(--muted))", color: "hsl(var(--foreground))" }}
         aria-label="Menu"
