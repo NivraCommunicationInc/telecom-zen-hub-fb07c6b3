@@ -6,7 +6,6 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import type { ComponentType } from "react";
 import { useMemo, useState } from "react";
 import {
-  AlertTriangle,
   BarChart3,
   CalendarClock,
   ChevronDown,
@@ -24,7 +23,6 @@ import {
   Stethoscope,
   Ticket,
   Truck,
-  UserRound,
   UserSquare2,
   Wrench,
   Zap,
@@ -87,7 +85,6 @@ export default function TechBottomNav() {
     { to: "/tech/appointments", icon: CalendarClock, label: "RDV", badge: available.length },
     { to: "/tech/active", icon: Wrench, label: "Mission" },
     { to: "/tech/map", icon: Map, label: "Carte" },
-    { to: "/tech/profile", icon: UserRound, label: "Profil" },
   ], [available.length]);
 
   const currentSection = TOOL_GROUPS.flatMap((g) => g.items).find((item) => location.pathname.startsWith(item.to));
