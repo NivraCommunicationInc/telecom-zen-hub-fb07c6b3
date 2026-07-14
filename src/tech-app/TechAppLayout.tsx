@@ -9,8 +9,7 @@ export default function TechAppLayout() {
   return (
     <div
       data-portal="tech"
-      className="min-h-screen flex flex-col"
-      style={{ background: "var(--tp-bg)" }}
+      className="tp-shell min-h-screen flex flex-col"
     >
       <main className="flex-1 pb-[calc(72px+env(safe-area-inset-bottom))]">
         <Outlet />
