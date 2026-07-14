@@ -50,7 +50,7 @@ const STATUS_LABELS: Record<string, { label: string; variant: string }> = {
   no_show:     { label: "Absent",    variant: "is-pause" },
 };
 
-function Row({ icon: Icon, label, value, href }: { icon: ComponentType<{ className?: string }>; label: string; value: string | null | undefined; href?: string }) {
+function Row({ icon: Icon, label, value, href }: { icon: ComponentType<any>; label: string; value: string | null | undefined; href?: string }) {
   if (!value) return null;
   const inner = (
     <>
