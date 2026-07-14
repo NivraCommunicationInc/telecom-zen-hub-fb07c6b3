@@ -23,6 +23,7 @@ const FIELD: NavItem[] = [
   { to: "/tech/scanner", label: "Scanner", icon: ScanLine },
   { to: "/tech/stock", label: "Inventaire", icon: Package },
   { to: "/tech/workorder", label: "Bon de travail", icon: Wrench },
+  { to: "/tech/diagnostics", label: "Diagnostics", icon: Stethoscope },
 ];
 const OPS: NavItem[] = [
   { to: "/tech/tickets", label: "Tickets", icon: Ticket },
