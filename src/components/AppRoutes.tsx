@@ -831,6 +831,34 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
+      {/* ============================================ */}
+      {/* NIVRA FIELD PLATFORM v3 — /technicien         */}
+      {/* Product-driven refonte, 10 domains           */}
+      {/* ============================================ */}
+      <Route
+        path="/technicien"
+        element={
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">Chargement…</div>}>
+            <AuthProvider>
+              <TechProtectedRoute />
+            </AuthProvider>
+          </Suspense>
+        }
+      >
+        <Route element={<Suspense fallback={null}><FieldShell /></Suspense>}>
+          <Route index                 element={<Suspense fallback={null}><FieldPages.Home /></Suspense>} />
+          <Route path="journee"        element={<Suspense fallback={null}><FieldPages.Day /></Suspense>} />
+          <Route path="terrain"        element={<Suspense fallback={null}><FieldPages.Terrain /></Suspense>} />
+          <Route path="clients"        element={<Suspense fallback={null}><FieldPages.Customers /></Suspense>} />
+          <Route path="intervention"   element={<Suspense fallback={null}><FieldPages.Intervention /></Suspense>} />
+          <Route path="inventaire"     element={<Suspense fallback={null}><FieldPages.Inventory /></Suspense>} />
+          <Route path="communication"  element={<Suspense fallback={null}><FieldPages.Comms /></Suspense>} />
+          <Route path="ressources"     element={<Suspense fallback={null}><FieldPages.Resources /></Suspense>} />
+          <Route path="performance"    element={<Suspense fallback={null}><FieldPages.Performance /></Suspense>} />
+          <Route path="parametres"     element={<Suspense fallback={null}><FieldPages.Settings /></Suspense>} />
+        </Route>
+      </Route>
+
 
 
       
