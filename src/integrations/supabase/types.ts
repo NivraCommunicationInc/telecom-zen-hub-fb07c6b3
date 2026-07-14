@@ -15207,6 +15207,324 @@ export type Database = {
         }
         Relationships: []
       }
+      intervention_checklist_items: {
+        Row: {
+          checked: boolean
+          checked_at: string | null
+          code: string
+          created_at: string
+          id: string
+          label: string
+          note: string | null
+          position: number
+          required: boolean
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          checked?: boolean
+          checked_at?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          label: string
+          note?: string | null
+          position?: number
+          required?: boolean
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          checked?: boolean
+          checked_at?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          label?: string
+          note?: string | null
+          position?: number
+          required?: boolean
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_checklist_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_equipment: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          mac: string | null
+          scanned_via: string | null
+          serial: string
+          session_id: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          mac?: string | null
+          scanned_via?: string | null
+          serial: string
+          session_id: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          mac?: string | null
+          scanned_via?: string | null
+          serial?: string
+          session_id?: string
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_equipment_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_events: {
+        Row: {
+          action: string
+          actor: string
+          created_at: string
+          gps_lat: number | null
+          gps_lng: number | null
+          id: string
+          payload: Json
+          session_id: string
+          step: string
+        }
+        Insert: {
+          action?: string
+          actor?: string
+          created_at?: string
+          gps_lat?: number | null
+          gps_lng?: number | null
+          id?: string
+          payload?: Json
+          session_id: string
+          step: string
+        }
+        Update: {
+          action?: string
+          actor?: string
+          created_at?: string
+          gps_lat?: number | null
+          gps_lng?: number | null
+          id?: string
+          payload?: Json
+          session_id?: string
+          step?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_media: {
+        Row: {
+          bytes: number | null
+          content_type: string | null
+          created_at: string
+          id: string
+          kind: string
+          session_id: string
+          storage_path: string
+        }
+        Insert: {
+          bytes?: number | null
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          session_id: string
+          storage_path: string
+        }
+        Update: {
+          bytes?: number | null
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          session_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_media_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_sessions: {
+        Row: {
+          arrival_accuracy_m: number | null
+          arrival_gps_lat: number | null
+          arrival_gps_lng: number | null
+          assignment_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          client_full_name: string | null
+          completed_at: string | null
+          created_at: string
+          current_step: string
+          id: string
+          metadata: Json
+          order_id: string | null
+          progress: number
+          service_address: string | null
+          service_kind: string
+          started_at: string
+          status: string
+          technician_id: string
+          updated_at: string
+        }
+        Insert: {
+          arrival_accuracy_m?: number | null
+          arrival_gps_lat?: number | null
+          arrival_gps_lng?: number | null
+          assignment_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          client_full_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          current_step?: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          progress?: number
+          service_address?: string | null
+          service_kind?: string
+          started_at?: string
+          status?: string
+          technician_id: string
+          updated_at?: string
+        }
+        Update: {
+          arrival_accuracy_m?: number | null
+          arrival_gps_lat?: number | null
+          arrival_gps_lng?: number | null
+          assignment_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          client_full_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          current_step?: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          progress?: number
+          service_address?: string | null
+          service_kind?: string
+          started_at?: string
+          status?: string
+          technician_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      intervention_tests: {
+        Row: {
+          id: string
+          kind: string
+          passed: boolean
+          payload: Json
+          ran_at: string
+          session_id: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          passed?: boolean
+          payload?: Json
+          ran_at?: string
+          session_id: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          passed?: boolean
+          payload?: Json
+          ran_at?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_tests_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_wifi_config: {
+        Row: {
+          band: string
+          created_at: string
+          hidden: boolean
+          password: string
+          security: string
+          session_id: string
+          ssid: string
+          updated_at: string
+        }
+        Insert: {
+          band?: string
+          created_at?: string
+          hidden?: boolean
+          password: string
+          security?: string
+          session_id: string
+          ssid: string
+          updated_at?: string
+        }
+        Update: {
+          band?: string
+          created_at?: string
+          hidden?: boolean
+          password?: string
+          security?: string
+          session_id?: string
+          ssid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_wifi_config_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "intervention_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_answers: {
         Row: {
           ai_feedback: string | null
@@ -32395,6 +32713,46 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_activate_service_for_intervention: {
+        Args: { p_session_id: string }
+        Returns: Json
+      }
+      fn_advance_step: {
+        Args: {
+          p_from_step: string
+          p_payload?: Json
+          p_session_id: string
+          p_to_step: string
+        }
+        Returns: {
+          arrival_accuracy_m: number | null
+          arrival_gps_lat: number | null
+          arrival_gps_lng: number | null
+          assignment_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          client_full_name: string | null
+          completed_at: string | null
+          created_at: string
+          current_step: string
+          id: string
+          metadata: Json
+          order_id: string | null
+          progress: number
+          service_address: string | null
+          service_kind: string
+          started_at: string
+          status: string
+          technician_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "intervention_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_calculate_field_commission: {
         Args: { p_agent_id: string; p_order_id: string }
         Returns: {
@@ -32419,6 +32777,37 @@ export type Database = {
       fn_check_referral_qualification: {
         Args: { p_referral_id: string }
         Returns: undefined
+      }
+      fn_close_intervention: {
+        Args: { p_session_id: string }
+        Returns: {
+          arrival_accuracy_m: number | null
+          arrival_gps_lat: number | null
+          arrival_gps_lng: number | null
+          assignment_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          client_full_name: string | null
+          completed_at: string | null
+          created_at: string
+          current_step: string
+          id: string
+          metadata: Json
+          order_id: string | null
+          progress: number
+          service_address: string | null
+          service_kind: string
+          started_at: string
+          status: string
+          technician_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "intervention_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_enqueue_core_installation_emails: {
         Args: { p_appointment_id: string }
@@ -32486,6 +32875,43 @@ export type Database = {
       fn_start_final_exam: {
         Args: { _portal: string; _question_count?: number }
         Returns: Json
+      }
+      fn_start_intervention: {
+        Args: {
+          p_assignment_id: string
+          p_gps_accuracy?: number
+          p_gps_lat?: number
+          p_gps_lng?: number
+          p_service_kind?: string
+        }
+        Returns: {
+          arrival_accuracy_m: number | null
+          arrival_gps_lat: number | null
+          arrival_gps_lng: number | null
+          assignment_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          client_full_name: string | null
+          completed_at: string | null
+          created_at: string
+          current_step: string
+          id: string
+          metadata: Json
+          order_id: string | null
+          progress: number
+          service_address: string | null
+          service_kind: string
+          started_at: string
+          status: string
+          technician_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "intervention_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fn_submit_final_exam: {
         Args: { _answers: Json; _attempt_id: string }
